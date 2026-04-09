@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface DatabaseItemEditorProps {
   database: Database;
@@ -38,7 +39,7 @@ export default function DatabaseItemEditor({ database, row, open, onClose, onSav
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{row ? "Edit Row" : "New Row"}</DialogTitle>
         </DialogHeader>
@@ -46,6 +47,10 @@ export default function DatabaseItemEditor({ database, row, open, onClose, onSav
           {database.columns.map(col => (
             <FieldEditor key={col.id} column={col} value={values[col.id]} onChange={(v) => setValue(col.id, v)} onToggleMulti={(opt) => toggleMultiSelect(col.id, opt)} multiValues={values[col.id]} />
           ))}
+          <div className="space-y-1.5 pt-2 border-t">
+            <Label className="text-xs font-medium">Notes</Label>
+            <RichTextEditor content={values._notes || ""} onChange={(html) => setValue("_notes", html)} placeholder="Add notes or details..." />
+          </div>
         </div>
         <DialogFooter className="flex gap-2">
           {onDelete && row && (
