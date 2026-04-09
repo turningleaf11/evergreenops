@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import RichTextEditor from "@/components/RichTextEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DocPage } from "@/lib/mock-data";
 
@@ -50,7 +50,7 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{doc ? "Edit Page" : "New Page"}</DialogTitle>
         </DialogHeader>
@@ -61,7 +61,7 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
           </div>
           <div className="space-y-2">
             <Label>Content</Label>
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your content..." rows={6} />
+            <RichTextEditor content={content} onChange={setContent} placeholder="Write your content..." />
           </div>
           <div className="space-y-2">
             <Label>Tags (comma separated)</Label>

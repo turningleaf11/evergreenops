@@ -150,9 +150,7 @@ export default function DocsPage() {
                 ))}
               </div>
             </div>
-            <div className="prose prose-sm max-w-none">
-              <p className="text-muted-foreground leading-relaxed">{selected.content}</p>
-            </div>
+            <div className="prose prose-sm max-w-none text-foreground" dangerouslySetInnerHTML={{ __html: selected.content }} />
             {childDocs.length > 0 && (
               <div className="mt-8 border-t pt-6">
                 <h3 className="text-sm font-semibold mb-3">Sub-pages</h3>
