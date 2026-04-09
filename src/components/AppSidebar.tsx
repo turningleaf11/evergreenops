@@ -1,6 +1,7 @@
 import {
-  Home, FileText, Database, Users, ChevronDown,
-  Code2, Palette, Lightbulb, Megaphone, Settings, Building2
+  Home, FileText, Database as DbIcon, Users, ChevronDown,
+  Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
+  Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -12,16 +13,20 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { departments } from "@/lib/mock-data";
+import { departments, databases } from "@/lib/mock-data";
 
-const iconMap: Record<string, React.ElementType> = {
+const deptIconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
+};
+
+const dbIconMap: Record<string, React.ElementType> = {
+  Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
 };
 
 const mainNav = [
   { title: "Home", url: "/", icon: Home },
   { title: "Docs", url: "/docs", icon: FileText },
-  { title: "Databases", url: "/databases", icon: Database },
+  { title: "Databases", url: "/databases", icon: DbIcon },
   { title: "People", url: "/people", icon: Users },
 ];
 
@@ -30,6 +35,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
+  const isDbActive = location.pathname.startsWith("/databases");
 
   return (
     <Sidebar collapsible="icon">
@@ -80,13 +86,46 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {departments.map((dept) => {
-                    const Icon = iconMap[dept.icon] || Building2;
+                    const Icon = deptIconMap[dept.icon] || Building2;
                     return (
                       <SidebarMenuItem key={dept.id}>
                         <SidebarMenuButton asChild>
                           <NavLink to={`/department/${dept.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
                             <Icon className="h-4 w-4" />
                             {!collapsed && <span>{dept.name}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <Collapsible defaultOpen={isDbActive} className="group/collapsible">
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <DbIcon className="h-3.5 w-3.5" />
+                  {!collapsed && "Databases"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {databases.map((db) => {
+                    const Icon = dbIconMap[db.icon] || DbIcon;
+                    return (
+                      <SidebarMenuItem key={db.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={`/databases/${db.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                            <Icon className="h-4 w-4" />
+                            {!collapsed && <span>{db.title}</span>}
                           </NavLink>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

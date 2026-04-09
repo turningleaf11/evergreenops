@@ -1,10 +1,10 @@
-import { useParams, Link } from "react-router-dom";
-import { departments, teamMembers, announcements, docPages, databaseItems } from "@/lib/mock-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useParams } from "react-router-dom";
+import { departments, teamMembers, announcements, docPages, databases, databaseRows } from "@/lib/mock-data";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { statusConfig } from "@/lib/mock-data";
 import { FileText, Pin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,7 +15,7 @@ export default function DepartmentPage() {
   const members = teamMembers.filter((m) => m.departmentId === id);
   const deptAnnouncements = announcements.filter((a) => a.departmentId === id);
   const deptDocs = docPages.filter((d) => d.departmentId === id);
-  const deptItems = databaseItems.filter((d) => d.departmentId === id);
+  const deptDatabases = databases.filter((d) => d.departmentId === id);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -24,7 +24,6 @@ export default function DepartmentPage() {
         <p className="text-muted-foreground mt-1">{dept.description}</p>
       </div>
 
-      {/* Announcements */}
       {deptAnnouncements.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">Announcements</h2>
@@ -42,7 +41,6 @@ export default function DepartmentPage() {
         </section>
       )}
 
-      {/* Team Members */}
       <section>
         <h2 className="text-lg font-semibold mb-3">Team ({members.length})</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -62,7 +60,6 @@ export default function DepartmentPage() {
         </div>
       </section>
 
-      {/* Docs */}
       {deptDocs.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-3">Docs</h2>
@@ -82,25 +79,22 @@ export default function DepartmentPage() {
         </section>
       )}
 
-      {/* Active Work */}
-      {deptItems.length > 0 && (
+      {deptDatabases.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold mb-3">Active Work</h2>
-          <div className="space-y-2">
-            {deptItems.map((item) => {
-              const st = statusConfig[item.status];
+          <h2 className="text-lg font-semibold mb-3">Databases</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {deptDatabases.map((db) => {
+              const rowCount = databaseRows.filter(r => r.databaseId === db.id).length;
               return (
-                <Card key={item.id}>
-                  <CardContent className="p-3 flex items-center justify-between">
-                    <div className="min-w-0 mr-2">
-                      <p className="font-medium text-sm truncate">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.assignee}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0" style={{ borderColor: `hsl(${st.color})`, color: `hsl(${st.color})` }}>
-                      {st.label}
-                    </Badge>
-                  </CardContent>
-                </Card>
+                <Link key={db.id} to={`/databases/${db.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <p className="font-medium text-sm">{db.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{db.description}</p>
+                      <Badge variant="secondary" className="text-[10px] mt-2">{rowCount} rows</Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
               );
             })}
           </div>

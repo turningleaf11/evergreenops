@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { teamMembers, departments, databaseItems } from "@/lib/mock-data";
+import { teamMembers, departments, databaseRows } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ export default function PeoplePage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map((member) => {
           const dept = departments.find((d) => d.id === member.departmentId);
-          const taskCount = databaseItems.filter((i) => i.assignee === member.name && i.type === "task" && i.status !== "completed").length;
+          const taskCount = databaseRows.filter((r) => r.values.assignee === member.name && r.values.status !== "Done" && r.values.status !== "Completed").length;
           return (
             <Card key={member.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">

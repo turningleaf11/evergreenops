@@ -1,8 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { announcements, departments, docPages, databaseItems } from "@/lib/mock-data";
+import { announcements, departments, docPages, databases, databaseRows } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
+import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2, Database } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
@@ -11,7 +11,8 @@ const iconMap: Record<string, React.ElementType> = {
 const Index = () => {
   const pinnedAnnouncements = announcements.filter((a) => a.pinned);
   const recentDocs = docPages.slice(0, 3);
-  const activeItems = databaseItems.filter((i) => i.status === "in_progress").slice(0, 4);
+  // Show rows that are "In Progress" across all databases
+  const activeRows = databaseRows.filter((r) => r.values.status === "In Progress").slice(0, 4);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -20,7 +21,6 @@ const Index = () => {
         <p className="text-muted-foreground mt-1">Here's what's happening across your workspace.</p>
       </div>
 
-      {/* Announcements */}
       {pinnedAnnouncements.length > 0 && (
         <div className="space-y-3">
           {pinnedAnnouncements.map((a) => (
@@ -40,7 +40,6 @@ const Index = () => {
         </div>
       )}
 
-      {/* Departments */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Departments</h2>
@@ -69,7 +68,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Two-column: Recent Docs + Active Work */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -102,23 +100,28 @@ const Index = () => {
             <Link to="/databases" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
           </div>
           <div className="space-y-2">
-            {activeItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm truncate mr-2">{item.title}</p>
-                    <Badge variant="outline" className="text-[10px] shrink-0 capitalize">{item.type}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${item.progress}%` }} />
+            {activeRows.map((row) => {
+              const db = databases.find(d => d.id === row.databaseId);
+              return (
+                <Card key={row.id} className="hover:shadow-sm transition-shadow">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-sm truncate mr-2">{row.values.title}</p>
+                      {db && <Badge variant="outline" className="text-[10px] shrink-0">{db.title}</Badge>}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{item.progress}%</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">{item.assignee} · Due {item.dueDate}</p>
-                </CardContent>
-              </Card>
-            ))}
+                    {row.values.progress !== undefined && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${row.values.progress}%` }} />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{row.values.progress}%</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1.5">{row.values.assignee}{row.values.due_date ? ` · Due ${row.values.due_date}` : ""}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </section>
       </div>
