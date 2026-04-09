@@ -1,6 +1,7 @@
 import {
-  Home, FileText, Database, Users, ChevronDown,
-  Code2, Palette, Lightbulb, Megaphone, Settings, Building2
+  Home, FileText, Database as DbIcon, Users, ChevronDown,
+  Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
+  Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -12,16 +13,20 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { departments } from "@/lib/mock-data";
+import { departments, databases } from "@/lib/mock-data";
 
-const iconMap: Record<string, React.ElementType> = {
+const deptIconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
+};
+
+const dbIconMap: Record<string, React.ElementType> = {
+  Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
 };
 
 const mainNav = [
   { title: "Home", url: "/", icon: Home },
   { title: "Docs", url: "/docs", icon: FileText },
-  { title: "Databases", url: "/databases", icon: Database },
+  { title: "Databases", url: "/databases", icon: DbIcon },
   { title: "People", url: "/people", icon: Users },
 ];
 
