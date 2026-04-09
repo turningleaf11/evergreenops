@@ -35,6 +35,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
+  const isDbActive = location.pathname.startsWith("/databases");
 
   return (
     <Sidebar collapsible="icon">
