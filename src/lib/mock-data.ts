@@ -17,12 +17,20 @@ export interface Announcement {
   pinned: boolean;
 }
 
+export type Visibility = "workspace" | "departments" | "private";
+
+export interface SharedWith {
+  departmentIds: string[];
+  memberIds: string[];
+}
+
 export interface DocPage {
   id: string;
   title: string;
   content: string;
   parentId: string | null;
-  departmentId: string | null;
+  visibility: Visibility;
+  sharedWith: SharedWith;
   author: string;
   createdAt: string;
   updatedAt: string;
@@ -44,7 +52,8 @@ export interface Database {
   title: string;
   description: string;
   icon: string;
-  departmentId: string | null;
+  visibility: Visibility;
+  sharedWith: SharedWith;
   createdBy: string;
   columns: DatabaseColumn[];
 }
@@ -82,11 +91,11 @@ export const announcements: Announcement[] = [
 ];
 
 export const docPages: DocPage[] = [
-  { id: "d1", title: "Getting Started Guide", content: "<h2>Welcome to our team workspace</h2><p>This guide will help you navigate and use all the features available.</p><ul><li>Explore departments and team members</li><li>Browse and create documentation</li><li>Use databases to track goals, projects, and tasks</li></ul><div class=\"callout callout-info\"><p>Info: If you're new, start by visiting the <strong>People</strong> page to meet the team.</p></div>", parentId: null, departmentId: null, author: "Sarah Chen", createdAt: "2026-03-01", updatedAt: "2026-04-05", tags: ["onboarding", "guide"] },
-  { id: "d2", title: "Engineering Standards", content: "<h2>Coding Standards</h2><p>Our coding standards and best practices for all engineering projects.</p><h3>Code Reviews</h3><p>All pull requests require <strong>at least two approvals</strong> before merging.</p><div class=\"callout callout-warning\"><p>Warning: Never push directly to the main branch.</p></div>", parentId: null, departmentId: "eng", author: "Jordan Park", createdAt: "2026-03-10", updatedAt: "2026-04-02", tags: ["engineering", "standards"] },
-  { id: "d3", title: "Brand Guidelines", content: "<h2>Brand Identity</h2><p>Official brand colors, typography, and usage guidelines.</p><h3>Colors</h3><p>Primary: <mark style=\"background-color: #bfdbfe\">Blue (#2563eb)</mark>, Accent: <mark style=\"background-color: #e9d5ff\">Purple (#9333ea)</mark></p>", parentId: null, departmentId: "design", author: "Alex Rivera", createdAt: "2026-03-15", updatedAt: "2026-04-01", tags: ["brand", "design"] },
-  { id: "d4", title: "API Documentation", content: "<h2>API Reference</h2><p>Complete API reference for our public and internal endpoints.</p><pre><code>GET /api/v1/users\nPOST /api/v1/users\nGET /api/v1/projects/:id</code></pre><div class=\"callout callout-success\"><p>Success: All endpoints support JSON responses.</p></div>", parentId: "d2", departmentId: "eng", author: "Jordan Park", createdAt: "2026-03-20", updatedAt: "2026-04-03", tags: ["api", "engineering"] },
-  { id: "d5", title: "Product Roadmap", content: "<h2>Product Vision</h2><p>Our product vision and upcoming features for the next two quarters.</p><h3>Q2 Priorities</h3><ol><li>Mobile app v2 launch</li><li>User retention improvements</li><li>New analytics dashboard</li></ol>", parentId: null, departmentId: "product", author: "Maria Santos", createdAt: "2026-03-25", updatedAt: "2026-04-04", tags: ["roadmap", "product"] },
+  { id: "d1", title: "Getting Started Guide", content: "<h2>Welcome to our team workspace</h2><p>This guide will help you navigate and use all the features available.</p><ul><li>Explore departments and team members</li><li>Browse and create documentation</li><li>Use databases to track goals, projects, and tasks</li></ul><div class=\"callout callout-info\"><p>Info: If you're new, start by visiting the <strong>People</strong> page to meet the team.</p></div>", parentId: null, visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, author: "Sarah Chen", createdAt: "2026-03-01", updatedAt: "2026-04-05", tags: ["onboarding", "guide"] },
+  { id: "d2", title: "Engineering Standards", content: "<h2>Coding Standards</h2><p>Our coding standards and best practices for all engineering projects.</p><h3>Code Reviews</h3><p>All pull requests require <strong>at least two approvals</strong> before merging.</p><div class=\"callout callout-warning\"><p>Warning: Never push directly to the main branch.</p></div>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, author: "Jordan Park", createdAt: "2026-03-10", updatedAt: "2026-04-02", tags: ["engineering", "standards"] },
+  { id: "d3", title: "Brand Guidelines", content: "<h2>Brand Identity</h2><p>Official brand colors, typography, and usage guidelines.</p><h3>Colors</h3><p>Primary: <mark style=\"background-color: #bfdbfe\">Blue (#2563eb)</mark>, Accent: <mark style=\"background-color: #e9d5ff\">Purple (#9333ea)</mark></p>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["design"], memberIds: [] }, author: "Alex Rivera", createdAt: "2026-03-15", updatedAt: "2026-04-01", tags: ["brand", "design"] },
+  { id: "d4", title: "API Documentation", content: "<h2>API Reference</h2><p>Complete API reference for our public and internal endpoints.</p><pre><code>GET /api/v1/users\nPOST /api/v1/users\nGET /api/v1/projects/:id</code></pre><div class=\"callout callout-success\"><p>Success: All endpoints support JSON responses.</p></div>", parentId: "d2", visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, author: "Jordan Park", createdAt: "2026-03-20", updatedAt: "2026-04-03", tags: ["api", "engineering"] },
+  { id: "d5", title: "Product Roadmap", content: "<h2>Product Vision</h2><p>Our product vision and upcoming features for the next two quarters.</p><h3>Q2 Priorities</h3><ol><li>Mobile app v2 launch</li><li>User retention improvements</li><li>New analytics dashboard</li></ol>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["product"], memberIds: [] }, author: "Maria Santos", createdAt: "2026-03-25", updatedAt: "2026-04-04", tags: ["roadmap", "product"] },
 ];
 
 // ---- Database Templates ----
@@ -157,17 +166,17 @@ export const databaseTemplates: { id: string; title: string; description: string
 export const databases: Database[] = [
   {
     id: "db1", title: "Company Goals", description: "Q2 2026 OKRs and strategic goals", icon: "Target",
-    departmentId: null, createdBy: "Sarah Chen",
+    visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, createdBy: "Sarah Chen",
     columns: databaseTemplates[0].columns,
   },
   {
     id: "db2", title: "Engineering Projects", description: "Active engineering projects", icon: "FolderKanban",
-    departmentId: "eng", createdBy: "Jordan Park",
+    visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, createdBy: "Jordan Park",
     columns: databaseTemplates[1].columns,
   },
   {
     id: "db3", title: "Sprint Tasks", description: "Current sprint task board", icon: "CheckSquare",
-    departmentId: "eng", createdBy: "Jordan Park",
+    visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, createdBy: "Jordan Park",
     columns: databaseTemplates[2].columns,
   },
 ];

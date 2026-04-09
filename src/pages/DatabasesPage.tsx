@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { databases as initialDatabases, databaseRows as initialRows } from "@/lib/mock-data";
-import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
+import type { Database, DatabaseRow, DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +28,14 @@ export default function DatabasesPage() {
 
   const currentDb = dbId ? allDatabases.find(d => d.id === dbId) : null;
 
-  const handleCreateDatabase = (title: string, description: string, columns: DatabaseColumn[], icon: string) => {
+  const handleCreateDatabase = (title: string, description: string, columns: DatabaseColumn[], icon: string, visibility: Visibility, sharedWith: SharedWith) => {
     const newDb: Database = {
       id: `db_${Date.now()}`,
       title,
       description,
       icon,
-      departmentId: null,
+      visibility,
+      sharedWith,
       createdBy: "Sarah Chen",
       columns,
     };

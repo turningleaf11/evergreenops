@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { docPages as initialDocs } from "@/lib/mock-data";
-import type { DocPage } from "@/lib/mock-data";
+import type { DocPage, Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,7 @@ export default function DocsPage() {
     }
   };
 
-  const handleSaveDoc = (data: { title: string; content: string; tags: string[]; parentId: string | null }) => {
+  const handleSaveDoc = (data: { title: string; content: string; tags: string[]; parentId: string | null; visibility: Visibility; sharedWith: SharedWith }) => {
     const now = new Date().toISOString().split("T")[0];
     if (editingDoc) {
       setDocs((prev) =>
@@ -51,7 +51,6 @@ export default function DocsPage() {
       const newDoc: DocPage = {
         id: `d_${Date.now()}`,
         ...data,
-        departmentId: null,
         author: currentUser.name,
         createdAt: now,
         updatedAt: now,

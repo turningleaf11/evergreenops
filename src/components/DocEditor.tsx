@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RichTextEditor from "@/components/RichTextEditor";
+import AccessPicker from "@/components/AccessPicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { DocPage } from "@/lib/mock-data";
+import type { DocPage, Visibility, SharedWith } from "@/lib/mock-data";
 
 interface DocEditorProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { title: string; content: string; tags: string[]; parentId: string | null }) => void;
+  onSave: (data: { title: string; content: string; tags: string[]; parentId: string | null; visibility: Visibility; sharedWith: SharedWith }) => void;
   onDelete?: () => void;
   doc?: DocPage | null;
   allDocs: DocPage[];
@@ -21,6 +22,8 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
   const [content, setContent] = useState("");
   const [tagsStr, setTagsStr] = useState("");
   const [parentId, setParentId] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<Visibility>("workspace");
+  const [sharedWith, setSharedWith] = useState<SharedWith>({ departmentIds: [], memberIds: [] });
 
   useEffect(() => {
     if (doc) {
@@ -28,11 +31,15 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
       setContent(doc.content);
       setTagsStr(doc.tags.join(", "));
       setParentId(doc.parentId);
+      setVisibility(doc.visibility);
+      setSharedWith(doc.sharedWith);
     } else {
       setTitle("");
       setContent("");
       setTagsStr("");
       setParentId(null);
+      setVisibility("workspace");
+      setSharedWith({ departmentIds: [], memberIds: [] });
     }
   }, [doc, open]);
 
@@ -45,6 +52,8 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
       content: content.trim(),
       tags: tagsStr.split(",").map((t) => t.trim()).filter(Boolean),
       parentId,
+      visibility,
+      sharedWith,
     });
   };
 
@@ -81,6 +90,11 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
               </SelectContent>
             </Select>
           </div>
+          <AccessPicker
+            visibility={visibility}
+            sharedWith={sharedWith}
+            onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
+          />
         </div>
         <DialogFooter className="gap-2">
           {onDelete && (
