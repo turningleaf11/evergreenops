@@ -1,76 +1,46 @@
 
-# Team Home Space — Notion-Inspired Workspace
 
-## Overview
-A multi-department team portal with rich documentation, flexible databases (table/kanban/list views), and role-based access. Think Notion meets an internal company hub.
+# Flexible Database Engine
 
-## Pages & Navigation
+## Change
+Make databases generic containers (like Notion) instead of hardcoded goal/project/task types. Users can create any database with custom fields — e.g., "Bug Tracker", "Content Calendar", "Meeting Notes", "Inventory", etc.
 
-### Collapsible Sidebar
-- Workspace name & logo at top
-- **Home** — dashboard with recent activity, announcements, pinned pages
-- **Departments** — expandable list (Engineering, Design, Marketing, etc.) each with their own space
-- **Docs** — team wiki/knowledge base
-- **Databases** — goals, projects, tasks
-- **People** — team directory
-- User avatar & settings at bottom
+## Data Model
 
-### 1. Home / Dashboard
-- Welcome banner with team announcements
-- "Recently visited" pages
-- Pinned/favorited items
-- Quick-access cards to each department
+**Database** — a named container with a schema
+- id, title, description, icon, departmentId, createdBy, columns (field definitions)
 
-### 2. Department Spaces
-- Each department gets its own landing page with:
-  - Department description & team members
-  - Pinned docs and databases
-  - Department-specific announcements
-- Departments: configurable list (e.g., Engineering, Design, Product, Marketing, Operations)
+**Database Column** — defines a field in that database
+- id, name, type (text | number | select | multi_select | date | person | checkbox | url | progress), options (for select types), required
 
-### 3. Documentation / Wiki
-- **Rich text editor** with headings, lists, code blocks, callouts, dividers, and inline images
-- Nested page hierarchy (pages within pages)
-- Breadcrumb navigation
-- Full-text search across docs
-- Page metadata: author, created/updated dates, tags
+**Database Row** — a record in a database
+- id, databaseId, values (key-value map of columnId → value), createdAt, updatedAt
 
-### 4. Databases (Goals, Projects, Tasks)
-- **Three switchable views** on the same dataset:
-  - **Table view** — sortable, filterable columns (status, priority, assignee, due date, tags)
-  - **Kanban board** — drag-and-drop cards grouped by status or any column
-  - **List view** — compact checklist-style
-- Database types:
-  - **Goals** — OKR-style with progress tracking
-  - **Projects** — linked to goals, with status and timeline
-  - **Tasks** — linked to projects, assignable to team members
-- Inline editing, filters, and grouping
-- Color-coded status badges and priority indicators
+## Pre-built Templates
+Instead of hardcoded types, offer **templates** when creating a new database:
+- Goals Tracker (status, priority, progress, assignee, due date)
+- Project Board (status, priority, assignee, timeline, tags)
+- Task List (status, priority, assignee, due date)
+- Bug Tracker (severity, status, reporter, assignee)
+- Content Calendar (publish date, status, author, channel)
+- Blank (start from scratch)
 
-### 5. People / Team Directory
-- Grid of team member cards with avatar, name, role, department
-- Filter by department
-- Click to view profile with contact info and assigned tasks
+## What Changes
 
-## Data & Auth (Lovable Cloud + Supabase)
-- **Authentication**: Email/password login with department-based role access
-- **Roles**: Admin, Department Lead, Member (stored in separate `user_roles` table)
-- **Database tables**: departments, pages (docs), databases, database_items, team_members, announcements
-- **RLS policies**: Members see their department's content; admins see everything
+### New/Modified Files
+- `src/lib/mock-data.ts` — replace `DatabaseItem` with `Database`, `DatabaseColumn`, `DatabaseRow` interfaces; add sample databases with different schemas; remove hardcoded status/priority configs (move into per-database column options)
+- `src/pages/DatabasesPage.tsx` — show list of databases; click into one to see its rows in table/kanban/list views; "New Database" button opens template picker
+- `src/components/DatabaseView.tsx` — generic renderer for any database's rows across all three view modes, reading columns dynamically
+- `src/components/DatabaseItemEditor.tsx` — dynamic form that renders fields based on the database's column schema
+- `src/components/CreateDatabaseDialog.tsx` — template picker + custom column editor
 
-## Design & UX
-- Clean, minimal aesthetic — light neutral tones with subtle borders
-- Notion-inspired typography and spacing
-- Responsive layout (works on desktop and tablet)
-- Smooth transitions between views
-- Collapsible sidebar with icon-only mini mode
+### Sidebar
+- "Databases" section shows list of all databases (not just one page)
 
 ## Build Order
-1. Sidebar navigation + routing for all pages
-2. Home dashboard with static department cards
-3. Department spaces with team listing
-4. Rich text document editor + page hierarchy
-5. Database engine with table, kanban, and list views
-6. People directory
-7. Auth, roles, and RLS policies
-8. Search and filtering across docs and databases
+1. Define new generic data model interfaces and mock data (2-3 sample databases with different schemas)
+2. Build database list page showing all databases
+3. Build dynamic table/kanban/list views that read column definitions
+4. Build create/edit dialogs with dynamic form fields
+5. Update sidebar to list individual databases
+
