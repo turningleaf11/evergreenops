@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { databaseTemplates } from "@/lib/mock-data";
-import type { DatabaseColumn } from "@/lib/mock-data";
+import type { DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Target, FolderKanban, CheckSquare, Bug, Calendar, Plus } from "lucide-react";
+import AccessPicker from "@/components/AccessPicker";
 
 const iconMap: Record<string, React.ElementType> = {
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
@@ -15,7 +16,7 @@ const iconMap: Record<string, React.ElementType> = {
 interface CreateDatabaseDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (title: string, description: string, columns: DatabaseColumn[], icon: string) => void;
+  onCreate: (title: string, description: string, columns: DatabaseColumn[], icon: string, visibility: Visibility, sharedWith: SharedWith) => void;
 }
 
 export default function CreateDatabaseDialog({ open, onClose, onCreate }: CreateDatabaseDialogProps) {
@@ -23,12 +24,16 @@ export default function CreateDatabaseDialog({ open, onClose, onCreate }: Create
   const [selectedTemplate, setSelectedTemplate] = useState<typeof databaseTemplates[0] | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("workspace");
+  const [sharedWith, setSharedWith] = useState<SharedWith>({ departmentIds: [], memberIds: [] });
 
   const handleClose = () => {
     setStep("template");
     setSelectedTemplate(null);
     setTitle("");
     setDescription("");
+    setVisibility("workspace");
+    setSharedWith({ departmentIds: [], memberIds: [] });
     onClose();
   };
 
@@ -41,7 +46,7 @@ export default function CreateDatabaseDialog({ open, onClose, onCreate }: Create
 
   const handleCreate = () => {
     if (!selectedTemplate || !title.trim()) return;
-    onCreate(title.trim(), description, selectedTemplate.columns, selectedTemplate.icon);
+    onCreate(title.trim(), description, selectedTemplate.columns, selectedTemplate.icon, visibility, sharedWith);
     handleClose();
   };
 
@@ -93,6 +98,11 @@ export default function CreateDatabaseDialog({ open, onClose, onCreate }: Create
                 </div>
               </div>
             )}
+            <AccessPicker
+              visibility={visibility}
+              sharedWith={sharedWith}
+              onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
+            />
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={() => setStep("template")}>Back</Button>
               <Button size="sm" onClick={handleCreate} disabled={!title.trim()}>Create Database</Button>

@@ -14,8 +14,8 @@ export default function DepartmentPage() {
 
   const members = teamMembers.filter((m) => m.departmentId === id);
   const deptAnnouncements = announcements.filter((a) => a.departmentId === id);
-  const deptDocs = docPages.filter((d) => d.departmentId === id);
-  const deptDatabases = databases.filter((d) => d.departmentId === id);
+  const deptDocs = docPages.filter((d) => d.sharedWith.departmentIds.includes(id!));
+  const deptDatabases = databases.filter((d) => d.sharedWith.departmentIds.includes(id!));
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
