@@ -2,18 +2,20 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { departments, databases } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/AuthContext";
 
 const deptIconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
@@ -23,19 +25,21 @@ const dbIconMap: Record<string, React.ElementType> = {
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
 };
 
-const mainNav = [
-  { title: "Home", url: "/", icon: Home },
-  { title: "Docs", url: "/docs", icon: FileText },
-  { title: "Databases", url: "/databases", icon: DbIcon },
-  { title: "People", url: "/people", icon: Users },
-];
-
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
   const isDbActive = location.pathname.startsWith("/databases");
+  const { currentUser, isAdmin, role, setRole } = useAuth();
+
+  const mainNav = [
+    { title: "Home", url: "/", icon: Home },
+    { title: "Docs", url: "/docs", icon: FileText },
+    { title: "Databases", url: "/databases", icon: DbIcon },
+    { title: "People", url: "/people", icon: Users },
+    ...(isAdmin ? [{ title: "Settings", url: "/settings", icon: Settings }] : []),
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -138,18 +142,32 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3">
+      <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
         <div className="flex items-center gap-2">
           <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-xs bg-primary text-primary-foreground">SC</AvatarFallback>
+            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+              {currentUser.name.split(" ").map((n) => n[0]).join("")}
+            </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-sidebar-foreground">Sarah Chen</span>
-              <span className="text-[10px] text-muted-foreground">Admin</span>
+              <span className="text-xs font-medium text-sidebar-foreground">{currentUser.name}</span>
+              <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
           )}
         </div>
+        {!collapsed && (
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <ShieldCheck className="h-3 w-3" /> Admin mode
+            </span>
+            <Switch
+              checked={isAdmin}
+              onCheckedChange={(checked) => setRole(checked ? "admin" : "user")}
+              className="scale-75"
+            />
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

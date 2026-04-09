@@ -5,10 +5,11 @@ import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft } from "lucide-react";
+import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft, Trash2 } from "lucide-react";
 import DatabaseView from "@/components/DatabaseView";
 import DatabaseItemEditor from "@/components/DatabaseItemEditor";
 import CreateDatabaseDialog from "@/components/CreateDatabaseDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const iconMap: Record<string, React.ElementType> = {
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
@@ -17,6 +18,7 @@ const iconMap: Record<string, React.ElementType> = {
 export default function DatabasesPage() {
   const { dbId } = useParams<{ dbId: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [allDatabases, setAllDatabases] = useState<Database[]>(initialDatabases);
   const [allRows, setAllRows] = useState<DatabaseRow[]>(initialRows);
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,6 +40,12 @@ export default function DatabasesPage() {
     };
     setAllDatabases(prev => [...prev, newDb]);
     navigate(`/databases/${newDb.id}`);
+  };
+
+  const handleDeleteDatabase = (dbId: string) => {
+    setAllDatabases(prev => prev.filter(d => d.id !== dbId));
+    setAllRows(prev => prev.filter(r => r.databaseId !== dbId));
+    navigate("/databases");
   };
 
   const handleAddRow = () => {
@@ -80,10 +88,15 @@ export default function DatabasesPage() {
     const dbRows = allRows.filter(r => r.databaseId === currentDb.id);
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8">
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete Database
+            </Button>
+          )}
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{currentDb.title}</h1>
@@ -98,9 +111,9 @@ export default function DatabasesPage() {
         <DatabaseView
           database={currentDb}
           rows={dbRows}
-          onAdd={handleAddRow}
-          onEdit={handleEditRow}
-          onDelete={(id) => setAllRows(prev => prev.filter(r => r.id !== id))}
+          onAdd={isAdmin ? handleAddRow : undefined}
+          onEdit={isAdmin ? handleEditRow : undefined}
+          onDelete={isAdmin ? (id) => setAllRows(prev => prev.filter(r => r.id !== id)) : undefined}
         />
 
         {currentDb && (
@@ -110,7 +123,7 @@ export default function DatabasesPage() {
             open={editorOpen}
             onClose={() => setEditorOpen(false)}
             onSave={handleSaveRow}
-            onDelete={editingRow ? handleDeleteRow : undefined}
+            onDelete={isAdmin && editingRow ? handleDeleteRow : undefined}
           />
         )}
       </div>
@@ -125,9 +138,11 @@ export default function DatabasesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Databases</h1>
           <p className="text-muted-foreground mt-1">Create and manage your team's databases.</p>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New Database
-        </Button>
+        {isAdmin && (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> New Database
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
