@@ -85,7 +85,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {departments.map((dept) => {
-                    const Icon = iconMap[dept.icon] || Building2;
+                    const Icon = deptIconMap[dept.icon] || Building2;
                     return (
                       <SidebarMenuItem key={dept.id}>
                         <SidebarMenuButton asChild>
