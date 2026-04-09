@@ -1,70 +1,67 @@
 
 
-# Rich Text Editor for Docs & Database Pages
+# Access Control for Docs & Databases
 
-## Overview
-Replace the plain textarea editors with a full rich text editing experience using **TipTap** (a headless, extensible rich text editor built on ProseMirror). Content will be stored as HTML strings, rendered inline on doc pages and in an expandable detail view for database rows.
+## Current State
+Docs and databases each have a single `departmentId` field. If it's set, the item appears on that department's page. If `null`, it's workspace-wide. There's no UI to set this when creating/editing, and no way to share with multiple departments or specific people.
 
-## What Gets Built
+## What Changes
 
-### 1. TipTap Rich Text Editor Component (`src/components/RichTextEditor.tsx`)
-A reusable editor with a floating/fixed toolbar supporting:
-- **Headings** (H1, H2, H3)
-- **Text formatting** — bold, italic, underline, strikethrough, code
-- **Lists** — bullet, numbered, task/checklist
-- **Callout blocks** — info, warning, success, error (custom extension or blockquote with styling)
-- **Color picker** — text color and highlight/background color
-- **Links** and **embeds** (iframe for YouTube/URLs)
-- **Code blocks** with syntax style
-- **Dividers** (horizontal rule)
-- **Block quotes**
+### 1. Replace `departmentId` with flexible access model
+Update `DocPage` and `Database` interfaces to support granular sharing:
 
-Toolbar styled to match the Notion-minimal aesthetic — small icon buttons in a sticky bar above the editor.
+```text
+visibility: "workspace" | "departments" | "private"
+sharedWith: {
+  departmentIds: string[]    // multiple departments
+  memberIds: string[]        // specific people
+}
+```
 
-### 2. Update DocEditor Dialog
-- Replace the `<Textarea>` with the new `RichTextEditor` component
-- Content stored/saved as HTML string
-- Expand dialog to `max-w-3xl` for comfortable editing
+- **Workspace** — everyone can see it (replaces `departmentId: null`)
+- **Departments** — only selected departments see it (supports multiple)
+- **Private** — only explicitly listed members see it
 
-### 3. Update DocsPage Content Rendering
-- Replace `<p>{selected.content}</p>` with `dangerouslySetInnerHTML` rendering the HTML content
-- Apply Tailwind `prose` classes for clean typography
+### 2. Access Picker component (`src/components/AccessPicker.tsx`)
+A reusable UI widget used in both DocEditor and CreateDatabaseDialog:
+- Radio group for visibility level (Workspace / Departments / Private)
+- When "Departments" is selected: multi-select checklist of all departments
+- When "Private" is selected: multi-select checklist of team members
+- Shows current access summary as badges
 
-### 4. Add Notes/Description Field to Database Rows
-- Add a "notes" or "description" rich text field to the `DatabaseItemEditor` dialog
-- Store as an extra `_notes` key in the row values
-- Show expandable content when clicking a row in table/list view
+### 3. Update DocEditor dialog
+- Add the AccessPicker below the existing fields
+- `onSave` callback passes `visibility` and `sharedWith` data
+- Default new docs to "Workspace" visibility
 
-### 5. Content Data Migration
-- Update mock data `content` fields from plain text to HTML strings so existing docs render correctly
+### 4. Update CreateDatabaseDialog
+- Add a second step or section with the AccessPicker
+- `onCreate` callback includes visibility and sharedWith
+- Default new databases to "Workspace" visibility
 
-## Dependencies to Install
-- `@tiptap/react` — React bindings
-- `@tiptap/starter-kit` — core extensions (bold, italic, headings, lists, code, blockquote, hr)
-- `@tiptap/extension-color` — text color
-- `@tiptap/extension-text-style` — text style base
-- `@tiptap/extension-highlight` — background highlight
-- `@tiptap/extension-underline` — underline
-- `@tiptap/extension-link` — clickable links
-- `@tiptap/extension-task-list` + `@tiptap/extension-task-item` — checkable task lists
-- `@tiptap/extension-placeholder` — placeholder text
+### 5. Update DepartmentPage filtering
+- Change `docPages.filter(d => d.departmentId === id)` to check `d.sharedWith.departmentIds.includes(id)`
+- Same for databases
+- Also show items where the current user's ID is in `sharedWith.memberIds`
+
+### 6. Update mock data
+- Migrate existing `departmentId` values to the new `sharedWith` structure
+- Remove `departmentId` field from interfaces
 
 ## New Files
-- `src/components/RichTextEditor.tsx` — the editor + toolbar component
-- `src/components/RichTextEditor.css` — custom styles for callouts, editor chrome
+- `src/components/AccessPicker.tsx`
 
 ## Modified Files
-- `package.json` — add TipTap dependencies
-- `src/components/DocEditor.tsx` — swap Textarea for RichTextEditor, widen dialog
-- `src/pages/DocsPage.tsx` — render HTML content with prose styling
-- `src/components/DatabaseItemEditor.tsx` — add rich text notes field
-- `src/lib/mock-data.ts` — convert plain text content to HTML
+- `src/lib/mock-data.ts` — new interfaces + migrated data
+- `src/components/DocEditor.tsx` — add AccessPicker
+- `src/components/CreateDatabaseDialog.tsx` — add AccessPicker
+- `src/pages/DepartmentPage.tsx` — updated filtering logic
+- `src/pages/DocsPage.tsx` — filter docs by current user's access
+- `src/pages/DatabasesPage.tsx` — filter databases by access
 
 ## Build Order
-1. Install TipTap packages
-2. Build `RichTextEditor` component with toolbar and all extensions
-3. Integrate into `DocEditor` dialog
-4. Update `DocsPage` to render HTML content
-5. Add notes field to `DatabaseItemEditor`
-6. Update mock data content to HTML
+1. Update data model and migrate mock data
+2. Build AccessPicker component
+3. Integrate into DocEditor and CreateDatabaseDialog
+4. Update filtering on DepartmentPage, DocsPage, and DatabasesPage
 
