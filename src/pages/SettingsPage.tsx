@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, ShieldAlert, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
   const { isAdmin, getUserRole, setUserRole } = useAuth();
