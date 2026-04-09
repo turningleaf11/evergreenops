@@ -29,18 +29,32 @@ export interface DocPage {
   tags: string[];
 }
 
-export interface DatabaseItem {
+export type ColumnType = "text" | "number" | "select" | "multi_select" | "date" | "person" | "checkbox" | "url" | "progress";
+
+export interface DatabaseColumn {
+  id: string;
+  name: string;
+  type: ColumnType;
+  options?: string[];
+  required?: boolean;
+}
+
+export interface Database {
   id: string;
   title: string;
-  type: "goal" | "project" | "task";
-  status: "not_started" | "in_progress" | "completed" | "blocked";
-  priority: "low" | "medium" | "high" | "urgent";
-  assignee: string;
-  departmentId: string;
-  dueDate: string | null;
-  progress: number;
-  parentId: string | null;
-  tags: string[];
+  description: string;
+  icon: string;
+  departmentId: string | null;
+  createdBy: string;
+  columns: DatabaseColumn[];
+}
+
+export interface DatabaseRow {
+  id: string;
+  databaseId: string;
+  values: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TeamMember {
@@ -75,19 +89,105 @@ export const docPages: DocPage[] = [
   { id: "d5", title: "Product Roadmap", content: "Our product vision and upcoming features for the next two quarters.", parentId: null, departmentId: "product", author: "Maria Santos", createdAt: "2026-03-25", updatedAt: "2026-04-04", tags: ["roadmap", "product"] },
 ];
 
-export const databaseItems: DatabaseItem[] = [
-  { id: "g1", title: "Increase user retention by 20%", type: "goal", status: "in_progress", priority: "high", assignee: "Sarah Chen", departmentId: "product", dueDate: "2026-06-30", progress: 35, parentId: null, tags: ["growth", "retention"] },
-  { id: "g2", title: "Launch mobile app v2", type: "goal", status: "in_progress", priority: "urgent", assignee: "Jordan Park", departmentId: "eng", dueDate: "2026-05-15", progress: 60, parentId: null, tags: ["mobile", "launch"] },
-  { id: "g3", title: "Rebrand marketing site", type: "goal", status: "not_started", priority: "medium", assignee: "Alex Rivera", departmentId: "design", dueDate: "2026-07-01", progress: 0, parentId: null, tags: ["brand", "website"] },
-  { id: "p1", title: "Onboarding flow redesign", type: "project", status: "in_progress", priority: "high", assignee: "Alex Rivera", departmentId: "design", dueDate: "2026-05-01", progress: 45, parentId: "g1", tags: ["ux", "onboarding"] },
-  { id: "p2", title: "Push notification system", type: "project", status: "in_progress", priority: "high", assignee: "Jordan Park", departmentId: "eng", dueDate: "2026-04-28", progress: 70, parentId: "g2", tags: ["notifications", "mobile"] },
-  { id: "p3", title: "Content strategy Q2", type: "project", status: "not_started", priority: "medium", assignee: "Maria Santos", departmentId: "marketing", dueDate: "2026-05-15", progress: 0, parentId: null, tags: ["content", "strategy"] },
-  { id: "t1", title: "Design new onboarding screens", type: "task", status: "in_progress", priority: "high", assignee: "Alex Rivera", departmentId: "design", dueDate: "2026-04-15", progress: 60, parentId: "p1", tags: ["design", "ui"] },
-  { id: "t2", title: "Implement FCM integration", type: "task", status: "completed", priority: "high", assignee: "Jordan Park", departmentId: "eng", dueDate: "2026-04-10", progress: 100, parentId: "p2", tags: ["backend", "firebase"] },
-  { id: "t3", title: "Write API tests for notifications", type: "task", status: "in_progress", priority: "medium", assignee: "Dev Patel", departmentId: "eng", dueDate: "2026-04-12", progress: 30, parentId: "p2", tags: ["testing", "api"] },
-  { id: "t4", title: "Create email templates", type: "task", status: "not_started", priority: "low", assignee: "Maria Santos", departmentId: "marketing", dueDate: "2026-04-20", progress: 0, parentId: "p3", tags: ["email", "design"] },
-  { id: "t5", title: "User research interviews", type: "task", status: "blocked", priority: "medium", assignee: "Sarah Chen", departmentId: "product", dueDate: "2026-04-18", progress: 10, parentId: "p1", tags: ["research", "ux"] },
-  { id: "t6", title: "Performance audit", type: "task", status: "not_started", priority: "urgent", assignee: "Jordan Park", departmentId: "eng", dueDate: "2026-04-14", progress: 0, parentId: null, tags: ["performance", "devops"] },
+// ---- Database Templates ----
+
+export const databaseTemplates: { id: string; title: string; description: string; icon: string; columns: DatabaseColumn[] }[] = [
+  {
+    id: "goals", title: "Goals Tracker", description: "Track OKRs and goals with progress", icon: "Target",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+      { id: "status", name: "Status", type: "select", options: ["Not Started", "In Progress", "Completed", "Blocked"] },
+      { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High", "Urgent"] },
+      { id: "progress", name: "Progress", type: "progress" },
+      { id: "assignee", name: "Assignee", type: "person" },
+      { id: "due_date", name: "Due Date", type: "date" },
+    ],
+  },
+  {
+    id: "projects", title: "Project Board", description: "Manage projects with status and timeline", icon: "FolderKanban",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+      { id: "status", name: "Status", type: "select", options: ["Not Started", "In Progress", "Completed", "Blocked"] },
+      { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High", "Urgent"] },
+      { id: "assignee", name: "Assignee", type: "person" },
+      { id: "due_date", name: "Due Date", type: "date" },
+      { id: "tags", name: "Tags", type: "multi_select", options: ["Frontend", "Backend", "Design", "DevOps", "Mobile"] },
+    ],
+  },
+  {
+    id: "tasks", title: "Task List", description: "Simple task tracking with assignments", icon: "CheckSquare",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+      { id: "status", name: "Status", type: "select", options: ["To Do", "In Progress", "Done"] },
+      { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High"] },
+      { id: "assignee", name: "Assignee", type: "person" },
+      { id: "due_date", name: "Due Date", type: "date" },
+    ],
+  },
+  {
+    id: "bugs", title: "Bug Tracker", description: "Track and resolve bugs", icon: "Bug",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+      { id: "severity", name: "Severity", type: "select", options: ["Critical", "High", "Medium", "Low"] },
+      { id: "status", name: "Status", type: "select", options: ["Open", "Investigating", "Fixed", "Closed"] },
+      { id: "reporter", name: "Reporter", type: "person" },
+      { id: "assignee", name: "Assignee", type: "person" },
+    ],
+  },
+  {
+    id: "content", title: "Content Calendar", description: "Plan and schedule content", icon: "Calendar",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+      { id: "publish_date", name: "Publish Date", type: "date" },
+      { id: "status", name: "Status", type: "select", options: ["Draft", "In Review", "Approved", "Published"] },
+      { id: "author", name: "Author", type: "person" },
+      { id: "channel", name: "Channel", type: "select", options: ["Blog", "Social", "Email", "Newsletter"] },
+    ],
+  },
+  {
+    id: "blank", title: "Blank Database", description: "Start from scratch", icon: "Plus",
+    columns: [
+      { id: "title", name: "Title", type: "text", required: true },
+    ],
+  },
+];
+
+// ---- Sample Databases ----
+
+export const databases: Database[] = [
+  {
+    id: "db1", title: "Company Goals", description: "Q2 2026 OKRs and strategic goals", icon: "Target",
+    departmentId: null, createdBy: "Sarah Chen",
+    columns: databaseTemplates[0].columns,
+  },
+  {
+    id: "db2", title: "Engineering Projects", description: "Active engineering projects", icon: "FolderKanban",
+    departmentId: "eng", createdBy: "Jordan Park",
+    columns: databaseTemplates[1].columns,
+  },
+  {
+    id: "db3", title: "Sprint Tasks", description: "Current sprint task board", icon: "CheckSquare",
+    departmentId: "eng", createdBy: "Jordan Park",
+    columns: databaseTemplates[2].columns,
+  },
+];
+
+export const databaseRows: DatabaseRow[] = [
+  // Company Goals rows
+  { id: "r1", databaseId: "db1", values: { title: "Increase user retention by 20%", status: "In Progress", priority: "High", progress: 35, assignee: "Sarah Chen", due_date: "2026-06-30" }, createdAt: "2026-03-01", updatedAt: "2026-04-08" },
+  { id: "r2", databaseId: "db1", values: { title: "Launch mobile app v2", status: "In Progress", priority: "Urgent", progress: 60, assignee: "Jordan Park", due_date: "2026-05-15" }, createdAt: "2026-03-01", updatedAt: "2026-04-07" },
+  { id: "r3", databaseId: "db1", values: { title: "Rebrand marketing site", status: "Not Started", priority: "Medium", progress: 0, assignee: "Alex Rivera", due_date: "2026-07-01" }, createdAt: "2026-03-05", updatedAt: "2026-04-06" },
+
+  // Engineering Projects rows
+  { id: "r4", databaseId: "db2", values: { title: "Onboarding flow redesign", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-05-01", tags: ["Frontend", "Design"] }, createdAt: "2026-03-10", updatedAt: "2026-04-05" },
+  { id: "r5", databaseId: "db2", values: { title: "Push notification system", status: "In Progress", priority: "High", assignee: "Jordan Park", due_date: "2026-04-28", tags: ["Backend", "Mobile"] }, createdAt: "2026-03-12", updatedAt: "2026-04-04" },
+  { id: "r6", databaseId: "db2", values: { title: "Performance audit", status: "Not Started", priority: "Urgent", assignee: "Jordan Park", due_date: "2026-04-14", tags: ["DevOps"] }, createdAt: "2026-03-15", updatedAt: "2026-04-03" },
+
+  // Sprint Tasks rows
+  { id: "r7", databaseId: "db3", values: { title: "Design new onboarding screens", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-04-15" }, createdAt: "2026-04-01", updatedAt: "2026-04-08" },
+  { id: "r8", databaseId: "db3", values: { title: "Implement FCM integration", status: "Done", priority: "High", assignee: "Jordan Park", due_date: "2026-04-10" }, createdAt: "2026-04-01", updatedAt: "2026-04-09" },
+  { id: "r9", databaseId: "db3", values: { title: "Write API tests for notifications", status: "In Progress", priority: "Medium", assignee: "Dev Patel", due_date: "2026-04-12" }, createdAt: "2026-04-02", updatedAt: "2026-04-08" },
+  { id: "r10", databaseId: "db3", values: { title: "Create email templates", status: "To Do", priority: "Low", assignee: "Maria Santos", due_date: "2026-04-20" }, createdAt: "2026-04-03", updatedAt: "2026-04-07" },
 ];
 
 export const teamMembers: TeamMember[] = [
@@ -102,17 +202,3 @@ export const teamMembers: TeamMember[] = [
   { id: "m9", name: "Ryan Hughes", email: "ryan@company.com", role: "Frontend Engineer", departmentId: "eng", avatar: null, joinedAt: "2024-08-01" },
   { id: "m10", name: "Nina Zhao", email: "nina@company.com", role: "Product Designer", departmentId: "design", avatar: null, joinedAt: "2024-09-15" },
 ];
-
-export const statusConfig = {
-  not_started: { label: "Not Started", color: "220 10% 46%" },
-  in_progress: { label: "In Progress", color: "220 65% 48%" },
-  completed: { label: "Completed", color: "142 71% 45%" },
-  blocked: { label: "Blocked", color: "0 72% 51%" },
-};
-
-export const priorityConfig = {
-  low: { label: "Low", color: "220 10% 46%" },
-  medium: { label: "Medium", color: "38 92% 50%" },
-  high: { label: "High", color: "25 95% 53%" },
-  urgent: { label: "Urgent", color: "0 72% 51%" },
-};
