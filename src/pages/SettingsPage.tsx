@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, ShieldAlert, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
   const { isAdmin, getUserRole, setUserRole } = useAuth();
@@ -100,7 +101,7 @@ export default function SettingsPage() {
                 <Label htmlFor="ws-desc">Description</Label>
                 <Textarea id="ws-desc" value={workspaceDesc} onChange={(e) => setWorkspaceDesc(e.target.value)} rows={3} />
               </div>
-              <Button size="sm">Save Changes</Button>
+              <Button size="sm" onClick={() => toast({ title: "Saved", description: "Workspace settings updated." })}>Save Changes</Button>
             </CardContent>
           </Card>
         </TabsContent>
