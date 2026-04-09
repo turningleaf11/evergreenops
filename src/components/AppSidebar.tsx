@@ -102,6 +102,39 @@ export function AppSidebar() {
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <Collapsible defaultOpen={isDbActive} className="group/collapsible">
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <DbIcon className="h-3.5 w-3.5" />
+                  {!collapsed && "Databases"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {databases.map((db) => {
+                    const Icon = dbIconMap[db.icon] || DbIcon;
+                    return (
+                      <SidebarMenuItem key={db.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={`/databases/${db.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                            <Icon className="h-4 w-4" />
+                            {!collapsed && <span>{db.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-3">
