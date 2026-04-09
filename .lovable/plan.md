@@ -1,46 +1,55 @@
 
 
-# Flexible Database Engine
+# Admin Settings, Roles & Content CRUD
 
-## Change
-Make databases generic containers (like Notion) instead of hardcoded goal/project/task types. Users can create any database with custom fields — e.g., "Bug Tracker", "Content Calendar", "Meeting Notes", "Inventory", etc.
+## Overview
+Add a role system (Admin/User), an admin settings page, and create/edit/delete capabilities for docs and databases. No auth context exists yet — everything needs to be built.
 
-## Data Model
+## What Gets Built
 
-**Database** — a named container with a schema
-- id, title, description, icon, departmentId, createdBy, columns (field definitions)
+### 1. AuthContext (`src/contexts/AuthContext.tsx`)
+- Stores `currentUser` (defaults to Sarah Chen) and `isAdmin` boolean
+- Provides a `setRole` toggle for demo purposes (switch between Admin/User)
+- `useAuth()` hook for consuming throughout the app
 
-**Database Column** — defines a field in that database
-- id, name, type (text | number | select | multi_select | date | person | checkbox | url | progress), options (for select types), required
+### 2. Settings Page (`src/pages/SettingsPage.tsx`, route `/settings`)
+- **User Management tab**: List all team members, toggle their role between Admin/User
+- **Workspace tab**: Edit workspace name and description
+- Admin-only access — redirects or shows "Access Denied" for non-admins
 
-**Database Row** — a record in a database
-- id, databaseId, values (key-value map of columnId → value), createdAt, updatedAt
+### 3. Doc CRUD in DocsPage
+- Lift `docPages` from static import into `useState` so mutations work
+- "New Page" button (admin only) → dialog with title, content (textarea), tags, parent page selector
+- Edit/Delete buttons on selected doc header (admin only)
+- Reuse a `DocEditor` dialog component for both create and edit
 
-## Pre-built Templates
-Instead of hardcoded types, offer **templates** when creating a new database:
-- Goals Tracker (status, priority, progress, assignee, due date)
-- Project Board (status, priority, assignee, timeline, tags)
-- Task List (status, priority, assignee, due date)
-- Bug Tracker (severity, status, reporter, assignee)
-- Content Calendar (publish date, status, author, channel)
-- Blank (start from scratch)
+### 4. Database CRUD
+- "New Database" button already exists via `CreateDatabaseDialog` — gate behind admin role
+- Add/edit/delete rows — gate edit/delete behind admin role
+- Add database deletion (admin only) from the database list
 
-## What Changes
+### 5. Sidebar & Routing
+- Add "Settings" gear icon link (admin only) to sidebar
+- Add `/settings` route to App.tsx
+- Wrap app with `AuthProvider`
+- Add a small role toggle in sidebar footer for demo switching
 
-### New/Modified Files
-- `src/lib/mock-data.ts` — replace `DatabaseItem` with `Database`, `DatabaseColumn`, `DatabaseRow` interfaces; add sample databases with different schemas; remove hardcoded status/priority configs (move into per-database column options)
-- `src/pages/DatabasesPage.tsx` — show list of databases; click into one to see its rows in table/kanban/list views; "New Database" button opens template picker
-- `src/components/DatabaseView.tsx` — generic renderer for any database's rows across all three view modes, reading columns dynamically
-- `src/components/DatabaseItemEditor.tsx` — dynamic form that renders fields based on the database's column schema
-- `src/components/CreateDatabaseDialog.tsx` — template picker + custom column editor
+## New Files
+- `src/contexts/AuthContext.tsx`
+- `src/pages/SettingsPage.tsx`
+- `src/components/DocEditor.tsx`
 
-### Sidebar
-- "Databases" section shows list of all databases (not just one page)
+## Modified Files
+- `src/App.tsx` — AuthProvider wrapper, /settings route
+- `src/components/AppSidebar.tsx` — Settings link, role toggle in footer
+- `src/pages/DocsPage.tsx` — useState for docs, CRUD buttons + DocEditor
+- `src/pages/DatabasesPage.tsx` — admin gates on create/edit/delete
+- `src/lib/mock-data.ts` — add `role` field ("admin" | "user") to TeamMember
 
 ## Build Order
-1. Define new generic data model interfaces and mock data (2-3 sample databases with different schemas)
-2. Build database list page showing all databases
-3. Build dynamic table/kanban/list views that read column definitions
-4. Build create/edit dialogs with dynamic form fields
-5. Update sidebar to list individual databases
+1. AuthContext + mock-data role field
+2. Settings page + route
+3. DocEditor + DocsPage CRUD
+4. Database admin gates
+5. Sidebar updates
 
