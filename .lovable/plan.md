@@ -1,67 +1,94 @@
 
 
-# Access Control for Docs & Databases
+# CEO Strategy Command Center + AI Strategy Companion
 
-## Current State
-Docs and databases each have a single `departmentId` field. If it's set, the item appears on that department's page. If `null`, it's workspace-wide. There's no UI to set this when creating/editing, and no way to share with multiple departments or specific people.
+## Context
+This is for **Evergreen Real Estate Ventures**. The CEO dashboard must be a strategy and thinking tool — not an ops dashboard. Two teams: Wholesale Acquisitions (residential 1-4 unit) and Portfolio Acquisitions (multifamily 5+, business, JV deals). Every widget must support a real executive decision.
 
-## What Changes
+## What Gets Built
 
-### 1. Replace `departmentId` with flexible access model
-Update `DocPage` and `Database` interfaces to support granular sharing:
+### 1. CEO Context Memory (`src/lib/ceo-context.ts`)
+A persistent state structure (useState + localStorage for now, with clear hooks for future API/DB):
 
 ```text
-visibility: "workspace" | "departments" | "private"
-sharedWith: {
-  departmentIds: string[]    // multiple departments
-  memberIds: string[]        // specific people
+CEOContext {
+  currentObjective: string
+  currentConstraints: string[]
+  topPriorities: { id, text, status }[]     // max 3-5
+  recentDecisions: { id, text, date, outcome? }[]
+  strategicTensions: { id, tension, sideA, sideB }[]
+  pipelineSnapshot: { wholesaleDeals, portfolioDeals, closingThisMonth }
 }
 ```
 
-- **Workspace** — everyone can see it (replaces `departmentId: null`)
-- **Departments** — only selected departments see it (supports multiple)
-- **Private** — only explicitly listed members see it
+All editable inline. This becomes the AI's context window.
 
-### 2. Access Picker component (`src/components/AccessPicker.tsx`)
-A reusable UI widget used in both DocEditor and CreateDatabaseDialog:
-- Radio group for visibility level (Workspace / Departments / Private)
-- When "Departments" is selected: multi-select checklist of all departments
-- When "Private" is selected: multi-select checklist of team members
-- Shows current access summary as badges
+### 2. CEO Dashboard Page (`src/pages/CeoDashboard.tsx`, route `/ceo`)
+Replaces the current Index as the admin's home. Calm, premium, high-signal layout with these modules only:
 
-### 3. Update DocEditor dialog
-- Add the AccessPicker below the existing fields
-- `onSave` callback passes `visibility` and `sharedWith` data
-- Default new docs to "Workspace" visibility
+- **Current Objective** — Single editable line. The one thing that matters right now. Always visible at top.
+- **CEO Briefing** — A structured card summarizing: current objective, pipeline reality (pulled from databases), top risks, top leverage opportunities, decisions needing attention. Manually curated + AI-generated summary placeholder.
+- **Top Priorities** — 3-5 editable priority items with status (active/blocked/done). Not a task list — strategic priorities.
+- **Recent Decisions Log** — Short journal of decisions made, with optional outcome notes. Reverse chronological.
+- **Strategic Tensions** — Named tensions the CEO is holding (e.g., "Speed vs. Quality on deal flow"). Two sides, no resolution required — just awareness.
+- **Morning Reset** — A collapsible section: "What matters today", "What does NOT deserve attention today", "One win for the day". Editable daily.
 
-### 4. Update CreateDatabaseDialog
-- Add a second step or section with the AccessPicker
-- `onCreate` callback includes visibility and sharedWith
-- Default new databases to "Workspace" visibility
+No vanity metrics. No activity feeds. No generic cards.
 
-### 5. Update DepartmentPage filtering
-- Change `docPages.filter(d => d.departmentId === id)` to check `d.sharedWith.departmentIds.includes(id)`
-- Same for databases
-- Also show items where the current user's ID is in `sharedWith.memberIds`
+### 3. AI Strategy Chat Sidebar (`src/components/CeoAiChat.tsx`)
+A slide-out panel (Sheet) triggered from the dashboard. The AI:
 
-### 6. Update mock data
-- Migrate existing `departmentId` values to the new `sharedWith` structure
-- Remove `departmentId` field from interfaces
+- Receives full CEOContext + workspace data as system prompt context
+- Every response is structured into: **Actual Problem → Root Cause → Options → Recommended Path → Next Actions**
+- Proactive behaviors (initially mocked, with clear integration points for Lovable AI):
+  - **Morning briefing** auto-generated when dashboard opens
+  - **Nudges** surfaced as subtle cards when priorities are stale or tensions unresolved
+  - **Suggested actions** like "Schedule check-in with Portfolio team — no deal updates in 5 days"
+- Uses Lovable AI (edge function) for real responses, with structured prompt engineering to enforce the response format
+
+### 4. Morning Reset Flow (`src/components/MorningReset.tsx`)
+A focused component (possibly modal or top-of-dashboard card):
+- "What matters today" — free text
+- "What does NOT deserve attention" — free text
+- "One win for the day" — single line
+- Saved per day in localStorage, shown on dashboard
+
+### 5. UI Treatment
+- Calm, premium feel — more whitespace, muted borders, subtle shadows
+- Serif or semi-bold headings for gravitas
+- Muted color palette (slate/stone tones, no bright accent overuse)
+- Typography-driven hierarchy, not color-driven
+
+### 6. Sidebar + Routing Updates
+- Add "Strategy" or "Command Center" link in sidebar (admin only, with a crown/compass icon)
+- Route `/ceo` in App.tsx
+- Keep existing Index (`/`) as the team-level home for non-admin users
 
 ## New Files
-- `src/components/AccessPicker.tsx`
+- `src/pages/CeoDashboard.tsx` — the main dashboard
+- `src/lib/ceo-context.ts` — context data model + localStorage persistence + React context
+- `src/components/CeoAiChat.tsx` — AI strategy chat sidebar
+- `src/components/MorningReset.tsx` — morning reset component
+- `src/components/CeoBriefing.tsx` — structured briefing card
+- `src/components/StrategicTensions.tsx` — tensions tracker
+- `src/components/DecisionLog.tsx` — decisions journal
+- `src/components/TopPriorities.tsx` — priority items
 
 ## Modified Files
-- `src/lib/mock-data.ts` — new interfaces + migrated data
-- `src/components/DocEditor.tsx` — add AccessPicker
-- `src/components/CreateDatabaseDialog.tsx` — add AccessPicker
-- `src/pages/DepartmentPage.tsx` — updated filtering logic
-- `src/pages/DocsPage.tsx` — filter docs by current user's access
-- `src/pages/DatabasesPage.tsx` — filter databases by access
+- `src/App.tsx` — add `/ceo` route
+- `src/components/AppSidebar.tsx` — add Strategy link (admin only)
+- `src/pages/Index.tsx` — keep as team home, no changes needed
 
 ## Build Order
-1. Update data model and migrate mock data
-2. Build AccessPicker component
-3. Integrate into DocEditor and CreateDatabaseDialog
-4. Update filtering on DepartmentPage, DocsPage, and DatabasesPage
+1. CEO context data model + localStorage persistence
+2. Dashboard page with all modules (static/editable, no AI yet)
+3. Morning Reset component
+4. AI Strategy Chat sidebar with Lovable AI edge function
+5. Sidebar + routing
+6. UI polish pass
+
+## AI Integration Points (commented in code)
+- `ceo-context.ts`: `// TODO: Replace localStorage with Supabase persistence`
+- `CeoAiChat.tsx`: `// AI edge function call here — passes CEOContext as system prompt`
+- `CeoBriefing.tsx`: `// TODO: Pull pipeline data from databases, generate AI summary`
 
