@@ -2,61 +2,101 @@ import { useState, useRef, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCEOContext } from "@/lib/ceo-context";
 import { Send, Bot, User, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-// AI edge function call here — passes CEOContext as system prompt
-// TODO: Replace mock with real Lovable AI edge function call
-async function getMockResponse(userMessage: string, _context: string): Promise<string> {
-  // Simulate delay
-  await new Promise((r) => setTimeout(r, 1200));
-  
-  return `**Actual Problem**
-${userMessage}
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ceo-chat`;
 
-**Root Cause**
-This needs deeper analysis with real-time data. Connect the AI Strategy Companion to Lovable AI for contextual responses.
+async function streamChat({
+  messages,
+  ceoContext,
+  onDelta,
+  onDone,
+}: {
+  messages: Message[];
+  ceoContext: any;
+  onDelta: (deltaText: string) => void;
+  onDone: () => void;
+}) {
+  const resp = await fetch(CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify({ messages, ceoContext }),
+  });
 
-**Options**
-1. Maintain current approach and monitor
-2. Adjust strategy based on pipeline data
-3. Escalate for team input
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: "Request failed" }));
+    if (resp.status === 429) {
+      toast.error("Rate limit exceeded. Please wait a moment and try again.");
+    } else if (resp.status === 402) {
+      toast.error("AI credits exhausted. Add funds in Settings → Workspace → Usage.");
+    }
+    throw new Error(errorData.error || "Failed to get response");
+  }
 
-**Recommended Path**
-Option 2 — Use the data you're already tracking to make an informed adjustment.
+  if (!resp.body) throw new Error("No response body");
 
-**Next Actions**
-- Review pipeline snapshot numbers
-- Update your current objective if needed
-- Log this as a decision once resolved
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let textBuffer = "";
+  let streamDone = false;
 
-*— Connect Lovable AI to get real, context-aware strategy responses.*`;
-}
+  while (!streamDone) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    textBuffer += decoder.decode(value, { stream: true });
 
-function buildSystemContext(data: ReturnType<typeof useCEOContext>["data"]): string {
-  return `You are a CEO Strategy Companion for Evergreen Real Estate Ventures.
+    let newlineIndex: number;
+    while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+      let line = textBuffer.slice(0, newlineIndex);
+      textBuffer = textBuffer.slice(newlineIndex + 1);
 
-CURRENT CONTEXT:
-- Objective: ${data.currentObjective || "Not set"}
-- Constraints: ${data.currentConstraints.join(", ") || "None set"}
-- Top Priorities: ${data.topPriorities.map((p) => `${p.text} (${p.status})`).join("; ") || "None"}
-- Recent Decisions: ${data.recentDecisions.slice(0, 5).map((d) => `${d.date}: ${d.text}`).join("; ") || "None"}
-- Strategic Tensions: ${data.strategicTensions.map((t) => `${t.tension}: ${t.sideA} vs ${t.sideB}`).join("; ") || "None"}
-- Pipeline: ${data.pipelineSnapshot.wholesaleDeals} wholesale, ${data.pipelineSnapshot.portfolioDeals} portfolio, ${data.pipelineSnapshot.closingThisMonth} closing this month
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+      if (line.startsWith(":") || line.trim() === "") continue;
+      if (!line.startsWith("data: ")) continue;
 
-BUSINESS CONTEXT:
-- Two acquisition teams: Wholesale (residential 1-4 unit) and Portfolio (multifamily 5+, business acquisitions, JV deals)
-- This is a strategy tool, not ops management
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === "[DONE]") {
+        streamDone = true;
+        break;
+      }
 
-RESPONSE FORMAT (always use this structure):
-**Actual Problem** — What's really going on
-**Root Cause** — Why this is happening
-**Options** — 2-4 concrete options
-**Recommended Path** — Your recommendation and why
-**Next Actions** — Specific next steps`;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch {
+        textBuffer = line + "\n" + textBuffer;
+        break;
+      }
+    }
+  }
+
+  // Final flush
+  if (textBuffer.trim()) {
+    for (let raw of textBuffer.split("\n")) {
+      if (!raw) continue;
+      if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+      if (raw.startsWith(":") || raw.trim() === "") continue;
+      if (!raw.startsWith("data: ")) continue;
+      const jsonStr = raw.slice(6).trim();
+      if (jsonStr === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch { /* ignore */ }
+    }
+  }
+
+  onDone();
 }
 
 interface CeoAiChatProps {
@@ -82,13 +122,28 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
     setInput("");
     setLoading(true);
 
+    let assistantSoFar = "";
+    const upsertAssistant = (chunk: string) => {
+      assistantSoFar += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant") {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+        }
+        return [...prev, { role: "assistant", content: assistantSoFar }];
+      });
+    };
+
     try {
-      const systemContext = buildSystemContext(data);
-      const response = await getMockResponse(userMsg.content, systemContext);
-      setMessages((prev) => [...prev, { role: "assistant", content: response }]);
-    } catch {
+      await streamChat({
+        messages: [...messages, userMsg],
+        ceoContext: data,
+        onDelta: upsertAssistant,
+        onDone: () => setLoading(false),
+      });
+    } catch (e) {
+      console.error("Chat error:", e);
       setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
-    } finally {
       setLoading(false);
     }
   };
@@ -153,7 +208,7 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
             </div>
           ))}
 
-          {loading && (
+          {loading && !messages.some((m, i) => m.role === "assistant" && i === messages.length - 1) && (
             <div className="flex gap-2.5">
               <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
