@@ -121,7 +121,7 @@ export function CEOContextProvider({ children }: { children: React.ReactNode }) 
   const addPriority = useCallback((text: string) => {
     setData((prev) => ({
       ...prev,
-      topPriorities: [...prev.topPriorities, { id: crypto.randomUUID(), text, status: "active" }].slice(0, 5),
+      topPriorities: [...prev.topPriorities, { id: crypto.randomUUID(), text, status: "active" as const }].slice(0, 5),
     }));
   }, []);
 
