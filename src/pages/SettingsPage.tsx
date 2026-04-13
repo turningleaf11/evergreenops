@@ -282,6 +282,7 @@ interface DBUser {
   department_id: string | null;
   email?: string;
   roles: string[];
+  is_primary?: boolean;
 }
 
 function UsersTab() {
@@ -307,17 +308,20 @@ function UsersTab() {
     // Fetch all roles (admin can see all via RLS policy)
     const { data: allRoles } = await supabase
       .from("user_roles")
-      .select("user_id, role");
+      .select("user_id, role, is_primary");
 
     const roleMap: Record<string, string[]> = {};
+    const primaryMap: Record<string, boolean> = {};
     (allRoles || []).forEach((r: any) => {
       if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
       roleMap[r.user_id].push(r.role);
+      if (r.is_primary) primaryMap[r.user_id] = true;
     });
 
     const merged: DBUser[] = profiles.map((p: any) => ({
       ...p,
       roles: roleMap[p.user_id] || ["user"],
+      is_primary: primaryMap[p.user_id] || false,
     }));
 
     setUsers(merged);
@@ -453,6 +457,11 @@ function UsersTab() {
                     ))}
                   </SelectContent>
                 </Select>
+                {user.is_primary ? (
+                  <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
+                    <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
+                  </Badge>
+                ) : (
                 <Select value={currentRole} onValueChange={(v) => handleRoleChange(user.user_id, v as AppRole)}>
                   <SelectTrigger className="w-24 h-8 text-xs">
                     <SelectValue />
