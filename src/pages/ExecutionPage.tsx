@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import DetailDrawer from "@/components/DetailDrawer";
+import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
+import KanbanBoard from "@/components/execution/KanbanBoard";
+import TableView from "@/components/execution/TableView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
+  User,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,13 +32,15 @@ type Goal = {
 };
 type Project = {
   id: string; title: string; description: string; goal_id: string | null;
-  status: string; owner_id: string | null; department_id: string | null;
+  status: string; priority: string; owner_id: string | null; department_id: string | null;
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
+  tags: string[]; assignees: string[];
 };
 type Task = {
   id: string; title: string; description: string; project_id: string | null;
-  goal_id: string | null; status: string; assigned_to: string | null;
+  goal_id: string | null; status: string; priority: string; assigned_to: string | null;
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
+  tags: string[];
 };
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -62,15 +68,86 @@ const priorityLabels: Record<number, { label: string; color: string }> = {
   3: { label: "Low", color: "bg-green-100 text-green-800" },
 };
 
-const currentQuarter = () => {
-  const m = new Date().getMonth();
-  return `Q${Math.floor(m / 3) + 1}`;
-};
+const projectStatusOptions = [
+  { value: "not_started", label: "Not Started" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "done", label: "Done" },
+  { value: "blocked", label: "Blocked" },
+];
+
+const taskStatusOptions = [
+  { value: "todo", label: "To Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "done", label: "Done" },
+];
+
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
+
+const projectKanbanCols = [
+  { key: "not_started", label: "Not Started", color: "bg-muted-foreground" },
+  { key: "in_progress", label: "In Progress", color: "bg-blue-500" },
+  { key: "blocked", label: "Blocked", color: "bg-red-500" },
+  { key: "done", label: "Done", color: "bg-green-500" },
+];
+
+const taskKanbanCols = [
+  { key: "todo", label: "To Do", color: "bg-muted-foreground" },
+  { key: "in_progress", label: "In Progress", color: "bg-blue-500" },
+  { key: "done", label: "Done", color: "bg-green-500" },
+];
+
+const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+const currentQuarter = () => { const m = new Date().getMonth(); return `Q${Math.floor(m / 3) + 1}`; };
 const currentYear = () => new Date().getFullYear();
+
+function useViewState() {
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<ViewMode>("list");
+  const [sortField, setSortField] = useState<SortField>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
+  return { search, setSearch, view, setView, sortField, setSortField, sortDir, setSortDir, filterStatus, setFilterStatus, filterPriority, setFilterPriority };
+}
+
+function applyFilters<T extends { title: string; status: string; priority?: string | number }>(
+  items: T[], search: string, filterStatus: string, filterPriority: string,
+  sortField: SortField, sortDir: SortDir
+): T[] {
+  let result = items;
+  if (search) {
+    const q = search.toLowerCase();
+    result = result.filter(i => i.title.toLowerCase().includes(q));
+  }
+  if (filterStatus !== "all") result = result.filter(i => i.status === filterStatus);
+  if (filterPriority !== "all") result = result.filter(i => String(i.priority) === filterPriority);
+
+  result = [...result].sort((a, b) => {
+    let av: any, bv: any;
+    switch (sortField) {
+      case "title": av = a.title.toLowerCase(); bv = b.title.toLowerCase(); break;
+      case "priority": av = priorityOrder[(a as any).priority] ?? 99; bv = priorityOrder[(b as any).priority] ?? 99; break;
+      case "status": av = a.status; bv = b.status; break;
+      case "due_date": av = (a as any).due_date || "9999"; bv = (b as any).due_date || "9999"; break;
+      default: av = (a as any).created_at; bv = (b as any).created_at; break;
+    }
+    if (av < bv) return sortDir === "asc" ? -1 : 1;
+    if (av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+  return result;
+}
 
 export default function ExecutionPage() {
   const { user, isAdmin } = useAuth();
   const { departments } = useDepartments();
+  const navigate = useNavigate();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -82,7 +159,6 @@ export default function ExecutionPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<any>(null);
   const [drawerType, setDrawerType] = useState<"project" | "task">("project");
-  const navigate = useNavigate();
 
   // Issues state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -93,6 +169,10 @@ export default function ExecutionPage() {
   const [newIssueDept, setNewIssueDept] = useState("");
   const [issueViewTab, setIssueViewTab] = useState("open");
 
+  // View states for projects and tasks tabs
+  const pv = useViewState();
+  const tv = useViewState();
+
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
@@ -101,11 +181,11 @@ export default function ExecutionPage() {
       supabase.from("profiles").select("user_id, full_name"),
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
     ]);
-    if (g.data) setGoals(g.data);
-    if (p.data) setProjects(p.data);
-    if (t.data) setTasks(t.data);
+    if (g.data) setGoals(g.data as any);
+    if (p.data) setProjects(p.data as any);
+    if (t.data) setTasks(t.data as any);
     if (pr.data) setProfiles(pr.data);
-    if (i.data) setIssues(i.data);
+    if (i.data) setIssues(i.data as any);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -114,6 +194,17 @@ export default function ExecutionPage() {
     if (!uid) return "Unassigned";
     return profiles.find(p => p.user_id === uid)?.full_name || "Unknown";
   };
+
+  // Filtered/sorted items
+  const filteredProjects = useMemo(() =>
+    applyFilters(projects, pv.search, pv.filterStatus, pv.filterPriority, pv.sortField, pv.sortDir),
+    [projects, pv.search, pv.filterStatus, pv.filterPriority, pv.sortField, pv.sortDir]
+  );
+
+  const visibleTasks = useMemo(() => {
+    const base = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.id);
+    return applyFilters(base, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir);
+  }, [tasks, isAdmin, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
 
   const goalsByQuarter = goals.reduce<Record<string, Goal[]>>((acc, g) => {
     const key = `${g.year} ${g.quarter}`;
@@ -215,6 +306,10 @@ export default function ExecutionPage() {
     const cfg = statusConfig[status] || { label: status, color: "bg-muted text-muted-foreground", icon: Circle };
     return <Badge variant="secondary" className={`${cfg.color} text-xs`}>{cfg.label}</Badge>;
   };
+
+  // Shared click handlers
+  const openProjectDrawer = (p: any) => { setDrawerType("project"); setDrawerItem(p); };
+  const openTaskDrawer = (t: any) => { setDrawerType("task"); setDrawerItem(t); };
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -348,7 +443,7 @@ export default function ExecutionPage() {
                             <div className="space-y-2">
                               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Projects</h4>
                               {gProjects.map(p => (
-                                <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-accent/30">
+                                <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-accent/30 cursor-pointer hover:bg-accent/50" onClick={() => openProjectDrawer(p)}>
                                   <div>
                                     <span className="text-sm font-medium">{p.title}</span>
                                     <span className="text-xs text-muted-foreground ml-2">{getName(p.owner_id)}</span>
@@ -356,7 +451,7 @@ export default function ExecutionPage() {
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">{tasksForProject(p.id).filter(t=>t.status==="done").length}/{tasksForProject(p.id).length} tasks</span>
                                     <Select value={p.status} onValueChange={v => updateStatus("projects", p.id, v)}>
-                                      <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
+                                      <SelectTrigger className="w-28 h-7 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
                                       <SelectContent>
                                         {["not_started","in_progress","done","blocked"].map(s => (
                                           <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
@@ -372,13 +467,13 @@ export default function ExecutionPage() {
                             <div className="space-y-2">
                               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct Tasks</h4>
                               {gTasks.map(t => (
-                                <div key={t.id} className="flex items-center justify-between p-2 rounded-md bg-accent/20">
+                                <div key={t.id} className="flex items-center justify-between p-2 rounded-md bg-accent/20 cursor-pointer hover:bg-accent/40" onClick={() => openTaskDrawer(t)}>
                                   <div>
                                     <span className="text-sm">{t.title}</span>
                                     <span className="text-xs text-muted-foreground ml-2">{getName(t.assigned_to)}</span>
                                   </div>
                                   <Select value={t.status} onValueChange={v => updateStatus("tasks", t.id, v)}>
-                                    <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="w-24 h-7 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       {["todo","in_progress","done"].map(s => (
                                         <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
@@ -403,73 +498,166 @@ export default function ExecutionPage() {
         </TabsContent>
 
         {/* Projects tab */}
-        <TabsContent value="projects" className="space-y-3">
-          {projects.map(p => {
-            const pTasks = tasksForProject(p.id);
-            const goalTitle = goals.find(g => g.id === p.goal_id)?.title;
-            return (
-              <Card key={p.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("project"); setDrawerItem(p); }}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">{p.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
-                        <span className="text-xs text-muted-foreground">{getName(p.owner_id)}</span>
-                        <span className="text-xs text-muted-foreground">{pTasks.filter(t=>t.status==="done").length}/{pTasks.length} tasks</span>
+        <TabsContent value="projects" className="space-y-4">
+          <ViewControls
+            search={pv.search} onSearchChange={pv.setSearch}
+            view={pv.view} onViewChange={pv.setView}
+            sortField={pv.sortField} onSortFieldChange={pv.setSortField}
+            sortDir={pv.sortDir} onSortDirChange={pv.setSortDir}
+            filterStatus={pv.filterStatus} onFilterStatusChange={pv.setFilterStatus}
+            filterPriority={pv.filterPriority} onFilterPriorityChange={pv.setFilterPriority}
+            statusOptions={projectStatusOptions}
+            priorityOptions={priorityOptions}
+          />
+
+          {pv.view === "list" && (
+            <div className="space-y-2">
+              {filteredProjects.map(p => {
+                const pTasks = tasksForProject(p.id);
+                const goalTitle = goals.find(g => g.id === p.goal_id)?.title;
+                return (
+                  <Card key={p.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => openProjectDrawer(p)}>
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{p.title}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
+                            {p.priority && (
+                              <Badge variant="outline" className="text-xs capitalize">{p.priority}</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">{getName(p.owner_id)}</span>
+                            <span className="text-xs text-muted-foreground">{pTasks.filter(t=>t.status==="done").length}/{pTasks.length} tasks</span>
+                            {p.due_date && <span className="text-xs text-muted-foreground">Due {p.due_date}</span>}
+                            {(p.tags || []).map(tag => (
+                              <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Select value={p.status} onValueChange={v => updateStatus("projects", p.id, v)}>
+                          <SelectTrigger className="w-28 h-8 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {projectStatusOptions.map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <Select value={p.status} onValueChange={v => updateStatus("projects", p.id, v)}>
-                      <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["not_started","in_progress","done","blocked"].map(s => (
-                          <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          {projects.length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No projects yet.</CardContent></Card>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {filteredProjects.length === 0 && (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">No projects match your filters.</CardContent></Card>
+              )}
+            </div>
+          )}
+
+          {pv.view === "board" && (
+            <KanbanBoard
+              columns={projectKanbanCols}
+              items={filteredProjects}
+              statusField="status"
+              onItemClick={openProjectDrawer}
+              onStatusChange={(id, status) => updateStatus("projects", id, status)}
+              getName={getName}
+              ownerField="owner_id"
+              type="project"
+            />
+          )}
+
+          {pv.view === "table" && (
+            <TableView
+              items={filteredProjects}
+              type="project"
+              onItemClick={openProjectDrawer}
+              onStatusChange={(id, status) => updateStatus("projects", id, status)}
+              getName={getName}
+              statusOptions={projectStatusOptions}
+              goals={goals}
+            />
           )}
         </TabsContent>
 
         {/* Tasks tab */}
-        <TabsContent value="tasks" className="space-y-3">
-          {(isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.id)).map(t => {
-            const projectTitle = projects.find(p => p.id === t.project_id)?.title;
-            const goalTitle = goals.find(g => g.id === t.goal_id)?.title;
-            return (
-              <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("task"); setDrawerItem(t); }}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-sm">{t.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
-                        {projectTitle && <Badge variant="outline" className="text-xs">📁 {projectTitle}</Badge>}
-                        {t.due_date && <span className="text-xs text-muted-foreground">Due {t.due_date}</span>}
-                        <span className="text-xs text-muted-foreground">{getName(t.assigned_to)}</span>
+        <TabsContent value="tasks" className="space-y-4">
+          <ViewControls
+            search={tv.search} onSearchChange={tv.setSearch}
+            view={tv.view} onViewChange={tv.setView}
+            sortField={tv.sortField} onSortFieldChange={tv.setSortField}
+            sortDir={tv.sortDir} onSortDirChange={tv.setSortDir}
+            filterStatus={tv.filterStatus} onFilterStatusChange={tv.setFilterStatus}
+            filterPriority={tv.filterPriority} onFilterPriorityChange={tv.setFilterPriority}
+            statusOptions={taskStatusOptions}
+            priorityOptions={priorityOptions}
+          />
+
+          {tv.view === "list" && (
+            <div className="space-y-2">
+              {visibleTasks.map(t => {
+                const projectTitle = projects.find(p => p.id === t.project_id)?.title;
+                const goalTitle = goals.find(g => g.id === t.goal_id)?.title;
+                return (
+                  <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => openTaskDrawer(t)}>
+                    <CardContent className="py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-sm">{t.title}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
+                            {projectTitle && <Badge variant="outline" className="text-xs">📁 {projectTitle}</Badge>}
+                            {t.priority && (
+                              <Badge variant="outline" className="text-xs capitalize">{t.priority}</Badge>
+                            )}
+                            {t.due_date && <span className="text-xs text-muted-foreground">Due {t.due_date}</span>}
+                            <span className="text-xs text-muted-foreground">{getName(t.assigned_to)}</span>
+                            {(t.tags || []).map(tag => (
+                              <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Select value={t.status} onValueChange={v => updateStatus("tasks", t.id, v)}>
+                          <SelectTrigger className="w-24 h-8 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {taskStatusOptions.map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <Select value={t.status} onValueChange={v => updateStatus("tasks", t.id, v)}>
-                      <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["todo","in_progress","done"].map(s => (
-                          <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          {tasks.filter(t => isAdmin || t.assigned_to === user?.id).length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks assigned to you.</CardContent></Card>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {visibleTasks.length === 0 && (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks match your filters.</CardContent></Card>
+              )}
+            </div>
+          )}
+
+          {tv.view === "board" && (
+            <KanbanBoard
+              columns={taskKanbanCols}
+              items={visibleTasks}
+              statusField="status"
+              onItemClick={openTaskDrawer}
+              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+              getName={getName}
+              ownerField="assigned_to"
+              type="task"
+            />
+          )}
+
+          {tv.view === "table" && (
+            <TableView
+              items={visibleTasks}
+              type="task"
+              onItemClick={openTaskDrawer}
+              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+              getName={getName}
+              statusOptions={taskStatusOptions}
+              projects={projects}
+            />
           )}
         </TabsContent>
 
@@ -531,7 +719,7 @@ export default function ExecutionPage() {
         </TabsContent>
       </Tabs>
 
-      {/* IDS Detail Dialog */}
+      {/* Issue Detail Dialog */}
       <Dialog open={!!selectedIssue} onOpenChange={o => !o && setSelectedIssue(null)}>
         <DialogContent className="max-w-lg">
           {selectedIssue && (
