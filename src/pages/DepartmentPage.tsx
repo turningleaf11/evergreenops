@@ -537,10 +537,9 @@ export default function DepartmentPage() {
               <p className="text-xs text-muted-foreground mb-4">By {previewDoc.author_name}</p>
             )}
             {previewDoc?.content ? (
-              <RichTextEditor
-                content={previewDoc.content}
-                onChange={() => {}}
-                editable={false}
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: previewDoc.content }}
               />
             ) : (
               <p className="text-sm text-muted-foreground italic">No content yet</p>
