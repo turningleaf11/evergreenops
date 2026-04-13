@@ -5,9 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CEOContextProvider } from "@/lib/ceo-context";
+import { StrategyFlowProvider } from "@/lib/strategy-flow";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import CeoDashboard from "./pages/CeoDashboard";
+import LeadershipDashboard from "./pages/LeadershipDashboard";
 import DepartmentPage from "./pages/DepartmentPage";
 import DocsPage from "./pages/DocsPage";
 import DatabasesPage from "./pages/DatabasesPage";
@@ -21,6 +23,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <CEOContextProvider>
+      <StrategyFlowProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -29,6 +32,7 @@ const App = () => (
             <Route element={<Layout />}>
               <Route path="/" element={<Index />} />
               <Route path="/ceo" element={<CeoDashboard />} />
+              <Route path="/leadership/:deptId" element={<LeadershipDashboard />} />
               <Route path="/department/:id" element={<DepartmentPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/databases" element={<DatabasesPage />} />
@@ -40,6 +44,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </StrategyFlowProvider>
       </CEOContextProvider>
     </AuthProvider>
   </QueryClientProvider>

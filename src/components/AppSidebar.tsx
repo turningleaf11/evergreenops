@@ -2,7 +2,7 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
-  ShieldCheck, Compass,
+  ShieldCheck, Compass, LayoutDashboard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
