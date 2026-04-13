@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { useStrategyFlow } from "@/lib/strategy-flow";
-import { databases, databaseRows } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
 import { CheckSquare, AlertTriangle, FolderKanban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
