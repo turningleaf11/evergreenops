@@ -21,8 +21,6 @@ import PeoplePage from "./pages/PeoplePage";
 import SettingsPage from "./pages/SettingsPage";
 import TrainingPage from "./pages/TrainingPage";
 import ExecutionPage from "./pages/ExecutionPage";
-import IssuesPage from "./pages/IssuesPage";
-import VisionPage from "./pages/VisionPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
