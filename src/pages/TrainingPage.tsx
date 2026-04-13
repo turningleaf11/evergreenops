@@ -29,7 +29,7 @@ const categories: TrainingCategory[] = ["Onboarding", "Role Training", "Processe
 export default function TrainingPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const { isStepComplete, markStepComplete, markStepIncomplete, getModuleProgress, isModuleComplete } = useTrainingProgress();
-  const { currentUser } = useAuth();
+  const { profile } = useAuth();
   const { modules: trainingModules } = useTraining();
 
   // Filter modules by role — show all if roleIds is empty, otherwise match user dept

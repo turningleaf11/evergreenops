@@ -17,7 +17,8 @@ interface Props {
 
 export function UpwardProposalForm({ departmentId }: Props) {
   const { addProposal, proposals } = useStrategyFlow();
-  const { currentUserId } = useAuth();
+  const { user } = useAuth();
+  const currentUserId = user?.id || "";
   const [selectedType, setSelectedType] = useState<UpwardProposalType | null>(null);
   const [title, setTitle] = useState("");
   const [reasoning, setReasoning] = useState("");

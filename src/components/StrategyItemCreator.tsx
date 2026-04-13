@@ -14,7 +14,8 @@ const typeConfig: Record<StrategyItemType, { label: string; icon: React.ElementT
 
 export function StrategyItemCreator() {
   const { addStrategyItem, strategyItems, updateStrategyItem, deleteStrategyItem } = useStrategyFlow();
-  const { currentUserId } = useAuth();
+  const { user } = useAuth();
+  const currentUserId = user?.id || "";
   const [creating, setCreating] = useState(false);
   const [type, setType] = useState<StrategyItemType>("objective");
   const [title, setTitle] = useState("");
