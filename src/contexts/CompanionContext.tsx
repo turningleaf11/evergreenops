@@ -55,7 +55,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
 
   // Proactive greeting on CEO Dashboard
   useEffect(() => {
-    if (!open || location.pathname !== "/" || messages.length > 0 || greetingSent.current || loading) return;
+    if (!open || (location.pathname !== "/" && location.pathname !== "/ceo") || messages.length > 0 || greetingSent.current || loading) return;
     greetingSent.current = true;
 
     (async () => {

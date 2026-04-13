@@ -37,12 +37,12 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
+    ...(isAdmin ? [{ title: "Strategy", url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
     { title: "Docs", url: "/docs", icon: FileText },
     { title: "Databases", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
     { title: "Training", url: "/training", icon: GraduationCap },
-    ...(isAdmin ? [{ title: "Strategy", url: "/ceo", icon: Compass }] : []),
   ];
 
   return (
