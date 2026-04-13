@@ -1,23 +1,28 @@
 import { useRef, useEffect, useContext } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useCompanion, CompanionContext } from "@/contexts/CompanionContext";
+import { CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export function GlobalCompanion() {
   const companionCtx = useContext(CompanionContext);
-  if (!companionCtx) return null;
-
   const { isAdmin } = useAuth();
-  const { messages, input, setInput, loading, open, setOpen, send } = companionCtx;
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const messages = companionCtx?.messages ?? [];
+  const input = companionCtx?.input ?? "";
+  const setInput = companionCtx?.setInput ?? (() => {});
+  const loading = companionCtx?.loading ?? false;
+  const open = companionCtx?.open ?? false;
+  const setOpen = companionCtx?.setOpen ?? (() => {});
+  const send = companionCtx?.send ?? (() => {});
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  if (!isAdmin) return null;
+  if (!companionCtx || !isAdmin) return null;
 
   return (
     <>

@@ -19,7 +19,7 @@ interface CompanionContextType {
   send: () => Promise<void>;
 }
 
-const CompanionContext = createContext<CompanionContextType | null>(null);
+export const CompanionContext = createContext<CompanionContextType | null>(null);
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ceo-chat`;
 
