@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
+import DetailDrawer from "@/components/DetailDrawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +80,9 @@ export default function ExecutionPage() {
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [drawerItem, setDrawerItem] = useState<any>(null);
+  const [drawerType, setDrawerType] = useState<"project" | "task">("project");
+  const navigate = useNavigate();
 
   // Issues state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
