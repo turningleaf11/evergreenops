@@ -682,6 +682,54 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          created_by: string | null
+          custom_fields: Json
+          description: string
+          due_date_offset_days: number | null
+          id: string
+          priority: string
+          recurrence_rule: Json | null
+          subtasks: Json
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          description?: string
+          due_date_offset_days?: number | null
+          id?: string
+          priority?: string
+          recurrence_rule?: Json | null
+          subtasks?: Json
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          description?: string
+          due_date_offset_days?: number | null
+          id?: string
+          priority?: string
+          recurrence_rule?: Json | null
+          subtasks?: Json
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -691,9 +739,12 @@ export type Database = {
           due_date: string | null
           goal_id: string | null
           id: string
+          is_recurring: boolean
           notes_content: string
           priority: string
           project_id: string | null
+          recurrence_rule: Json | null
+          recurring_parent_id: string | null
           status: string
           subtasks: Json
           tags: string[]
@@ -708,9 +759,12 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          is_recurring?: boolean
           notes_content?: string
           priority?: string
           project_id?: string | null
+          recurrence_rule?: Json | null
+          recurring_parent_id?: string | null
           status?: string
           subtasks?: Json
           tags?: string[]
@@ -725,9 +779,12 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          is_recurring?: boolean
           notes_content?: string
           priority?: string
           project_id?: string | null
+          recurrence_rule?: Json | null
+          recurring_parent_id?: string | null
           status?: string
           subtasks?: Json
           tags?: string[]
