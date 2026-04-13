@@ -408,7 +408,7 @@ export default function ExecutionPage() {
             const pTasks = tasksForProject(p.id);
             const goalTitle = goals.find(g => g.id === p.goal_id)?.title;
             return (
-              <Card key={p.id}>
+              <Card key={p.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("project"); setDrawerItem(p); }}>
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -443,7 +443,7 @@ export default function ExecutionPage() {
             const projectTitle = projects.find(p => p.id === t.project_id)?.title;
             const goalTitle = goals.find(g => g.id === t.goal_id)?.title;
             return (
-              <Card key={t.id}>
+              <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("task"); setDrawerItem(t); }}>
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
                     <div>
