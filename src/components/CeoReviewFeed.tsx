@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStrategyFlow } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Check, X, MessageCircle, ArrowUp, AlertTriangle, HelpCircle, Flag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useStrategyFlow } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 

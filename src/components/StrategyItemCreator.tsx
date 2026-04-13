@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStrategyFlow, StrategyItemType } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Target, ShieldAlert, Gavel, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
