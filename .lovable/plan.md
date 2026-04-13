@@ -1,48 +1,42 @@
 
 
-# Bug Fixes: Docs, Rich Text Editor, and Activity Sidebar
+# Department Overview Page Enhancement
 
-## Issues Identified
+## Summary
+Make department pages into real team hubs by surfacing department-specific docs, databases, tasks, projects, goals, and activity — all data that already exists but isn't being displayed.
 
-1. **Docs: No way to change access after creation** — `InlineDocEditor` has no access/visibility controls; only the creation dialog has `AccessPicker`
-2. **Docs: Inline tag filter chips → dropdown** — Current tag filter uses inline chip buttons; user wants a dropdown select
-3. **Docs: "Add tag" doesn't work** — The `+ tag` input has no visible focus state and likely gets missed; needs a proper tag add mechanism
-4. **Docs: Callouts render as plain text** — Callouts insert raw `<div class="callout ...">` HTML but TipTap sanitizes custom divs, so they render as just "Info:" text with no styling
-5. **Rich text editor: Glitchy text while typing** — The `useEffect` that calls `setContent` on every `content` prop change fights with the editor's internal state, causing cursor jumps and text glitches
-6. **Activity sidebar bleeding off screen** — The sidebar's `w-[340px]` has no overflow constraints and the parent `flex` container doesn't properly bound it
+## Changes
 
----
+### 1. Fix Docs & Databases Filtering
+Currently fetches all docs/databases but never filters or renders them. Fix: filter client-side where `shared_with.departmentIds` includes the department ID OR `visibility = 'workspace'`, then render in the Overview tab as linked card lists.
 
-## Fixes
+### 2. Add Department Tasks & Projects Summary
+Query `tasks` and `projects` where `department_id` matches. Show counts by status and a compact list of active items (in progress / to do) with links to detail pages.
 
-### 1. Docs Access Picker (post-creation)
-Add an inline `AccessPicker` to `InlineDocEditor` (below tags, collapsible) that calls `onUpdate` with visibility/sharedWith changes, persisting via the existing `handleInlineUpdate` which needs to forward `visibility` and `shared_with` to the DB update.
+### 3. Add Department Goals
+Query `goals` where `department_id` matches and `year` is current year. Show goal cards with progress bars and status badges.
 
-### 2. Tag Filter → Dropdown
-Replace the inline chip tag filter in `DocsPage.tsx` sidebar with a multi-select `Popover` dropdown (button label "Filter by tag" + checkboxes for each tag + clear button).
+### 4. Add Recent Activity Feed
+Query `activity_events` where `department_id` matches, limited to recent entries. Show as a compact timeline in the Overview tab.
 
-### 3. Fix "Add Tag"
-The tag input works via Enter key but the `onBlur` handler has a race condition. Fix: ensure `addTag` is called properly and add a small "+" button next to the input for discoverability.
+### 5. Add Department Issues Summary
+Query `issues` where `department_id` matches and `status = 'open'`. Show count and compact list.
 
-### 4. Fix Callouts
-Callouts use raw HTML `<div>` which TipTap strips. Fix: create a custom TipTap `Node` extension for callouts (node type `callout` with `data-type` attribute for info/warning/success/error). Update `SlashCommandMenu.tsx` to insert the callout node instead of raw HTML. The CSS already targets `.callout` classes — just needs the node to render the right classes.
-
-### 5. Fix Glitchy Text (Content Sync)
-The `useEffect` in `RichTextEditor.tsx` that re-sets content on every prop change causes cursor resets. Fix: remove the `useEffect` content sync (or gate it with a ref tracking whether the change was external vs internal). The editor's `onUpdate` already pushes changes outward — the parent should not push them back in.
-
-### 6. Fix Sidebar Overflow
-In `ActivitySidebar.tsx`: change the outer div from `w-[340px]` to `w-[340px] min-w-0` and ensure `overflow-hidden` on the flex parent. In `TaskDetailPage.tsx` and `ProjectDetailPage.tsx`: add `min-w-0` to the main workspace column so the flex layout doesn't overflow.
-
----
+### 6. Reorganize Overview Tab Layout
+Structure the Overview tab into clear sections:
+- Announcements (pinned, existing)
+- Goals (new — progress bars)
+- Active Projects & Tasks (new — compact lists with status)
+- Open Issues (new — count + list)
+- Shared Docs & Databases (fixed — filtered, linked)
+- Team Members (existing)
+- Recent Activity (new — timeline)
 
 ## Files
 
-| Fix | File(s) |
-|-----|---------|
-| Docs access picker | Edit: `src/pages/DocsPage.tsx` (InlineDocEditor + handleInlineUpdate) |
-| Tag filter dropdown | Edit: `src/pages/DocsPage.tsx` (sidebar section) |
-| Fix add tag | Edit: `src/pages/DocsPage.tsx` (InlineDocEditor tag input) |
-| Fix callouts | New: `src/extensions/CalloutNode.ts`, Edit: `src/components/SlashCommandMenu.tsx`, `src/components/RichTextEditor.tsx` |
-| Fix glitchy text | Edit: `src/components/RichTextEditor.tsx` (remove/gate content useEffect) |
-| Fix sidebar overflow | Edit: `src/components/ActivitySidebar.tsx`, `src/pages/TaskDetailPage.tsx`, `src/pages/ProjectDetailPage.tsx` |
+| What | File |
+|------|------|
+| Department page overhaul | Edit: `src/pages/DepartmentPage.tsx` — add queries for goals/tasks/projects/issues/activity, fix doc/db filtering, render all sections |
+
+No database changes needed — all the required columns (`department_id` on tasks, projects, goals, issues; `shared_with` on docs/databases; `department_id` on activity_events) already exist.
 
