@@ -61,7 +61,7 @@ const Index = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm">{dept.name}</p>
-                        <p className="text-xs text-muted-foreground">{dept.memberCount} members</p>
+                        <p className="text-xs text-muted-foreground">{dept.description || "Department"}</p>
                       </div>
                     </div>
                   </CardContent>

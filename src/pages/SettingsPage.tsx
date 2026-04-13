@@ -66,7 +66,7 @@ export default function SettingsPage() {
   const handleAddDepartment = () => {
     const name = newDeptName.trim();
     if (!name) return;
-    addDepartment({ name, description: "", icon: "Building2", memberCount: 0, color: "220 65% 48%" });
+    addDepartment({ name, description: "", icon: "Building2", color: "220 65% 48%" });
     setNewDeptName("");
     toast({ title: "Department added", description: `"${name}" has been created.` });
   };
