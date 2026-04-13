@@ -340,7 +340,7 @@ export default function DepartmentPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : (
