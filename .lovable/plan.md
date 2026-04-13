@@ -1,39 +1,43 @@
 
 
-# Proactive AI Greeting on Strategy Page
+# Two Quick Fixes + People Page Discussion
 
-## Summary
+## 1. Companion briefing on Strategy page (bug fix)
 
-When the companion is opened while on the CEO Dashboard (`/`), it automatically sends a proactive greeting — a situational summary of overdue tasks, stalled projects, pending decisions, and recent changes. On other pages, the companion opens as a blank chat ready for conversation.
+**Problem**: Line 58 in `CompanionContext.tsx` checks `location.pathname !== "/"` — so the proactive greeting only fires on the Home page, not `/ceo` (Strategy).
 
-## How it works
+**Fix**: Change the condition to also include `/ceo`:
+```
+if (!open || (location.pathname !== "/" && location.pathname !== "/ceo") || messages.length > 0 || greetingSent.current || loading) return;
+```
 
-1. **CompanionContext** tracks whether a greeting has already been sent this session (to avoid re-triggering on every open/close)
-2. When `open` becomes `true` and the user is on `/` (CEO Dashboard) and no messages exist yet, the context automatically:
-   - Queries Supabase for: overdue tasks, stalled/blocked projects, recent decisions, open issues, recent activity events
-   - Sends a special system-level "snapshot" payload to the `ceo-chat` edge function alongside a synthetic user message like `[MORNING_BRIEFING]`
-3. The edge function recognizes this marker and generates a conversational situational greeting using the snapshot data
-4. On all other pages, the companion opens normally with the empty state prompts
+| File | Change |
+|------|--------|
+| `src/contexts/CompanionContext.tsx` | Update pathname check on line 58 to include `/ceo` |
 
-## What changes
+## 2. Move Strategy page up in sidebar
 
-| What | File |
-|------|------|
-| Add snapshot fetch + auto-greeting logic | Edit: `src/contexts/CompanionContext.tsx` |
-| Add snapshot data to edge function context handling | Edit: `supabase/functions/ceo-chat/index.ts` |
+**Problem**: In `AppSidebar.tsx`, the Strategy link (`/ceo`) is at the bottom of `mainNav`.
 
-### CompanionContext changes
-- Add a `greetingSent` ref to prevent duplicate greetings
-- When `open` flips to `true`, check: is pathname `/`? Are messages empty? Has greeting not been sent?
-- If yes: query Supabase for overdue tasks (`due_date < today`, status not `done`), projects with status `blocked` or `at_risk`, recent `decision_log` entries, open `issues`, and last 24h `activity_events`
-- Send this snapshot object as `liveSnapshot` in the request body alongside a synthetic `[MORNING_BRIEFING]` user message (hidden from UI)
-- The assistant response streams in as normal
+**Fix**: Reorder `mainNav` array to place Strategy between Home and Execution Hub:
+```
+{ title: "Home", url: "/", icon: Home },
+{ title: "Strategy", url: "/ceo", icon: Compass },
+{ title: "Execution Hub", url: "/execution", icon: Target },
+...
+```
 
-### Edge function changes
-- Detect when the first user message is `[MORNING_BRIEFING]`
-- Append a briefing instruction to the system prompt: "The user just opened their command center. Greet them with a brief, conversational situational summary based on the live snapshot. Highlight what needs attention — overdue items, blocked projects, pending decisions. Be concise. End by asking what they want to focus on."
-- Include the `liveSnapshot` data in the system prompt context
+| File | Change |
+|------|--------|
+| `src/components/AppSidebar.tsx` | Reorder `mainNav` array — move Strategy to position 2 |
 
-### No database changes needed
-All data already exists in tables: `tasks`, `projects`, `decision_log`, `issues`, `activity_events`.
+## 3. People page admin management — awaiting discussion
+
+No changes yet. Need your input on which management capabilities matter most:
+- Assign/change departments
+- Change user roles (admin/user)
+- Remove team members
+- Invite new members (UI for existing edge function)
+- Edit profile details (name, title/position)
+- See assigned tasks or activity
 
