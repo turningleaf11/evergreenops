@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { announcements, departments, docPages, databases, databaseRows } from "@/lib/mock-data";
+import { announcements, docPages, databases, databaseRows } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Link } from "react-router-dom";
 import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
@@ -10,9 +11,9 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const Index = () => {
+  const { departments } = useDepartments();
   const pinnedAnnouncements = announcements.filter((a) => a.pinned);
   const recentDocs = docPages.slice(0, 3);
-  // Show rows that are "In Progress" across all databases
   const activeRows = databaseRows.filter((r) => r.values.status === "In Progress").slice(0, 4);
 
   return (

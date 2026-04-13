@@ -13,8 +13,9 @@ import {
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { departments } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 
 const deptIconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
@@ -26,6 +27,8 @@ export function AppSidebar() {
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
   const { currentUser, isAdmin, role, setRole } = useAuth();
+  const { name: workspaceName, logoUrl } = useWorkspace();
+  const { departments } = useDepartments();
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
@@ -40,12 +43,16 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            T
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt={workspaceName} className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+              {workspaceName.charAt(0).toUpperCase()}
+            </div>
+          )}
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">TeamSpace</span>
+              <span className="text-sm font-semibold text-sidebar-foreground">{workspaceName}</span>
               <span className="text-xs text-muted-foreground">Workspace</span>
             </div>
           )}

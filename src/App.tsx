@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { DepartmentsProvider } from "@/contexts/DepartmentsContext";
 import { CEOContextProvider } from "@/lib/ceo-context";
 import { StrategyFlowProvider } from "@/lib/strategy-flow";
 import { TrainingProgressProvider } from "@/lib/training-progress";
@@ -24,6 +26,8 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <WorkspaceProvider>
+      <DepartmentsProvider>
       <CEOContextProvider>
       <StrategyFlowProvider>
       <TrainingProgressProvider>
@@ -51,6 +55,8 @@ const App = () => (
       </TrainingProgressProvider>
       </StrategyFlowProvider>
       </CEOContextProvider>
+      </DepartmentsProvider>
+      </WorkspaceProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

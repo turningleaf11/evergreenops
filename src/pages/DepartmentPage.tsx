@@ -1,17 +1,23 @@
 import { useParams } from "react-router-dom";
-import { departments, teamMembers, announcements, docPages, databases, databaseRows } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
+import { teamMembers, announcements, docPages, databases, databaseRows } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FileText, Pin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { lazy, Suspense } from "react";
-
-const LeadershipDashboard = lazy(() => import("@/pages/LeadershipDashboard"));
+import { lazy, Suspense, useState } from "react";
+import { StrategyFeed } from "@/components/StrategyFeed";
+import { TranslationBlockComponent } from "@/components/TranslationBlock";
+import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
+import { UpwardProposalForm } from "@/components/UpwardProposal";
+import { LeadershipAiChat } from "@/components/LeadershipAiChat";
+import { Bot, Zap, Brain } from "lucide-react";
 
 export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
+  const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === id);
 
   if (!dept) return <div className="p-6 text-muted-foreground">Department not found.</div>;
@@ -114,37 +120,16 @@ export default function DepartmentPage() {
         </TabsContent>
 
         <TabsContent value="leadership" className="mt-4">
-          <Suspense fallback={<div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>}>
-            <LeadershipDashboardEmbed deptId={id!} />
-          </Suspense>
+          <EmbeddedLeadership deptId={id!} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-/** Wrapper that sets the URL param LeadershipDashboard expects */
-function LeadershipDashboardEmbed({ deptId }: { deptId: string }) {
-  // LeadershipDashboard reads deptId from useParams, but when embedded
-  // we're on /department/:id — so we render it via the route-matched lazy import
-  // and override with a prop-based approach. Since we can't change useParams,
-  // we'll render the dashboard content directly.
-  return <EmbeddedLeadership deptId={deptId} />;
-}
-
-// We need to refactor: LeadershipDashboard uses useParams internally.
-// For embedding, we create a thin wrapper that imports the internals.
-import { departments as deptList } from "@/lib/mock-data";
-import { StrategyFeed } from "@/components/StrategyFeed";
-import { TranslationBlockComponent } from "@/components/TranslationBlock";
-import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
-import { UpwardProposalForm } from "@/components/UpwardProposal";
-import { LeadershipAiChat } from "@/components/LeadershipAiChat";
-import { Bot, Zap, Brain } from "lucide-react";
-import { useState } from "react";
-
 function EmbeddedLeadership({ deptId }: { deptId: string }) {
-  const dept = deptList.find((d) => d.id === deptId);
+  const { departments } = useDepartments();
+  const dept = departments.find((d) => d.id === deptId);
   const [chatOpen, setChatOpen] = useState(false);
 
   if (!dept) return null;

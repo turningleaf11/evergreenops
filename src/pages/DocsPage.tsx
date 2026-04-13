@@ -207,7 +207,7 @@ function InlineDocEditor({
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-none">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
