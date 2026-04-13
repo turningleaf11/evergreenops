@@ -1,51 +1,61 @@
 
 
-# Connect AI Strategy Companion to Lovable AI
+# Projects ↔ Goals ↔ Tasks Linking + Inline Doc Editing
 
-## Overview
-Replace the mock `getMockResponse` function with a real AI-powered streaming chat using the Lovable AI Gateway via a Supabase Edge Function. The `LOVABLE_API_KEY` is already available.
+## Part 1: Relational Linking (Goals → Projects → Tasks)
 
-## What Changes
+### Data Model Changes (`src/lib/mock-data.ts`)
+- Add a `"relation"` column type to `ColumnType`
+- Relation columns store a reference: `{ databaseId: string, rowId: string }` or an array of them
+- Add a `relationConfig?: { databaseId: string; multiple?: boolean }` field to `DatabaseColumn` so each relation column knows which database it points to
+- Update the **Goals Tracker** template to include a `projects` relation column pointing at Project Board
+- Update the **Project Board** template to include a `goal` relation column (back to Goals) and a `tasks` relation column (pointing at Task List)
+- Update the **Task List** template to include a `project` relation column (back to Project Board)
+- Update sample `databaseRows` to include relation values linking existing rows
 
-### 1. Create Edge Function (`supabase/functions/ceo-chat/index.ts`)
-- Accepts `{ messages }` from the client
-- Prepends the CEO context as a system prompt (sent from client)
-- Calls `https://ai.gateway.lovable.dev/v1/chat/completions` with streaming enabled
-- Uses `google/gemini-3-flash-preview` model
-- Handles CORS, 429 rate limits, 402 payment errors
-- Returns SSE stream directly to client
+### Rendering Relations (`src/components/DatabaseView.tsx`)
+- When rendering a `relation` column cell, look up the referenced row(s) by ID and display the title as a clickable chip/badge
+- Clicking a relation chip navigates to that database + row
 
-### 2. Update `src/components/CeoAiChat.tsx`
-- Remove `getMockResponse` function
-- Add SSE streaming logic that calls the edge function
-- Stream tokens into the assistant message in real-time (token-by-token rendering)
-- Send full conversation history + system context on each request
-- Handle 429/402 errors with user-friendly messages
-- Keep `buildSystemContext` — it becomes the system prompt sent to the edge function
+### Editing Relations (`src/components/DatabaseItemEditor.tsx`)
+- For `relation` type columns, render a searchable dropdown that lists rows from the target database
+- Support single and multi-select based on `relationConfig.multiple`
 
-### 3. No other files change
-The CEO context, dashboard, and all other components remain untouched.
+### Wire up in `DatabasesPage.tsx`
+- Pass the full `allDatabases` and `allRows` arrays down so relation lookups work across databases
 
-## Technical Details
+## Part 2: Inline Doc Editing (Notion-style)
 
-**Edge function flow:**
-```text
-Client → POST /functions/v1/ceo-chat { messages: [...] }
-       → Edge function prepends system prompt
-       → Streams from Lovable AI Gateway
-       → SSE response back to client
-```
+### Replace Dialog Editing with Inline Editing (`src/pages/DocsPage.tsx`)
+- Remove the `DocEditor` dialog for editing (keep it only for the "New Page" flow where you set title/parent/access)
+- When a doc is selected, the content area becomes directly editable:
+  - Title becomes an `<input>` (borderless, large font) that saves on blur/change
+  - Content area shows the `RichTextEditor` directly (not in a dialog) with the toolbar at the top
+  - Tags become inline editable chips
+  - Metadata (author, date, visibility) shown as subtle inline controls
+- Auto-save on content change (debounced ~1s) — no explicit Save button needed
+- The doc content panel switches between "view mode" (for non-admin) and "edit mode" (for admin, always-on)
 
-**Streaming in React:**
-- On send: append user message, create empty assistant message
-- Parse SSE line-by-line, extract `delta.content` tokens
-- Update last assistant message content progressively
-- On `[DONE]`, mark loading complete
+### Simplify `DocEditor` Component
+- Keep `DocEditor` dialog only for creating new pages (setting title, parent, access before creation)
+- Rename to `NewDocDialog` for clarity
 
-**System prompt** stays in the edge function (moved from client-side `buildSystemContext`). The client sends the CEO context data as part of the request body, and the edge function builds the system prompt server-side.
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/lib/mock-data.ts` | Add `relation` to ColumnType, add `relationConfig` to DatabaseColumn, update templates + sample data |
+| `src/components/DatabaseView.tsx` | Render relation cells as clickable chips |
+| `src/components/DatabaseItemEditor.tsx` | Add relation column editor (searchable dropdown) |
+| `src/pages/DatabasesPage.tsx` | Pass databases/rows for cross-db lookups |
+| `src/pages/DocsPage.tsx` | Replace dialog editing with inline editing, auto-save, borderless title input, embedded RichTextEditor |
+| `src/components/DocEditor.tsx` | Simplify to new-doc-only dialog |
 
 ## Build Order
-1. Create `supabase/functions/ceo-chat/index.ts` with streaming + CORS
-2. Update `CeoAiChat.tsx` — replace mock with streaming SSE client
-3. Test end-to-end
+1. Data model: add relation type + update templates/sample data
+2. DatabaseItemEditor: relation column editing UI
+3. DatabaseView: render relation cells
+4. DatabasesPage: pass cross-db data
+5. DocsPage: inline editing with embedded RichTextEditor + auto-save
+6. Simplify DocEditor to new-doc-only
 
