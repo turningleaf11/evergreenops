@@ -7,18 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft, Calendar, User, FolderOpen, Plus, CheckCircle2, Circle, Clock,
-  AlertTriangle, Tag, X,
+  Tag, X, ChevronDown, Target, Zap, AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
-import CommentsSection from "@/components/CommentsSection";
-import EntityActivity from "@/components/EntityActivity";
+import ActivitySidebar from "@/components/ActivitySidebar";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
@@ -48,10 +47,9 @@ export default function ProjectDetailPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
-
-  // New task inline
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -78,7 +76,7 @@ export default function ProjectDetailPage() {
   const updateProject = async (updates: Record<string, any>) => {
     const { error } = await supabase.from("projects").update(updates as any).eq("id", id!);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { setProject((p: any) => ({ ...p, ...updates })); }
+    else setProject((p: any) => ({ ...p, ...updates }));
   };
 
   const logActivity = async (action: string, metadata: Record<string, any> = {}) => {
@@ -98,15 +96,13 @@ export default function ProjectDetailPage() {
   const addTag = () => {
     const tag = newTagInput.trim().toLowerCase();
     if (tag && !project.tags?.includes(tag)) {
-      const newTags = [...(project.tags || []), tag];
-      updateProject({ tags: newTags });
+      updateProject({ tags: [...(project.tags || []), tag] });
     }
     setNewTagInput("");
   };
 
   const removeTag = (tag: string) => {
-    const newTags = (project.tags || []).filter((t: string) => t !== tag);
-    updateProject({ tags: newTags });
+    updateProject({ tags: (project.tags || []).filter((t: string) => t !== tag) });
   };
 
   const createTask = async () => {
@@ -131,17 +127,20 @@ export default function ProjectDetailPage() {
   const goalTitle = goals.find(g => g.id === project.goal_id)?.title;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={() => navigate("/execution")}>
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Execution Hub
-      </Button>
+    <div className="h-full flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/execution")}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Execution Hub
+        </Button>
+      </div>
 
-      {/* Header */}
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          <FolderOpen className="h-6 w-6 text-primary mt-1" />
-          <div className="flex-1">
+      {/* Two-column layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main workspace */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 max-w-4xl">
+          {/* Title */}
+          <div className="mb-4">
             {editingTitle ? (
               <Input
                 value={titleDraft}
@@ -149,153 +148,127 @@ export default function ProjectDetailPage() {
                 onBlur={saveTitle}
                 onKeyDown={e => e.key === "Enter" && saveTitle()}
                 autoFocus
-                className="text-2xl font-bold h-auto py-0 px-1 border-none shadow-none focus-visible:ring-1"
+                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
               />
             ) : (
               <h1
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-1 -mx-1"
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-2 py-1"
                 onClick={() => setEditingTitle(true)}
               >
                 {project.title}
               </h1>
             )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge className={statusConfig[project.status]?.color || "bg-muted"}>
-                {statusConfig[project.status]?.label || project.status}
-              </Badge>
-              <Badge variant="outline" className={priorityConfig[project.priority]?.color || ""}>
-                {priorityConfig[project.priority]?.label || project.priority}
-              </Badge>
-              {goalTitle && <Badge variant="outline">🎯 {goalTitle}</Badge>}
-            </div>
           </div>
-        </div>
 
-        {/* Metadata row */}
-        <div className="flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" /> {getName(project.owner_id)}
+          {/* Compact metadata row */}
+          <div className="flex items-center gap-2 flex-wrap mb-2 text-sm">
+            {/* Status */}
+            <Select value={project.status} onValueChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}>
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+                <Badge className={`${statusConfig[project.status]?.color || "bg-muted"} text-[11px] pointer-events-none`}>
+                  {statusConfig[project.status]?.label || project.status}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Priority */}
+            <Select value={project.priority || "medium"} onValueChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+                <Badge variant="outline" className={`${priorityConfig[project.priority]?.color || ""} text-[11px] pointer-events-none`}>
+                  {priorityConfig[project.priority]?.label || project.priority}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(priorityConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Owner */}
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <User className="h-3 w-3" /> {getName(project.owner_id)}
+            </span>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Due date */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50 transition-colors">
+                  <Calendar className="h-3 w-3" />
+                  {project.due_date || "No due date"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="start">
+                <Input type="date" value={project.due_date || ""} onChange={e => updateProject({ due_date: e.target.value || null })} className="h-8 text-xs" />
+              </PopoverContent>
+            </Popover>
+
+            {/* Goal */}
+            {goalTitle && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Target className="h-3 w-3" /> {goalTitle}
+                </span>
+              </>
+            )}
+
+            {/* Tags */}
+            {(project.tags || []).map((t: string) => (
+              <Badge key={t} variant="secondary" className="text-[11px] gap-1">
+                {t}
+                <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+              </Badge>
+            ))}
+            <Input
+              value={newTagInput}
+              onChange={e => setNewTagInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
+              placeholder="+ tag"
+              className="h-6 w-16 text-[11px] border-none shadow-none bg-transparent placeholder:text-muted-foreground/40 px-1"
+            />
           </div>
-          {project.due_date && (
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" /> {project.due_date}
+
+          {/* Progress bar */}
+          {tasks.length > 0 && (
+            <div className="flex items-center gap-3 mb-6">
+              <Progress value={progress} className="h-1.5 flex-1" />
+              <span className="text-xs text-muted-foreground">{doneTasks}/{tasks.length}</span>
             </div>
           )}
-          <div>{doneTasks}/{tasks.length} tasks complete</div>
-        </div>
 
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Meta fields */}
-      <Card>
-        <CardContent className="py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground">Status</label>
-              <Select value={project.status} onValueChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(statusConfig).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Priority</label>
-              <Select value={project.priority || "medium"} onValueChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(priorityConfig).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Due Date</label>
-              <Input
-                type="date"
-                value={project.due_date || ""}
-                onChange={e => updateProject({ due_date: e.target.value || null })}
-                className="h-8 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Goal</label>
-              <Select value={project.goal_id || "none"} onValueChange={v => updateProject({ goal_id: v === "none" ? null : v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs text-muted-foreground">Description</label>
-            <Textarea
-              value={project.description || ""}
-              onChange={e => updateProject({ description: e.target.value })}
-              placeholder="Add a description..."
-              rows={2}
-              className="text-sm mt-1"
+          {/* Notes / Workspace — THE primary area */}
+          <div className="mb-6">
+            <RichTextEditor
+              content={project.notes_content || ""}
+              onChange={html => updateProject({ notes_content: html })}
+              placeholder="Write project notes, plans, meeting notes..."
+              borderless
             />
           </div>
 
-          {/* Tags */}
-          <div>
-            <label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" /> Tags</label>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {(project.tags || []).map((t: string) => (
-                <Badge key={t} variant="secondary" className="text-xs gap-1">
-                  {t}
-                  <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
-              <Input
-                value={newTagInput}
-                onChange={e => setNewTagInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
-                placeholder="Add tag..."
-                className="h-6 w-24 text-xs border-dashed"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Tasks</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="comments">Comments & Activity</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-3 mt-4">
-          {/* Inline add task */}
-          <div className="flex gap-2">
-            <Input
-              value={newTaskTitle}
-              onChange={e => setNewTaskTitle(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && createTask()}
-              placeholder="Add a task..."
-              className="text-sm"
-            />
-            <Button size="sm" onClick={createTask} disabled={!newTaskTitle.trim()}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {tasks.map(t => (
-            <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => navigate(`/tasks/${t.id}`)}>
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+          {/* Tasks — collapsible, below notes */}
+          <Collapsible open={tasksOpen} onOpenChange={setTasksOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${tasksOpen ? "" : "-rotate-90"}`} />
+              <FolderOpen className="h-3.5 w-3.5" />
+              Tasks {tasks.length > 0 && <span className="text-xs font-normal">({doneTasks}/{tasks.length})</span>}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 pt-2">
+              {tasks.map(t => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer group"
+                  onClick={() => navigate(`/tasks/${t.id}`)}
+                >
+                  <div className="flex items-center gap-2.5">
                     {t.status === "done" ? (
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
                     ) : t.status === "in_progress" ? (
@@ -317,39 +290,34 @@ export default function ProjectDetailPage() {
                     </Select>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-          {tasks.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No tasks yet. Add one above.</p>
-          )}
-        </TabsContent>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <Input
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && createTask()}
+                  placeholder="Add a task..."
+                  className="text-sm h-8 border-dashed"
+                />
+                <Button size="sm" variant="ghost" onClick={createTask} disabled={!newTaskTitle.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {tasks.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No tasks yet.</p>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
 
-        <TabsContent value="notes" className="mt-4">
-          <Card>
-            <CardContent className="py-4">
-              <RichTextEditor
-                content={project.notes_content || ""}
-                onChange={html => updateProject({ notes_content: html })}
-                placeholder="Write project notes, plans, meeting notes..."
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="comments" className="mt-4 space-y-6">
-          <Card>
-            <CardContent className="py-4">
-              <CommentsSection entityType="project" entityId={project.id} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <EntityActivity entityType="project" entityId={project.id} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        {/* Activity sidebar */}
+        <ActivitySidebar
+          entityType="project"
+          entityId={project.id}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
+        />
+      </div>
     </div>
   );
 }
