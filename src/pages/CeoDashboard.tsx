@@ -6,6 +6,8 @@ import { DecisionLog } from "@/components/DecisionLog";
 import { StrategicTensions } from "@/components/StrategicTensions";
 import { MorningReset } from "@/components/MorningReset";
 import { CeoAiChat } from "@/components/CeoAiChat";
+import { StrategyItemCreator } from "@/components/StrategyItemCreator";
+import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { Bot, ChevronDown, ChevronRight, Pencil, Check } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
@@ -109,6 +111,20 @@ export default function CeoDashboard() {
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Strategic Tensions</h2>
           <div className="rounded-xl border border-border bg-card p-5">
             <StrategicTensions />
+          </div>
+        </div>
+
+        {/* Strategy Items Manager */}
+        <div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <StrategyItemCreator />
+          </div>
+        </div>
+
+        {/* CEO Review Feed */}
+        <div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <CeoReviewFeed />
           </div>
         </div>
 
