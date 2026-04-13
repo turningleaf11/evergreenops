@@ -42,6 +42,8 @@ export function AppSidebar() {
     ...(isAdmin ? [{ title: "Settings", url: "/settings", icon: Settings }] : []),
   ];
 
+  const isLeadershipActive = location.pathname.startsWith("/leadership");
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
