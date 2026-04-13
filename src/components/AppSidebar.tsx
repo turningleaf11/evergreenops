@@ -28,7 +28,12 @@ export function AppSidebar() {
   const isDeptActive = location.pathname.startsWith("/department");
   const { profile, isAdmin, role, signOut } = useAuth();
   const { name: workspaceName, logoUrl } = useWorkspace();
-  const { departments } = useDepartments();
+  const { departments: allDepartments } = useDepartments();
+
+  // Admins see all departments; users see only their assigned department
+  const departments = isAdmin
+    ? allDepartments
+    : allDepartments.filter((d) => d.id === profile?.department_id);
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
