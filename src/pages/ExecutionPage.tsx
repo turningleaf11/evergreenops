@@ -13,7 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock, AlertTriangle, XCircle } from "lucide-react";
+import {
+  Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
+  AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Goal = {
@@ -31,6 +34,13 @@ type Task = {
   goal_id: string | null; status: string; assigned_to: string | null;
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
 };
+type Issue = {
+  id: string; title: string; description: string; raised_by: string | null;
+  department_id: string | null; priority: number; status: string;
+  root_cause: string; discussion_notes: string; resolution: string;
+  resolved_action_type: string; resolved_action_id: string | null;
+  created_at: string; updated_at: string;
+};
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   on_track: { label: "On Track", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
@@ -42,6 +52,12 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-800", icon: Clock },
   blocked: { label: "Blocked", color: "bg-red-100 text-red-800", icon: AlertTriangle },
   todo: { label: "To Do", color: "bg-muted text-muted-foreground", icon: Circle },
+};
+
+const priorityLabels: Record<number, { label: string; color: string }> = {
+  1: { label: "High", color: "bg-red-100 text-red-800" },
+  2: { label: "Medium", color: "bg-yellow-100 text-yellow-800" },
+  3: { label: "Low", color: "bg-green-100 text-green-800" },
 };
 
 const currentQuarter = () => {
@@ -56,23 +72,35 @@ export default function ExecutionPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [tab, setTab] = useState("goals");
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
+  // Issues state
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const [newIssueTitle, setNewIssueTitle] = useState("");
+  const [newIssueDesc, setNewIssueDesc] = useState("");
+  const [newIssuePriority, setNewIssuePriority] = useState("2");
+  const [newIssueDept, setNewIssueDept] = useState("");
+  const [issueViewTab, setIssueViewTab] = useState("open");
+
   const fetchAll = useCallback(async () => {
-    const [g, p, t, pr] = await Promise.all([
+    const [g, p, t, pr, i] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
     ]);
     if (g.data) setGoals(g.data);
     if (p.data) setProjects(p.data);
     if (t.data) setTasks(t.data);
     if (pr.data) setProfiles(pr.data);
+    if (i.data) setIssues(i.data);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -92,7 +120,6 @@ export default function ExecutionPage() {
   const tasksForProject = (projectId: string) => tasks.filter(t => t.project_id === projectId);
   const tasksForGoal = (goalId: string) => tasks.filter(t => t.goal_id === goalId && !t.project_id);
 
-  // Quick create handlers
   const createGoal = async (data: { title: string; quarter: string; year: number; description: string; department_id: string }) => {
     const { error } = await supabase.from("goals").insert({
       title: data.title, quarter: data.quarter, year: data.year,
@@ -129,6 +156,56 @@ export default function ExecutionPage() {
     else fetchAll();
   };
 
+  // Issues handlers
+  const createIssue = async () => {
+    if (!newIssueTitle.trim()) return;
+    const { error } = await supabase.from("issues").insert({
+      title: newIssueTitle, description: newIssueDesc, priority: parseInt(newIssuePriority),
+      raised_by: user?.id, department_id: newIssueDept || null,
+    });
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); fetchAll(); }
+  };
+
+  const updateIssue = async (id: string, updates: Partial<Issue>) => {
+    const { error } = await supabase.from("issues").update(updates).eq("id", id);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else {
+      fetchAll();
+      if (selectedIssue?.id === id) setSelectedIssue(prev => prev ? { ...prev, ...updates } : null);
+    }
+  };
+
+  const solveWithTask = async (issue: Issue) => {
+    const { data } = await supabase.from("tasks").insert({
+      title: `[Issue] ${issue.title}`, description: issue.resolution || issue.root_cause,
+      created_by: user?.id, assigned_to: user?.id,
+    }).select().single();
+    if (data) {
+      await updateIssue(issue.id, { status: "solved", resolved_action_type: "todo", resolved_action_id: data.id });
+      toast({ title: "Issue solved — task created" });
+    }
+  };
+
+  const solveWithProject = async (issue: Issue) => {
+    const { data } = await supabase.from("projects").insert({
+      title: `[Issue] ${issue.title}`, description: issue.resolution || issue.root_cause,
+      created_by: user?.id, owner_id: user?.id,
+    }).select().single();
+    if (data) {
+      await updateIssue(issue.id, { status: "solved", resolved_action_type: "project", resolved_action_id: data.id });
+      toast({ title: "Issue solved — project created" });
+    }
+  };
+
+  const dismiss = async (issue: Issue) => {
+    await updateIssue(issue.id, { status: "dismissed", resolved_action_type: "none" });
+    toast({ title: "Issue dismissed" });
+  };
+
+  const openIssues = issues.filter(i => !["solved", "dismissed"].includes(i.status));
+  const resolvedIssues = issues.filter(i => ["solved", "dismissed"].includes(i.status));
+
   const StatusBadge = ({ status }: { status: string }) => {
     const cfg = statusConfig[status] || { label: status, color: "bg-muted text-muted-foreground", icon: Circle };
     return <Badge variant="secondary" className={`${cfg.color} text-xs`}>{cfg.label}</Badge>;
@@ -149,6 +226,14 @@ export default function ExecutionPage() {
             <TabsTrigger value="goals">Goals</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+            <TabsTrigger value="issues" className="flex items-center gap-1.5">
+              Issues
+              {openIssues.length > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full bg-destructive/10 text-destructive text-[10px] font-semibold h-4 min-w-4 px-1">
+                  {openIssues.length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
             {tab === "goals" && (
@@ -166,9 +251,49 @@ export default function ExecutionPage() {
                 onSubmit={createTask} type="task" goals={goals} projects={projects}
                 departments={departments} profiles={profiles} />
             )}
+            {tab === "issues" && (
+              <Dialog open={createIssueOpen} onOpenChange={setCreateIssueOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Raise Issue</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Raise an Issue</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div><Label>Title</Label><Input value={newIssueTitle} onChange={e => setNewIssueTitle(e.target.value)} /></div>
+                    <div><Label>Description</Label><Textarea value={newIssueDesc} onChange={e => setNewIssueDesc(e.target.value)} rows={3} /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Priority</Label>
+                        <Select value={newIssuePriority} onValueChange={setNewIssuePriority}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">High</SelectItem>
+                            <SelectItem value="2">Medium</SelectItem>
+                            <SelectItem value="3">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {departments.length > 0 && (
+                        <div>
+                          <Label>Department</Label>
+                          <Select value={newIssueDept} onValueChange={setNewIssueDept}>
+                            <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                            <SelectContent>
+                              {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    <Button onClick={createIssue} className="w-full">Submit</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
+        {/* Goals tab */}
         <TabsContent value="goals" className="space-y-6">
           {Object.entries(goalsByQuarter).sort(([a], [b]) => b.localeCompare(a)).map(([qKey, qGoals]) => (
             <div key={qKey} className="space-y-3">
@@ -272,6 +397,7 @@ export default function ExecutionPage() {
           )}
         </TabsContent>
 
+        {/* Projects tab */}
         <TabsContent value="projects" className="space-y-3">
           {projects.map(p => {
             const pTasks = tasksForProject(p.id);
@@ -306,6 +432,7 @@ export default function ExecutionPage() {
           )}
         </TabsContent>
 
+        {/* Tasks tab */}
         <TabsContent value="tasks" className="space-y-3">
           {(isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.id)).map(t => {
             const projectTitle = projects.find(p => p.id === t.project_id)?.title;
@@ -340,7 +467,156 @@ export default function ExecutionPage() {
             <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks assigned to you.</CardContent></Card>
           )}
         </TabsContent>
+
+        {/* Issues tab */}
+        <TabsContent value="issues" className="space-y-4">
+          <Tabs value={issueViewTab} onValueChange={setIssueViewTab}>
+            <TabsList>
+              <TabsTrigger value="open">Open ({openIssues.length})</TabsTrigger>
+              <TabsTrigger value="resolved">Resolved ({resolvedIssues.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="open" className="space-y-3">
+              {openIssues.map(issue => (
+                <Card key={issue.id} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setSelectedIssue(issue)}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">{issue.title}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
+                          <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {openIssues.length === 0 && (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">No open issues. 🎉</CardContent></Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="resolved" className="space-y-3">
+              {resolvedIssues.map(issue => (
+                <Card key={issue.id} className="opacity-70">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">{issue.title}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs capitalize">{issue.status}</Badge>
+                          {issue.resolved_action_type !== "none" && (
+                            <Badge variant="outline" className="text-xs">→ {issue.resolved_action_type}</Badge>
+                          )}
+                          {issue.resolution && <span className="text-xs text-muted-foreground truncate max-w-60">{issue.resolution}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {resolvedIssues.length === 0 && (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">No resolved issues yet.</CardContent></Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
       </Tabs>
+
+      {/* IDS Detail Dialog */}
+      <Dialog open={!!selectedIssue} onOpenChange={o => !o && setSelectedIssue(null)}>
+        <DialogContent className="max-w-lg">
+          {selectedIssue && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" /> {selectedIssue.title}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
+
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium text-sm">1. Identify — Root Cause</h4>
+                  </div>
+                  <Textarea
+                    value={selectedIssue.root_cause || ""}
+                    onChange={e => setSelectedIssue(p => p ? { ...p, root_cause: e.target.value } : null)}
+                    placeholder="What is the real, underlying issue?"
+                    rows={2}
+                  />
+                  {selectedIssue.status === "open" && (
+                    <Button size="sm" variant="outline" onClick={() => updateIssue(selectedIssue.id, { status: "identifying", root_cause: selectedIssue.root_cause })}>
+                      Save & Move to Discuss <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium text-sm">2. Discuss</h4>
+                  </div>
+                  <Textarea
+                    value={selectedIssue.discussion_notes || ""}
+                    onChange={e => setSelectedIssue(p => p ? { ...p, discussion_notes: e.target.value } : null)}
+                    placeholder="Key discussion points and perspectives..."
+                    rows={3}
+                  />
+                  {["open", "identifying"].includes(selectedIssue.status) && (
+                    <Button size="sm" variant="outline" onClick={() => updateIssue(selectedIssue.id, { status: "discussing", discussion_notes: selectedIssue.discussion_notes, root_cause: selectedIssue.root_cause })}>
+                      Save & Move to Solve <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium text-sm">3. Solve</h4>
+                  </div>
+                  <Textarea
+                    value={selectedIssue.resolution || ""}
+                    onChange={e => setSelectedIssue(p => p ? { ...p, resolution: e.target.value } : null)}
+                    placeholder="Resolution / action to take..."
+                    rows={2}
+                  />
+                  {!["solved", "dismissed"].includes(selectedIssue.status) && (
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => {
+                        updateIssue(selectedIssue.id, { root_cause: selectedIssue.root_cause, discussion_notes: selectedIssue.discussion_notes, resolution: selectedIssue.resolution });
+                        solveWithTask(selectedIssue);
+                        setSelectedIssue(null);
+                      }}>
+                        <CheckCircle2 className="h-3 w-3 mr-1" /> Create Task
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => {
+                        updateIssue(selectedIssue.id, { root_cause: selectedIssue.root_cause, discussion_notes: selectedIssue.discussion_notes, resolution: selectedIssue.resolution });
+                        solveWithProject(selectedIssue);
+                        setSelectedIssue(null);
+                      }}>
+                        Create Project
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        updateIssue(selectedIssue.id, { root_cause: selectedIssue.root_cause, discussion_notes: selectedIssue.discussion_notes, resolution: selectedIssue.resolution });
+                        dismiss(selectedIssue);
+                        setSelectedIssue(null);
+                      }}>
+                        <X className="h-3 w-3 mr-1" /> Dismiss
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

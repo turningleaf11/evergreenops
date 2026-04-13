@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +47,7 @@ export default function DocsPage() {
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [newDocOpen, setNewDocOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -57,11 +58,29 @@ export default function DocsPage() {
     fetchDocs();
   }, []);
 
-  const filtered = docs.filter(
-    (d) =>
+  // Collect all unique tags
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    docs.forEach((d) => d.tags.forEach((t) => tagSet.add(t)));
+    return Array.from(tagSet).sort();
+  }, [docs]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const filtered = docs.filter((d) => {
+    const matchesSearch =
+      !search ||
       d.title.toLowerCase().includes(search.toLowerCase()) ||
-      d.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
-  );
+      d.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+    const matchesTags =
+      selectedTags.length === 0 ||
+      selectedTags.every((st) => d.tags.includes(st));
+    return matchesSearch && matchesTags;
+  });
 
   const rootDocs = filtered.filter((d) => !d.parentId);
   const selected = docs.find((d) => d.id === selectedDoc);
@@ -107,7 +126,6 @@ export default function DocsPage() {
 
   if (loading) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading docs...</div>;
 
-  // Convert Doc[] to the format DocEditor expects
   const allDocsForEditor = docs.map((d) => ({
     id: d.id, title: d.title, content: d.content, parentId: d.parentId,
     visibility: d.visibility, sharedWith: d.sharedWith, author: d.author,
@@ -128,6 +146,34 @@ export default function DocsPage() {
             </Button>
           )}
         </div>
+
+        {/* Tag filter bar */}
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors border ${
+                  selectedTags.includes(tag)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+            {selectedTags.length > 0 && (
+              <button
+                onClick={() => setSelectedTags([])}
+                className="text-[11px] text-muted-foreground hover:text-foreground px-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="space-y-0.5">
           {rootDocs.map((doc) => {
             const children = docs.filter((d) => d.parentId === doc.id);
@@ -190,11 +236,11 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
 }) {
   const [title, setTitle] = useState(doc.title);
   const [content, setContent] = useState(doc.content);
-  const [tagsStr, setTagsStr] = useState(doc.tags.join(", "));
-  const [editingTags, setEditingTags] = useState(false);
+  const [tags, setTags] = useState<string[]>(doc.tags);
+  const [tagInput, setTagInput] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTagsStr(doc.tags.join(", ")); }, [doc.id]);
+  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTags(doc.tags); setTagInput(""); }, [doc.id]);
 
   const scheduleAutoSave = useCallback((updates: Partial<Doc>) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -202,6 +248,22 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
   }, [onUpdate]);
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
+
+  const addTag = (value: string) => {
+    const tag = value.trim();
+    if (tag && !tags.includes(tag)) {
+      const newTags = [...tags, tag];
+      setTags(newTags);
+      onUpdate({ tags: newTags });
+    }
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => {
+    const newTags = tags.filter((t) => t !== tag);
+    setTags(newTags);
+    onUpdate({ tags: newTags });
+  };
 
   return (
     <div className="max-w-none">
@@ -222,16 +284,32 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
           <span>{doc.author}</span><span>·</span><span>Updated {doc.updatedAt}</span><span>·</span><span className="capitalize">{doc.visibility}</span>
         </div>
         <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-          {editingTags && isAdmin ? (
-            <div className="flex items-center gap-2 w-full">
-              <Input value={tagsStr} onChange={(e) => setTagsStr(e.target.value)} onBlur={() => { onUpdate({ tags: tagsStr.split(",").map((t) => t.trim()).filter(Boolean) }); setEditingTags(false); }} onKeyDown={(e) => { if (e.key === "Enter") { onUpdate({ tags: tagsStr.split(",").map((t) => t.trim()).filter(Boolean) }); setEditingTags(false); } }} className="h-7 text-xs flex-1" placeholder="tag1, tag2, tag3" autoFocus />
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { onUpdate({ tags: tagsStr.split(",").map((t) => t.trim()).filter(Boolean) }); setEditingTags(false); }}><X className="h-3 w-3" /></Button>
-            </div>
-          ) : (
-            <>
-              {doc.tags.map((tag) => (<Badge key={tag} variant="secondary" className="text-xs cursor-default">{tag}</Badge>))}
-              {isAdmin && (<button onClick={() => setEditingTags(true)} className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors">+ tag</button>)}
-            </>
+          {tags.map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+              {tag}
+              {isAdmin && (
+                <button onClick={() => removeTag(tag)} className="ml-0.5 hover:text-destructive transition-colors">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </Badge>
+          ))}
+          {isAdmin && (
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && tagInput.trim()) {
+                  e.preventDefault();
+                  addTag(tagInput);
+                } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                  removeTag(tags[tags.length - 1]);
+                }
+              }}
+              onBlur={() => { if (tagInput.trim()) addTag(tagInput); }}
+              className="text-xs bg-transparent border-none outline-none placeholder:text-muted-foreground/50 w-20 py-0.5"
+              placeholder="+ tag"
+            />
           )}
         </div>
       </div>
