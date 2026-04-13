@@ -5,11 +5,14 @@ import type { DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft, Trash2, Save, Bookmark } from "lucide-react";
 import DatabaseView from "@/components/DatabaseView";
-import DatabaseItemEditor from "@/components/DatabaseItemEditor";
+import DatabaseRecordDetail from "@/components/DatabaseRecordDetail";
 import CreateDatabaseDialog from "@/components/CreateDatabaseDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "@/hooks/use-toast";
 
 interface DB {
   id: string;
@@ -28,6 +31,18 @@ interface DBRow {
   values: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SavedView {
+  id: string;
+  database_id: string;
+  name: string;
+  view_type: string;
+  filters: any[];
+  sorts: any[];
+  group_by: string | null;
+  column_order: string[];
+  created_by: string | null;
 }
 
 const iconMap: Record<string, React.ElementType> = { Target, FolderKanban, CheckSquare, Bug, Calendar, Plus };
@@ -63,18 +78,21 @@ export default function DatabasesPage() {
   const [allRows, setAllRows] = useState<DBRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<DBRow | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
 
   useEffect(() => {
     const fetch = async () => {
-      const [dbRes, rowRes] = await Promise.all([
+      const [dbRes, rowRes, viewsRes] = await Promise.all([
         supabase.from("databases_meta").select("*").order("created_at"),
         supabase.from("database_rows").select("*"),
+        supabase.from("database_views").select("*"),
       ]);
       if (dbRes.data) setAllDatabases(dbRes.data.map(mapDb));
       if (rowRes.data) setAllRows(rowRes.data.map(mapRow));
+      if (viewsRes.data) setSavedViews(viewsRes.data as SavedView[]);
       setLoading(false);
     };
     fetch();
@@ -86,18 +104,12 @@ export default function DatabasesPage() {
     const { data } = await supabase
       .from("databases_meta")
       .insert({
-        title,
-        description,
-        columns: columns as any,
-        icon,
-        visibility,
+        title, description, columns: columns as any, icon, visibility,
         shared_with: sharedWith as any,
         created_by: user?.id || null,
         created_by_name: profile?.full_name || "Unknown",
       })
-      .select()
-      .single();
-
+      .select().single();
     if (data) {
       setAllDatabases((prev) => [...prev, mapDb(data)]);
       navigate(`/databases/${data.id}`);
@@ -112,29 +124,34 @@ export default function DatabasesPage() {
     navigate("/databases");
   };
 
-  const handleAddRow = () => { setEditingRow(null); setIsNew(true); setEditorOpen(true); };
-  const handleEditRow = (row: DBRow) => { setEditingRow(row as any); setIsNew(false); setEditorOpen(true); };
+  const handleColumnsChange = async (columns: DatabaseColumn[]) => {
+    if (!currentDb) return;
+    await supabase.from("databases_meta").update({ columns: columns as any }).eq("id", currentDb.id);
+    setAllDatabases(prev => prev.map(d => d.id === currentDb.id ? { ...d, columns } : d));
+  };
+
+  const handleAddRow = () => { setEditingRow(null); setIsNew(true); setDetailOpen(true); };
+  const handleEditRow = (row: DBRow) => { setEditingRow(row as any); setIsNew(false); setDetailOpen(true); };
 
   const handleSaveRow = async (values: Record<string, any>) => {
     if (isNew && currentDb) {
       const { data } = await supabase
         .from("database_rows")
         .insert({ database_id: currentDb.id, values: values as any })
-        .select()
-        .single();
+        .select().single();
       if (data) setAllRows((prev) => [...prev, mapRow(data)]);
     } else if (editingRow) {
       await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id);
       setAllRows((prev) => prev.map((r) => (r.id === editingRow.id ? { ...r, values } : r)));
     }
-    setEditorOpen(false);
+    setDetailOpen(false);
   };
 
   const handleDeleteRow = async () => {
     if (editingRow) {
       await supabase.from("database_rows").delete().eq("id", editingRow.id);
       setAllRows((prev) => prev.filter((r) => r.id !== editingRow.id));
-      setEditorOpen(false);
+      setDetailOpen(false);
     }
   };
 
@@ -142,6 +159,8 @@ export default function DatabasesPage() {
 
   if (currentDb) {
     const dbRows = allRows.filter((r) => r.databaseId === currentDb.id);
+    const dbViews = savedViews.filter(v => v.database_id === currentDb.id);
+
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
@@ -155,8 +174,39 @@ export default function DatabasesPage() {
             {currentDb.columns.map((col) => (<span key={col.id} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{col.name}</span>))}
           </div>
         </div>
-        <DatabaseView database={currentDb as any} rows={dbRows as any} onAdd={isAdmin ? handleAddRow : undefined} onEdit={isAdmin ? (handleEditRow as any) : undefined} onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined} allDatabases={allDatabases as any} allRows={allRows as any} />
-        <DatabaseItemEditor database={currentDb as any} row={editingRow as any} open={editorOpen} onClose={() => setEditorOpen(false)} onSave={handleSaveRow} onDelete={isAdmin && editingRow ? handleDeleteRow : undefined} allDatabases={allDatabases as any} allRows={allRows as any} />
+
+        {dbViews.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {dbViews.map(v => (
+              <Badge key={v.id} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted">
+                <Bookmark className="h-2.5 w-2.5 mr-1" />{v.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <DatabaseView
+          database={currentDb as any}
+          rows={dbRows as any}
+          onAdd={isAdmin ? handleAddRow : undefined}
+          onEdit={handleEditRow as any}
+          onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined}
+          allDatabases={allDatabases as any}
+          allRows={allRows as any}
+          onColumnsChange={isAdmin ? handleColumnsChange : undefined}
+          isAdmin={isAdmin}
+        />
+
+        <DatabaseRecordDetail
+          database={currentDb as any}
+          row={editingRow as any}
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          onSave={handleSaveRow}
+          onDelete={isAdmin && editingRow ? handleDeleteRow : undefined}
+          allDatabases={allDatabases as any}
+          allRows={allRows as any}
+        />
       </div>
     );
   }
