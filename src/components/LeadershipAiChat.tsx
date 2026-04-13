@@ -98,6 +98,7 @@ interface Props {
 
 export function LeadershipAiChat({ open, onOpenChange, departmentId }: Props) {
   const { getItemsForDepartment, translations, proposals } = useStrategyFlow();
+  const { departments } = useDepartments();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

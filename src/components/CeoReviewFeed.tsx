@@ -14,6 +14,7 @@ const proposalTypeConfig: Record<string, { label: string; icon: React.ElementTyp
 
 export function CeoReviewFeed() {
   const { proposals, updateProposal, strategyItems } = useStrategyFlow();
+  const { departments } = useDepartments();
   const [clarificationText, setClarificationText] = useState<Record<string, string>>({});
   const [showClarification, setShowClarification] = useState<string | null>(null);
 
