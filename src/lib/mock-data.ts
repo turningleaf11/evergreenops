@@ -37,7 +37,7 @@ export interface DocPage {
   tags: string[];
 }
 
-export type ColumnType = "text" | "number" | "select" | "multi_select" | "date" | "person" | "checkbox" | "url" | "progress" | "relation";
+export type ColumnType = "text" | "long_text" | "number" | "currency" | "select" | "multi_select" | "date" | "person" | "checkbox" | "url" | "email" | "phone" | "progress" | "relation" | "status" | "tags" | "file";
 
 export interface DatabaseColumn {
   id: string;
