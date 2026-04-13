@@ -102,7 +102,12 @@ export default function DepartmentPage() {
   const [docSheetOpen, setDocSheetOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ id: string; title: string; content: string | null; author_name: string | null } | null>(null);
 
-  useEffect(() => {
+  // Pinboard state
+  const [pinboardItems, setPinboardItems] = useState<PinboardItem[]>([]);
+  const [addPinOpen, setAddPinOpen] = useState(false);
+  const [newPin, setNewPin] = useState({ type: "link", title: "", url: "", description: "" });
+  const [pinUploading, setPinUploading] = useState(false);
+
     if (!id) return;
     const load = async () => {
       const currentYear = new Date().getFullYear();
