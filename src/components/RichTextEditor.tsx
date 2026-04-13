@@ -25,6 +25,7 @@ interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  borderless?: boolean;
 }
 
 const TEXT_COLORS = [
@@ -37,7 +38,7 @@ const TEXT_COLORS = [
   { label: "Pink", value: "#db2777" },
 ];
 
-export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands..." }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
 
   const editor = useEditor({
@@ -70,7 +71,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
   if (!editor) return null;
 
   return (
-    <div className="rich-editor border rounded-lg bg-background">
+    <div className={`rich-editor ${borderless ? '' : 'border rounded-lg'} bg-background ${borderless ? 'rich-editor-borderless' : ''}`}>
       {/* Bubble Menu — appears on text selection */}
       <BubbleMenu editor={editor} className="bubble-menu">
         <button onClick={() => editor.chain().focus().toggleBold().run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">
