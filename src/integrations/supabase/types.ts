@@ -170,6 +170,53 @@ export type Database = {
           },
         ]
       }
+      database_views: {
+        Row: {
+          column_order: string[]
+          created_at: string
+          created_by: string | null
+          database_id: string
+          filters: Json
+          group_by: string | null
+          id: string
+          name: string
+          sorts: Json
+          view_type: string
+        }
+        Insert: {
+          column_order?: string[]
+          created_at?: string
+          created_by?: string | null
+          database_id: string
+          filters?: Json
+          group_by?: string | null
+          id?: string
+          name: string
+          sorts?: Json
+          view_type?: string
+        }
+        Update: {
+          column_order?: string[]
+          created_at?: string
+          created_by?: string | null
+          database_id?: string
+          filters?: Json
+          group_by?: string | null
+          id?: string
+          name?: string
+          sorts?: Json
+          view_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "database_views_database_id_fkey"
+            columns: ["database_id"]
+            isOneToOne: false
+            referencedRelation: "databases_meta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       databases_meta: {
         Row: {
           columns: Json
