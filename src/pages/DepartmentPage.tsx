@@ -315,6 +315,8 @@ export default function DepartmentPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="leadership">Leadership</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-4">
@@ -581,71 +583,71 @@ export default function DepartmentPage() {
           </section>
 
 
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" /> Team
-            </h2>
-            {memberWithLeads.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {memberWithLeads.map((m) => (
-                  <Card key={m.user_id}>
-                    <CardContent className="p-4 flex items-start gap-3">
-                      <Avatar className="h-9 w-9 shrink-0">
-                        <AvatarFallback className="text-xs bg-muted" style={{ borderColor: `hsl(${deptColor} / 0.4)`, borderWidth: 2 }}>
-                          {(m.full_name || "U").split(" ").map((n) => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p>
-                        {m.leads.length > 0 && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                            Leads: {m.leads.join(", ")}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No team members assigned yet</CardContent></Card>
-            )}
-          </section>
-
-          {/* RECENT ACTIVITY */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Activity className="h-4 w-4" /> Recent Activity
-            </h2>
-            {activity.length > 0 ? (
-              <Card>
-                <CardContent className="p-4 space-y-2">
-                  {activity.map((e) => (
-                    <div key={e.id} className="flex items-start gap-3 text-sm py-1">
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">
-                        <Activity className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p>
-                          <span className="font-medium">{getName(e.actor_id) || "Someone"}</span>{" "}
-                          <span className="text-muted-foreground">{e.action.replace(/_/g, " ")}</span>
-                          {" on "}
-                          <span className="font-medium">{e.entity_type}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No recent activity yet</CardContent></Card>
-            )}
-          </section>
         </TabsContent>
 
         <TabsContent value="leadership" className="mt-4">
           <EmbeddedLeadership deptId={id!} />
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-4 mt-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Users className="h-4 w-4" /> Team
+          </h2>
+          {memberWithLeads.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {memberWithLeads.map((m) => (
+                <Card key={m.user_id}>
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <Avatar className="h-9 w-9 shrink-0">
+                      <AvatarFallback className="text-xs bg-muted" style={{ borderColor: `hsl(${deptColor} / 0.4)`, borderWidth: 2 }}>
+                        {(m.full_name || "U").split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p>
+                      {m.leads.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          Leads: {m.leads.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No team members assigned yet</CardContent></Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4 mt-4">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Recent Activity
+          </h2>
+          {activity.length > 0 ? (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                {activity.map((e) => (
+                  <div key={e.id} className="flex items-start gap-3 text-sm py-1">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">
+                      <Activity className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p>
+                        <span className="font-medium">{getName(e.actor_id) || "Someone"}</span>{" "}
+                        <span className="text-muted-foreground">{e.action.replace(/_/g, " ")}</span>
+                        {" on "}
+                        <span className="font-medium">{e.entity_type}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No recent activity yet</CardContent></Card>
+          )}
         </TabsContent>
       </Tabs>
 
