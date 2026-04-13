@@ -209,6 +209,69 @@ export default function DepartmentPage() {
     }
   };
 
+  // Pinboard helpers
+  const addPinboardItem = async () => {
+    if (!id || !newPin.title.trim()) return;
+    setPinUploading(true);
+    const { data, error } = await supabase.from("department_pinboard").insert({
+      department_id: id,
+      type: newPin.type,
+      title: newPin.title.trim(),
+      url: newPin.url || null,
+      description: newPin.description || "",
+      icon: newPin.type === "link" ? "Link" : newPin.type === "file" ? "Paperclip" : newPin.type === "note" ? "StickyNote" : "Image",
+      sort_order: pinboardItems.length,
+      created_by: user?.id || null,
+    } as any).select().single();
+    if (!error && data) {
+      setPinboardItems(prev => [...prev, data as PinboardItem]);
+      toast.success("Pin added");
+    }
+    setNewPin({ type: "link", title: "", url: "", description: "" });
+    setPinUploading(false);
+    setAddPinOpen(false);
+  };
+
+  const handlePinFileUpload = () => {
+    triggerFileInput("*", async (file) => {
+      setPinUploading(true);
+      const url = await uploadFile(file);
+      if (url && id) {
+        const isImage = file.type.startsWith("image/");
+        const { data, error } = await supabase.from("department_pinboard").insert({
+          department_id: id,
+          type: isImage ? "image" : "file",
+          title: file.name,
+          url,
+          description: "",
+          icon: isImage ? "Image" : "Paperclip",
+          sort_order: pinboardItems.length,
+          created_by: user?.id || null,
+        } as any).select().single();
+        if (!error && data) {
+          setPinboardItems(prev => [...prev, data as PinboardItem]);
+          toast.success("File pinned");
+        }
+      }
+      setPinUploading(false);
+    });
+  };
+
+  const deletePinboardItem = async (pinId: string) => {
+    await supabase.from("department_pinboard").delete().eq("id", pinId);
+    setPinboardItems(prev => prev.filter(p => p.id !== pinId));
+  };
+
+  const pinTypeIcon = (type: string) => {
+    switch (type) {
+      case "link": return <LinkIcon className="h-4 w-4 text-blue-500" />;
+      case "file": return <Paperclip className="h-4 w-4 text-amber-500" />;
+      case "note": return <StickyNote className="h-4 w-4 text-green-500" />;
+      case "image": return <ImageIcon className="h-4 w-4 text-purple-500" />;
+      default: return <LinkIcon className="h-4 w-4" />;
+    }
+  };
+
   // Department Focus data
   const currentPriorities = [...goals]
     .filter(g => g.status !== "completed")
