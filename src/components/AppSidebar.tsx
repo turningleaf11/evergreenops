@@ -112,6 +112,38 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
+          <Collapsible defaultOpen={isLeadershipActive} className="group/collapsible">
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  {!collapsed && "Leadership"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {departments.map((dept) => {
+                    const Icon = deptIconMap[dept.icon] || Building2;
+                    return (
+                      <SidebarMenuItem key={dept.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={`/leadership/${dept.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                            <Icon className="h-4 w-4" />
+                            {!collapsed && <span>{dept.name}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
           <Collapsible defaultOpen={isDbActive} className="group/collapsible">
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger className="flex w-full items-center justify-between">
