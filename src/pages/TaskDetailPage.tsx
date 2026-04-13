@@ -5,20 +5,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  ArrowLeft, Calendar, User, ListChecks, Tag, X, Plus, CheckSquare, Repeat, Save,
+  ArrowLeft, Calendar, User, Tag, X, Plus, CheckSquare, Repeat, Save,
+  ChevronDown, Circle, Zap, AlertTriangle, FolderOpen, Target,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
-import CommentsSection from "@/components/CommentsSection";
-import EntityActivity from "@/components/EntityActivity";
+import ActivitySidebar from "@/components/ActivitySidebar";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   todo: { label: "To Do", color: "bg-muted text-muted-foreground" },
@@ -26,11 +23,11 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   done: { label: "Done", color: "bg-green-100 text-green-800" },
 };
 
-const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: "Low", color: "bg-green-100 text-green-800" },
-  medium: { label: "Medium", color: "bg-yellow-100 text-yellow-800" },
-  high: { label: "High", color: "bg-red-100 text-red-800" },
-  urgent: { label: "Urgent", color: "bg-red-200 text-red-900" },
+const priorityConfig: Record<string, { label: string; color: string; icon: any }> = {
+  low: { label: "Low", color: "bg-green-100 text-green-800", icon: Circle },
+  medium: { label: "Medium", color: "bg-yellow-100 text-yellow-800", icon: Zap },
+  high: { label: "High", color: "bg-red-100 text-red-800", icon: AlertTriangle },
+  urgent: { label: "Urgent", color: "bg-red-200 text-red-900", icon: AlertTriangle },
 };
 
 interface Subtask {
@@ -60,7 +57,8 @@ export default function TaskDetailPage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [newSubtask, setNewSubtask] = useState("");
-  const [activeTab, setActiveTab] = useState("details");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [subtasksOpen, setSubtasksOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -139,15 +137,11 @@ export default function TaskDetailPage() {
     updateTask({ subtasks: subtasks.filter(st => st.id !== stId) });
   };
 
-  // Recurrence helpers
   const recurrenceRule: RecurrenceRule | null = task?.recurrence_rule || null;
 
   const toggleRecurring = (checked: boolean) => {
     if (checked) {
-      updateTask({
-        is_recurring: true,
-        recurrence_rule: { frequency: "weekly", interval: 1 },
-      });
+      updateTask({ is_recurring: true, recurrence_rule: { frequency: "weekly", interval: 1 } });
     } else {
       updateTask({ is_recurring: false, recurrence_rule: null });
     }
@@ -158,7 +152,6 @@ export default function TaskDetailPage() {
     updateTask({ recurrence_rule: { ...current, ...updates } });
   };
 
-  // Save as template
   const saveAsTemplate = async () => {
     if (!task) return;
     const { error } = await supabase.from("task_templates").insert({
@@ -183,8 +176,9 @@ export default function TaskDetailPage() {
   const doneSubtasks = subtasks.filter(st => st.done).length;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
@@ -193,11 +187,12 @@ export default function TaskDetailPage() {
         </Button>
       </div>
 
-      {/* Header */}
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          <ListChecks className="h-6 w-6 text-primary mt-1" />
-          <div className="flex-1">
+      {/* Two-column layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main workspace */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 max-w-4xl">
+          {/* Title */}
+          <div className="mb-4">
             {editingTitle ? (
               <Input
                 value={titleDraft}
@@ -205,266 +200,187 @@ export default function TaskDetailPage() {
                 onBlur={saveTitle}
                 onKeyDown={e => e.key === "Enter" && saveTitle()}
                 autoFocus
-                className="text-2xl font-bold h-auto py-0 px-1 border-none shadow-none focus-visible:ring-1"
+                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
               />
             ) : (
               <h1
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-1 -mx-1"
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-2 py-1"
                 onClick={() => setEditingTitle(true)}
               >
                 {task.title}
               </h1>
             )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge className={statusConfig[task.status]?.color || "bg-muted"}>
-                {statusConfig[task.status]?.label || task.status}
-              </Badge>
-              <Badge variant="outline" className={priorityConfig[task.priority]?.color || ""}>
-                {priorityConfig[task.priority]?.label || task.priority}
-              </Badge>
-              {task.is_recurring && (
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Repeat className="h-3 w-3" /> Recurring
+          </div>
+
+          {/* Compact metadata row */}
+          <div className="flex items-center gap-2 flex-wrap mb-6 text-sm">
+            {/* Status */}
+            <Select value={task.status} onValueChange={v => { updateTask({ status: v }); logActivity("status_changed", { new_status: v }); }}>
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+                <Badge className={`${statusConfig[task.status]?.color || "bg-muted"} text-[11px] pointer-events-none`}>
+                  {statusConfig[task.status]?.label || task.status}
                 </Badge>
-              )}
-              {projectTitle && (
-                <Badge variant="outline" className="cursor-pointer" onClick={() => navigate(`/projects/${task.project_id}`)}>
-                  📁 {projectTitle}
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Priority */}
+            <Select value={task.priority || "medium"} onValueChange={v => { updateTask({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+                <Badge variant="outline" className={`${priorityConfig[task.priority]?.color || ""} text-[11px] pointer-events-none`}>
+                  {priorityConfig[task.priority]?.label || task.priority}
                 </Badge>
-              )}
-              {goalTitle && <Badge variant="outline">🎯 {goalTitle}</Badge>}
-            </div>
-          </div>
-        </div>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(priorityConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
 
-        <div className="flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" /> {getName(task.assigned_to)}
-          </div>
-          {task.due_date && (
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" /> {task.due_date}
-            </div>
-          )}
-          {subtasks.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <CheckSquare className="h-3.5 w-3.5" /> {doneSubtasks}/{subtasks.length} subtasks
-            </div>
-          )}
-        </div>
-      </div>
+            <span className="text-muted-foreground/30">·</span>
 
-      {/* Meta fields */}
-      <Card>
-        <CardContent className="py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground">Status</label>
-              <Select value={task.status} onValueChange={v => { updateTask({ status: v }); logActivity("status_changed", { new_status: v }); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(statusConfig).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Priority</label>
-              <Select value={task.priority || "medium"} onValueChange={v => { updateTask({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(priorityConfig).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Assignee</label>
-              <Select value={task.assigned_to || "none"} onValueChange={v => { updateTask({ assigned_to: v === "none" ? null : v }); logActivity("assigned", { assignee_name: getName(v === "none" ? null : v) }); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Due Date</label>
-              <Input
-                type="date"
-                value={task.due_date || ""}
-                onChange={e => updateTask({ due_date: e.target.value || null })}
-                className="h-8 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Project</label>
-              <Select value={task.project_id || "none"} onValueChange={v => updateTask({ project_id: v === "none" ? null : v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Goal</label>
-              <Select value={task.goal_id || "none"} onValueChange={v => updateTask({ goal_id: v === "none" ? null : v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            {/* Assignee */}
+            <Select value={task.assigned_to || "none"} onValueChange={v => { updateTask({ assigned_to: v === "none" ? null : v }); logActivity("assigned", { assignee_name: getName(v === "none" ? null : v) }); }}>
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+                <User className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{getName(task.assigned_to)}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
+              </SelectContent>
+            </Select>
 
-          {/* Recurrence */}
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-xs text-muted-foreground">Recurring Task</Label>
-              </div>
-              <Switch checked={task.is_recurring || false} onCheckedChange={toggleRecurring} />
-            </div>
-            {task.is_recurring && recurrenceRule && (
-              <div className="mt-3 grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Frequency</label>
-                  <Select value={recurrenceRule.frequency} onValueChange={v => updateRecurrence({ frequency: v as any })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Every N {recurrenceRule.frequency === "daily" ? "days" : recurrenceRule.frequency === "weekly" ? "weeks" : "months"}</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={recurrenceRule.interval}
-                    onChange={e => updateRecurrence({ interval: parseInt(e.target.value) || 1 })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">End Date</label>
-                  <Input
-                    type="date"
-                    value={recurrenceRule.end_date || ""}
-                    onChange={e => updateRecurrence({ end_date: e.target.value || undefined })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Due date */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50 transition-colors">
+                  <Calendar className="h-3 w-3" />
+                  {task.due_date || "No due date"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="start">
+                <Input type="date" value={task.due_date || ""} onChange={e => updateTask({ due_date: e.target.value || null })} className="h-8 text-xs" />
+              </PopoverContent>
+            </Popover>
+
+            {/* Project */}
+            {projectTitle && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => navigate(`/projects/${task.project_id}`)}>
+                  <FolderOpen className="h-3 w-3" /> {projectTitle}
+                </button>
+              </>
             )}
-          </div>
 
-          {/* Description */}
-          <div>
-            <label className="text-xs text-muted-foreground">Description</label>
-            <Textarea
-              value={task.description || ""}
-              onChange={e => updateTask({ description: e.target.value })}
-              placeholder="Add a description..."
-              rows={2}
-              className="text-sm mt-1"
-            />
-          </div>
+            {/* Goal */}
+            {goalTitle && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Target className="h-3 w-3" /> {goalTitle}
+                </span>
+              </>
+            )}
 
-          {/* Tags */}
-          <div>
-            <label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" /> Tags</label>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {(task.tags || []).map((t: string) => (
-                <Badge key={t} variant="secondary" className="text-xs gap-1">
-                  {t}
-                  <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
-              <Input
-                value={newTagInput}
-                onChange={e => setNewTagInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
-                placeholder="Add tag..."
-                className="h-6 w-24 text-xs border-dashed"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Recurring badge */}
+            {task.is_recurring && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Badge variant="outline" className="text-[11px] cursor-pointer gap-1">
+                      <Repeat className="h-3 w-3" /> Recurring
+                    </Badge>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3 space-y-2" align="start">
+                    <Select value={recurrenceRule?.frequency || "weekly"} onValueChange={v => updateRecurrence({ frequency: v as any })}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input type="number" min={1} value={recurrenceRule?.interval || 1} onChange={e => updateRecurrence({ interval: parseInt(e.target.value) || 1 })} className="h-8 text-xs" placeholder="Interval" />
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="details">Subtasks</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="comments">Comments & Activity</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="details" className="mt-4 space-y-3">
-          <div className="flex gap-2">
+            {/* Tags */}
+            {(task.tags || []).map((t: string) => (
+              <Badge key={t} variant="secondary" className="text-[11px] gap-1">
+                {t}
+                <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+              </Badge>
+            ))}
             <Input
-              value={newSubtask}
-              onChange={e => setNewSubtask(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addSubtask()}
-              placeholder="Add a subtask..."
-              className="text-sm"
+              value={newTagInput}
+              onChange={e => setNewTagInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
+              placeholder="+ tag"
+              className="h-6 w-16 text-[11px] border-none shadow-none bg-transparent placeholder:text-muted-foreground/40 px-1"
             />
-            <Button size="sm" onClick={addSubtask} disabled={!newSubtask.trim()}>
-              <Plus className="h-4 w-4" />
-            </Button>
           </div>
 
-          {subtasks.map(st => (
-            <div key={st.id} className="flex items-center gap-3 p-2 rounded-md bg-accent/20 group">
-              <Checkbox checked={st.done} onCheckedChange={() => toggleSubtask(st.id)} />
-              <span className={`text-sm flex-1 ${st.done ? "line-through text-muted-foreground" : ""}`}>{st.title}</span>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                onClick={() => removeSubtask(st.id)}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-          {subtasks.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No subtasks yet.</p>
-          )}
-        </TabsContent>
+          {/* Notes / Workspace — THE primary area */}
+          <div className="mb-6">
+            <RichTextEditor
+              content={task.notes_content || ""}
+              onChange={html => updateTask({ notes_content: html })}
+              placeholder="Write notes, plans, context..."
+              borderless
+            />
+          </div>
 
-        <TabsContent value="notes" className="mt-4">
-          <Card>
-            <CardContent className="py-4">
-              <RichTextEditor
-                content={task.notes_content || ""}
-                onChange={html => updateTask({ notes_content: html })}
-                placeholder="Write task notes, context, checklists..."
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* Subtasks — collapsible, below notes */}
+          <Collapsible open={subtasksOpen} onOpenChange={setSubtasksOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${subtasksOpen ? "" : "-rotate-90"}`} />
+              <CheckSquare className="h-3.5 w-3.5" />
+              Subtasks {subtasks.length > 0 && <span className="text-xs font-normal">({doneSubtasks}/{subtasks.length})</span>}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 pt-2">
+              {subtasks.map(st => (
+                <div key={st.id} className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/30 group">
+                  <Checkbox checked={st.done} onCheckedChange={() => toggleSubtask(st.id)} />
+                  <span className={`text-sm flex-1 ${st.done ? "line-through text-muted-foreground" : ""}`}>{st.title}</span>
+                  <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity" onClick={() => removeSubtask(st.id)}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <Input
+                  value={newSubtask}
+                  onChange={e => setNewSubtask(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addSubtask()}
+                  placeholder="Add a subtask..."
+                  className="text-sm h-8 border-dashed"
+                />
+                <Button size="sm" variant="ghost" onClick={addSubtask} disabled={!newSubtask.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
 
-        <TabsContent value="comments" className="mt-4 space-y-6">
-          <Card>
-            <CardContent className="py-4">
-              <CommentsSection entityType="task" entityId={task.id} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <EntityActivity entityType="task" entityId={task.id} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        {/* Activity sidebar */}
+        <ActivitySidebar
+          entityType="task"
+          entityId={task.id}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
+        />
+      </div>
     </div>
   );
 }
