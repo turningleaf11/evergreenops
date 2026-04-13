@@ -157,6 +157,38 @@ export default function DepartmentPage() {
     return profiles.find(p => p.user_id === uid)?.full_name || null;
   };
 
+  const openProjectDrawer = (p: ProjectFull) => {
+    setDrawerType("project");
+    setDrawerItem(p);
+    setDrawerOpen(true);
+  };
+
+  const openTaskDrawer = (t: Task) => {
+    setDrawerType("task");
+    setDrawerItem(t);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerStatusChange = async (status: string) => {
+    if (!drawerItem) return;
+    const table = drawerType === "project" ? "projects" : "tasks";
+    await supabase.from(table).update({ status }).eq("id", drawerItem.id);
+    if (drawerType === "project") {
+      setProjects(prev => prev.map(p => p.id === drawerItem.id ? { ...p, status } : p));
+    } else {
+      setTasks(prev => prev.map(t => t.id === drawerItem.id ? { ...t, status } : t));
+    }
+    setDrawerItem((prev: any) => prev ? { ...prev, status } : prev);
+  };
+
+  const openDocPreview = async (docId: string) => {
+    const { data } = await supabase.from("documents").select("id, title, content, author_name").eq("id", docId).single();
+    if (data) {
+      setPreviewDoc(data);
+      setDocSheetOpen(true);
+    }
+  };
+
   // Department Focus data
   const currentPriorities = [...goals]
     .filter(g => g.status !== "completed")
