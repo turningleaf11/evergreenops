@@ -12,7 +12,6 @@ interface DocEditorProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: { title: string; content: string; tags: string[]; parentId: string | null; visibility: Visibility; sharedWith: SharedWith }) => void;
-  onDelete?: () => void;
   doc?: DocPage | null;
   allDocs: DocPage[];
 }
