@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, FolderOpen, Plus, CheckCircle2, Circle, Clock,
   Tag, X, ChevronDown, Target, Zap, AlertTriangle,
@@ -164,7 +166,7 @@ export default function ProjectDetailPage() {
           <div className="flex items-center gap-2 flex-wrap mb-2 text-sm">
             {/* Status */}
             <Select value={project.status} onValueChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}>
-              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1 focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 [&>svg:last-child]:hidden">
                 <Badge className={`${statusConfig[project.status]?.color || "bg-muted"} text-[11px] pointer-events-none`}>
                   {statusConfig[project.status]?.label || project.status}
                 </Badge>
@@ -178,7 +180,7 @@ export default function ProjectDetailPage() {
 
             {/* Priority */}
             <Select value={project.priority || "medium"} onValueChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
-              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1">
+              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1 focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 [&>svg:last-child]:hidden">
                 <Badge variant="outline" className={`${priorityConfig[project.priority]?.color || ""} text-[11px] pointer-events-none`}>
                   {priorityConfig[project.priority]?.label || project.priority}
                 </Badge>
@@ -202,11 +204,35 @@ export default function ProjectDetailPage() {
               <PopoverTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50 transition-colors">
                   <Calendar className="h-3 w-3" />
-                  {project.due_date || "No due date"}
+                  {project.due_date ? format(new Date(project.due_date + "T00:00:00"), "MMM d, yyyy") : "No due date"}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-2" align="start">
-                <Input type="date" value={project.due_date || ""} onChange={e => updateProject({ due_date: e.target.value || null })} className="h-8 text-xs" />
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex flex-col">
+                  <div className="flex flex-wrap gap-1 p-2 border-b">
+                    {[
+                      { label: "Today", date: startOfToday() },
+                      { label: "Tomorrow", date: startOfTomorrow() },
+                      { label: "Next Week", date: addDays(startOfToday(), 7) },
+                      { label: "Next Month", date: addMonths(startOfToday(), 1) },
+                    ].map(opt => (
+                      <Button key={opt.label} variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { updateProject({ due_date: format(opt.date, "yyyy-MM-dd") }); }}>
+                        {opt.label}
+                      </Button>
+                    ))}
+                    {project.due_date && (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => updateProject({ due_date: null })}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <CalendarComponent
+                    mode="single"
+                    selected={project.due_date ? new Date(project.due_date + "T00:00:00") : undefined}
+                    onSelect={(date) => { if (date) updateProject({ due_date: format(date, "yyyy-MM-dd") }); }}
+                    className="p-3 pointer-events-auto"
+                  />
+                </div>
               </PopoverContent>
             </Popover>
 
