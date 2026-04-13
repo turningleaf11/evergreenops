@@ -33,7 +33,7 @@ export default function TrainingPage() {
   const { modules: trainingModules } = useTraining();
 
   // Filter modules by role — show all if roleIds is empty, otherwise match user dept
-  const userDept = currentUser?.departmentId?.toLowerCase() || "";
+  const userDept = profile?.department_id?.toLowerCase() || "";
   const visibleModules = trainingModules.filter(
     (m) => m.roleIds.length === 0 || m.roleIds.some((r) => userDept.includes(r))
   );

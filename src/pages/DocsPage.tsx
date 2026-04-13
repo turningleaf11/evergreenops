@@ -36,7 +36,7 @@ export default function DocsPage() {
     const newDoc: DocPage = {
       id: `d_${Date.now()}`,
       ...data,
-      author: currentUser.name,
+      author: profile?.full_name || "Unknown",
       createdAt: now,
       updatedAt: now,
     };
