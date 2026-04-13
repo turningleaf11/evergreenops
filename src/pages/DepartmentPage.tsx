@@ -68,6 +68,7 @@ export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
   const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === id);
+  const navigate = useNavigate();
 
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -81,6 +82,15 @@ export default function DepartmentPage() {
   const [activity, setActivity] = useState<EntityActivity[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Drawer state for tasks/projects
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerType, setDrawerType] = useState<"project" | "task">("task");
+  const [drawerItem, setDrawerItem] = useState<any>(null);
+
+  // Doc preview sheet state
+  const [docSheetOpen, setDocSheetOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ id: string; title: string; content: string | null; author_name: string | null } | null>(null);
 
   useEffect(() => {
     if (!id) return;
