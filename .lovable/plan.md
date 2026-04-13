@@ -1,67 +1,62 @@
 
 
-# Editor Experience Upgrade — Slash Commands, Bubble Menu, Block UX
+# Onboarding & Training System
 
 ## Overview
-Upgrade the existing TipTap-based RichTextEditor to support slash command menu, inline floating toolbar on text selection, and Notion-inspired block interaction UX. The editor already uses TipTap with StarterKit, so we leverage TipTap's built-in `BubbleMenu` and `FloatingMenu` extensions plus a custom slash command suggestion plugin.
+Add a Training Hub page with role-based onboarding flows, training content, and lightweight progress tracking using localStorage. Also fix the existing React `useRef` runtime error (likely a duplicate React instance from the TipTap dependency chain).
 
-## What Changes
+## What Gets Built
 
-### 1. Install new TipTap extensions
-- `@tiptap/extension-image` — image block support
-- `@tiptap/suggestion` — powers the slash command menu
+### 1. Training Data Model (`src/lib/training-data.ts`)
+- Types: `TrainingModule`, `TrainingStep`, `TrainingCategory`
+- Each module has: id, title, description, type (guide | playbook | checklist | video | link), roleIds (which department roles see it), category, steps/content, externalUrl
+- Seed data: Company-wide onboarding modules + role-specific training for each department
+- Categories: "Onboarding", "Role Training", "Processes", "Tools"
 
-`BubbleMenu` and `FloatingMenu` are already included in `@tiptap/react`.
+### 2. Training Progress Context (`src/lib/training-progress.ts`)
+- React context + localStorage persistence
+- Tracks: `completedSteps: Record<moduleId, stepId[]>`, `onboardingDismissed: boolean`
+- Helper functions: `markStepComplete`, `isModuleComplete`, `getModuleProgress`
 
-### 2. Slash Command Menu (`src/components/SlashCommandMenu.tsx`)
-- Custom TipTap extension using `@tiptap/suggestion` that triggers on `/`
-- Renders a floating dropdown positioned near the cursor
-- Menu items: Text, Heading 1/2/3, Bullet List, Numbered List, Checklist, Callout (info/warning/success/error), Divider, Code Block, Blockquote, Image
-- Supports keyboard navigation (arrow keys + Enter) and search filtering as user types after `/`
-- Clean, minimal dropdown with icons and labels
-- Dismisses on Escape or clicking outside
+### 3. Training Hub Page (`src/pages/TrainingPage.tsx`, route `/training`)
+- Central page listing all training materials
+- Filter by category (tabs) and role/department
+- Each module shown as a card with progress indicator
+- Click to expand/view module content inline (accordion or detail panel)
+- Module detail shows steps with checkboxes, embedded content, video iframes, external links
 
-### 3. Inline Highlight Toolbar (BubbleMenu)
-- Use TipTap's built-in `BubbleMenu` component — appears on text selection
-- Actions: Bold, Italic, Underline, Strikethrough, Code, Link, Text Color
-- Minimal floating bar with small icon buttons
-- Disappears when selection is cleared
+### 4. Onboarding Banner (`src/components/OnboardingBanner.tsx`)
+- Shows on the home page (Index) for users who haven't completed onboarding
+- Welcome message, company overview, progress bar
+- Steps: "Meet the team", "Explore your department", "Review key docs", "Complete role training"
+- Dismissible, tracks completion via training progress context
 
-### 4. Block Interaction UX
-- Use TipTap's `FloatingMenu` — shows a `+` button on empty lines/paragraphs
-- Clicking `+` triggers the slash command menu at that position
-- Clean hover states, no heavy borders
+### 5. Navigation & Routing
+- Add `/training` route in `App.tsx`
+- Add "Training" nav item in `AppSidebar.tsx` (visible to all users)
+- Admins see an "Edit" toggle to manage content (add/edit modules inline)
 
-### 5. Remove Static Toolbar
-- Remove the existing fixed toolbar bar at the top of the editor
-- All formatting is now accessed via BubbleMenu (on selection) or slash commands (on `/`)
-- Results in a cleaner, more spacious Notion-like editing experience
-
-### 6. Update CSS (`src/components/RichTextEditor.css`)
-- Add styles for slash command dropdown (floating, shadowed, rounded)
-- Add styles for bubble menu (compact, dark background)
-- Add image block styles
-- Increase editor padding and spacing for Notion-like feel
-- Subtle focus/hover states
+### 6. Fix Runtime Error
+- The `useRef` null error is a duplicate React issue from TipTap deps. Add a React alias in `vite.config.ts` to deduplicate.
 
 ## Files
 
-| File | Change |
+| File | Action |
 |------|--------|
-| `src/components/SlashCommandMenu.tsx` | **New** — Slash command extension + dropdown UI |
-| `src/components/RichTextEditor.tsx` | Replace static toolbar with BubbleMenu + FloatingMenu, add slash command extension, add Image extension |
-| `src/components/RichTextEditor.css` | Updated styles for bubble menu, slash menu, block spacing, image blocks |
-
-## Technical Notes
-- The editor remains a single TipTap instance outputting HTML (no structural change to data model — TipTap internally manages blocks as nodes)
-- The slash command uses `@tiptap/suggestion` which handles positioning, keyboard nav, and filtering
-- BubbleMenu is a first-class TipTap React component — no custom positioning needed
-- Image extension uses `@tiptap/extension-image` with URL input (no upload in this phase)
-- All existing content formats (callouts, task lists, etc.) continue to work
+| `src/lib/training-data.ts` | **Create** — Types + seed training/onboarding content |
+| `src/lib/training-progress.ts` | **Create** — Progress context with localStorage |
+| `src/pages/TrainingPage.tsx` | **Create** — Training hub page |
+| `src/components/OnboardingBanner.tsx` | **Create** — Home page onboarding widget |
+| `src/pages/Index.tsx` | **Edit** — Add OnboardingBanner |
+| `src/App.tsx` | **Edit** — Add `/training` route, wrap with TrainingProgressProvider |
+| `src/components/AppSidebar.tsx` | **Edit** — Add Training nav item |
+| `vite.config.ts` | **Edit** — Add React alias to fix duplicate React |
 
 ## Build Order
-1. Install `@tiptap/extension-image` and `@tiptap/suggestion`
-2. Create `SlashCommandMenu.tsx` with suggestion plugin + dropdown UI
-3. Rewrite `RichTextEditor.tsx` — remove static toolbar, add BubbleMenu + FloatingMenu + slash commands
-4. Update CSS for new UI elements
+1. Fix runtime error (vite.config.ts React alias)
+2. Training data types + seed content
+3. Training progress context
+4. Training hub page
+5. Onboarding banner component
+6. Routing + sidebar updates
 
