@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
-import { teamMembers } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -229,19 +229,7 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
         </div>
       );
     case "person":
-      return (
-        <div className="space-y-1.5">
-          <Label className="text-xs">{column.name}</Label>
-          <Select value={value || ""} onValueChange={onChange}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select person" /></SelectTrigger>
-            <SelectContent>
-              {teamMembers.map(m => (
-                <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
+      return <PersonEditor column={column} value={value} onChange={onChange} />;
     case "checkbox":
       return (
         <div className="flex items-center gap-2">
@@ -265,4 +253,24 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
         </div>
       );
   }
+}
+
+function PersonEditor({ column, value, onChange }: { column: DatabaseColumn; value: any; onChange: (v: any) => void }) {
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("user_id, full_name").then(({ data }) => { if (data) setProfiles(data); });
+  }, []);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{column.name}</Label>
+      <Select value={value || ""} onValueChange={onChange}>
+        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select person" /></SelectTrigger>
+        <SelectContent>
+          {profiles.map(m => (
+            <SelectItem key={m.user_id} value={m.full_name || m.user_id}>{m.full_name || "Unnamed"}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }

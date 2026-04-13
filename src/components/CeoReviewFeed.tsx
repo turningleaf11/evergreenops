@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStrategyFlow } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Check, X, MessageCircle, ArrowUp, AlertTriangle, HelpCircle, Flag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ const proposalTypeConfig: Record<string, { label: string; icon: React.ElementTyp
 
 export function CeoReviewFeed() {
   const { proposals, updateProposal, strategyItems } = useStrategyFlow();
+  const { departments } = useDepartments();
   const [clarificationText, setClarificationText] = useState<Record<string, string>>({});
   const [showClarification, setShowClarification] = useState<string | null>(null);
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useStrategyFlow } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -98,6 +98,7 @@ interface Props {
 
 export function LeadershipAiChat({ open, onOpenChange, departmentId }: Props) {
   const { getItemsForDepartment, translations, proposals } = useStrategyFlow();
+  const { departments } = useDepartments();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { databases as initialDatabases, databaseRows as initialRows } from "@/lib/mock-data";
-import type { Database, DatabaseRow, DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import type { DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,157 +11,172 @@ import DatabaseItemEditor from "@/components/DatabaseItemEditor";
 import CreateDatabaseDialog from "@/components/CreateDatabaseDialog";
 import { useAuth } from "@/contexts/AuthContext";
 
-const iconMap: Record<string, React.ElementType> = {
-  Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
-};
+interface DB {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  visibility: Visibility;
+  sharedWith: SharedWith;
+  createdBy: string;
+  columns: DatabaseColumn[];
+}
+
+interface DBRow {
+  id: string;
+  databaseId: string;
+  values: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const iconMap: Record<string, React.ElementType> = { Target, FolderKanban, CheckSquare, Bug, Calendar, Plus };
+
+function mapDb(row: any): DB {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || "",
+    icon: row.icon || "Database",
+    visibility: row.visibility as Visibility,
+    sharedWith: (row.shared_with as SharedWith) || { departmentIds: [], memberIds: [] },
+    createdBy: row.created_by_name || "Unknown",
+    columns: (row.columns as any as DatabaseColumn[]) || [],
+  };
+}
+
+function mapRow(row: any): DBRow {
+  return {
+    id: row.id,
+    databaseId: row.database_id,
+    values: (row.values as Record<string, any>) || {},
+    createdAt: row.created_at?.split("T")[0] || "",
+    updatedAt: row.updated_at?.split("T")[0] || "",
+  };
+}
 
 export default function DatabasesPage() {
   const { dbId } = useParams<{ dbId: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-  const [allDatabases, setAllDatabases] = useState<Database[]>(initialDatabases);
-  const [allRows, setAllRows] = useState<DatabaseRow[]>(initialRows);
+  const { isAdmin, user, profile } = useAuth();
+  const [allDatabases, setAllDatabases] = useState<DB[]>([]);
+  const [allRows, setAllRows] = useState<DBRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingRow, setEditingRow] = useState<DatabaseRow | null>(null);
+  const [editingRow, setEditingRow] = useState<DBRow | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [isNew, setIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const currentDb = dbId ? allDatabases.find(d => d.id === dbId) : null;
-
-  const handleCreateDatabase = (title: string, description: string, columns: DatabaseColumn[], icon: string, visibility: Visibility, sharedWith: SharedWith) => {
-    const newDb: Database = {
-      id: `db_${Date.now()}`,
-      title,
-      description,
-      icon,
-      visibility,
-      sharedWith,
-      createdBy: "Sarah Chen",
-      columns,
+  useEffect(() => {
+    const fetch = async () => {
+      const [dbRes, rowRes] = await Promise.all([
+        supabase.from("databases_meta").select("*").order("created_at"),
+        supabase.from("database_rows").select("*"),
+      ]);
+      if (dbRes.data) setAllDatabases(dbRes.data.map(mapDb));
+      if (rowRes.data) setAllRows(rowRes.data.map(mapRow));
+      setLoading(false);
     };
-    setAllDatabases(prev => [...prev, newDb]);
-    navigate(`/databases/${newDb.id}`);
+    fetch();
+  }, []);
+
+  const currentDb = dbId ? allDatabases.find((d) => d.id === dbId) : null;
+
+  const handleCreateDatabase = async (title: string, description: string, columns: DatabaseColumn[], icon: string, visibility: Visibility, sharedWith: SharedWith) => {
+    const { data } = await supabase
+      .from("databases_meta")
+      .insert({
+        title,
+        description,
+        columns: columns as any,
+        icon,
+        visibility,
+        shared_with: sharedWith as any,
+        created_by: user?.id || null,
+        created_by_name: profile?.full_name || "Unknown",
+      })
+      .select()
+      .single();
+
+    if (data) {
+      setAllDatabases((prev) => [...prev, mapDb(data)]);
+      navigate(`/databases/${data.id}`);
+    }
   };
 
-  const handleDeleteDatabase = (dbId: string) => {
-    setAllDatabases(prev => prev.filter(d => d.id !== dbId));
-    setAllRows(prev => prev.filter(r => r.databaseId !== dbId));
+  const handleDeleteDatabase = async (id: string) => {
+    await supabase.from("database_rows").delete().eq("database_id", id);
+    await supabase.from("databases_meta").delete().eq("id", id);
+    setAllDatabases((prev) => prev.filter((d) => d.id !== id));
+    setAllRows((prev) => prev.filter((r) => r.databaseId !== id));
     navigate("/databases");
   };
 
-  const handleAddRow = () => {
-    setEditingRow(null);
-    setIsNew(true);
-    setEditorOpen(true);
-  };
+  const handleAddRow = () => { setEditingRow(null); setIsNew(true); setEditorOpen(true); };
+  const handleEditRow = (row: DBRow) => { setEditingRow(row as any); setIsNew(false); setEditorOpen(true); };
 
-  const handleEditRow = (row: DatabaseRow) => {
-    setEditingRow(row);
-    setIsNew(false);
-    setEditorOpen(true);
-  };
-
-  const handleSaveRow = (values: Record<string, any>) => {
+  const handleSaveRow = async (values: Record<string, any>) => {
     if (isNew && currentDb) {
-      const newRow: DatabaseRow = {
-        id: `r_${Date.now()}`,
-        databaseId: currentDb.id,
-        values,
-        createdAt: new Date().toISOString().split("T")[0],
-        updatedAt: new Date().toISOString().split("T")[0],
-      };
-      setAllRows(prev => [...prev, newRow]);
+      const { data } = await supabase
+        .from("database_rows")
+        .insert({ database_id: currentDb.id, values: values as any })
+        .select()
+        .single();
+      if (data) setAllRows((prev) => [...prev, mapRow(data)]);
     } else if (editingRow) {
-      setAllRows(prev => prev.map(r => r.id === editingRow.id ? { ...r, values, updatedAt: new Date().toISOString().split("T")[0] } : r));
+      await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id);
+      setAllRows((prev) => prev.map((r) => (r.id === editingRow.id ? { ...r, values } : r)));
     }
     setEditorOpen(false);
   };
 
-  const handleDeleteRow = () => {
+  const handleDeleteRow = async () => {
     if (editingRow) {
-      setAllRows(prev => prev.filter(r => r.id !== editingRow.id));
+      await supabase.from("database_rows").delete().eq("id", editingRow.id);
+      setAllRows((prev) => prev.filter((r) => r.id !== editingRow.id));
       setEditorOpen(false);
     }
   };
 
-  // Database detail view
+  if (loading) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading databases...</div>;
+
   if (currentDb) {
-    const dbRows = allRows.filter(r => r.databaseId === currentDb.id);
+    const dbRows = allRows.filter((r) => r.databaseId === currentDb.id);
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8">
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          {isAdmin && (
-            <Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}>
-              <Trash2 className="h-4 w-4 mr-1" /> Delete Database
-            </Button>
-          )}
+          <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          {isAdmin && (<Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete Database</Button>)}
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{currentDb.title}</h1>
           <p className="text-muted-foreground mt-1">{currentDb.description}</p>
           <div className="flex gap-1.5 mt-2 flex-wrap">
-            {currentDb.columns.map(col => (
-              <span key={col.id} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{col.name}</span>
-            ))}
+            {currentDb.columns.map((col) => (<span key={col.id} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{col.name}</span>))}
           </div>
         </div>
-
-        <DatabaseView
-          database={currentDb}
-          rows={dbRows}
-          onAdd={isAdmin ? handleAddRow : undefined}
-          onEdit={isAdmin ? handleEditRow : undefined}
-          onDelete={isAdmin ? (id) => setAllRows(prev => prev.filter(r => r.id !== id)) : undefined}
-          allDatabases={allDatabases}
-          allRows={allRows}
-        />
-
-        {currentDb && (
-          <DatabaseItemEditor
-            database={currentDb}
-            row={editingRow}
-            open={editorOpen}
-            onClose={() => setEditorOpen(false)}
-            onSave={handleSaveRow}
-            onDelete={isAdmin && editingRow ? handleDeleteRow : undefined}
-            allDatabases={allDatabases}
-            allRows={allRows}
-          />
-        )}
+        <DatabaseView database={currentDb as any} rows={dbRows as any} onAdd={isAdmin ? handleAddRow : undefined} onEdit={isAdmin ? (handleEditRow as any) : undefined} onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined} allDatabases={allDatabases as any} allRows={allRows as any} />
+        <DatabaseItemEditor database={currentDb as any} row={editingRow as any} open={editorOpen} onClose={() => setEditorOpen(false)} onSave={handleSaveRow} onDelete={isAdmin && editingRow ? handleDeleteRow : undefined} allDatabases={allDatabases as any} allRows={allRows as any} />
       </div>
     );
   }
 
-  // Database list view
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Databases</h1>
-          <p className="text-muted-foreground mt-1">Create and manage your team's databases.</p>
-        </div>
-        {isAdmin && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New Database
-          </Button>
-        )}
+        <div><h1 className="text-2xl font-bold tracking-tight">Databases</h1><p className="text-muted-foreground mt-1">Create and manage your team's databases.</p></div>
+        {isAdmin && (<Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Database</Button>)}
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {allDatabases.map(db => {
+        {allDatabases.map((db) => {
           const Icon = iconMap[db.icon] || DbIcon;
-          const rowCount = allRows.filter(r => r.databaseId === db.id).length;
+          const rowCount = allRows.filter((r) => r.databaseId === db.id).length;
           return (
             <Link key={db.id} to={`/databases/${db.id}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <Icon className="h-5 w-5 text-foreground" />
-                    </div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted"><Icon className="h-5 w-5 text-foreground" /></div>
                     <div className="min-w-0">
                       <p className="font-medium text-sm">{db.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{db.description}</p>
@@ -177,7 +192,6 @@ export default function DatabasesPage() {
           );
         })}
       </div>
-
       <CreateDatabaseDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreateDatabase} />
     </div>
   );

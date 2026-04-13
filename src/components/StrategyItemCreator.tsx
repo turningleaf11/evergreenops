@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStrategyFlow, StrategyItemType } from "@/lib/strategy-flow";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Target, ShieldAlert, Gavel, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ const typeConfig: Record<StrategyItemType, { label: string; icon: React.ElementT
 
 export function StrategyItemCreator() {
   const { addStrategyItem, strategyItems, updateStrategyItem, deleteStrategyItem } = useStrategyFlow();
+  const { departments } = useDepartments();
   const { user } = useAuth();
   const currentUserId = user?.id || "";
   const [creating, setCreating] = useState(false);

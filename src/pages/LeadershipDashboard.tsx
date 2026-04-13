@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { departments } from "@/lib/mock-data";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { StrategyFeed } from "@/components/StrategyFeed";
 import { TranslationBlockComponent } from "@/components/TranslationBlock";
 import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function LeadershipDashboard() {
   const { deptId } = useParams<{ deptId: string }>();
+  const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === deptId);
   const [chatOpen, setChatOpen] = useState(false);
 

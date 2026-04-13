@@ -1,40 +1,72 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WorkspaceState {
+  id: string | null;
   name: string;
   description: string;
-  logoUrl: string | null; // data URL or null
+  logoUrl: string | null;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
   setName: (name: string) => void;
   setDescription: (desc: string) => void;
   setLogoUrl: (url: string | null) => void;
-}
-
-const STORAGE_KEY = "workspace-settings";
-
-function loadWorkspace(): WorkspaceState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { name: "TeamSpace", description: "Your team's collaborative workspace", logoUrl: null };
-}
-
-function saveWorkspace(state: WorkspaceState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  loading: boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WorkspaceState>(loadWorkspace);
+  const { user, isAdmin } = useAuth();
+  const [state, setState] = useState<WorkspaceState>({
+    id: null,
+    name: "TeamSpace",
+    description: "Your team's collaborative workspace",
+    logoUrl: null,
+  });
+  const [loading, setLoading] = useState(true);
 
-  const update = useCallback((partial: Partial<WorkspaceState>) => {
+  // Fetch workspace on mount
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+
+    const fetchWorkspace = async () => {
+      const { data } = await supabase
+        .from("workspaces")
+        .select("*")
+        .limit(1)
+        .single();
+
+      if (data) {
+        setState({
+          id: data.id,
+          name: data.name,
+          description: data.description || "",
+          logoUrl: data.logo_url,
+        });
+      }
+      setLoading(false);
+    };
+    fetchWorkspace();
+  }, [user]);
+
+  const persist = useCallback(async (partial: Partial<WorkspaceState>) => {
     setState((prev) => {
       const next = { ...prev, ...partial };
-      saveWorkspace(next);
+      // Async update to DB
+      if (prev.id) {
+        supabase
+          .from("workspaces")
+          .update({
+            name: next.name,
+            description: next.description,
+            logo_url: next.logoUrl,
+          } as any)
+          .eq("id", prev.id)
+          .then();
+      }
       return next;
     });
   }, []);
@@ -43,9 +75,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     <WorkspaceContext.Provider
       value={{
         ...state,
-        setName: (name) => update({ name }),
-        setDescription: (description) => update({ description }),
-        setLogoUrl: (logoUrl) => update({ logoUrl }),
+        loading,
+        setName: (name) => persist({ name }),
+        setDescription: (description) => persist({ description }),
+        setLogoUrl: (logoUrl) => persist({ logoUrl }),
       }}
     >
       {children}
