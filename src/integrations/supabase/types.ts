@@ -14,6 +14,270 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          content: string | null
+          created_at: string
+          department_id: string | null
+          id: string
+          pinned: boolean | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          pinned?: boolean | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          pinned?: boolean | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      database_rows: {
+        Row: {
+          created_at: string
+          database_id: string
+          id: string
+          updated_at: string
+          values: Json
+        }
+        Insert: {
+          created_at?: string
+          database_id: string
+          id?: string
+          updated_at?: string
+          values?: Json
+        }
+        Update: {
+          created_at?: string
+          database_id?: string
+          id?: string
+          updated_at?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "database_rows_database_id_fkey"
+            columns: ["database_id"]
+            isOneToOne: false
+            referencedRelation: "databases_meta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      databases_meta: {
+        Row: {
+          columns: Json
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          shared_with: Json | null
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          columns?: Json
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          shared_with?: Json | null
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          columns?: Json
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          shared_with?: Json | null
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
+      decision_log: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          outcome: string | null
+          rationale: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          outcome?: string | null
+          rationale?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          outcome?: string | null
+          rationale?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          content: string | null
+          created_at: string
+          id: string
+          parent_id: string | null
+          shared_with: Json | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          shared_with?: Json | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          shared_with?: Json | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_steps: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          link: string | null
+          link_label: string | null
+          sort_order: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          link?: string | null
+          link_label?: string | null
+          sort_order?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          link?: string | null
+          link_label?: string | null
+          sort_order?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -44,6 +308,131 @@ export type Database = {
         }
         Relationships: []
       }
+      strategy_items: {
+        Row: {
+          assigned_departments: string[] | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_departments?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_departments?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      strategy_responses: {
+        Row: {
+          analysis: string | null
+          created_at: string
+          department_id: string | null
+          expected_impact: string | null
+          ground_truth: string | null
+          id: string
+          recommendation: string | null
+          responder_id: string | null
+          strategy_item_id: string
+          type: string
+        }
+        Insert: {
+          analysis?: string | null
+          created_at?: string
+          department_id?: string | null
+          expected_impact?: string | null
+          ground_truth?: string | null
+          id?: string
+          recommendation?: string | null
+          responder_id?: string | null
+          strategy_item_id: string
+          type?: string
+        }
+        Update: {
+          analysis?: string | null
+          created_at?: string
+          department_id?: string | null
+          expected_impact?: string | null
+          ground_truth?: string | null
+          id?: string
+          recommendation?: string | null
+          responder_id?: string | null
+          strategy_item_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_responses_strategy_item_id_fkey"
+            columns: ["strategy_item_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_modules: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          role_ids: string[] | null
+          sort_order: number | null
+          steps: Json
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_ids?: string[] | null
+          sort_order?: number | null
+          steps?: Json
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_ids?: string[] | null
+          sort_order?: number | null
+          steps?: Json
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -59,6 +448,33 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
