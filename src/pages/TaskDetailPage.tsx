@@ -82,7 +82,7 @@ export default function TaskDetailPage() {
   };
 
   const updateTask = async (updates: Record<string, any>) => {
-    const { error } = await supabase.from("tasks").update(updates).eq("id", id);
+    const { error } = await supabase.from("tasks").update(updates as any).eq("id", id!);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setTask((t: any) => ({ ...t, ...updates }));
   };

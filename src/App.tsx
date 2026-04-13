@@ -21,6 +21,8 @@ import PeoplePage from "./pages/PeoplePage";
 import SettingsPage from "./pages/SettingsPage";
 import TrainingPage from "./pages/TrainingPage";
 import ExecutionPage from "./pages/ExecutionPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
+import TaskDetailPage from "./pages/TaskDetailPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
@@ -97,6 +99,8 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
                 <Route path="/execution" element={<ExecutionPage />} />
+                <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                <Route path="/tasks/:id" element={<TaskDetailPage />} />
                 <Route path="/issues" element={<Navigate to="/execution" replace />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
               </Route>

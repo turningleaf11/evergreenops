@@ -76,7 +76,7 @@ export default function ProjectDetailPage() {
   };
 
   const updateProject = async (updates: Record<string, any>) => {
-    const { error } = await supabase.from("projects").update(updates).eq("id", id);
+    const { error } = await supabase.from("projects").update(updates as any).eq("id", id!);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { setProject((p: any) => ({ ...p, ...updates })); }
   };
