@@ -275,8 +275,203 @@ export default function SettingsPage() {
     </div>
   );
 }
+interface DBUser {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  department_id: string | null;
+  email?: string;
+  roles: string[];
+}
 
-function ModuleEditor({
+function UsersTab() {
+  const { departments } = useDepartments();
+  const [users, setUsers] = useState<DBUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteDept, setInviteDept] = useState("");
+  const [inviteRole, setInviteRole] = useState<AppRole>("user");
+  const [inviting, setInviting] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    // Fetch all profiles
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, avatar_url, department_id");
+
+    if (!profiles) { setLoading(false); return; }
+
+    // Fetch all roles (admin can see all via RLS policy)
+    const { data: allRoles } = await supabase
+      .from("user_roles")
+      .select("user_id, role");
+
+    const roleMap: Record<string, string[]> = {};
+    (allRoles || []).forEach((r: any) => {
+      if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+      roleMap[r.user_id].push(r.role);
+    });
+
+    const merged: DBUser[] = profiles.map((p: any) => ({
+      ...p,
+      roles: roleMap[p.user_id] || ["user"],
+    }));
+
+    setUsers(merged);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleRoleChange = async (userId: string, newRole: AppRole) => {
+    if (newRole === "admin") {
+      await supabase.from("user_roles").insert({ user_id: userId, role: "admin" } as any);
+    } else {
+      await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    }
+    fetchUsers();
+    toast({ title: "Role updated" });
+  };
+
+  const handleDeptChange = async (userId: string, deptId: string) => {
+    await supabase.from("profiles").update({ department_id: deptId || null } as any).eq("user_id", userId);
+    fetchUsers();
+    toast({ title: "Department updated" });
+  };
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteEmail.trim(),
+          full_name: inviteName.trim(),
+          department_id: inviteDept || null,
+          role: inviteRole,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
+      setInviteEmail("");
+      setInviteName("");
+      setInviteDept("");
+      setInviteRole("user");
+      setInviteOpen(false);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Invite failed", description: err.message, variant: "destructive" });
+    }
+    setInviting(false);
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>;
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{users.length} team member{users.length !== 1 ? "s" : ""}</p>
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-1.5">
+              <UserPlus className="h-3.5 w-3.5" /> Invite User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invite a Team Member</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="name@company.com" type="email" />
+              </div>
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="First Last" />
+              </div>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select value={inviteDept} onValueChange={setInviteDept}>
+                  <SelectTrigger><SelectValue placeholder="Select department..." /></SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()} className="w-full">
+                {inviting ? "Inviting..." : "Send Invite"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {users.map((user) => {
+        const currentRole: AppRole = user.roles.includes("admin") ? "admin" : "user";
+        const initials = (user.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
+        const deptName = departments.find((d) => d.id === user.department_id)?.name;
+
+        return (
+          <Card key={user.user_id}>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{user.full_name || "Unnamed"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{deptName || "No department"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Select value={user.department_id || ""} onValueChange={(v) => handleDeptChange(user.user_id, v)}>
+                  <SelectTrigger className="w-36 h-8 text-xs">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id} className="text-xs">{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={currentRole} onValueChange={(v) => handleRoleChange(user.user_id, v as AppRole)}>
+                  <SelectTrigger className="w-24 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user" className="text-xs">User</SelectItem>
+                    <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </>
+  );
+}
+
+
   module: mod,
   onUpdate,
   onDelete,
