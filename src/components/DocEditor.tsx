@@ -12,12 +12,11 @@ interface DocEditorProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: { title: string; content: string; tags: string[]; parentId: string | null; visibility: Visibility; sharedWith: SharedWith }) => void;
-  onDelete?: () => void;
   doc?: DocPage | null;
   allDocs: DocPage[];
 }
 
-export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDocs }: DocEditorProps) {
+export default function DocEditor({ open, onClose, onSave, doc, allDocs }: DocEditorProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tagsStr, setTagsStr] = useState("");
@@ -97,11 +96,6 @@ export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDoc
           />
         </div>
         <DialogFooter className="gap-2">
-          {onDelete && (
-            <Button variant="destructive" size="sm" onClick={onDelete} className="mr-auto">
-              Delete
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={!title.trim()}>Save</Button>
         </DialogFooter>

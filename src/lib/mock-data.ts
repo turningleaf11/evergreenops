@@ -37,7 +37,7 @@ export interface DocPage {
   tags: string[];
 }
 
-export type ColumnType = "text" | "number" | "select" | "multi_select" | "date" | "person" | "checkbox" | "url" | "progress";
+export type ColumnType = "text" | "number" | "select" | "multi_select" | "date" | "person" | "checkbox" | "url" | "progress" | "relation";
 
 export interface DatabaseColumn {
   id: string;
@@ -45,6 +45,8 @@ export interface DatabaseColumn {
   type: ColumnType;
   options?: string[];
   required?: boolean;
+  /** For relation columns: which database and whether multiple refs are allowed */
+  relationConfig?: { databaseId: string; multiple?: boolean };
 }
 
 export interface Database {
@@ -110,6 +112,7 @@ export const databaseTemplates: { id: string; title: string; description: string
       { id: "progress", name: "Progress", type: "progress" },
       { id: "assignee", name: "Assignee", type: "person" },
       { id: "due_date", name: "Due Date", type: "date" },
+      { id: "projects", name: "Projects", type: "relation", relationConfig: { databaseId: "db2", multiple: true } },
     ],
   },
   {
@@ -121,6 +124,8 @@ export const databaseTemplates: { id: string; title: string; description: string
       { id: "assignee", name: "Assignee", type: "person" },
       { id: "due_date", name: "Due Date", type: "date" },
       { id: "tags", name: "Tags", type: "multi_select", options: ["Frontend", "Backend", "Design", "DevOps", "Mobile"] },
+      { id: "goal", name: "Goal", type: "relation", relationConfig: { databaseId: "db1", multiple: false } },
+      { id: "tasks", name: "Tasks", type: "relation", relationConfig: { databaseId: "db3", multiple: true } },
     ],
   },
   {
@@ -131,6 +136,7 @@ export const databaseTemplates: { id: string; title: string; description: string
       { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High"] },
       { id: "assignee", name: "Assignee", type: "person" },
       { id: "due_date", name: "Due Date", type: "date" },
+      { id: "project", name: "Project", type: "relation", relationConfig: { databaseId: "db2", multiple: false } },
     ],
   },
   {
@@ -182,21 +188,21 @@ export const databases: Database[] = [
 ];
 
 export const databaseRows: DatabaseRow[] = [
-  // Company Goals rows
-  { id: "r1", databaseId: "db1", values: { title: "Increase user retention by 20%", status: "In Progress", priority: "High", progress: 35, assignee: "Sarah Chen", due_date: "2026-06-30" }, createdAt: "2026-03-01", updatedAt: "2026-04-08" },
-  { id: "r2", databaseId: "db1", values: { title: "Launch mobile app v2", status: "In Progress", priority: "Urgent", progress: 60, assignee: "Jordan Park", due_date: "2026-05-15" }, createdAt: "2026-03-01", updatedAt: "2026-04-07" },
-  { id: "r3", databaseId: "db1", values: { title: "Rebrand marketing site", status: "Not Started", priority: "Medium", progress: 0, assignee: "Alex Rivera", due_date: "2026-07-01" }, createdAt: "2026-03-05", updatedAt: "2026-04-06" },
+  // Company Goals rows — with relation to projects
+  { id: "r1", databaseId: "db1", values: { title: "Increase user retention by 20%", status: "In Progress", priority: "High", progress: 35, assignee: "Sarah Chen", due_date: "2026-06-30", projects: ["r4"] }, createdAt: "2026-03-01", updatedAt: "2026-04-08" },
+  { id: "r2", databaseId: "db1", values: { title: "Launch mobile app v2", status: "In Progress", priority: "Urgent", progress: 60, assignee: "Jordan Park", due_date: "2026-05-15", projects: ["r5"] }, createdAt: "2026-03-01", updatedAt: "2026-04-07" },
+  { id: "r3", databaseId: "db1", values: { title: "Rebrand marketing site", status: "Not Started", priority: "Medium", progress: 0, assignee: "Alex Rivera", due_date: "2026-07-01", projects: [] }, createdAt: "2026-03-05", updatedAt: "2026-04-06" },
 
-  // Engineering Projects rows
-  { id: "r4", databaseId: "db2", values: { title: "Onboarding flow redesign", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-05-01", tags: ["Frontend", "Design"] }, createdAt: "2026-03-10", updatedAt: "2026-04-05" },
-  { id: "r5", databaseId: "db2", values: { title: "Push notification system", status: "In Progress", priority: "High", assignee: "Jordan Park", due_date: "2026-04-28", tags: ["Backend", "Mobile"] }, createdAt: "2026-03-12", updatedAt: "2026-04-04" },
-  { id: "r6", databaseId: "db2", values: { title: "Performance audit", status: "Not Started", priority: "Urgent", assignee: "Jordan Park", due_date: "2026-04-14", tags: ["DevOps"] }, createdAt: "2026-03-15", updatedAt: "2026-04-03" },
+  // Engineering Projects rows — with relation to goals and tasks
+  { id: "r4", databaseId: "db2", values: { title: "Onboarding flow redesign", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-05-01", tags: ["Frontend", "Design"], goal: "r1", tasks: ["r7"] }, createdAt: "2026-03-10", updatedAt: "2026-04-05" },
+  { id: "r5", databaseId: "db2", values: { title: "Push notification system", status: "In Progress", priority: "High", assignee: "Jordan Park", due_date: "2026-04-28", tags: ["Backend", "Mobile"], goal: "r2", tasks: ["r8", "r9"] }, createdAt: "2026-03-12", updatedAt: "2026-04-04" },
+  { id: "r6", databaseId: "db2", values: { title: "Performance audit", status: "Not Started", priority: "Urgent", assignee: "Jordan Park", due_date: "2026-04-14", tags: ["DevOps"], goal: null, tasks: [] }, createdAt: "2026-03-15", updatedAt: "2026-04-03" },
 
-  // Sprint Tasks rows
-  { id: "r7", databaseId: "db3", values: { title: "Design new onboarding screens", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-04-15" }, createdAt: "2026-04-01", updatedAt: "2026-04-08" },
-  { id: "r8", databaseId: "db3", values: { title: "Implement FCM integration", status: "Done", priority: "High", assignee: "Jordan Park", due_date: "2026-04-10" }, createdAt: "2026-04-01", updatedAt: "2026-04-09" },
-  { id: "r9", databaseId: "db3", values: { title: "Write API tests for notifications", status: "In Progress", priority: "Medium", assignee: "Dev Patel", due_date: "2026-04-12" }, createdAt: "2026-04-02", updatedAt: "2026-04-08" },
-  { id: "r10", databaseId: "db3", values: { title: "Create email templates", status: "To Do", priority: "Low", assignee: "Maria Santos", due_date: "2026-04-20" }, createdAt: "2026-04-03", updatedAt: "2026-04-07" },
+  // Sprint Tasks rows — with relation to project
+  { id: "r7", databaseId: "db3", values: { title: "Design new onboarding screens", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-04-15", project: "r4" }, createdAt: "2026-04-01", updatedAt: "2026-04-08" },
+  { id: "r8", databaseId: "db3", values: { title: "Implement FCM integration", status: "Done", priority: "High", assignee: "Jordan Park", due_date: "2026-04-10", project: "r5" }, createdAt: "2026-04-01", updatedAt: "2026-04-09" },
+  { id: "r9", databaseId: "db3", values: { title: "Write API tests for notifications", status: "In Progress", priority: "Medium", assignee: "Dev Patel", due_date: "2026-04-12", project: "r5" }, createdAt: "2026-04-02", updatedAt: "2026-04-08" },
+  { id: "r10", databaseId: "db3", values: { title: "Create email templates", status: "To Do", priority: "Low", assignee: "Maria Santos", due_date: "2026-04-20", project: null }, createdAt: "2026-04-03", updatedAt: "2026-04-07" },
 ];
 
 export const teamMembers: TeamMember[] = [

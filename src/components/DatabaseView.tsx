@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
 import { teamMembers } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List, TableIcon, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, LayoutGrid, List, TableIcon, Plus, Pencil, Trash2, Link as LinkIcon } from "lucide-react";
 
 type ViewMode = "table" | "kanban" | "list";
 
@@ -42,19 +43,20 @@ interface DatabaseViewProps {
   onAdd?: () => void;
   onEdit?: (row: DatabaseRow) => void;
   onDelete?: (rowId: string) => void;
+  /** All databases + rows for relation lookups */
+  allDatabases?: Database[];
+  allRows?: DatabaseRow[];
 }
 
-export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete }: DatabaseViewProps) {
+export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, allDatabases, allRows }: DatabaseViewProps) {
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
 
-  const titleCol = database.columns.find(c => c.id === "title");
   const filtered = rows.filter(row => {
     const title = (row.values.title || "").toString().toLowerCase();
     return title.includes(search.toLowerCase());
   });
 
-  // Find the first select column for kanban grouping
   const kanbanColumn = database.columns.find(c => c.type === "select" && c.id !== "title") || database.columns[1];
 
   return (
@@ -86,14 +88,47 @@ export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete }
         </div>
       </div>
 
-      {view === "table" && <GenericTable database={database} rows={filtered} onEdit={onEdit} onDelete={onDelete} />}
-      {view === "kanban" && <GenericKanban database={database} rows={filtered} kanbanColumn={kanbanColumn} onEdit={onEdit} />}
+      {view === "table" && <GenericTable database={database} rows={filtered} onEdit={onEdit} onDelete={onDelete} allDatabases={allDatabases} allRows={allRows} />}
+      {view === "kanban" && <GenericKanban database={database} rows={filtered} kanbanColumn={kanbanColumn} onEdit={onEdit} allDatabases={allDatabases} allRows={allRows} />}
       {view === "list" && <GenericList database={database} rows={filtered} onEdit={onEdit} />}
     </div>
   );
 }
 
-function CellValue({ column, value }: { column: DatabaseColumn; value: any }) {
+function RelationChips({ column, value, allDatabases, allRows }: { column: DatabaseColumn; value: any; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
+  const navigate = useNavigate();
+  if (!column.relationConfig || !allRows) return <span className="text-muted-foreground">—</span>;
+
+  const ids: string[] = Array.isArray(value) ? value : (value ? [value] : []);
+  if (ids.length === 0) return <span className="text-muted-foreground">—</span>;
+
+  const targetDbId = column.relationConfig.databaseId;
+
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {ids.map(id => {
+        const row = allRows.find(r => r.id === id);
+        if (!row) return null;
+        return (
+          <button
+            key={id}
+            onClick={(e) => { e.stopPropagation(); navigate(`/databases/${targetDbId}`); }}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
+          >
+            <LinkIcon className="h-2.5 w-2.5" />
+            {row.values.title || "Untitled"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CellValue({ column, value, allDatabases, allRows }: { column: DatabaseColumn; value: any; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
+  if (column.type === "relation") {
+    return <RelationChips column={column} value={value} allDatabases={allDatabases} allRows={allRows} />;
+  }
+
   if (value === undefined || value === null) return <span className="text-muted-foreground">—</span>;
 
   switch (column.type) {
@@ -134,7 +169,7 @@ function CellValue({ column, value }: { column: DatabaseColumn; value: any }) {
   }
 }
 
-function GenericTable({ database, rows, onEdit, onDelete }: { database: Database; rows: DatabaseRow[]; onEdit?: (r: DatabaseRow) => void; onDelete?: (id: string) => void }) {
+function GenericTable({ database, rows, onEdit, onDelete, allDatabases, allRows }: { database: Database; rows: DatabaseRow[]; onEdit?: (r: DatabaseRow) => void; onDelete?: (id: string) => void; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
   const visibleCols = database.columns.filter(c => c.id !== "title");
 
   return (
@@ -155,7 +190,7 @@ function GenericTable({ database, rows, onEdit, onDelete }: { database: Database
               <TableCell className="font-medium">{row.values.title || "Untitled"}</TableCell>
               {visibleCols.map(col => (
                 <TableCell key={col.id}>
-                  <CellValue column={col} value={row.values[col.id]} />
+                  <CellValue column={col} value={row.values[col.id]} allDatabases={allDatabases} allRows={allRows} />
                 </TableCell>
               ))}
               {(onEdit || onDelete) && (
@@ -177,7 +212,7 @@ function GenericTable({ database, rows, onEdit, onDelete }: { database: Database
   );
 }
 
-function GenericKanban({ database, rows, kanbanColumn, onEdit }: { database: Database; rows: DatabaseRow[]; kanbanColumn: DatabaseColumn; onEdit?: (r: DatabaseRow) => void }) {
+function GenericKanban({ database, rows, kanbanColumn, onEdit, allDatabases, allRows }: { database: Database; rows: DatabaseRow[]; kanbanColumn: DatabaseColumn; onEdit?: (r: DatabaseRow) => void; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
   const groups = kanbanColumn?.options || [];
 
   return (
@@ -193,7 +228,7 @@ function GenericKanban({ database, rows, kanbanColumn, onEdit }: { database: Dat
             </div>
             <div className="space-y-2 min-h-[200px]">
               {groupRows.map(row => {
-                const otherCols = database.columns.filter(c => c.id !== "title" && c.id !== kanbanColumn.id).slice(0, 3);
+                const otherCols = database.columns.filter(c => c.id !== "title" && c.id !== kanbanColumn.id && c.type !== "relation").slice(0, 3);
                 return (
                   <Card key={row.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onEdit?.(row)}>
                     <CardContent className="p-3 space-y-2">
@@ -202,7 +237,7 @@ function GenericKanban({ database, rows, kanbanColumn, onEdit }: { database: Dat
                         row.values[col.id] !== undefined && (
                           <div key={col.id} className="flex items-center justify-between">
                             <span className="text-[10px] text-muted-foreground">{col.name}</span>
-                            <CellValue column={col} value={row.values[col.id]} />
+                            <CellValue column={col} value={row.values[col.id]} allDatabases={allDatabases} allRows={allRows} />
                           </div>
                         )
                       ))}

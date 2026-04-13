@@ -9,18 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import { X } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
 
 interface DatabaseItemEditorProps {
   database: Database;
-  row: DatabaseRow | null; // null = creating new
+  row: DatabaseRow | null;
   open: boolean;
   onClose: () => void;
   onSave: (values: Record<string, any>) => void;
   onDelete?: () => void;
+  /** For relation column lookups */
+  allDatabases?: Database[];
+  allRows?: DatabaseRow[];
 }
 
-export default function DatabaseItemEditor({ database, row, open, onClose, onSave, onDelete }: DatabaseItemEditorProps) {
+export default function DatabaseItemEditor({ database, row, open, onClose, onSave, onDelete, allDatabases, allRows }: DatabaseItemEditorProps) {
   const [values, setValues] = useState<Record<string, any>>(row?.values || {});
 
   const handleOpen = (isOpen: boolean) => {
@@ -45,7 +49,16 @@ export default function DatabaseItemEditor({ database, row, open, onClose, onSav
         </DialogHeader>
         <div className="space-y-4 py-2">
           {database.columns.map(col => (
-            <FieldEditor key={col.id} column={col} value={values[col.id]} onChange={(v) => setValue(col.id, v)} onToggleMulti={(opt) => toggleMultiSelect(col.id, opt)} multiValues={values[col.id]} />
+            <FieldEditor
+              key={col.id}
+              column={col}
+              value={values[col.id]}
+              onChange={(v) => setValue(col.id, v)}
+              onToggleMulti={(opt) => toggleMultiSelect(col.id, opt)}
+              multiValues={values[col.id]}
+              allDatabases={allDatabases}
+              allRows={allRows}
+            />
           ))}
           <div className="space-y-1.5 pt-2 border-t">
             <Label className="text-xs font-medium">Notes</Label>
@@ -64,14 +77,107 @@ export default function DatabaseItemEditor({ database, row, open, onClose, onSav
   );
 }
 
-function FieldEditor({ column, value, onChange, onToggleMulti, multiValues }: {
+function RelationEditor({ column, value, onChange, allDatabases, allRows }: {
+  column: DatabaseColumn;
+  value: any;
+  onChange: (v: any) => void;
+  allDatabases?: Database[];
+  allRows?: DatabaseRow[];
+}) {
+  const [search, setSearch] = useState("");
+  const config = column.relationConfig;
+  if (!config || !allRows) return null;
+
+  const targetRows = allRows.filter(r => r.databaseId === config.databaseId);
+  const targetDb = allDatabases?.find(d => d.id === config.databaseId);
+
+  const isMultiple = config.multiple;
+  const selectedIds: string[] = isMultiple
+    ? (Array.isArray(value) ? value : [])
+    : (value ? [value] : []);
+
+  const filteredOptions = targetRows.filter(r =>
+    !selectedIds.includes(r.id) &&
+    (r.values.title || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const removeId = (id: string) => {
+    if (isMultiple) {
+      onChange(selectedIds.filter(v => v !== id));
+    } else {
+      onChange(null);
+    }
+  };
+
+  const addId = (id: string) => {
+    if (isMultiple) {
+      onChange([...selectedIds, id]);
+    } else {
+      onChange(id);
+    }
+    setSearch("");
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{column.name} {targetDb && <span className="text-muted-foreground">→ {targetDb.title}</span>}</Label>
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedIds.map(id => {
+            const row = targetRows.find(r => r.id === id);
+            return (
+              <Badge key={id} variant="secondary" className="text-xs gap-1 pr-1">
+                {row?.values.title || "Unknown"}
+                <button onClick={() => removeId(id)} className="ml-0.5 hover:text-destructive">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+      <div className="relative">
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={`Search ${targetDb?.title || "items"}...`}
+          className="h-8 text-sm"
+        />
+        {search && filteredOptions.length > 0 && (
+          <div className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-md shadow-md max-h-40 overflow-y-auto">
+            {filteredOptions.slice(0, 8).map(r => (
+              <button
+                key={r.id}
+                onClick={() => addId(r.id)}
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                {r.values.title || "Untitled"}
+              </button>
+            ))}
+          </div>
+        )}
+        {search && filteredOptions.length === 0 && (
+          <div className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-md shadow-md p-2 text-xs text-muted-foreground">
+            No matching items
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allDatabases, allRows }: {
   column: DatabaseColumn;
   value: any;
   onChange: (v: any) => void;
   onToggleMulti: (opt: string) => void;
   multiValues?: string[];
+  allDatabases?: Database[];
+  allRows?: DatabaseRow[];
 }) {
   switch (column.type) {
+    case "relation":
+      return <RelationEditor column={column} value={value} onChange={onChange} allDatabases={allDatabases} allRows={allRows} />;
     case "text":
     case "url":
       return (
