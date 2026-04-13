@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
   FileText, Pin, Database, Target, FolderKanban, CheckSquare,
-  AlertTriangle, Activity, Bot, Zap, Brain,
+  AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
+  Users, Flame, Shield, CircleDot,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -20,13 +21,14 @@ import { formatDistanceToNow } from "date-fns";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
-interface Doc { id: string; title: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; }
-interface DB { id: string; title: string; description: string | null; visibility: string; shared_with: any; }
+interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; }
+interface DB { id: string; title: string; description: string | null; icon: string | null; visibility: string; shared_with: any; }
 interface Goal { id: string; title: string; progress: number; status: string; quarter: string; }
-interface Project { id: string; title: string; status: string; priority: string; }
-interface Task { id: string; title: string; status: string; priority: string; }
+interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; }
+interface Task { id: string; title: string; status: string; priority: string; project_id: string | null; }
 interface Issue { id: string; title: string; status: string; priority: number; }
-interface ActivityEvent { id: string; actor_name: string | null; action: string; entity_type: string; entity_title: string | null; created_at: string; }
+interface StrategyItem { id: string; title: string; type: string; status: string; description: string | null; assigned_departments: string[] | null; }
+interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
 
 function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId: string): boolean {
   if (item.visibility === "workspace") return true;
@@ -36,6 +38,8 @@ function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId
   }
   return false;
 }
+
+const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 const statusColors: Record<string, string> = {
   on_track: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -49,6 +53,13 @@ const statusColors: Record<string, string> = {
   open: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
 };
 
+const priorityColors: Record<string, string> = {
+  urgent: "bg-red-500/15 text-red-700 dark:text-red-400",
+  high: "bg-red-500/10 text-red-600 dark:text-red-400",
+  medium: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  low: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+};
+
 export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
   const { departments } = useDepartments();
@@ -59,51 +70,66 @@ export default function DepartmentPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [dbs, setDbs] = useState<DB[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectFull[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [strategyItems, setStrategyItems] = useState<StrategyItem[]>([]);
+  const [activity, setActivity] = useState<EntityActivity[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     const load = async () => {
       const currentYear = new Date().getFullYear();
-      const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, tasksRes, issuesRes, activityRes] = await Promise.all([
+      const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, strategyRes, allProfilesRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id").eq("department_id", id),
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
         supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with"),
-        supabase.from("databases_meta").select("id, title, description, visibility, shared_with"),
+        supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
         supabase.from("goals").select("id, title, progress, status, quarter").eq("department_id", id).eq("year", currentYear),
-        supabase.from("projects").select("id, title, status, priority").eq("department_id", id),
-        supabase.from("tasks").select("id, title, status, priority").in("status", ["todo", "in_progress"]).limit(20),
+        supabase.from("projects").select("id, title, status, priority, owner_id").eq("department_id", id),
         supabase.from("issues").select("id, title, status, priority").eq("department_id", id).eq("status", "open").order("priority", { ascending: true }).limit(10),
-        supabase.from("activity_events").select("id, actor_name, action, entity_type, entity_title, created_at").eq("department_id", id).order("created_at", { ascending: false }).limit(15),
+        supabase.from("strategy_items").select("id, title, type, status, description, assigned_departments"),
+        supabase.from("profiles").select("user_id, full_name, avatar_url, department_id"),
       ]);
 
       setMembers((profilesRes.data as Profile[]) || []);
       setAnnouncements((announcementsRes.data as Announcement[]) || []);
-      
-      // Filter docs/dbs by visibility
+      setProfiles((allProfilesRes.data as Profile[]) || []);
+
       const allDocs = (docsRes.data || []) as Doc[];
       const allDbs = (dbsRes.data || []) as DB[];
       setDocs(allDocs.filter((d) => isSharedWithDept(d, id)));
       setDbs(allDbs.filter((d) => isSharedWithDept(d, id)));
 
       setGoals((goalsRes.data as Goal[]) || []);
-      setProjects((projectsRes.data as Project[]) || []);
-      // Tasks don't have department_id directly — filter by project assignees or show all active for now
-      // We'll filter tasks that belong to this dept's projects
-      const deptProjectIds = ((projectsRes.data as Project[]) || []).map(p => p.id);
-      // Re-query tasks for these projects
+      const deptProjects = (projectsRes.data as ProjectFull[]) || [];
+      setProjects(deptProjects);
+      setIssues((issuesRes.data as Issue[]) || []);
+
+      // Filter strategy items assigned to this department
+      const allStrategy = (strategyRes.data as StrategyItem[]) || [];
+      setStrategyItems(allStrategy.filter(s => (s.assigned_departments || []).includes(id)));
+
+      // Fetch tasks for department projects
+      const deptProjectIds = deptProjects.map(p => p.id);
       if (deptProjectIds.length > 0) {
-        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority").in("project_id", deptProjectIds).in("status", ["todo", "in_progress"]).limit(20);
+        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority, project_id").in("project_id", deptProjectIds).in("status", ["todo", "in_progress"]).limit(20);
         setTasks((deptTasks as Task[]) || []);
       } else {
         setTasks([]);
       }
-      setIssues((issuesRes.data as Issue[]) || []);
-      setActivity((activityRes.data as ActivityEvent[]) || []);
+
+      // Fetch entity_activity for dept's projects and tasks
+      const entityIds = [...deptProjectIds];
+      if (entityIds.length > 0) {
+        const { data: actData } = await supabase.from("entity_activity").select("id, action, entity_type, entity_id, actor_id, created_at, metadata").in("entity_id", entityIds).order("created_at", { ascending: false }).limit(15);
+        setActivity((actData as EntityActivity[]) || []);
+      } else {
+        setActivity([]);
+      }
+
       setLoading(false);
     };
     load();
@@ -112,13 +138,48 @@ export default function DepartmentPage() {
   if (!dept) return <div className="p-6 text-muted-foreground">Department not found.</div>;
   if (loading) return <div className="p-6 text-muted-foreground text-sm">Loading...</div>;
 
-  const activeProjects = projects.filter(p => p.status === "in_progress" || p.status === "not_started");
+  const getName = (uid: string | null) => {
+    if (!uid) return null;
+    return profiles.find(p => p.user_id === uid)?.full_name || null;
+  };
+
+  // Department Focus data
+  const currentPriorities = [...goals]
+    .filter(g => g.status !== "completed")
+    .sort((a, b) => a.progress - b.progress)
+    .slice(0, 2);
+
+  const keyObjective = strategyItems.find(s => s.type === "objective" && (s.status === "in_execution" || s.status === "acknowledged"));
+  const constraints = strategyItems.filter(s => s.type === "constraint");
+
+  // Key initiatives — top 5 projects sorted by priority
+  const keyInitiatives = [...projects]
+    .sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2))
+    .slice(0, 5);
+
+  // Execution snapshot — high priority tasks
+  const highPriorityTasks = [...tasks]
+    .filter(t => t.priority === "urgent" || t.priority === "high")
+    .slice(0, 6);
+  const allActiveTasks = highPriorityTasks.length > 0 ? highPriorityTasks : tasks.slice(0, 6);
+
+  // Team with project ownership
+  const memberWithLeads = members.map(m => ({
+    ...m,
+    leads: projects.filter(p => p.owner_id === m.user_id).map(p => p.title),
+  }));
+
+  const deptColor = dept.color || "220 65% 48%";
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{dept.name}</h1>
-        <p className="text-muted-foreground mt-1">{dept.description}</p>
+      {/* Department Header with accent */}
+      <div className="relative">
+        <div className="absolute inset-x-0 top-0 h-1 rounded-t-lg" style={{ backgroundColor: `hsl(${deptColor})` }} />
+        <div className="pt-4">
+          <h1 className="text-2xl font-bold tracking-tight">{dept.name}</h1>
+          {dept.description && <p className="text-muted-foreground mt-1">{dept.description}</p>}
+        </div>
       </div>
 
       <Tabs defaultValue="overview">
@@ -131,173 +192,269 @@ export default function DepartmentPage() {
           {/* Announcements */}
           {announcements.length > 0 && (
             <section className="space-y-2">
-              <h2 className="text-lg font-semibold">Announcements</h2>
               {announcements.map((a) => (
-                <Card key={a.id}>
+                <Card key={a.id} className="border-l-4" style={{ borderLeftColor: `hsl(${deptColor})` }}>
                   <CardContent className="py-3 px-4 flex items-start gap-2">
                     <Pin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <div><p className="font-medium text-sm">{a.title}</p><p className="text-xs text-muted-foreground mt-0.5">{a.content}</p></div>
+                    <div><p className="font-medium text-sm">{a.title}</p>{a.content && <p className="text-xs text-muted-foreground mt-0.5">{a.content}</p>}</div>
                   </CardContent>
                 </Card>
               ))}
             </section>
           )}
 
-          {/* Goals */}
-          {goals.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-4 w-4" /> Goals</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {goals.map((g) => (
-                  <Card key={g.id}>
-                    <CardContent className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">{g.title}</p>
-                        <Badge variant="secondary" className={`text-[10px] ${statusColors[g.status] || ""}`}>{g.status.replace("_", " ")}</Badge>
+          {/* DEPARTMENT FOCUS — hero section */}
+          <section>
+            <Card className="border-2" style={{ borderColor: `hsl(${deptColor} / 0.3)` }}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Crosshair className="h-5 w-5" style={{ color: `hsl(${deptColor})` }} />
+                  <h2 className="text-lg font-bold">Department Focus</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Current Priorities */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Flame className="h-3.5 w-3.5" /> Current Priorities
+                    </h3>
+                    {currentPriorities.length > 0 ? currentPriorities.map(g => (
+                      <div key={g.id} className="p-2.5 rounded-md bg-accent/40 space-y-1.5">
+                        <p className="text-sm font-medium">{g.title}</p>
+                        <div className="flex items-center gap-2">
+                          <Progress value={g.progress} className="h-1.5 flex-1" />
+                          <span className="text-[11px] text-muted-foreground">{g.progress}%</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Progress value={g.progress} className="h-2 flex-1" />
-                        <span className="text-xs text-muted-foreground font-medium">{g.progress}%</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">{g.quarter}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          )}
+                    )) : (
+                      <p className="text-sm text-muted-foreground italic">No priorities set yet</p>
+                    )}
+                  </div>
 
-          {/* Active Projects & Tasks */}
+                  {/* Key Objective */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5" /> Key Objective
+                    </h3>
+                    {keyObjective ? (
+                      <div className="p-2.5 rounded-md bg-accent/40">
+                        <p className="text-sm font-medium">{keyObjective.title}</p>
+                        {keyObjective.description && <p className="text-xs text-muted-foreground mt-1">{keyObjective.description}</p>}
+                        <Badge variant="secondary" className={`text-[10px] mt-2 ${statusColors[keyObjective.status] || ""}`}>
+                          {keyObjective.status.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No active objective</p>
+                    )}
+                  </div>
+
+                  {/* Constraints */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5" /> Constraints
+                    </h3>
+                    {constraints.length > 0 ? constraints.map(c => (
+                      <div key={c.id} className="p-2.5 rounded-md bg-accent/40">
+                        <p className="text-sm font-medium">{c.title}</p>
+                        {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
+                      </div>
+                    )) : (
+                      <p className="text-sm text-muted-foreground italic">No constraints — clear runway</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* KEY INITIATIVES */}
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold flex items-center gap-2"><FolderKanban className="h-4 w-4" /> Active Projects ({activeProjects.length})</h2>
-            {activeProjects.length > 0 ? (
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <FolderKanban className="h-4 w-4" /> Key Initiatives
+            </h2>
+            {keyInitiatives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {activeProjects.map((p) => (
+                {keyInitiatives.map((p) => (
                   <Link key={p.id} to={`/projects/${p.id}`}>
-                    <Card className="hover:border-primary/40 transition-colors">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">{p.title}</p>
-                        <Badge variant="secondary" className={`text-[10px] shrink-0 ${statusColors[p.status] || ""}`}>{p.status.replace("_", " ")}</Badge>
+                    <Card className="hover:border-primary/40 transition-colors h-full">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium text-sm">{p.title}</p>
+                          <Badge variant="secondary" className={`text-[10px] shrink-0 ${priorityColors[p.priority] || ""}`}>
+                            {p.priority}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className={`text-[10px] ${statusColors[p.status] || ""}`}>
+                            {p.status.replace(/_/g, " ")}
+                          </Badge>
+                          {getName(p.owner_id) && (
+                            <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   </Link>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No active projects.</p>
-            )}
-
-            {tasks.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><CheckSquare className="h-3.5 w-3.5" /> Active Tasks ({tasks.length})</h3>
-                <div className="space-y-1">
-                  {tasks.slice(0, 8).map((t) => (
-                    <Link key={t.id} to={`/tasks/${t.id}`} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-muted transition-colors">
-                      <Badge variant="secondary" className={`text-[10px] ${statusColors[t.status] || ""}`}>{t.status}</Badge>
-                      <span className="truncate">{t.title}</span>
-                    </Link>
-                  ))}
-                  {tasks.length > 8 && <p className="text-xs text-muted-foreground pl-2">+{tasks.length - 8} more</p>}
-                </div>
-              </div>
+              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No initiatives yet — create a project to get started.</CardContent></Card>
             )}
           </section>
 
-          {/* Open Issues */}
-          {issues.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Open Issues ({issues.length})</h2>
-              <div className="space-y-1">
-                {issues.map((issue) => (
-                  <Link key={issue.id} to="/issues" className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-muted transition-colors">
-                    <Badge variant="secondary" className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400">P{issue.priority}</Badge>
-                    <span className="truncate">{issue.title}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* EXECUTION SNAPSHOT */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" /> Execution Snapshot
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Tasks */}
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground">
+                    {highPriorityTasks.length > 0 ? "High-Priority Tasks" : "Active Tasks"}
+                  </h3>
+                  {allActiveTasks.length > 0 ? (
+                    <div className="space-y-1">
+                      {allActiveTasks.map(t => (
+                        <Link key={t.id} to={`/tasks/${t.id}`} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
+                          <CircleDot className={`h-3.5 w-3.5 shrink-0 ${t.status === "in_progress" ? "text-blue-500" : "text-muted-foreground"}`} />
+                          <span className="truncate flex-1">{t.title}</span>
+                          <Badge variant="secondary" className={`text-[9px] shrink-0 ${priorityColors[t.priority] || ""}`}>{t.priority}</Badge>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic py-2">No active tasks</p>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Shared Docs & Databases */}
-          {(docs.length > 0 || dbs.length > 0) && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold">Shared Resources</h2>
-              {docs.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2"><FileText className="h-3.5 w-3.5" /> Documents ({docs.length})</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {docs.slice(0, 6).map((d) => (
-                      <Link key={d.id} to={`/docs?doc=${d.id}`}>
-                        <Card className="hover:border-primary/40 transition-colors">
-                          <CardContent className="p-3">
-                            <p className="text-sm font-medium truncate">{d.title}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{d.author_name} · {d.updated_at?.split("T")[0]}</p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {dbs.length > 0 && (
-                <div className="space-y-2 mt-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2"><Database className="h-3.5 w-3.5" /> Databases ({dbs.length})</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {dbs.slice(0, 6).map((d) => (
-                      <Link key={d.id} to={`/databases?db=${d.id}`}>
-                        <Card className="hover:border-primary/40 transition-colors">
-                          <CardContent className="p-3">
-                            <p className="text-sm font-medium truncate">{d.title}</p>
-                            {d.description && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{d.description}</p>}
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Team */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Team ({members.length})</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {members.map((m) => (
-                <Card key={m.user_id}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-muted">{(m.full_name || "U").split(" ").map((n) => n[0]).join("")}</AvatarFallback></Avatar>
-                    <div className="min-w-0"><p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p></div>
-                  </CardContent>
-                </Card>
-              ))}
-              {members.length === 0 && <p className="text-sm text-muted-foreground col-span-full">No team members assigned to this department yet.</p>}
+              {/* Issues */}
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Open Issues
+                  </h3>
+                  {issues.length > 0 ? (
+                    <div className="space-y-1">
+                      {issues.slice(0, 3).map(issue => (
+                        <Link key={issue.id} to="/issues" className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
+                          <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 shrink-0">P{issue.priority}</Badge>
+                          <span className="truncate">{issue.title}</span>
+                        </Link>
+                      ))}
+                      {issues.length > 3 && <p className="text-xs text-muted-foreground pl-2">+{issues.length - 3} more open</p>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic py-2">No open issues — smooth sailing</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </section>
 
-          {/* Recent Activity */}
-          {activity.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Activity className="h-4 w-4" /> Recent Activity</h2>
-              <div className="space-y-2">
-                {activity.map((e) => (
-                  <div key={e.id} className="flex items-start gap-3 text-sm py-1">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">
-                      <Activity className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0">
-                      <p>
-                        <span className="font-medium">{e.actor_name || "Someone"}</span>{" "}
-                        <span className="text-muted-foreground">{e.action.replace(/_/g, " ")}</span>
-                        {e.entity_title && <span className="font-medium"> "{e.entity_title}"</span>}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
-                    </div>
-                  </div>
+          {/* RESOURCES & PLAYBOOKS */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Resources & Playbooks
+            </h2>
+            {docs.length > 0 || dbs.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {docs.slice(0, 6).map(d => (
+                  <Link key={d.id} to={`/docs?doc=${d.id}`}>
+                    <Card className="hover:border-primary/40 transition-colors h-full">
+                      <CardContent className="p-3 flex items-start gap-2.5">
+                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{d.title}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{d.author_name}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+                {dbs.slice(0, 6).map(d => (
+                  <Link key={d.id} to={`/databases?db=${d.id}`}>
+                    <Card className="hover:border-primary/40 transition-colors h-full">
+                      <CardContent className="p-3 flex items-start gap-2.5">
+                        <Database className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{d.title}</p>
+                          {d.description && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{d.description}</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
-            </section>
-          )}
+            ) : (
+              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No shared resources yet</CardContent></Card>
+            )}
+          </section>
+
+          {/* TEAM */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Users className="h-4 w-4" /> Team
+            </h2>
+            {memberWithLeads.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {memberWithLeads.map((m) => (
+                  <Card key={m.user_id}>
+                    <CardContent className="p-4 flex items-start gap-3">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarFallback className="text-xs bg-muted" style={{ borderColor: `hsl(${deptColor} / 0.4)`, borderWidth: 2 }}>
+                          {(m.full_name || "U").split(" ").map((n) => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p>
+                        {m.leads.length > 0 && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                            Leads: {m.leads.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No team members assigned yet</CardContent></Card>
+            )}
+          </section>
+
+          {/* RECENT ACTIVITY */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Activity className="h-4 w-4" /> Recent Activity
+            </h2>
+            {activity.length > 0 ? (
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  {activity.map((e) => (
+                    <div key={e.id} className="flex items-start gap-3 text-sm py-1">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">
+                        <Activity className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p>
+                          <span className="font-medium">{getName(e.actor_id) || "Someone"}</span>{" "}
+                          <span className="text-muted-foreground">{e.action.replace(/_/g, " ")}</span>
+                          {" on "}
+                          <span className="font-medium">{e.entity_type}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No recent activity yet</CardContent></Card>
+            )}
+          </section>
         </TabsContent>
 
         <TabsContent value="leadership" className="mt-4">
