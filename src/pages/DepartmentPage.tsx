@@ -78,6 +78,7 @@ export default function DepartmentPage() {
   const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === id);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
