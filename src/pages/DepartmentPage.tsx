@@ -108,6 +108,7 @@ export default function DepartmentPage() {
   const [newPin, setNewPin] = useState({ type: "link", title: "", url: "", description: "" });
   const [pinUploading, setPinUploading] = useState(false);
 
+  useEffect(() => {
     if (!id) return;
     const load = async () => {
       const currentYear = new Date().getFullYear();
