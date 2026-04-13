@@ -674,7 +674,10 @@ export default function ExecutionPage() {
                     <CardContent className="py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium text-sm">{t.title}</h3>
+                          <h3 className="font-medium text-sm flex items-center gap-1.5">
+                            {t.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                            {t.title}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
                             {projectTitle && <Badge variant="outline" className="text-xs">📁 {projectTitle}</Badge>}
