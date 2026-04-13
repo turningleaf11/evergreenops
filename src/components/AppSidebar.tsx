@@ -1,7 +1,7 @@
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
-  ShieldCheck, Compass, GraduationCap,
+  ShieldCheck, Compass, GraduationCap, Target, AlertCircle, Eye,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -37,6 +37,8 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
+    { title: "Execution Hub", url: "/execution", icon: Target },
+    { title: "Issues", url: "/issues", icon: AlertCircle },
     { title: "Docs", url: "/docs", icon: FileText },
     { title: "Databases", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
@@ -122,6 +124,14 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/vision" className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                      <Eye className="h-4 w-4" />
+                      {!collapsed && <span>Vision</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <NavLink to="/settings" className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">

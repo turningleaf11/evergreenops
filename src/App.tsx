@@ -20,6 +20,9 @@ import DatabasesPage from "./pages/DatabasesPage";
 import PeoplePage from "./pages/PeoplePage";
 import SettingsPage from "./pages/SettingsPage";
 import TrainingPage from "./pages/TrainingPage";
+import ExecutionPage from "./pages/ExecutionPage";
+import IssuesPage from "./pages/IssuesPage";
+import VisionPage from "./pages/VisionPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
@@ -95,6 +98,9 @@ const App = () => (
                 <Route path="/people" element={<PeoplePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
+                <Route path="/execution" element={<ExecutionPage />} />
+                <Route path="/issues" element={<IssuesPage />} />
+                <Route path="/vision" element={<VisionPage />} />
               </Route>
             </Route>
 
