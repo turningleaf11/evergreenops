@@ -10,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
-  ArrowLeft, Calendar, User, ListChecks, Tag, X, Plus, CheckSquare,
+  ArrowLeft, Calendar, User, ListChecks, Tag, X, Plus, CheckSquare, Repeat, Save,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -35,6 +37,13 @@ interface Subtask {
   id: string;
   title: string;
   done: boolean;
+}
+
+interface RecurrenceRule {
+  frequency: "daily" | "weekly" | "monthly" | "custom";
+  interval: number;
+  days_of_week?: number[];
+  end_date?: string;
 }
 
 export default function TaskDetailPage() {
@@ -62,7 +71,6 @@ export default function TaskDetailPage() {
       supabase.from("profiles").select("user_id, full_name"),
     ]);
     if (tRes.data) {
-      // Ensure subtasks is always an array
       const data = tRes.data;
       if (!Array.isArray(data.subtasks)) data.subtasks = [];
       setTask(data);
@@ -113,7 +121,6 @@ export default function TaskDetailPage() {
     updateTask({ tags: (task.tags || []).filter((t: string) => t !== tag) });
   };
 
-  // Subtask management
   const subtasks: Subtask[] = task?.subtasks || [];
 
   const addSubtask = () => {
@@ -132,6 +139,42 @@ export default function TaskDetailPage() {
     updateTask({ subtasks: subtasks.filter(st => st.id !== stId) });
   };
 
+  // Recurrence helpers
+  const recurrenceRule: RecurrenceRule | null = task?.recurrence_rule || null;
+
+  const toggleRecurring = (checked: boolean) => {
+    if (checked) {
+      updateTask({
+        is_recurring: true,
+        recurrence_rule: { frequency: "weekly", interval: 1 },
+      });
+    } else {
+      updateTask({ is_recurring: false, recurrence_rule: null });
+    }
+  };
+
+  const updateRecurrence = (updates: Partial<RecurrenceRule>) => {
+    const current = recurrenceRule || { frequency: "weekly", interval: 1 };
+    updateTask({ recurrence_rule: { ...current, ...updates } });
+  };
+
+  // Save as template
+  const saveAsTemplate = async () => {
+    if (!task) return;
+    const { error } = await supabase.from("task_templates").insert({
+      title: task.title,
+      description: task.description || "",
+      subtasks: task.subtasks || [],
+      tags: task.tags || [],
+      priority: task.priority || "medium",
+      assignee_id: task.assigned_to,
+      recurrence_rule: task.recurrence_rule,
+      created_by: user?.id,
+    });
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else toast({ title: "Saved as template" });
+  };
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   if (!task) return <div className="p-6 text-center text-muted-foreground">Task not found.</div>;
 
@@ -141,9 +184,14 @@ export default function TaskDetailPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        </Button>
+        <Button variant="outline" size="sm" onClick={saveAsTemplate}>
+          <Save className="h-4 w-4 mr-1" /> Save as Template
+        </Button>
+      </div>
 
       {/* Header */}
       <div className="space-y-3">
@@ -174,6 +222,11 @@ export default function TaskDetailPage() {
               <Badge variant="outline" className={priorityConfig[task.priority]?.color || ""}>
                 {priorityConfig[task.priority]?.label || task.priority}
               </Badge>
+              {task.is_recurring && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Repeat className="h-3 w-3" /> Recurring
+                </Badge>
+              )}
               {projectTitle && (
                 <Badge variant="outline" className="cursor-pointer" onClick={() => navigate(`/projects/${task.project_id}`)}>
                   📁 {projectTitle}
@@ -268,6 +321,52 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* Recurrence */}
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Repeat className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-xs text-muted-foreground">Recurring Task</Label>
+              </div>
+              <Switch checked={task.is_recurring || false} onCheckedChange={toggleRecurring} />
+            </div>
+            {task.is_recurring && recurrenceRule && (
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Frequency</label>
+                  <Select value={recurrenceRule.frequency} onValueChange={v => updateRecurrence({ frequency: v as any })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Every N {recurrenceRule.frequency === "daily" ? "days" : recurrenceRule.frequency === "weekly" ? "weeks" : "months"}</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={recurrenceRule.interval}
+                    onChange={e => updateRecurrence({ interval: parseInt(e.target.value) || 1 })}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">End Date</label>
+                  <Input
+                    type="date"
+                    value={recurrenceRule.end_date || ""}
+                    onChange={e => updateRecurrence({ end_date: e.target.value || undefined })}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Description */}
           <div>
             <label className="text-xs text-muted-foreground">Description</label>
@@ -311,7 +410,6 @@ export default function TaskDetailPage() {
         </TabsList>
 
         <TabsContent value="details" className="mt-4 space-y-3">
-          {/* Add subtask */}
           <div className="flex gap-2">
             <Input
               value={newSubtask}
@@ -327,10 +425,7 @@ export default function TaskDetailPage() {
 
           {subtasks.map(st => (
             <div key={st.id} className="flex items-center gap-3 p-2 rounded-md bg-accent/20 group">
-              <Checkbox
-                checked={st.done}
-                onCheckedChange={() => toggleSubtask(st.id)}
-              />
+              <Checkbox checked={st.done} onCheckedChange={() => toggleSubtask(st.id)} />
               <span className={`text-sm flex-1 ${st.done ? "line-through text-muted-foreground" : ""}`}>{st.title}</span>
               <button
                 className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
