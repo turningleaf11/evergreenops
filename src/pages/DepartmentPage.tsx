@@ -8,7 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText, Pin, Database, Target, FolderKanban, CheckSquare,
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
-  Users, Flame, Shield, CircleDot, Maximize2,
+  Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
+  LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -21,6 +22,13 @@ import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadFile, triggerFileInput } from "@/lib/file-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
@@ -33,6 +41,7 @@ interface Task { id: string; title: string; status: string; priority: string; pr
 interface Issue { id: string; title: string; status: string; priority: number; }
 interface StrategyItem { id: string; title: string; type: string; status: string; description: string | null; assigned_departments: string[] | null; }
 interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
+interface PinboardItem { id: string; department_id: string; type: string; title: string; url: string | null; description: string | null; icon: string | null; sort_order: number; created_by: string | null; }
 
 function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId: string): boolean {
   if (item.visibility === "workspace" || item.visibility === "team") return true;
