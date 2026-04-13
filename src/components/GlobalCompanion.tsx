@@ -1,13 +1,16 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useContext } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useCompanion } from "@/contexts/CompanionContext";
+import { useCompanion, CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export function GlobalCompanion() {
+  const companionCtx = useContext(CompanionContext);
+  if (!companionCtx) return null;
+
   const { isAdmin } = useAuth();
-  const { messages, input, setInput, loading, open, setOpen, send } = useCompanion();
+  const { messages, input, setInput, loading, open, setOpen, send } = companionCtx;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
