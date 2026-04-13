@@ -41,7 +41,7 @@ type Task = {
   id: string; title: string; description: string; project_id: string | null;
   goal_id: string | null; status: string; priority: string; assigned_to: string | null;
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
-  tags: string[];
+  tags: string[]; is_recurring?: boolean; recurrence_rule?: any; recurring_parent_id?: string | null;
 };
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -250,7 +250,53 @@ export default function ExecutionPage() {
   const updateStatus = async (table: "goals" | "projects" | "tasks", id: string, status: string) => {
     const { error } = await supabase.from(table).update({ status }).eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else fetchAll();
+    else {
+      // Auto-create next occurrence for recurring tasks
+      if (table === "tasks" && status === "done") {
+        const task = tasks.find(t => t.id === id);
+        if (task?.is_recurring && task.recurrence_rule) {
+          await createNextOccurrence(task);
+        }
+      }
+      fetchAll();
+    }
+  };
+
+  const createNextOccurrence = async (task: Task) => {
+    const rule = task.recurrence_rule;
+    if (!rule) return;
+    // Check end date
+    if (rule.end_date && new Date(rule.end_date) < new Date()) return;
+
+    // Calculate next due date
+    let nextDue: string | null = null;
+    if (task.due_date) {
+      const d = new Date(task.due_date);
+      const interval = rule.interval || 1;
+      switch (rule.frequency) {
+        case "daily": d.setDate(d.getDate() + interval); break;
+        case "weekly": d.setDate(d.getDate() + 7 * interval); break;
+        case "monthly": d.setMonth(d.getMonth() + interval); break;
+        case "custom": d.setDate(d.getDate() + interval); break;
+      }
+      nextDue = d.toISOString().split("T")[0];
+    }
+
+    const { error } = await supabase.from("tasks").insert({
+      title: task.title,
+      description: task.description,
+      project_id: task.project_id,
+      goal_id: task.goal_id,
+      priority: task.priority,
+      assigned_to: task.assigned_to,
+      tags: task.tags,
+      due_date: nextDue,
+      is_recurring: true,
+      recurrence_rule: rule,
+      recurring_parent_id: task.recurring_parent_id || task.id,
+      created_by: task.created_by,
+    });
+    if (!error) toast({ title: "Next recurring task created", description: nextDue ? `Due ${nextDue}` : undefined });
   };
 
   // Issues handlers
