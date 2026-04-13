@@ -2,7 +2,7 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
-  ShieldCheck, Compass,
+  ShieldCheck, Compass, LayoutDashboard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -41,6 +41,8 @@ export function AppSidebar() {
     ...(isAdmin ? [{ title: "Strategy", url: "/ceo", icon: Compass }] : []),
     ...(isAdmin ? [{ title: "Settings", url: "/settings", icon: Settings }] : []),
   ];
+
+  const isLeadershipActive = location.pathname.startsWith("/leadership");
 
   return (
     <Sidebar collapsible="icon">
@@ -96,6 +98,39 @@ export function AppSidebar() {
                       <SidebarMenuItem key={dept.id}>
                         <SidebarMenuButton asChild>
                           <NavLink to={`/department/${dept.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                            <Icon className="h-4 w-4" />
+                            {!collapsed && <span>{dept.name}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <Collapsible defaultOpen={isLeadershipActive} className="group/collapsible">
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  {!collapsed && "Leadership"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {departments.map((dept) => {
+                    const Icon = deptIconMap[dept.icon] || Building2;
+                    return (
+                      <SidebarMenuItem key={dept.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={`/leadership/${dept.id}`} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
                             <Icon className="h-4 w-4" />
                             {!collapsed && <span>{dept.name}</span>}
                           </NavLink>
