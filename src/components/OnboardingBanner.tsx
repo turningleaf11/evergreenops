@@ -1,4 +1,4 @@
-import { onboardingSteps } from "@/lib/training-data";
+import { useTraining } from "@/contexts/TrainingContext";
 import { useTrainingProgress } from "@/lib/training-progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -16,6 +16,7 @@ export function OnboardingBanner() {
     isOnboardingStepComplete,
     onboardingProgress,
   } = useTrainingProgress();
+  const { onboardingSteps } = useTraining();
 
   if (onboardingDismissed) return null;
 
