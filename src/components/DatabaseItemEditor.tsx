@@ -254,3 +254,23 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
       );
   }
 }
+
+function PersonEditor({ column, value, onChange }: { column: DatabaseColumn; value: any; onChange: (v: any) => void }) {
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("user_id, full_name").then(({ data }) => { if (data) setProfiles(data); });
+  }, []);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{column.name}</Label>
+      <Select value={value || ""} onValueChange={onChange}>
+        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select person" /></SelectTrigger>
+        <SelectContent>
+          {profiles.map(m => (
+            <SelectItem key={m.user_id} value={m.full_name || m.user_id}>{m.full_name || "Unnamed"}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
