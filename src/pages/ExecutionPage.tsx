@@ -394,9 +394,34 @@ export default function ExecutionPage() {
                 departments={departments} profiles={profiles} />
             )}
             {tab === "tasks" && (
-              <CreateDialog title="New Task" open={createTaskOpen} onOpenChange={setCreateTaskOpen}
-                onSubmit={createTask} type="task" goals={goals} projects={projects}
-                departments={departments} profiles={profiles} />
+              <div className="flex gap-2">
+                <TaskTemplateManager
+                  profiles={profiles}
+                  onUseTemplate={(template) => {
+                    const dueDate = template.due_date_offset_days
+                      ? new Date(Date.now() + template.due_date_offset_days * 86400000).toISOString().split("T")[0]
+                      : null;
+                    supabase.from("tasks").insert({
+                      title: template.title,
+                      description: template.description,
+                      priority: template.priority,
+                      tags: template.tags,
+                      subtasks: template.subtasks,
+                      assigned_to: template.assignee_id || user?.id,
+                      due_date: dueDate,
+                      is_recurring: !!template.recurrence_rule,
+                      recurrence_rule: template.recurrence_rule,
+                      created_by: user?.id,
+                    }).then(({ error }) => {
+                      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                      else { toast({ title: "Task created from template" }); fetchAll(); }
+                    });
+                  }}
+                />
+                <CreateDialog title="New Task" open={createTaskOpen} onOpenChange={setCreateTaskOpen}
+                  onSubmit={createTask} type="task" goals={goals} projects={projects}
+                  departments={departments} profiles={profiles} />
+              </div>
             )}
             {tab === "issues" && (
               <Dialog open={createIssueOpen} onOpenChange={setCreateIssueOpen}>
