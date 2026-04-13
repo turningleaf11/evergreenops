@@ -27,7 +27,7 @@ const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "vi
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
 
 export default function SettingsPage() {
-  const { isAdmin, getUserRole, setUserRole } = useAuth();
+  const { isAdmin } = useAuth();
   const workspace = useWorkspace();
   const { departments, addDepartment, updateDepartment, deleteDepartment } = useDepartments();
   const training = useTraining();
@@ -268,41 +268,30 @@ export default function SettingsPage() {
 
         {/* Users Tab */}
         <TabsContent value="users" className="mt-4 space-y-3">
-          {teamMembers.map((member) => {
-            const memberRole = getUserRole(member.id);
-            return (
-              <Card key={member.id}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                        {member.name.split(" ").map((n) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">{member.email}</p>
-                    </div>
+          {teamMembers.map((member) => (
+            <Card key={member.id}>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                      {member.name.split(" ").map((n) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">{member.name}</p>
+                    <p className="text-xs text-muted-foreground">{member.email}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={memberRole === "admin" ? "default" : "secondary"} className="text-[10px]">
-                      <ShieldCheck className="h-3 w-3 mr-1" />
-                      {memberRole}
-                    </Badge>
-                    <Select value={memberRole} onValueChange={(v) => setUserRole(member.id, v as AppRole)}>
-                      <SelectTrigger className="w-28 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </div>
+                <Badge variant="secondary" className="text-[10px]">
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  {member.role}
+                </Badge>
+              </CardContent>
+            </Card>
+          ))}
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            User role management will be available once all team members have signed up.
+          </p>
         </TabsContent>
       </Tabs>
     </div>

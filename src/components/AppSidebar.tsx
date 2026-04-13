@@ -26,7 +26,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
-  const { currentUser, isAdmin, role, setRole } = useAuth();
+  const { profile, isAdmin, role, signOut } = useAuth();
   const { name: workspaceName, logoUrl } = useWorkspace();
   const { departments } = useDepartments();
 
@@ -135,27 +135,23 @@ export function AppSidebar() {
         <div className="flex items-center gap-2">
           <Avatar className="h-7 w-7">
             <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-              {currentUser.name.split(" ").map((n) => n[0]).join("")}
+              {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-sidebar-foreground">{currentUser.name}</span>
+              <span className="text-xs font-medium text-sidebar-foreground">{profile?.full_name || "User"}</span>
               <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
           )}
         </div>
         {!collapsed && (
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" /> Admin mode
-            </span>
-            <Switch
-              checked={isAdmin}
-              onCheckedChange={(checked) => setRole(checked ? "admin" : "user")}
-              className="scale-75"
-            />
-          </div>
+          <button
+            onClick={signOut}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1 text-left"
+          >
+            Sign out
+          </button>
         )}
       </SidebarFooter>
     </Sidebar>

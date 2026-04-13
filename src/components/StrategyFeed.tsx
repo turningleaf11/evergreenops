@@ -25,7 +25,8 @@ interface Props {
 
 export function StrategyFeed({ departmentId }: Props) {
   const { getItemsForDepartment, addResponse, updateStrategyItem } = useStrategyFlow();
-  const { currentUserId } = useAuth();
+  const { user } = useAuth();
+  const currentUserId = user?.id || "";
   const items = getItemsForDepartment(departmentId);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseType, setResponseType] = useState<LeadershipResponseType>("accept");

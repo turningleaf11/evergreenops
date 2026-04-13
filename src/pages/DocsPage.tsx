@@ -11,7 +11,7 @@ import DocEditor from "@/components/DocEditor";
 import RichTextEditor from "@/components/RichTextEditor";
 
 export default function DocsPage() {
-  const { isAdmin, currentUser } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const [docs, setDocs] = useState<DocPage[]>(initialDocs);
   const [search, setSearch] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function DocsPage() {
     const newDoc: DocPage = {
       id: `d_${Date.now()}`,
       ...data,
-      author: currentUser.name,
+      author: profile?.full_name || "Unknown",
       createdAt: now,
       updatedAt: now,
     };
