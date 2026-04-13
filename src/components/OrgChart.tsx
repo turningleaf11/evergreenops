@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 interface Profile {
@@ -39,6 +39,7 @@ function OrgNode({ person, profiles, departments, onSelect, depth }: {
         className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border bg-card hover:shadow-md transition-shadow cursor-pointer min-w-[140px]"
       >
         <Avatar className="h-10 w-10">
+          {person.avatar_url && <AvatarImage src={person.avatar_url} alt={person.full_name || ""} />}
           <AvatarFallback className="text-sm bg-muted">{initials}</AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium text-center leading-tight">{person.full_name || "Unnamed"}</span>

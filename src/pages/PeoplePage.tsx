@@ -1,16 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, Mail, Phone, Briefcase } from "lucide-react";
+import { Search, Mail, Phone } from "lucide-react";
 import { PersonDetail } from "@/components/PersonDetail";
 import { OrgChart } from "@/components/OrgChart";
-import { TeamManagement } from "@/components/TeamManagement";
 
 interface Profile {
   user_id: string;
@@ -28,7 +26,6 @@ export default function PeoplePage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const { departments } = useDepartments();
-  const { isAdmin } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<Profile | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -54,6 +51,16 @@ export default function PeoplePage() {
     setDetailOpen(true);
   };
 
+  const handleProfileUpdated = () => {
+    fetchProfiles().then(() => {
+      // Update selected person with fresh data
+      if (selectedPerson) {
+        const fresh = profiles.find((p) => p.user_id === selectedPerson.user_id);
+        if (fresh) setSelectedPerson(fresh);
+      }
+    });
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
@@ -65,11 +72,9 @@ export default function PeoplePage() {
         <TabsList>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="org-chart">Org Chart</TabsTrigger>
-          {isAdmin && <TabsTrigger value="management">Team Management</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="directory" className="space-y-4 mt-4">
-          {/* Search + filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -87,20 +92,16 @@ export default function PeoplePage() {
             </div>
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((member) => {
               const dept = departments.find((d) => d.id === member.department_id);
               const initials = (member.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
               return (
-                <Card
-                  key={member.user_id}
-                  className="hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => openPerson(member)}
-                >
+                <Card key={member.user_id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openPerson(member)}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-10 w-10">
+                        {member.avatar_url && <AvatarImage src={member.avatar_url} alt={member.full_name || ""} />}
                         <AvatarFallback className="text-sm bg-muted">{initials}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
@@ -136,12 +137,6 @@ export default function PeoplePage() {
         <TabsContent value="org-chart" className="mt-4">
           <OrgChart profiles={profiles} departments={departments} onSelect={openPerson} />
         </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="management" className="mt-4">
-            <TeamManagement profiles={filtered} departments={departments} onProfileUpdated={fetchProfiles} />
-          </TabsContent>
-        )}
       </Tabs>
 
       <PersonDetail
@@ -150,6 +145,7 @@ export default function PeoplePage() {
         onOpenChange={setDetailOpen}
         departments={departments}
         profiles={profiles}
+        onProfileUpdated={handleProfileUpdated}
       />
     </div>
   );
