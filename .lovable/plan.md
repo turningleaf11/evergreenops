@@ -1,52 +1,39 @@
 
 
-# Global AI Companion — CEO/Admin Only
+# Proactive AI Greeting on Strategy Page
 
 ## Summary
 
-Transform the current page-specific AI chat (Strategy Companion) into a **global floating companion** accessible from every page, restricted to admin users. Update the system prompt to be conversational and context-aware rather than rigidly structured. The companion becomes the CEO's primary input layer — a thinking partner that adapts its tone to the conversation.
+When the companion is opened while on the CEO Dashboard (`/`), it automatically sends a proactive greeting — a situational summary of overdue tasks, stalled projects, pending decisions, and recent changes. On other pages, the companion opens as a blank chat ready for conversation.
+
+## How it works
+
+1. **CompanionContext** tracks whether a greeting has already been sent this session (to avoid re-triggering on every open/close)
+2. When `open` becomes `true` and the user is on `/` (CEO Dashboard) and no messages exist yet, the context automatically:
+   - Queries Supabase for: overdue tasks, stalled/blocked projects, recent decisions, open issues, recent activity events
+   - Sends a special system-level "snapshot" payload to the `ceo-chat` edge function alongside a synthetic user message like `[MORNING_BRIEFING]`
+3. The edge function recognizes this marker and generates a conversational situational greeting using the snapshot data
+4. On all other pages, the companion opens normally with the empty state prompts
 
 ## What changes
 
-### 1. New global companion component
-Create `src/components/GlobalCompanion.tsx` — a floating action button (bottom-right corner) that opens the AI chat sheet. Only renders when `isAdmin` is true (from AuthContext). Replaces the current `CeoAiChat` component with an upgraded version.
-
-- Floating button: subtle branded circle with Bot icon, fixed position bottom-right
-- Opens the same Sheet-based chat UI
-- Persists conversation across page navigation (state lives in a context provider)
-- Page-aware: detects current route and includes it in context sent to AI
-
-### 2. Companion context provider
-Create `src/contexts/CompanionContext.tsx` — holds chat messages, input state, and loading state so the conversation survives navigation between pages. Wraps inside the protected route area.
-
-### 3. Updated edge function system prompt
-Edit `supabase/functions/ceo-chat/index.ts`:
-- Remove the rigid 5-part response format requirement
-- New prompt: "You are a conversational strategy companion. Match the user's energy — if they're thinking out loud, think with them. If they ask a specific strategic question, give structured analysis. You have full context of the business."
-- Add instruction: "When the user shares problems, frustrations, or ideas, help them organize their thinking. Suggest what might become a priority, a decision, a task, or a strategy item — but frame it as a suggestion, not a directive."
-- Keep all the existing context injection (objective, priorities, tensions, pipeline, etc.)
-- Add a `currentPage` field to context so AI knows where the user is
-
-### 4. Render in Layout
-Edit `src/components/Layout.tsx` — add `<GlobalCompanion />` inside the layout, gated behind `isAdmin` check.
-
-### 5. Remove page-specific chat buttons
-- Edit `src/pages/CeoDashboard.tsx` — remove the "Strategy Companion" button and `CeoAiChat` import. The global FAB replaces it.
-- Keep `LeadershipAiChat` for now (different edge function, department-scoped, available to non-admins in future)
-
-### 6. Markdown rendering
-Install `react-markdown` and use it for assistant messages instead of the current regex-based `dangerouslySetInnerHTML` approach. Cleaner, safer, supports lists/code/headers properly.
-
-## Files changed
-
 | What | File |
 |------|------|
-| New companion context | `src/contexts/CompanionContext.tsx` |
-| New global companion UI | `src/components/GlobalCompanion.tsx` |
-| Add companion to layout | Edit: `src/components/Layout.tsx` |
-| Update system prompt | Edit: `supabase/functions/ceo-chat/index.ts` |
-| Remove page-specific chat | Edit: `src/pages/CeoDashboard.tsx` |
-| Add react-markdown | `package.json` |
+| Add snapshot fetch + auto-greeting logic | Edit: `src/contexts/CompanionContext.tsx` |
+| Add snapshot data to edge function context handling | Edit: `supabase/functions/ceo-chat/index.ts` |
 
-No database changes needed.
+### CompanionContext changes
+- Add a `greetingSent` ref to prevent duplicate greetings
+- When `open` flips to `true`, check: is pathname `/`? Are messages empty? Has greeting not been sent?
+- If yes: query Supabase for overdue tasks (`due_date < today`, status not `done`), projects with status `blocked` or `at_risk`, recent `decision_log` entries, open `issues`, and last 24h `activity_events`
+- Send this snapshot object as `liveSnapshot` in the request body alongside a synthetic `[MORNING_BRIEFING]` user message (hidden from UI)
+- The assistant response streams in as normal
+
+### Edge function changes
+- Detect when the first user message is `[MORNING_BRIEFING]`
+- Append a briefing instruction to the system prompt: "The user just opened their command center. Greet them with a brief, conversational situational summary based on the live snapshot. Highlight what needs attention — overdue items, blocked projects, pending decisions. Be concise. End by asking what they want to focus on."
+- Include the `liveSnapshot` data in the system prompt context
+
+### No database changes needed
+All data already exists in tables: `tasks`, `projects`, `decision_log`, `issues`, `activity_events`.
 
