@@ -1,62 +1,59 @@
 
 
-# Onboarding & Training System
+# Simplify Sidebar UI
 
-## Overview
-Add a Training Hub page with role-based onboarding flows, training content, and lightweight progress tracking using localStorage. Also fix the existing React `useRef` runtime error (likely a duplicate React instance from the TipTap dependency chain).
+## Current State
+The sidebar has 7 top-level items + 3 collapsible groups (Departments, Leadership, Databases), with departments listed twice. It feels crowded and repetitive.
 
-## What Gets Built
+## Proposed Simplified Sidebar
 
-### 1. Training Data Model (`src/lib/training-data.ts`)
-- Types: `TrainingModule`, `TrainingStep`, `TrainingCategory`
-- Each module has: id, title, description, type (guide | playbook | checklist | video | link), roleIds (which department roles see it), category, steps/content, externalUrl
-- Seed data: Company-wide onboarding modules + role-specific training for each department
-- Categories: "Onboarding", "Role Training", "Processes", "Tools"
+```text
+┌─────────────────────┐
+│ T  TeamSpace        │
+│    Workspace        │
+├─────────────────────┤
+│ 🏠 Home             │
+│ 📄 Docs             │
+│ 🗃 Databases        │
+│ 👥 People           │
+│ 🎓 Training         │
+│ 🧭 Strategy  (CEO)  │
+├─────────────────────┤
+│ ▸ Departments       │
+│    Engineering      │
+│    Design           │
+│    Product          │
+│    Marketing        │
+│    Operations       │
+├─────────────────────┤
+│ ─── Admin ────────  │
+│ ⚙ Settings          │
+├─────────────────────┤
+│ 👤 Sarah Chen       │
+│    Admin            │
+│ 🛡 Admin mode  [●]  │
+└─────────────────────┘
+```
 
-### 2. Training Progress Context (`src/lib/training-progress.ts`)
-- React context + localStorage persistence
-- Tracks: `completedSteps: Record<moduleId, stepId[]>`, `onboardingDismissed: boolean`
-- Helper functions: `markStepComplete`, `isModuleComplete`, `getModuleProgress`
+### What changes:
 
-### 3. Training Hub Page (`src/pages/TrainingPage.tsx`, route `/training`)
-- Central page listing all training materials
-- Filter by category (tabs) and role/department
-- Each module shown as a card with progress indicator
-- Click to expand/view module content inline (accordion or detail panel)
-- Module detail shows steps with checkboxes, embedded content, video iframes, external links
+1. **Remove "Leadership" collapsible group** from sidebar entirely
+2. **Remove "Databases" collapsible group** (the individual DB list) — keep only the top-level "Databases" link
+3. **Add a "Leadership" tab to each Department page** — so clicking Engineering shows tabs: Overview | Leadership | (future: Execution). The Leadership tab embeds the existing LeadershipDashboard content for that department.
+4. **Move Settings into a separate "Admin" section** at the bottom of the sidebar, only visible to admins
+5. **Strategy stays in main nav**, only visible to CEO/admin (current behavior)
 
-### 4. Onboarding Banner (`src/components/OnboardingBanner.tsx`)
-- Shows on the home page (Index) for users who haven't completed onboarding
-- Welcome message, company overview, progress bar
-- Steps: "Meet the team", "Explore your department", "Review key docs", "Complete role training"
-- Dismissible, tracks completion via training progress context
+### Result: Sidebar goes from ~15+ visible items to ~8-9, with one clean collapsible group.
 
-### 5. Navigation & Routing
-- Add `/training` route in `App.tsx`
-- Add "Training" nav item in `AppSidebar.tsx` (visible to all users)
-- Admins see an "Edit" toggle to manage content (add/edit modules inline)
+## Files to Modify
 
-### 6. Fix Runtime Error
-- The `useRef` null error is a duplicate React issue from TipTap deps. Add a React alias in `vite.config.ts` to deduplicate.
-
-## Files
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/lib/training-data.ts` | **Create** — Types + seed training/onboarding content |
-| `src/lib/training-progress.ts` | **Create** — Progress context with localStorage |
-| `src/pages/TrainingPage.tsx` | **Create** — Training hub page |
-| `src/components/OnboardingBanner.tsx` | **Create** — Home page onboarding widget |
-| `src/pages/Index.tsx` | **Edit** — Add OnboardingBanner |
-| `src/App.tsx` | **Edit** — Add `/training` route, wrap with TrainingProgressProvider |
-| `src/components/AppSidebar.tsx` | **Edit** — Add Training nav item |
-| `vite.config.ts` | **Edit** — Add React alias to fix duplicate React |
+| `src/components/AppSidebar.tsx` | Remove Leadership collapsible, remove Databases collapsible, add Admin section for Settings |
+| `src/pages/DepartmentPage.tsx` | Add Tabs component with "Overview" (current content) and "Leadership" (embed LeadershipDashboard) |
 
-## Build Order
-1. Fix runtime error (vite.config.ts React alias)
-2. Training data types + seed content
-3. Training progress context
-4. Training hub page
-5. Onboarding banner component
-6. Routing + sidebar updates
+## Technical Details
+- DepartmentPage gets `Tabs` from shadcn with two tab values: `overview` (existing content) and `leadership` (renders `LeadershipDashboard` inline, passing the dept ID)
+- LeadershipDashboard already accepts `deptId` from URL params — we'll pass it as a prop instead so it works both as a standalone page and embedded
+- The `/leadership/:deptId` route stays functional for direct linking but sidebar no longer lists it
 
