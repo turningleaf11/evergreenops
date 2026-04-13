@@ -1,65 +1,47 @@
 
 
-# UI Improvements: Workspace Config, Departments, Docs Layout, AI Fix
+# Admin Training & Onboarding Editor
 
-## Issues Identified
+## Problem
+Training modules and onboarding steps are hardcoded in `src/lib/training-data.ts`. Admins have no way to create, edit, or delete training content through the UI.
 
-1. **Workspace name not editable** — The sidebar header hardcodes "TeamSpace". The Settings page has a workspace name field but it doesn't propagate anywhere (local state only).
-2. **No logo** — Sidebar header shows a hardcoded "T" letter box.
-3. **Departments not editable** — Departments are hardcoded in `mock-data.ts`. No admin UI to add, edit, or delete them.
-4. **AI not working** — The edge functions and `LOVABLE_API_KEY` are correctly configured. The issue is likely that Lovable Cloud needs to be enabled to deploy the edge functions. Will verify and ensure the functions are deployed.
-5. **Docs UI feels small** — Content area uses `max-w-3xl` constraint, doc sidebar is `w-72`. User wants full-width content.
+## Solution
+Add a **Training** management tab to the existing Settings page (admin-only), plus move training data into a React context with localStorage persistence — same pattern used for departments and workspace settings.
 
 ## What Gets Built
 
-### 1. Workspace Context (`src/contexts/WorkspaceContext.tsx`)
-- Shared state for workspace name, description, and logo URL
-- Persisted in localStorage
-- Consumed by sidebar header and settings page
-- Logo stored as a data URL (from file input)
+### 1. Training Context (`src/contexts/TrainingContext.tsx`)
+- Wraps training modules + onboarding steps in reactive state
+- Seeds from current `training-data.ts` defaults on first load
+- Persists to localStorage
+- Exposes CRUD: `addModule`, `updateModule`, `deleteModule`, `addOnboardingStep`, `updateOnboardingStep`, `deleteOnboardingStep`
 
-### 2. Sidebar Header Update (`AppSidebar.tsx`)
-- Read workspace name + logo from WorkspaceContext
-- Show logo image if set, fall back to first-letter box
-- Display workspace name dynamically
+### 2. Settings → Training Tab (`src/pages/SettingsPage.tsx`)
+- New **"Training"** tab alongside Workspace, Departments, Users & Roles
+- **Onboarding Steps** section: reorderable list with inline edit (title, description, link), add/delete
+- **Training Modules** section: list of modules with expandable editor for each
+  - Edit title, description, type, category, role filter
+  - Manage steps within each module (add/edit/delete step title, content, video URL, external link)
+  - Delete entire module
+- "Add Module" button at the bottom
 
-### 3. Settings Page — Workspace Tab Update (`SettingsPage.tsx`)
-- Wire workspace name/description inputs to WorkspaceContext (instead of local state)
-- Add logo upload input (file picker, converts to data URL)
-- Add a "Departments" management section: list departments with inline edit for name/description, add new, delete
-
-### 4. Department Management
-- Move departments from static `mock-data.ts` export to a React context (`src/contexts/DepartmentsContext.tsx`)
-- Admin can add, rename, update description, and delete departments from Settings
-- Sidebar and all department references read from context
-
-### 5. Docs Layout — Full Width
-- Remove `max-w-3xl` constraint from `InlineDocEditor`
-- Use full available width in the content panel
-- Increase prose max-width or remove it entirely
-
-### 6. AI Chat Fix
-- Ensure Lovable Cloud is enabled so edge functions deploy
-- No code changes needed — the functions are correctly implemented
+### 3. Wire Training Page to Context
+- `TrainingPage.tsx` reads from context instead of static import
+- `OnboardingBanner` (if it exists) also reads from context
 
 ## Files
 
 | File | Action |
 |------|--------|
-| `src/contexts/WorkspaceContext.tsx` | **Create** — Workspace name, description, logo state + localStorage |
-| `src/contexts/DepartmentsContext.tsx` | **Create** — Editable departments state + localStorage |
-| `src/components/AppSidebar.tsx` | **Edit** — Use workspace context for header, departments context for nav |
-| `src/pages/SettingsPage.tsx` | **Edit** — Wire workspace settings, add logo upload, add departments management tab |
-| `src/pages/DocsPage.tsx` | **Edit** — Remove max-w-3xl, full-width content |
-| `src/pages/DepartmentPage.tsx` | **Edit** — Read from departments context |
-| `src/App.tsx` | **Edit** — Wrap with WorkspaceProvider and DepartmentsProvider |
-| `src/pages/Index.tsx` | **Edit** — Read from departments context if needed |
+| `src/contexts/TrainingContext.tsx` | **Create** — Training data state + localStorage |
+| `src/pages/SettingsPage.tsx` | **Edit** — Add Training tab with module/step editors |
+| `src/pages/TrainingPage.tsx` | **Edit** — Read from context instead of static data |
+| `src/App.tsx` | **Edit** — Wrap with TrainingProvider |
+| `src/components/OnboardingBanner.tsx` | **Edit** — Read from context if applicable |
 
 ## Build Order
-1. Create WorkspaceContext + DepartmentsContext
-2. Update AppSidebar to use both contexts
-3. Update SettingsPage with workspace editing, logo upload, and department management
-4. Update DepartmentPage to use departments context
-5. Update DocsPage for full-width layout
-6. Verify AI edge functions are deployed
+1. Create TrainingContext
+2. Add Training tab to Settings with full CRUD UI
+3. Update TrainingPage + OnboardingBanner to use context
+4. Wrap app in provider
 
