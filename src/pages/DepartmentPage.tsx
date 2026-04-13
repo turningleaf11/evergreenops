@@ -363,11 +363,11 @@ export default function DepartmentPage() {
                   {allActiveTasks.length > 0 ? (
                     <div className="space-y-1">
                       {allActiveTasks.map(t => (
-                        <Link key={t.id} to={`/tasks/${t.id}`} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
+                        <div key={t.id} onClick={() => openTaskDrawer(t)} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm cursor-pointer">
                           <CircleDot className={`h-3.5 w-3.5 shrink-0 ${t.status === "in_progress" ? "text-blue-500" : "text-muted-foreground"}`} />
                           <span className="truncate flex-1">{t.title}</span>
                           <Badge variant="secondary" className={`text-[9px] shrink-0 ${priorityColors[t.priority] || ""}`}>{t.priority}</Badge>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   ) : (
