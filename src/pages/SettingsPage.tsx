@@ -471,7 +471,7 @@ function UsersTab() {
   );
 }
 
-
+function ModuleEditor({
   module: mod,
   onUpdate,
   onDelete,
