@@ -12,9 +12,37 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, ceoContext } = await req.json();
+    const { messages, ceoContext, liveSnapshot } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const isBriefing = messages?.[0]?.content === "[MORNING_BRIEFING]";
+
+    let snapshotBlock = "";
+    if (liveSnapshot) {
+      const parts: string[] = [];
+      if (liveSnapshot.overdueTasks?.length) {
+        parts.push(`OVERDUE TASKS (${liveSnapshot.overdueTasks.length}):\n${liveSnapshot.overdueTasks.map((t: any) => `- ${t.title} (due ${t.due_date}, ${t.priority} priority)`).join("\n")}`);
+      }
+      if (liveSnapshot.stalledProjects?.length) {
+        parts.push(`BLOCKED/AT-RISK PROJECTS (${liveSnapshot.stalledProjects.length}):\n${liveSnapshot.stalledProjects.map((p: any) => `- ${p.title} (${p.status})`).join("\n")}`);
+      }
+      if (liveSnapshot.openIssues?.length) {
+        parts.push(`OPEN ISSUES (${liveSnapshot.openIssues.length}):\n${liveSnapshot.openIssues.map((i: any) => `- ${i.title} (priority ${i.priority})`).join("\n")}`);
+      }
+      if (liveSnapshot.recentDecisions?.length) {
+        parts.push(`RECENT DECISIONS:\n${liveSnapshot.recentDecisions.map((d: any) => `- ${d.title} (${d.created_at?.split("T")[0]})`).join("\n")}`);
+      }
+      if (liveSnapshot.recentActivity?.length) {
+        parts.push(`LAST 24H ACTIVITY (${liveSnapshot.recentActivity.length} events):\n${liveSnapshot.recentActivity.slice(0, 8).map((a: any) => `- ${a.action}: ${a.entity_title || a.entity_type}`).join("\n")}`);
+      }
+      snapshotBlock = parts.length > 0 ? `\n\nLIVE SNAPSHOT:\n${parts.join("\n\n")}` : "\n\nLIVE SNAPSHOT: Everything looks clear — no overdue tasks, blocked projects, or open issues.";
+    }
+
+    let briefingInstruction = "";
+    if (isBriefing) {
+      briefingInstruction = `\n\nThe user just opened their command center. Greet them with a brief, conversational situational summary based on the live snapshot above. Highlight what needs attention — overdue items, blocked projects, pending decisions. Be concise and natural, like a sharp chief of staff giving a 30-second rundown. End by asking what they want to focus on today. If everything is clear, acknowledge that and ask what's on their mind.`;
+    }
 
     const systemPrompt = `You are a conversational strategy companion for the CEO of Evergreen Real Estate Ventures. You are a thinking partner — not a report generator.
 
@@ -41,7 +69,12 @@ CURRENT STATE:
 - Top Risks: ${(ceoContext?.topRisks || []).join("; ") || "None identified"}
 - Top Leverage: ${(ceoContext?.topLeverage || []).join("; ") || "None identified"}
 - Decisions Needed: ${(ceoContext?.decisionsNeeded || []).join("; ") || "None pending"}
-- Morning Reset: What matters today: ${ceoContext?.morningReset?.whatMatters || "Not set"} | Ignore: ${ceoContext?.morningReset?.whatToIgnore || "Not set"} | One win: ${ceoContext?.morningReset?.oneWin || "Not set"}`;
+- Morning Reset: What matters today: ${ceoContext?.morningReset?.whatMatters || "Not set"} | Ignore: ${ceoContext?.morningReset?.whatToIgnore || "Not set"} | One win: ${ceoContext?.morningReset?.oneWin || "Not set"}${snapshotBlock}${briefingInstruction}`;
+
+    // For briefing, don't include the synthetic marker in messages sent to AI
+    const aiMessages = isBriefing
+      ? [{ role: "system", content: systemPrompt }, { role: "user", content: "Give me my morning briefing." }]
+      : [{ role: "system", content: systemPrompt }, ...messages];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -51,10 +84,7 @@ CURRENT STATE:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: aiMessages,
         stream: true,
       }),
     });
