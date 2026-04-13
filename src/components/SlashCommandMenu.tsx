@@ -131,9 +131,9 @@ const getSuggestionItems = (): CommandItem[] => [
     description: "Informational note",
     icon: <Info className="h-4 w-4 text-blue-500" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).insertContent(
-        `<div class="callout callout-info"><p>Info: </p></div>`
-      ).run();
+      editor.chain().focus().deleteRange(range)
+        .insertContent({ type: "callout", attrs: { type: "info" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Info: " }] }] })
+        .run();
     },
   },
   {
@@ -141,9 +141,9 @@ const getSuggestionItems = (): CommandItem[] => [
     description: "Warning note",
     icon: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).insertContent(
-        `<div class="callout callout-warning"><p>Warning: </p></div>`
-      ).run();
+      editor.chain().focus().deleteRange(range)
+        .insertContent({ type: "callout", attrs: { type: "warning" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Warning: " }] }] })
+        .run();
     },
   },
   {
@@ -151,9 +151,9 @@ const getSuggestionItems = (): CommandItem[] => [
     description: "Success note",
     icon: <CheckCircle className="h-4 w-4 text-green-500" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).insertContent(
-        `<div class="callout callout-success"><p>Success: </p></div>`
-      ).run();
+      editor.chain().focus().deleteRange(range)
+        .insertContent({ type: "callout", attrs: { type: "success" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Success: " }] }] })
+        .run();
     },
   },
   {
@@ -161,9 +161,9 @@ const getSuggestionItems = (): CommandItem[] => [
     description: "Error note",
     icon: <XCircle className="h-4 w-4 text-red-500" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).insertContent(
-        `<div class="callout callout-error"><p>Error: </p></div>`
-      ).run();
+      editor.chain().focus().deleteRange(range)
+        .insertContent({ type: "callout", attrs: { type: "error" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Error: " }] }] })
+        .run();
     },
   },
 ];

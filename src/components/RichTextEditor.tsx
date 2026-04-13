@@ -10,7 +10,8 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
-import { useEffect, useState } from "react";
+import Callout from "@/extensions/CalloutNode";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ const TEXT_COLORS = [
 
 export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
+  const isInternalChange = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -53,20 +55,21 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder }),
       Image.configure({ inline: false, allowBase64: true }),
+      Callout,
       SlashCommands,
     ],
     content,
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onUpdate: ({ editor }) => {
+      isInternalChange.current = true;
+      onChange(editor.getHTML());
+    },
     editorProps: {
       attributes: { class: "prose prose-sm max-w-none focus:outline-none" },
     },
   });
 
-  useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
-    }
-  }, [content]);
+  // No useEffect for content sync — the editor owns its state.
+  // The parent should not push content back in while the user is typing.
 
   if (!editor) return null;
 
@@ -128,7 +131,6 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
         <button
           className="floating-add-btn"
           onClick={() => {
-            // Insert a slash to trigger the command menu
             editor.chain().focus().insertContent("/").run();
           }}
           title="Add block"

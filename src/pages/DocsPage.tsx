@@ -5,10 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FileText, Search, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import DocEditor from "@/components/DocEditor";
 import RichTextEditor from "@/components/RichTextEditor";
+import AccessPicker from "@/components/AccessPicker";
 
 interface Doc {
   id: string;
@@ -121,6 +125,8 @@ export default function DocsPage() {
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.content !== undefined) dbUpdates.content = updates.content;
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
+    if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
     await supabase.from("documents").update(dbUpdates).eq("id", docId);
   }, []);
 
@@ -147,31 +153,37 @@ export default function DocsPage() {
           )}
         </div>
 
-        {/* Tag filter bar */}
+        {/* Tag filter dropdown */}
         {allTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors border ${
-                  selectedTags.includes(tag)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-            {selectedTags.length > 0 && (
-              <button
-                onClick={() => setSelectedTags([])}
-                className="text-[11px] text-muted-foreground hover:text-foreground px-1"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between h-8 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <Filter className="h-3 w-3" />
+                  {selectedTags.length > 0 ? `${selectedTags.length} tag${selectedTags.length > 1 ? "s" : ""} selected` : "Filter by tag"}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {allTags.map((tag) => (
+                  <label key={tag} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer text-sm">
+                    <Checkbox
+                      checked={selectedTags.includes(tag)}
+                      onCheckedChange={() => toggleTag(tag)}
+                    />
+                    <span className="text-xs">{tag}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedTags.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-2 h-7 text-xs text-muted-foreground" onClick={() => setSelectedTags([])}>
+                  Clear all
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
         )}
 
         <div className="space-y-0.5">
@@ -238,9 +250,12 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
   const [content, setContent] = useState(doc.content);
   const [tags, setTags] = useState<string[]>(doc.tags);
   const [tagInput, setTagInput] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>(doc.visibility);
+  const [sharedWith, setSharedWith] = useState<SharedWith>(doc.sharedWith);
+  const [accessOpen, setAccessOpen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTags(doc.tags); setTagInput(""); }, [doc.id]);
+  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTags(doc.tags); setTagInput(""); setVisibility(doc.visibility); setSharedWith(doc.sharedWith); }, [doc.id]);
 
   const scheduleAutoSave = useCallback((updates: Partial<Doc>) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -265,6 +280,12 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
     onUpdate({ tags: newTags });
   };
 
+  const handleAccessChange = (newVis: Visibility, newShared: SharedWith) => {
+    setVisibility(newVis);
+    setSharedWith(newShared);
+    onUpdate({ visibility: newVis, sharedWith: newShared });
+  };
+
   return (
     <div className="max-w-none">
       <div className="mb-6">
@@ -274,15 +295,34 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
           ) : (
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           )}
-          {isAdmin && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={onDelete} title="Delete">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {isAdmin && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete} title="Delete">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-          <span>{doc.author}</span><span>·</span><span>Updated {doc.updatedAt}</span><span>·</span><span className="capitalize">{doc.visibility}</span>
+          <span>{doc.author}</span><span>·</span><span>Updated {doc.updatedAt}</span>
+          <span>·</span>
+          {isAdmin ? (
+            <button onClick={() => setAccessOpen(!accessOpen)} className="flex items-center gap-1 hover:text-foreground transition-colors">
+              <Shield className="h-3 w-3" />
+              <span className="capitalize">{visibility}</span>
+            </button>
+          ) : (
+            <span className="capitalize">{visibility}</span>
+          )}
         </div>
+
+        {/* Access Picker (collapsible, post-creation) */}
+        {isAdmin && accessOpen && (
+          <div className="mt-3 p-3 border rounded-lg bg-muted/30">
+            <AccessPicker visibility={visibility} sharedWith={sharedWith} onChange={handleAccessChange} />
+          </div>
+        )}
+
         <div className="flex items-center gap-1.5 mt-3 flex-wrap">
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
@@ -295,21 +335,28 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
             </Badge>
           ))}
           {isAdmin && (
-            <input
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && tagInput.trim()) {
-                  e.preventDefault();
-                  addTag(tagInput);
-                } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
-                  removeTag(tags[tags.length - 1]);
-                }
-              }}
-              onBlur={() => { if (tagInput.trim()) addTag(tagInput); }}
-              className="text-xs bg-transparent border-none outline-none placeholder:text-muted-foreground/50 w-20 py-0.5"
-              placeholder="+ tag"
-            />
+            <div className="flex items-center gap-0.5">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    addTag(tagInput);
+                  } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                    removeTag(tags[tags.length - 1]);
+                  }
+                }}
+                onBlur={() => { if (tagInput.trim()) addTag(tagInput); }}
+                className="text-xs bg-transparent border-none outline-none placeholder:text-muted-foreground/50 w-20 py-0.5"
+                placeholder="+ tag"
+              />
+              {tagInput.trim() && (
+                <button onClick={() => addTag(tagInput)} className="text-muted-foreground hover:text-foreground">
+                  <Plus className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
