@@ -160,6 +160,10 @@ export default function DepartmentPage() {
         setActivity([]);
       }
 
+      // Fetch pinboard items
+      const { data: pins } = await supabase.from("department_pinboard").select("*").eq("department_id", id).order("sort_order", { ascending: true });
+      setPinboardItems((pins as PinboardItem[]) || []);
+
       setLoading(false);
     };
     load();
