@@ -180,10 +180,39 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
       return <RelationEditor column={column} value={value} onChange={onChange} allDatabases={allDatabases} allRows={allRows} />;
     case "text":
     case "url":
+    case "file":
       return (
         <div className="space-y-1.5">
           <Label className="text-xs">{column.name}</Label>
           <Input value={value || ""} onChange={e => onChange(e.target.value)} placeholder={column.name} className="h-8 text-sm" />
+        </div>
+      );
+    case "long_text":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{column.name}</Label>
+          <textarea value={value || ""} onChange={e => onChange(e.target.value)} placeholder={column.name} className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        </div>
+      );
+    case "email":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{column.name}</Label>
+          <Input type="email" value={value || ""} onChange={e => onChange(e.target.value)} placeholder="email@example.com" className="h-8 text-sm" />
+        </div>
+      );
+    case "phone":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{column.name}</Label>
+          <Input type="tel" value={value || ""} onChange={e => onChange(e.target.value)} placeholder="(555) 123-4567" className="h-8 text-sm" />
+        </div>
+      );
+    case "currency":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{column.name}</Label>
+          <Input type="number" value={value ?? ""} onChange={e => onChange(Number(e.target.value))} placeholder="0.00" className="h-8 text-sm" />
         </div>
       );
     case "number":
@@ -194,6 +223,7 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
         </div>
       );
     case "select":
+    case "status":
       return (
         <div className="space-y-1.5">
           <Label className="text-xs">{column.name}</Label>
@@ -219,6 +249,15 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
               </button>
             ))}
           </div>
+        </div>
+      );
+    case "tags":
+      const tags: string[] = Array.isArray(value) ? value : [];
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{column.name}</Label>
+          <div className="flex flex-wrap gap-1">{tags.map(t => <Badge key={t} variant="secondary" className="text-[10px]">{t} <button onClick={() => onChange(tags.filter(v => v !== t))}>×</button></Badge>)}</div>
+          <Input placeholder="Add tag + Enter" className="h-7 text-xs" onKeyDown={e => { if (e.key === "Enter") { const v = e.currentTarget.value.trim(); if (v) { onChange([...tags, v]); e.currentTarget.value = ""; } e.preventDefault(); } }} />
         </div>
       );
     case "date":
