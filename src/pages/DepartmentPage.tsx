@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText, Pin, Database, Target, FolderKanban, CheckSquare,
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
-  Users, Flame, Shield, CircleDot,
+  Users, Flame, Shield, CircleDot, Maximize2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -18,6 +18,10 @@ import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
 import { UpwardProposalForm } from "@/components/UpwardProposal";
 import { LeadershipAiChat } from "@/components/LeadershipAiChat";
 import { formatDistanceToNow } from "date-fns";
+import DetailDrawer from "@/components/DetailDrawer";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
