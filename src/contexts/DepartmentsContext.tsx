@@ -1,63 +1,93 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { departments as defaultDepartments, type Department } from "@/lib/mock-data";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+export interface Department {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  sort_order: number;
+}
 
 interface DepartmentsContextValue {
   departments: Department[];
-  addDepartment: (dept: Omit<Department, "id">) => void;
+  loading: boolean;
+  addDepartment: (dept: Omit<Department, "id" | "sort_order">) => void;
   updateDepartment: (id: string, updates: Partial<Department>) => void;
   deleteDepartment: (id: string) => void;
-}
-
-const STORAGE_KEY = "departments-data";
-
-function loadDepartments(): Department[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return defaultDepartments;
-}
-
-function saveDepartments(depts: Department[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(depts));
+  refetch: () => void;
 }
 
 const DepartmentsContext = createContext<DepartmentsContextValue | null>(null);
 
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
-  const [departments, setDepartments] = useState<Department[]>(loadDepartments);
+  const { user } = useAuth();
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const persist = useCallback((depts: Department[]) => {
-    setDepartments(depts);
-    saveDepartments(depts);
+  const fetchDepartments = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("departments")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (data) {
+      setDepartments(
+        data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description || "",
+          icon: d.icon || "Building2",
+          color: d.color || "220 65% 48%",
+          sort_order: d.sort_order || 0,
+        }))
+      );
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { fetchDepartments(); }, [fetchDepartments]);
+
+  const addDepartment = useCallback(async (dept: Omit<Department, "id" | "sort_order">) => {
+    const { data } = await supabase
+      .from("departments")
+      .insert({
+        name: dept.name,
+        description: dept.description,
+        icon: dept.icon,
+        color: dept.color,
+        sort_order: departments.length,
+      })
+      .select()
+      .single();
+
+    if (data) {
+      setDepartments((prev) => [...prev, {
+        id: data.id,
+        name: data.name,
+        description: data.description || "",
+        icon: data.icon || "Building2",
+        color: data.color || "220 65% 48%",
+        sort_order: data.sort_order || 0,
+      }]);
+    }
+  }, [departments.length]);
+
+  const updateDepartment = useCallback(async (id: string, updates: Partial<Department>) => {
+    setDepartments((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
+    await supabase.from("departments").update(updates as any).eq("id", id);
   }, []);
 
-  const addDepartment = useCallback((dept: Omit<Department, "id">) => {
-    setDepartments((prev) => {
-      const next = [...prev, { ...dept, id: `dept_${Date.now()}` }];
-      saveDepartments(next);
-      return next;
-    });
-  }, []);
-
-  const updateDepartment = useCallback((id: string, updates: Partial<Department>) => {
-    setDepartments((prev) => {
-      const next = prev.map((d) => (d.id === id ? { ...d, ...updates } : d));
-      saveDepartments(next);
-      return next;
-    });
-  }, []);
-
-  const deleteDepartment = useCallback((id: string) => {
-    setDepartments((prev) => {
-      const next = prev.filter((d) => d.id !== id);
-      saveDepartments(next);
-      return next;
-    });
+  const deleteDepartment = useCallback(async (id: string) => {
+    setDepartments((prev) => prev.filter((d) => d.id !== id));
+    await supabase.from("departments").delete().eq("id", id);
   }, []);
 
   return (
-    <DepartmentsContext.Provider value={{ departments, addDepartment, updateDepartment, deleteDepartment }}>
+    <DepartmentsContext.Provider value={{ departments, loading, addDepartment, updateDepartment, deleteDepartment, refetch: fetchDepartments }}>
       {children}
     </DepartmentsContext.Provider>
   );
