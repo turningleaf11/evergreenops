@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
@@ -14,20 +15,41 @@ const iconMap: Record<string, React.ElementType> = {
 
 const Index = () => {
   const { departments } = useDepartments();
+  const { isAdmin, profile } = useAuth();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
+
+  // Filter departments: regular users only see their own
+  const visibleDepartments = isAdmin
+    ? departments
+    : departments.filter((d) => d.id === profile?.department_id);
 
   useEffect(() => {
     const fetch = async () => {
       const [annRes, docRes] = await Promise.all([
         supabase.from("announcements").select("*").eq("pinned", true).limit(5),
-        supabase.from("documents").select("id, title, author_name, updated_at, tags").order("updated_at", { ascending: false }).limit(3),
+        supabase.from("documents").select("id, title, author_name, updated_at, tags, visibility, shared_with").order("updated_at", { ascending: false }).limit(20),
       ]);
       if (annRes.data) setAnnouncements(annRes.data);
-      if (docRes.data) setRecentDocs(docRes.data);
+      if (docRes.data) {
+        // Filter docs for non-admins by visibility
+        const filtered = isAdmin
+          ? docRes.data.slice(0, 3)
+          : docRes.data
+              .filter((doc: any) => {
+                if (doc.visibility === "workspace") return true;
+                if (doc.visibility === "private") return doc.author_id === profile?.user_id;
+                // department-scoped
+                const sw = doc.shared_with || { departmentIds: [], memberIds: [] };
+                return (sw.departmentIds || []).includes(profile?.department_id) ||
+                       (sw.memberIds || []).includes(profile?.user_id);
+              })
+              .slice(0, 3);
+        setRecentDocs(filtered);
+      }
     };
     fetch();
-  }, []);
+  }, [isAdmin, profile]);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -50,7 +72,7 @@ const Index = () => {
       <section>
         <h2 className="text-lg font-semibold mb-3">Departments</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {departments.map((dept) => {
+          {visibleDepartments.map((dept) => {
             const Icon = iconMap[dept.icon] || Building2;
             return (
               <Link key={dept.id} to={`/department/${dept.id}`}>
