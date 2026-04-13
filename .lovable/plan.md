@@ -1,44 +1,32 @@
 
 
-# Unified People Directory — Merge Team Management into Detail Sheet
+# Fix User Invitation to Actually Send Emails
 
 ## Problem
-The current People page has three disconnected tabs. The Team Management tab is a separate collapsible list that duplicates what the Directory already shows. The PersonDetail sheet is nearly empty (just name, department, contact). There's no photo upload anywhere. The user wants one unified flow: click a person in the Directory, open a rich detail sheet that shows profile info for everyone AND admin-only management features (notes, profile editing) inline.
+The `invite-user` edge function creates the user with `createUser` + `email_confirm: true`, then calls `generateLink` which only returns a link object — it doesn't send an email. The invited user never receives anything.
 
-## What changes
+## Fix
+Replace the current `createUser` + `generateLink` approach with `inviteUserByEmail`, which is the built-in method that:
+- Creates the user account
+- Sends them an invitation email with a link to set their password
+- Handles everything in one call
 
-### 1. Remove Team Management tab
-Delete the separate "Team Management" tab from `PeoplePage.tsx`. The page keeps only **Directory** and **Org Chart** tabs.
+## Changes
 
-### 2. Rebuild PersonDetail sheet as the single detail view
-Merge all TeamManagement functionality (profile editing, 1-on-1/growth/general notes) into the `PersonDetail` sheet component:
+| File | Change |
+|------|--------|
+| `supabase/functions/invite-user/index.ts` | Replace `createUser` + `generateLink` with `inviteUserByEmail`. After the invite, update profile with department/name and add admin role if needed. |
+| Deploy | Redeploy the `invite-user` edge function |
 
-- **Everyone sees**: Avatar (with upload button for admins), name, title, department badge, bio, email, phone, reports-to
-- **Admin-only section** (shown below profile info):
-  - "Edit" button to toggle inline profile editing (title, department, reports_to, email, phone, bio) — same fields currently in TeamManagement
-  - Notes section with 1-on-1 / Growth / General tabs — moved from TeamManagement
-  - Avatar/photo upload button on the avatar itself
+## Technical detail
 
-### 3. Photo upload
-- Add a camera/upload overlay on the avatar in the detail sheet (admin only, or the user viewing their own profile)
-- Use existing `uploadFile` from `src/lib/file-upload.ts` to upload to the `files` bucket
-- Save the public URL to `profiles.avatar_url`
-- Show actual avatar image when `avatar_url` is set (use `AvatarImage`)
+```typescript
+// Replace createUser + generateLink with:
+const { data: inviteData, error: inviteError } = 
+  await adminClient.auth.admin.inviteUserByEmail(email.trim(), {
+    data: { full_name: full_name || "" },
+  });
+```
 
-### 4. Directory cards show avatar photos
-Update the directory card grid to render `AvatarImage` when `avatar_url` exists.
-
-### 5. Invite flow — already wired
-The Settings invite dialog already collects role, department, and name. The edge function already sets `department_id` and role on the new user's profile. When they appear in the directory, those details will show. No changes needed here — it's already working.
-
-## Files changed
-
-| What | File |
-|------|------|
-| Remove Team Management tab, keep Directory + Org Chart only | Edit: `src/pages/PeoplePage.tsx` |
-| Rebuild with admin editing, notes, photo upload | Edit: `src/components/PersonDetail.tsx` |
-| Show avatar images in directory cards + org chart | Edit: `src/pages/PeoplePage.tsx`, `src/components/OrgChart.tsx` |
-| No longer needed as standalone | Delete: `src/components/TeamManagement.tsx` |
-
-No database changes needed — `avatar_url` column and `team_notes` table already exist.
+The `handle_new_user` trigger already creates the profile and default `user` role when the auth user is created, so after invite we just need to update department and optionally add admin role.
 
