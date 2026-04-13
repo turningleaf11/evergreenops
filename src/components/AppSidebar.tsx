@@ -2,7 +2,7 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
   Target, FolderKanban, CheckSquare, Bug, Calendar, Plus,
-  ShieldCheck, Compass, LayoutDashboard,
+  ShieldCheck, Compass, LayoutDashboard, GraduationCap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -38,6 +38,7 @@ export function AppSidebar() {
     { title: "Docs", url: "/docs", icon: FileText },
     { title: "Databases", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
+    { title: "Training", url: "/training", icon: GraduationCap },
     ...(isAdmin ? [{ title: "Strategy", url: "/ceo", icon: Compass }] : []),
     ...(isAdmin ? [{ title: "Settings", url: "/settings", icon: Settings }] : []),
   ];

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CEOContextProvider } from "@/lib/ceo-context";
 import { StrategyFlowProvider } from "@/lib/strategy-flow";
+import { TrainingProgressProvider } from "@/lib/training-progress";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import CeoDashboard from "./pages/CeoDashboard";
@@ -15,6 +16,7 @@ import DocsPage from "./pages/DocsPage";
 import DatabasesPage from "./pages/DatabasesPage";
 import PeoplePage from "./pages/PeoplePage";
 import SettingsPage from "./pages/SettingsPage";
+import TrainingPage from "./pages/TrainingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,7 @@ const App = () => (
     <AuthProvider>
       <CEOContextProvider>
       <StrategyFlowProvider>
+      <TrainingProgressProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -39,11 +42,13 @@ const App = () => (
               <Route path="/databases/:dbId" element={<DatabasesPage />} />
               <Route path="/people" element={<PeoplePage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/training" element={<TrainingPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </TrainingProgressProvider>
       </StrategyFlowProvider>
       </CEOContextProvider>
     </AuthProvider>

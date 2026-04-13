@@ -2,7 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { announcements, departments, docPages, databases, databaseRows } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2, Database } from "lucide-react";
+import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
+import { OnboardingBanner } from "@/components/OnboardingBanner";
 
 const iconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
@@ -20,6 +21,8 @@ const Index = () => {
         <h1 className="text-2xl font-bold tracking-tight">Welcome back, Sarah</h1>
         <p className="text-muted-foreground mt-1">Here's what's happening across your workspace.</p>
       </div>
+
+      <OnboardingBanner />
 
       {pinnedAnnouncements.length > 0 && (
         <div className="space-y-3">
