@@ -1,59 +1,65 @@
 
 
-# Simplify Sidebar UI
+# UI Improvements: Workspace Config, Departments, Docs Layout, AI Fix
 
-## Current State
-The sidebar has 7 top-level items + 3 collapsible groups (Departments, Leadership, Databases), with departments listed twice. It feels crowded and repetitive.
+## Issues Identified
 
-## Proposed Simplified Sidebar
+1. **Workspace name not editable** — The sidebar header hardcodes "TeamSpace". The Settings page has a workspace name field but it doesn't propagate anywhere (local state only).
+2. **No logo** — Sidebar header shows a hardcoded "T" letter box.
+3. **Departments not editable** — Departments are hardcoded in `mock-data.ts`. No admin UI to add, edit, or delete them.
+4. **AI not working** — The edge functions and `LOVABLE_API_KEY` are correctly configured. The issue is likely that Lovable Cloud needs to be enabled to deploy the edge functions. Will verify and ensure the functions are deployed.
+5. **Docs UI feels small** — Content area uses `max-w-3xl` constraint, doc sidebar is `w-72`. User wants full-width content.
 
-```text
-┌─────────────────────┐
-│ T  TeamSpace        │
-│    Workspace        │
-├─────────────────────┤
-│ 🏠 Home             │
-│ 📄 Docs             │
-│ 🗃 Databases        │
-│ 👥 People           │
-│ 🎓 Training         │
-│ 🧭 Strategy  (CEO)  │
-├─────────────────────┤
-│ ▸ Departments       │
-│    Engineering      │
-│    Design           │
-│    Product          │
-│    Marketing        │
-│    Operations       │
-├─────────────────────┤
-│ ─── Admin ────────  │
-│ ⚙ Settings          │
-├─────────────────────┤
-│ 👤 Sarah Chen       │
-│    Admin            │
-│ 🛡 Admin mode  [●]  │
-└─────────────────────┘
-```
+## What Gets Built
 
-### What changes:
+### 1. Workspace Context (`src/contexts/WorkspaceContext.tsx`)
+- Shared state for workspace name, description, and logo URL
+- Persisted in localStorage
+- Consumed by sidebar header and settings page
+- Logo stored as a data URL (from file input)
 
-1. **Remove "Leadership" collapsible group** from sidebar entirely
-2. **Remove "Databases" collapsible group** (the individual DB list) — keep only the top-level "Databases" link
-3. **Add a "Leadership" tab to each Department page** — so clicking Engineering shows tabs: Overview | Leadership | (future: Execution). The Leadership tab embeds the existing LeadershipDashboard content for that department.
-4. **Move Settings into a separate "Admin" section** at the bottom of the sidebar, only visible to admins
-5. **Strategy stays in main nav**, only visible to CEO/admin (current behavior)
+### 2. Sidebar Header Update (`AppSidebar.tsx`)
+- Read workspace name + logo from WorkspaceContext
+- Show logo image if set, fall back to first-letter box
+- Display workspace name dynamically
 
-### Result: Sidebar goes from ~15+ visible items to ~8-9, with one clean collapsible group.
+### 3. Settings Page — Workspace Tab Update (`SettingsPage.tsx`)
+- Wire workspace name/description inputs to WorkspaceContext (instead of local state)
+- Add logo upload input (file picker, converts to data URL)
+- Add a "Departments" management section: list departments with inline edit for name/description, add new, delete
 
-## Files to Modify
+### 4. Department Management
+- Move departments from static `mock-data.ts` export to a React context (`src/contexts/DepartmentsContext.tsx`)
+- Admin can add, rename, update description, and delete departments from Settings
+- Sidebar and all department references read from context
 
-| File | Change |
+### 5. Docs Layout — Full Width
+- Remove `max-w-3xl` constraint from `InlineDocEditor`
+- Use full available width in the content panel
+- Increase prose max-width or remove it entirely
+
+### 6. AI Chat Fix
+- Ensure Lovable Cloud is enabled so edge functions deploy
+- No code changes needed — the functions are correctly implemented
+
+## Files
+
+| File | Action |
 |------|--------|
-| `src/components/AppSidebar.tsx` | Remove Leadership collapsible, remove Databases collapsible, add Admin section for Settings |
-| `src/pages/DepartmentPage.tsx` | Add Tabs component with "Overview" (current content) and "Leadership" (embed LeadershipDashboard) |
+| `src/contexts/WorkspaceContext.tsx` | **Create** — Workspace name, description, logo state + localStorage |
+| `src/contexts/DepartmentsContext.tsx` | **Create** — Editable departments state + localStorage |
+| `src/components/AppSidebar.tsx` | **Edit** — Use workspace context for header, departments context for nav |
+| `src/pages/SettingsPage.tsx` | **Edit** — Wire workspace settings, add logo upload, add departments management tab |
+| `src/pages/DocsPage.tsx` | **Edit** — Remove max-w-3xl, full-width content |
+| `src/pages/DepartmentPage.tsx` | **Edit** — Read from departments context |
+| `src/App.tsx` | **Edit** — Wrap with WorkspaceProvider and DepartmentsProvider |
+| `src/pages/Index.tsx` | **Edit** — Read from departments context if needed |
 
-## Technical Details
-- DepartmentPage gets `Tabs` from shadcn with two tab values: `overview` (existing content) and `leadership` (renders `LeadershipDashboard` inline, passing the dept ID)
-- LeadershipDashboard already accepts `deptId` from URL params — we'll pass it as a prop instead so it works both as a standalone page and embedded
-- The `/leadership/:deptId` route stays functional for direct linking but sidebar no longer lists it
+## Build Order
+1. Create WorkspaceContext + DepartmentsContext
+2. Update AppSidebar to use both contexts
+3. Update SettingsPage with workspace editing, logo upload, and department management
+4. Update DepartmentPage to use departments context
+5. Update DocsPage for full-width layout
+6. Verify AI edge functions are deployed
 
