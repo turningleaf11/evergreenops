@@ -21,7 +21,7 @@ import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import RichTextEditor from "@/components/RichTextEditor";
+import "@/components/RichTextEditor.css";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
