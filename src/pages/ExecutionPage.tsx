@@ -622,6 +622,19 @@ export default function ExecutionPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={!!drawerItem}
+        onOpenChange={o => { if (!o) setDrawerItem(null); }}
+        type={drawerType}
+        item={drawerItem}
+        onStatusChange={v => {
+          updateStatus(drawerType === "project" ? "projects" : "tasks", drawerItem.id, v);
+          setDrawerItem((prev: any) => prev ? { ...prev, status: v } : null);
+        }}
+        getName={getName}
+      />
     </div>
   );
 }
