@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText, Pin, Database, Target, FolderKanban, CheckSquare,
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
-  Users, Flame, Shield, CircleDot,
+  Users, Flame, Shield, CircleDot, Maximize2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -18,6 +18,10 @@ import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
 import { UpwardProposalForm } from "@/components/UpwardProposal";
 import { LeadershipAiChat } from "@/components/LeadershipAiChat";
 import { formatDistanceToNow } from "date-fns";
+import DetailDrawer from "@/components/DetailDrawer";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import "@/components/RichTextEditor.css";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
@@ -64,6 +68,7 @@ export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
   const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === id);
+  const navigate = useNavigate();
 
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -77,6 +82,15 @@ export default function DepartmentPage() {
   const [activity, setActivity] = useState<EntityActivity[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Drawer state for tasks/projects
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerType, setDrawerType] = useState<"project" | "task">("task");
+  const [drawerItem, setDrawerItem] = useState<any>(null);
+
+  // Doc preview sheet state
+  const [docSheetOpen, setDocSheetOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ id: string; title: string; content: string | null; author_name: string | null } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -141,6 +155,38 @@ export default function DepartmentPage() {
   const getName = (uid: string | null) => {
     if (!uid) return null;
     return profiles.find(p => p.user_id === uid)?.full_name || null;
+  };
+
+  const openProjectDrawer = (p: ProjectFull) => {
+    setDrawerType("project");
+    setDrawerItem(p);
+    setDrawerOpen(true);
+  };
+
+  const openTaskDrawer = (t: Task) => {
+    setDrawerType("task");
+    setDrawerItem(t);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerStatusChange = async (status: string) => {
+    if (!drawerItem) return;
+    const table = drawerType === "project" ? "projects" : "tasks";
+    await supabase.from(table).update({ status }).eq("id", drawerItem.id);
+    if (drawerType === "project") {
+      setProjects(prev => prev.map(p => p.id === drawerItem.id ? { ...p, status } : p));
+    } else {
+      setTasks(prev => prev.map(t => t.id === drawerItem.id ? { ...t, status } : t));
+    }
+    setDrawerItem((prev: any) => prev ? { ...prev, status } : prev);
+  };
+
+  const openDocPreview = async (docId: string) => {
+    const { data } = await supabase.from("documents").select("id, title, content, author_name").eq("id", docId).single();
+    if (data) {
+      setPreviewDoc(data);
+      setDocSheetOpen(true);
+    }
   };
 
   // Department Focus data
@@ -275,7 +321,7 @@ export default function DepartmentPage() {
             {keyInitiatives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {keyInitiatives.map((p) => (
-                  <Link key={p.id} to={`/projects/${p.id}`}>
+                  <div key={p.id} className="cursor-pointer" onClick={() => openProjectDrawer(p)}>
                     <Card className="hover:border-primary/40 transition-colors h-full">
                       <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
@@ -294,7 +340,7 @@ export default function DepartmentPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -317,11 +363,11 @@ export default function DepartmentPage() {
                   {allActiveTasks.length > 0 ? (
                     <div className="space-y-1">
                       {allActiveTasks.map(t => (
-                        <Link key={t.id} to={`/tasks/${t.id}`} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
+                        <div key={t.id} onClick={() => openTaskDrawer(t)} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm cursor-pointer">
                           <CircleDot className={`h-3.5 w-3.5 shrink-0 ${t.status === "in_progress" ? "text-blue-500" : "text-muted-foreground"}`} />
                           <span className="truncate flex-1">{t.title}</span>
                           <Badge variant="secondary" className={`text-[9px] shrink-0 ${priorityColors[t.priority] || ""}`}>{t.priority}</Badge>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -362,7 +408,7 @@ export default function DepartmentPage() {
             {docs.length > 0 || dbs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {docs.slice(0, 6).map(d => (
-                  <Link key={d.id} to={`/docs?doc=${d.id}`}>
+                  <div key={d.id} className="cursor-pointer" onClick={() => openDocPreview(d.id)}>
                     <Card className="hover:border-primary/40 transition-colors h-full">
                       <CardContent className="p-3 flex items-start gap-2.5">
                         <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -372,7 +418,7 @@ export default function DepartmentPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </Link>
+                  </div>
                 ))}
                 {dbs.slice(0, 6).map(d => (
                   <Link key={d.id} to={`/databases?db=${d.id}`}>
@@ -461,6 +507,46 @@ export default function DepartmentPage() {
           <EmbeddedLeadership deptId={id!} />
         </TabsContent>
       </Tabs>
+
+      {/* Task/Project Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        type={drawerType}
+        item={drawerItem}
+        onStatusChange={handleDrawerStatusChange}
+        getName={(uid) => getName(uid) || "Unassigned"}
+      />
+
+      {/* Doc Preview Sheet */}
+      <Sheet open={docSheetOpen} onOpenChange={setDocSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-3">
+            <SheetTitle className="text-lg pr-8">{previewDoc?.title}</SheetTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => { setDocSheetOpen(false); navigate(`/docs?doc=${previewDoc?.id}`); }}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1.5" /> Open full page
+            </Button>
+          </SheetHeader>
+          <div className="mt-6">
+            {previewDoc?.author_name && (
+              <p className="text-xs text-muted-foreground mb-4">By {previewDoc.author_name}</p>
+            )}
+            {previewDoc?.content ? (
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: previewDoc.content }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No content yet</p>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
