@@ -14,8 +14,8 @@ export function ExecutionSnapshot({ departmentId }: Props) {
   const deptTranslations = translations.filter((t) => t.departmentId === departmentId);
 
   // Pull from databases for project/task data
-  const projectDb = databases.find((db) => db.templateId === "projects");
-  const taskDb = databases.find((db) => db.templateId === "tasks");
+  const projectDb = databases.find((db) => db.title.toLowerCase().includes("project"));
+  const taskDb = databases.find((db) => db.title.toLowerCase().includes("task"));
   const projectRows = projectDb ? databaseRows.filter((r) => r.databaseId === projectDb.id) : [];
   const taskRows = taskDb ? databaseRows.filter((r) => r.databaseId === taskDb.id) : [];
 
