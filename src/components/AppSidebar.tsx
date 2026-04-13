@@ -1,7 +1,7 @@
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
-  ShieldCheck, Compass, GraduationCap, Target, AlertCircle, Eye,
+  ShieldCheck, Compass, GraduationCap, Target,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
