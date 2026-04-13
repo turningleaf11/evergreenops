@@ -1,27 +1,37 @@
 
 
-# Fix: Department Docs Not Showing
+# Keep Users on Department Page: Slide-Out Drawers for Everything
 
-## Root Cause
+## Problem
+Clicking docs, tasks, or projects on the department page navigates away. User wants to stay on the department page unless they explicitly choose to leave.
 
-The `isSharedWithDept` function in `DepartmentPage.tsx` checks for `visibility === "department"` (singular), but the `AccessPicker` saves the value as `"departments"` (plural). Additionally, some docs have `visibility: "team"` (a legacy value) which should also be treated as workspace-visible.
+## Changes
 
-## Fix
-
+### 1. Tasks & Projects → Use existing `DetailDrawer`
 **File**: `src/pages/DepartmentPage.tsx`
 
-Update the `isSharedWithDept` function (line 33-40) to handle both plural and singular forms, plus the `"team"` legacy value:
+- Import `DetailDrawer` component (already supports both `type="task"` and `type="project"`)
+- Add state: `drawerItem`, `drawerType`, `drawerOpen`
+- Replace `<Link to={/projects/${id}}>` and `<Link to={/tasks/${id}}>` with `onClick` handlers that open the drawer
+- Wire `onStatusChange` to update status via Supabase and refresh local state
+- Pass `getName` function (already exists in the component)
 
-```typescript
-function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId: string): boolean {
-  if (item.visibility === "workspace" || item.visibility === "team") return true;
-  if ((item.visibility === "departments" || item.visibility === "department") && item.shared_with) {
-    const sw = typeof item.shared_with === "string" ? JSON.parse(item.shared_with) : item.shared_with;
-    return (sw.departmentIds || []).includes(deptId);
-  }
-  return false;
-}
-```
+### 2. Docs → New Doc Preview Sheet
+**File**: `src/pages/DepartmentPage.tsx`
 
-One-line fix — no database changes needed.
+- Add a `Sheet` (slide-out) for doc preview — shows title, content (read-only `RichTextEditor`), author, and an "Open full page" button that navigates to `/docs?doc=${id}`
+- Replace `<Link to={/docs?doc=${id}}>` with `onClick` that fetches the doc content and opens the sheet
+- Import `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` and `RichTextEditor`
+
+### 3. Summary of UX
+- Clicking a task/project → slide-out drawer with status, priority, owner, comments, and "Open full page" button
+- Clicking a doc → slide-out sheet with title, content preview, and "Open full page" button
+- User never leaves the department page unless they explicitly click "Open full page"
+
+## Files
+| What | File |
+|------|------|
+| Add drawers for tasks/projects/docs | Edit: `src/pages/DepartmentPage.tsx` |
+
+No new components or database changes needed.
 
