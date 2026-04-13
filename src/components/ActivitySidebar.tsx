@@ -344,7 +344,7 @@ export default function ActivitySidebar({ entityType, entityId, collapsed = fals
 
   // Desktop: open sidebar
   return (
-    <div className="w-[340px] shrink-0 border-l pl-5 h-full">
+    <div className="w-[340px] shrink-0 min-w-0 border-l pl-5 h-full overflow-hidden">
       {sidebarContent}
     </div>
   );
