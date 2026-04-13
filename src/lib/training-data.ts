@@ -4,7 +4,7 @@ export type TrainingCategory = "Onboarding" | "Role Training" | "Processes" | "T
 export interface TrainingStep {
   id: string;
   title: string;
-  content?: string; // HTML or markdown-style content
+  content?: string;
   videoUrl?: string;
   externalUrl?: string;
   externalLabel?: string;
@@ -16,7 +16,7 @@ export interface TrainingModule {
   description: string;
   type: TrainingModuleType;
   category: TrainingCategory;
-  roleIds: string[]; // empty = visible to all
+  roleIds: string[];
   steps: TrainingStep[];
   icon?: string;
 }
@@ -32,34 +32,34 @@ export interface OnboardingStep {
 export const onboardingSteps: OnboardingStep[] = [
   {
     id: "welcome",
-    title: "Welcome to TeamSpace",
-    description: "Get familiar with the platform and how your team collaborates.",
+    title: "Welcome to Evergreen Real Estate Ventures",
+    description: "Get familiar with how our team sources, underwrites, and closes real estate deals.",
   },
   {
     id: "meet-team",
     title: "Meet the team",
-    description: "Browse the People directory to see who you'll be working with.",
+    description: "Browse the People directory to see who handles acquisitions, dispositions, and operations.",
     link: "/people",
     linkLabel: "View People",
   },
   {
     id: "explore-dept",
     title: "Explore your department",
-    description: "Check out your department page to see current projects and priorities.",
-    link: "/department/engineering",
+    description: "Check your department page for current deals, priorities, and SOPs.",
+    link: "/department/wholesale",
     linkLabel: "Go to Departments",
   },
   {
     id: "review-docs",
-    title: "Review key docs",
-    description: "Read through important documentation to understand processes and guidelines.",
+    title: "Review key SOPs",
+    description: "Read through the Wholesale SOP, Underwriting Checklist, and Disposition Playbook.",
     link: "/docs",
     linkLabel: "Open Docs",
   },
   {
     id: "complete-training",
     title: "Complete role training",
-    description: "Finish your role-specific training modules to get fully up to speed.",
+    description: "Finish your role-specific training modules to get fully onboarded.",
     link: "/training",
     linkLabel: "Start Training",
   },
@@ -70,94 +70,96 @@ export const trainingModules: TrainingModule[] = [
   {
     id: "company-overview",
     title: "Company Overview",
-    description: "Understand our mission, values, and how we operate as an organization.",
+    description: "Understand Evergreen's mission, deal philosophy, and how the organization operates.",
     type: "guide",
     category: "Onboarding",
     roleIds: [],
     steps: [
-      { id: "co-1", title: "Our Mission & Vision", content: "We build tools that empower teams to move faster with more clarity. Our vision is a world where every organization operates with transparency and aligned execution." },
-      { id: "co-2", title: "Core Values", content: "1. Clarity over complexity\n2. Ownership at every level\n3. Speed with intention\n4. Trust through transparency" },
-      { id: "co-3", title: "How We Work", content: "We operate in a structured strategy cascade: CEO sets direction, leadership translates strategy, and teams execute with accountability. Every decision flows through our Strategy system." },
+      { id: "co-1", title: "Our Mission", content: "Evergreen Real Estate Ventures acquires undervalued properties through wholesale, fix-and-flip, and portfolio strategies. We create value for sellers, buyers, and our capital partners." },
+      { id: "co-2", title: "Deal Philosophy", content: "1. Buy right — never chase a deal\n2. Speed to close is a competitive advantage\n3. Relationships over transactions\n4. Every deal must have a clear exit strategy before signing" },
+      { id: "co-3", title: "How We Operate", content: "CEO sets strategic direction. Leadership translates strategy into department-level actions. Each deal flows through a structured pipeline: Lead → Analysis → Offer → Contract → DD → Close → Dispo." },
     ],
   },
   {
     id: "platform-basics",
     title: "Platform Basics",
-    description: "Learn how to navigate TeamSpace and use core features.",
+    description: "Learn how to navigate the Evergreen platform and use core features.",
     type: "playbook",
     category: "Onboarding",
     roleIds: [],
     steps: [
-      { id: "pb-1", title: "Navigation & Sidebar", content: "The sidebar gives you access to all core areas: Home, Docs, Databases, People, and Training. Department and database sub-sections expand for quick access." },
-      { id: "pb-2", title: "Documents", content: "Create and edit documents with our block-based editor. Use slash commands (/) to insert headings, lists, callouts, and more." },
-      { id: "pb-3", title: "Databases", content: "Databases are structured tables for tracking work. Each database has custom columns and views. Use them for projects, tasks, bugs, and more." },
-      { id: "pb-4", title: "Strategy Flow", content: "Strategy items flow from CEO → Leadership → Operations. Watch for items assigned to your department in the Leadership dashboard." },
-    ],
-  },
-  {
-    id: "communication-guide",
-    title: "Communication Guidelines",
-    description: "How we communicate, give feedback, and make decisions.",
-    type: "guide",
-    category: "Processes",
-    roleIds: [],
-    steps: [
-      { id: "cg-1", title: "Async-First Communication", content: "We default to async communication. Use documents for proposals, databases for tracking, and structured feedback forms for upward communication." },
-      { id: "cg-2", title: "Decision-Making Process", content: "Decisions are logged in the Decision Log. Major decisions require leadership review. Use the Upward Proposal form to suggest changes to strategy." },
-      { id: "cg-3", title: "Meeting Norms", content: "Meetings have agendas shared 24h in advance. Notes are captured in Docs. Action items go into the relevant database." },
+      { id: "pb-1", title: "Navigation & Sidebar", content: "The sidebar gives you access to Home, Docs, Databases (Deal Pipeline, Comps, Dispo Board), People, and Training." },
+      { id: "pb-2", title: "Documents & SOPs", content: "Create and edit documents with our block-based editor. Use slash commands (/) to insert headings, lists, callouts, and more. Key SOPs are pinned for each department." },
+      { id: "pb-3", title: "Databases", content: "Databases track deals, comps, and dispositions. Each database has custom columns and views. Use the Deal Pipeline to track every lead from first contact to close." },
+      { id: "pb-4", title: "Strategy Flow", content: "Strategy items flow from CEO → Department Leads → Execution. Watch for objectives and decisions assigned to your department." },
     ],
   },
   // Role-specific training
   {
-    id: "engineering-onboarding",
-    title: "Engineering Onboarding",
-    description: "Technical setup, coding standards, and development workflow.",
+    id: "acquisitions-training",
+    title: "Acquisitions Training",
+    description: "How to source, analyze, and lock up wholesale deals.",
     type: "playbook",
     category: "Role Training",
-    roleIds: ["engineering"],
+    roleIds: ["wholesale"],
     steps: [
-      { id: "eo-1", title: "Dev Environment Setup", content: "1. Clone the repository\n2. Install dependencies\n3. Set up local environment variables\n4. Run the development server\n5. Verify tests pass" },
-      { id: "eo-2", title: "Code Standards", content: "We use TypeScript, React, and Tailwind CSS. Follow the existing patterns in the codebase. All PRs require one approval." },
-      { id: "eo-3", title: "Deployment Process", content: "We deploy via CI/CD. Merges to main trigger staging deploys. Production releases are tagged and require lead approval." },
+      { id: "at-1", title: "Lead Generation", content: "Primary sources: driving for dollars, direct mail, cold calling, bandit signs, MLS expired/withdrawn, probate lists, tax delinquent lists. Goal: 50+ new leads per week per acquisitions rep." },
+      { id: "at-2", title: "Seller Appointment Script", content: "Build rapport → Ask about the property situation → Understand their timeline and motivation → Present our offer as a solution. Never lead with price — lead with problem-solving." },
+      { id: "at-3", title: "Making Offers", content: "Use the 70% Rule: MAO = ARV × 0.70 − Repairs − Assignment Fee. Always leave room for your buyer's profit. Run comps before every offer — no exceptions." },
+      { id: "at-4", title: "Contract to Close", content: "Once under contract: 1) Open title immediately 2) Order inspection within 48 hrs 3) Upload to Deal Pipeline 4) Notify Dispo team for marketing 5) Monitor DD timeline" },
     ],
   },
   {
-    id: "design-onboarding",
-    title: "Design Onboarding",
-    description: "Design system, tools, and collaboration workflow.",
+    id: "dispositions-training",
+    title: "Dispositions Training",
+    description: "How to market properties and close with end buyers.",
     type: "playbook",
     category: "Role Training",
-    roleIds: ["design"],
+    roleIds: ["dispositions"],
     steps: [
-      { id: "do-1", title: "Design System", content: "Our design system uses semantic tokens, consistent spacing, and a defined color palette. All components follow the system." },
-      { id: "do-2", title: "Design Tools", content: "We use Figma for design work. Access the team workspace and review existing component libraries before starting new designs.", externalUrl: "https://figma.com", externalLabel: "Open Figma" },
-      { id: "do-3", title: "Handoff Process", content: "Designs are handed off via Figma with annotations. Developers reference the design system tokens for implementation." },
+      { id: "dt-1", title: "Buyer List Management", content: "Segment buyers by: deal type preference, location, price range, proof of funds status. Update buyer activity monthly. Remove unresponsive buyers after 90 days." },
+      { id: "dt-2", title: "Deal Marketing", content: "Within 24 hours of contract execution: create property flyer, blast email to relevant buyer segments, post on investor Facebook groups, and text top 20 buyers." },
+      { id: "dt-3", title: "Closing Coordination", content: "Work with the Transaction Coordinator to schedule closing. Confirm buyer's POF/financing, clear title, and handle any assignment paperwork. Target: close within 14 days of buyer agreement." },
     ],
   },
   {
-    id: "marketing-onboarding",
-    title: "Marketing Onboarding",
-    description: "Brand guidelines, campaigns, and analytics.",
-    type: "playbook",
+    id: "underwriting-training",
+    title: "Underwriting & Comps Training",
+    description: "How to evaluate deals, pull comps, and estimate rehab costs.",
+    type: "checklist",
     category: "Role Training",
-    roleIds: ["marketing"],
+    roleIds: ["underwriting"],
     steps: [
-      { id: "mo-1", title: "Brand Guidelines", content: "Our brand voice is clear, confident, and helpful. Review the brand deck for logo usage, color palette, and tone guidelines." },
-      { id: "mo-2", title: "Campaign Workflow", content: "Campaigns are tracked in the Marketing Projects database. Each campaign has a brief, timeline, and assigned owner." },
-      { id: "mo-3", title: "Analytics & Reporting", content: "We track key metrics weekly. Reports are shared in the Marketing department docs.", externalUrl: "https://analytics.google.com", externalLabel: "Google Analytics" },
+      { id: "ut-1", title: "Pulling Comps", content: "Use MLS, PropStream, and county records. Find 3-5 comps within 0.5 miles, sold within last 6 months, similar bed/bath/sqft. Adjust for condition and location." },
+      { id: "ut-2", title: "Rehab Estimation", content: "Use our Rehab Cost Matrix for standard line items. For major rehabs, get contractor bids. Categories: cosmetic ($15-25/sqft), moderate ($25-45/sqft), full gut ($45-75/sqft)." },
+      { id: "ut-3", title: "Deal Scoring", content: "Score each deal 1-10 on: seller motivation, profit margin, exit certainty, timeline risk. Deals scoring below 6 should be deprioritized or renegotiated." },
     ],
   },
   {
-    id: "product-onboarding",
-    title: "Product Onboarding",
-    description: "Product strategy, roadmap management, and feature workflow.",
-    type: "playbook",
+    id: "transaction-coordination",
+    title: "Transaction Coordination",
+    description: "Closing process, title coordination, and compliance.",
+    type: "checklist",
     category: "Role Training",
-    roleIds: ["product"],
+    roleIds: ["operations"],
     steps: [
-      { id: "po-1", title: "Product Roadmap", content: "The roadmap is maintained in the Product Roadmap database. Items flow from strategy through to execution via the Strategy Flow system." },
-      { id: "po-2", title: "Feature Lifecycle", content: "Ideas → Research → Spec → Design → Build → Ship → Measure. Each stage has clear exit criteria." },
-      { id: "po-3", title: "User Research", content: "We conduct regular user interviews and surveys. Findings are documented in the Research section of Docs." },
+      { id: "tc-1", title: "Opening Title", content: "Submit the executed contract to our preferred title company within 24 hours. Request a preliminary title report and verify no outstanding liens or judgments." },
+      { id: "tc-2", title: "Managing the Closing Timeline", content: "Track all deadlines: inspection period, financing contingency, title clearance, closing date. Send daily status updates to the acquisitions and dispo teams." },
+      { id: "tc-3", title: "Post-Closing", content: "Confirm recording of deed, distribute proceeds per HUD/ALTA statement, update Deal Pipeline status to 'Closed', archive all documents." },
+    ],
+  },
+  // Processes
+  {
+    id: "communication-guide",
+    title: "Communication Guidelines",
+    description: "How we communicate as a team and make decisions.",
+    type: "guide",
+    category: "Processes",
+    roleIds: [],
+    steps: [
+      { id: "cg-1", title: "Deal Updates", content: "Post deal status updates in the platform daily. Use the Deal Pipeline database as the single source of truth. Don't rely on text messages for deal status." },
+      { id: "cg-2", title: "Escalation Process", content: "If a deal hits a blocker (title issue, seller backing out, financing problem), escalate immediately via an Upward Proposal in the Strategy system." },
+      { id: "cg-3", title: "Weekly Meetings", content: "Monday: Pipeline review (all hands). Wednesday: Dispo status update. Friday: Wins & lessons learned. All meetings have agendas and action items logged in Docs." },
     ],
   },
   // Tools
@@ -169,22 +171,10 @@ export const trainingModules: TrainingModule[] = [
     category: "Tools",
     roleIds: [],
     steps: [
-      { id: "to-1", title: "TeamSpace (This Platform)", content: "Our central hub for docs, databases, strategy, and collaboration." },
-      { id: "to-2", title: "Figma", content: "Design and prototyping tool.", externalUrl: "https://figma.com", externalLabel: "Open Figma" },
-      { id: "to-3", title: "GitHub", content: "Code repository and version control.", externalUrl: "https://github.com", externalLabel: "Open GitHub" },
-      { id: "to-4", title: "Slack", content: "Real-time messaging for quick discussions.", externalUrl: "https://slack.com", externalLabel: "Open Slack" },
-    ],
-  },
-  // Video training
-  {
-    id: "strategy-system-video",
-    title: "Strategy Flow Walkthrough",
-    description: "Watch a video overview of how the Strategy Flow system works.",
-    type: "video",
-    category: "Processes",
-    roleIds: [],
-    steps: [
-      { id: "sv-1", title: "Strategy Flow Overview", content: "This video walks through the full strategy cascade from CEO to operations.", videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" },
+      { id: "to-1", title: "Evergreen Platform (This App)", content: "Central hub for deal tracking, docs, strategy, and team collaboration." },
+      { id: "to-2", title: "PropStream", content: "Property data, comps, and lead lists.", externalUrl: "https://www.propstream.com", externalLabel: "Open PropStream" },
+      { id: "to-3", title: "BatchLeads", content: "Skip tracing and direct mail campaigns.", externalUrl: "https://batchleads.io", externalLabel: "Open BatchLeads" },
+      { id: "to-4", title: "DocuSign", content: "Electronic signatures for contracts and assignments.", externalUrl: "https://www.docusign.com", externalLabel: "Open DocuSign" },
     ],
   },
 ];
