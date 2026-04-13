@@ -1,61 +1,143 @@
 
 
-# Projects ↔ Goals ↔ Tasks Linking + Inline Doc Editing
+# Strategy Flow System: CEO → Leadership → Operations
 
-## Part 1: Relational Linking (Goals → Projects → Tasks)
+## Overview
+Build a structured strategy cascade system where strategy items flow from the CEO dashboard down to department leaders, who must acknowledge, translate, and execute — with structured upward feedback flowing back to the CEO.
 
-### Data Model Changes (`src/lib/mock-data.ts`)
-- Add a `"relation"` column type to `ColumnType`
-- Relation columns store a reference: `{ databaseId: string, rowId: string }` or an array of them
-- Add a `relationConfig?: { databaseId: string; multiple?: boolean }` field to `DatabaseColumn` so each relation column knows which database it points to
-- Update the **Goals Tracker** template to include a `projects` relation column pointing at Project Board
-- Update the **Project Board** template to include a `goal` relation column (back to Goals) and a `tasks` relation column (pointing at Task List)
-- Update the **Task List** template to include a `project` relation column (back to Project Board)
-- Update sample `databaseRows` to include relation values linking existing rows
+## What Gets Built
 
-### Rendering Relations (`src/components/DatabaseView.tsx`)
-- When rendering a `relation` column cell, look up the referenced row(s) by ID and display the title as a clickable chip/badge
-- Clicking a relation chip navigates to that database + row
+### 1. Strategy Items Data Model (`src/lib/strategy-flow.ts`)
+A new React context + localStorage persistence for strategy items that flow through the org.
 
-### Editing Relations (`src/components/DatabaseItemEditor.tsx`)
-- For `relation` type columns, render a searchable dropdown that lists rows from the target database
-- Support single and multi-select based on `relationConfig.multiple`
+```text
+StrategyItem {
+  id: string
+  type: "objective" | "constraint" | "decision"
+  title: string
+  description: string
+  createdBy: string                    // user ID
+  assignedDepartments: string[]        // department IDs
+  status: "new" | "acknowledged" | "translated" | "in_execution" | "resolved"
+  createdAt: string
+  updatedAt: string
+  // Leadership responses (one per department)
+  responses: LeadershipResponse[]
+}
 
-### Wire up in `DatabasesPage.tsx`
-- Pass the full `allDatabases` and `allRows` arrays down so relation lookups work across databases
+LeadershipResponse {
+  id: string
+  strategyItemId: string
+  departmentId: string
+  responderId: string
+  type: "accept" | "refine" | "challenge"
+  // Structured fields
+  groundTruth: string       // "what I'm seeing on the ground"
+  analysis: string          // "what I believe is actually happening"
+  recommendation: string    // "recommended change or approach"
+  expectedImpact: string    // "expected impact"
+  createdAt: string
+}
 
-## Part 2: Inline Doc Editing (Notion-style)
+TranslationBlock {
+  id: string
+  strategyItemId: string
+  departmentId: string
+  meaning: string           // "what this means for our department"
+  immediateChanges: string  // "what changes immediately"
+  priorities: string[]      // top 1-2 priorities
+  actions: string[]         // actions to implement
+  createdAt: string
+}
 
-### Replace Dialog Editing with Inline Editing (`src/pages/DocsPage.tsx`)
-- Remove the `DocEditor` dialog for editing (keep it only for the "New Page" flow where you set title/parent/access)
-- When a doc is selected, the content area becomes directly editable:
-  - Title becomes an `<input>` (borderless, large font) that saves on blur/change
-  - Content area shows the `RichTextEditor` directly (not in a dialog) with the toolbar at the top
-  - Tags become inline editable chips
-  - Metadata (author, date, visibility) shown as subtle inline controls
-- Auto-save on content change (debounced ~1s) — no explicit Save button needed
-- The doc content panel switches between "view mode" (for non-admin) and "edit mode" (for admin, always-on)
+UpwardProposal {
+  id: string
+  type: "strategy_change" | "escalate_constraint" | "request_decision" | "flag_misalignment"
+  departmentId: string
+  createdBy: string
+  title: string
+  reasoning: string
+  recommendation: string
+  status: "pending" | "accepted" | "rejected" | "clarification_needed"
+  ceoResponse?: string
+  createdAt: string
+}
+```
 
-### Simplify `DocEditor` Component
-- Keep `DocEditor` dialog only for creating new pages (setting title, parent, access before creation)
-- Rename to `NewDocDialog` for clarity
+### 2. CEO Dashboard Additions (`src/pages/CeoDashboard.tsx`)
 
-## Files Changed
+Add two new sections to the existing CEO dashboard:
 
+- **Strategy Items Manager** — Create/edit strategy items (objective, constraint, decision), assign to departments, track status across the org
+- **CEO Review Feed** — Shows leadership proposals, challenges, and escalations with structured reasoning. CEO can accept, reject, or request clarification. Accepted changes update the Strategy Command Center.
+
+### 3. Leadership Dashboard (`src/pages/LeadershipDashboard.tsx`, route `/leadership/:deptId`)
+
+A new page for department leads with two modes:
+
+**Execution Mode (default):**
+- **Strategy Feed** — Incoming strategy items from CEO, filtered by department. Each shows status, context, and a "Respond to Strategy" action
+- **Translation Block** — For each strategy item, the leader must define: what it means for their department, immediate changes, top priorities, and actions
+- **Execution Snapshot** — Active projects tied to priorities (pulled from existing databases), relevant tasks, blockers
+
+**Think + Improve Mode (AI tab):**
+- Leadership AI companion (reuses the streaming chat infrastructure from `CeoAiChat`)
+- Different system prompt focused on translation, problem-solving, execution improvement
+- Structured responses: what is actually happening → signal vs noise → root cause → options → recommended action → immediate next steps
+
+### 4. Upward Flow Actions
+From the leadership dashboard, allow structured upward proposals:
+- Propose Strategy Change
+- Escalate Constraint
+- Request Decision
+- Flag Misalignment
+
+Each requires structured input (not free-form). Sent to CEO Review Feed.
+
+### 5. Leadership AI Edge Function (`supabase/functions/leadership-chat/index.ts`)
+A new edge function with a leadership-focused system prompt. Uses the same Lovable AI Gateway. Context includes: department data, active strategy items for that department, translation blocks, and execution snapshot.
+
+### 6. Navigation Updates
+- Add "Leadership" nav item in sidebar (visible to all users, each sees their department)
+- Admin toggle already exists; leadership dashboard accessible regardless of role (department leads)
+
+## Files to Create
+| File | Purpose |
+|------|---------|
+| `src/lib/strategy-flow.ts` | Strategy items context, types, localStorage persistence |
+| `src/pages/LeadershipDashboard.tsx` | Leadership dashboard with execution + think modes |
+| `src/components/StrategyItemCreator.tsx` | CEO creates/edits strategy items |
+| `src/components/StrategyFeed.tsx` | Incoming strategy items feed (used by leadership) |
+| `src/components/TranslationBlock.tsx` | Leadership translation form per strategy item |
+| `src/components/CeoReviewFeed.tsx` | CEO reviews leadership proposals/escalations |
+| `src/components/UpwardProposal.tsx` | Form for leadership to send structured proposals up |
+| `src/components/LeadershipAiChat.tsx` | AI companion for leadership (different prompt) |
+| `src/components/ExecutionSnapshot.tsx` | Shows projects/tasks/blockers tied to strategy |
+| `supabase/functions/leadership-chat/index.ts` | Leadership AI edge function |
+
+## Files to Modify
 | File | Change |
 |------|--------|
-| `src/lib/mock-data.ts` | Add `relation` to ColumnType, add `relationConfig` to DatabaseColumn, update templates + sample data |
-| `src/components/DatabaseView.tsx` | Render relation cells as clickable chips |
-| `src/components/DatabaseItemEditor.tsx` | Add relation column editor (searchable dropdown) |
-| `src/pages/DatabasesPage.tsx` | Pass databases/rows for cross-db lookups |
-| `src/pages/DocsPage.tsx` | Replace dialog editing with inline editing, auto-save, borderless title input, embedded RichTextEditor |
-| `src/components/DocEditor.tsx` | Simplify to new-doc-only dialog |
+| `src/pages/CeoDashboard.tsx` | Add Strategy Items Manager + CEO Review Feed sections |
+| `src/App.tsx` | Add `/leadership/:deptId` route, wrap with StrategyFlowProvider |
+| `src/components/AppSidebar.tsx` | Add Leadership nav item |
+
+## System Rules Enforced
+- Strategy items cannot reach operations without a leadership translation block
+- Leadership must acknowledge before translating; must translate before executing
+- All upward feedback uses structured forms (no free-form)
+- CEO AI focuses on strategy/direction; Leadership AI focuses on translation/execution
+- Status progression is enforced: new → acknowledged → translated → in_execution → resolved
 
 ## Build Order
-1. Data model: add relation type + update templates/sample data
-2. DatabaseItemEditor: relation column editing UI
-3. DatabaseView: render relation cells
-4. DatabasesPage: pass cross-db data
-5. DocsPage: inline editing with embedded RichTextEditor + auto-save
-6. Simplify DocEditor to new-doc-only
+1. Strategy flow data model + context provider
+2. Strategy item creator (CEO side)
+3. CEO Review Feed component
+4. Update CEO Dashboard with new sections
+5. Strategy Feed + Translation Block (leadership side)
+6. Execution Snapshot component
+7. Upward Proposal form
+8. Leadership Dashboard page (both modes)
+9. Leadership AI edge function + chat component
+10. Routing + sidebar updates
 
