@@ -83,7 +83,16 @@ export default function DocsPage() {
     const matchesTags =
       selectedTags.length === 0 ||
       selectedTags.every((st) => d.tags.includes(st));
-    return matchesSearch && matchesTags;
+    // Visibility filter for non-admins
+    const matchesVisibility = isAdmin || (() => {
+      if (d.visibility === "workspace") return true;
+      if (d.visibility === "private") return d.authorId === user?.id;
+      // department or departments scope
+      const sw = d.sharedWith || { departmentIds: [], memberIds: [] };
+      return (sw.departmentIds || []).includes(profile?.department_id || "") ||
+             (sw.memberIds || []).includes(user?.id || "");
+    })();
+    return matchesSearch && matchesTags && matchesVisibility;
   });
 
   const rootDocs = filtered.filter((d) => !d.parentId);

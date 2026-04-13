@@ -300,6 +300,16 @@ export default function DepartmentPage() {
 
   const deptColor = dept.color || "220 65% 48%";
 
+  // Access guard: non-admins can only view their own department
+  if (!isAdmin && profile?.department_id !== id) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto text-center py-20">
+        <h1 className="text-xl font-semibold">Access Denied</h1>
+        <p className="text-muted-foreground mt-2">You don't have access to this department.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Department Header with accent */}
@@ -314,7 +324,7 @@ export default function DepartmentPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="leadership">Leadership</TabsTrigger>
+          {isAdmin && <TabsTrigger value="leadership">Leadership</TabsTrigger>}
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -585,9 +595,11 @@ export default function DepartmentPage() {
 
         </TabsContent>
 
-        <TabsContent value="leadership" className="mt-4">
-          <EmbeddedLeadership deptId={id!} />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="leadership" className="mt-4">
+            <EmbeddedLeadership deptId={id!} />
+          </TabsContent>
+        )}
 
         <TabsContent value="team" className="space-y-4 mt-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">

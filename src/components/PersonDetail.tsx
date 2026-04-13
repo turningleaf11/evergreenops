@@ -171,32 +171,36 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
           {/* View mode */}
           {!editing && (
             <>
-              {person.bio && (
-                <div>
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">About</h3>
-                  <p className="text-sm leading-relaxed">{person.bio}</p>
-                </div>
-              )}
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">About</h3>
+                <p className="text-sm leading-relaxed">{person.bio || <span className="text-muted-foreground italic">No bio added yet</span>}</p>
+              </div>
               <div className="space-y-3">
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Details</h3>
-                {person.email && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-2.5 text-sm">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span>{person.title || <span className="text-muted-foreground italic">No title set</span>}</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  {person.email ? (
                     <a href={`mailto:${person.email}`} className="text-primary hover:underline">{person.email}</a>
-                  </div>
-                )}
-                {person.phone && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{person.phone}</span>
-                  </div>
-                )}
-                {manager && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span>Reports to <span className="font-medium">{manager.full_name || "Unnamed"}</span></span>
-                  </div>
-                )}
+                  ) : (
+                    <span className="text-muted-foreground italic">No email on file</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5 text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span>{person.phone || <span className="text-muted-foreground italic">No phone on file</span>}</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-sm">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span>{dept ? dept.name : <span className="text-muted-foreground italic">No department</span>}</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>{manager ? <>Reports to <span className="font-medium">{manager.full_name || "Unnamed"}</span></> : <span className="text-muted-foreground italic">No manager assigned</span>}</span>
+                </div>
               </div>
             </>
           )}
