@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { trainingModules, TrainingModule, TrainingCategory } from "@/lib/training-data";
+import { useTraining } from "@/contexts/TrainingContext";
+import type { TrainingModule, TrainingCategory } from "@/lib/training-data";
 import { useTrainingProgress } from "@/lib/training-progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +30,7 @@ export default function TrainingPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const { isStepComplete, markStepComplete, markStepIncomplete, getModuleProgress, isModuleComplete } = useTrainingProgress();
   const { currentUser } = useAuth();
+  const { modules: trainingModules } = useTraining();
 
   // Filter modules by role — show all if roleIds is empty, otherwise match user dept
   const userDept = currentUser?.departmentId?.toLowerCase() || "";

@@ -9,6 +9,7 @@ import { DepartmentsProvider } from "@/contexts/DepartmentsContext";
 import { CEOContextProvider } from "@/lib/ceo-context";
 import { StrategyFlowProvider } from "@/lib/strategy-flow";
 import { TrainingProgressProvider } from "@/lib/training-progress";
+import { TrainingProvider } from "@/contexts/TrainingContext";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import CeoDashboard from "./pages/CeoDashboard";
@@ -30,6 +31,7 @@ const App = () => (
       <DepartmentsProvider>
       <CEOContextProvider>
       <StrategyFlowProvider>
+      <TrainingProvider>
       <TrainingProgressProvider>
       <TooltipProvider>
         <Toaster />
@@ -53,6 +55,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </TrainingProgressProvider>
+      </TrainingProvider>
       </StrategyFlowProvider>
       </CEOContextProvider>
       </DepartmentsProvider>
