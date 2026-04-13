@@ -45,7 +45,6 @@ export interface DatabaseColumn {
   type: ColumnType;
   options?: string[];
   required?: boolean;
-  /** For relation columns: which database and whether multiple refs are allowed */
   relationConfig?: { databaseId: string; multiple?: boolean };
 }
 
@@ -78,54 +77,89 @@ export interface TeamMember {
   joinedAt: string;
 }
 
+// ---- Departments ----
+
 export const departments: Department[] = [
-  { id: "eng", name: "Engineering", description: "Building the future of our product", icon: "Code2", memberCount: 12, color: "220 65% 48%" },
-  { id: "design", name: "Design", description: "Crafting beautiful user experiences", icon: "Palette", memberCount: 6, color: "280 65% 48%" },
-  { id: "product", name: "Product", description: "Defining what we build and why", icon: "Lightbulb", memberCount: 5, color: "38 92% 50%" },
-  { id: "marketing", name: "Marketing", description: "Telling our story to the world", icon: "Megaphone", memberCount: 8, color: "142 71% 45%" },
-  { id: "ops", name: "Operations", description: "Keeping everything running smoothly", icon: "Settings", memberCount: 4, color: "0 72% 51%" },
+  { id: "wholesale", name: "Wholesale Acquisitions", description: "Source, negotiate, and close off-market wholesale deals", icon: "Home", memberCount: 6, color: "220 65% 48%" },
+  { id: "portfolio", name: "Portfolio Acquisitions", description: "Acquire and manage multi-unit rental portfolios", icon: "Building2", memberCount: 4, color: "280 65% 48%" },
+  { id: "dispositions", name: "Dispositions", description: "Market and sell acquired properties to end buyers", icon: "TrendingUp", memberCount: 4, color: "38 92% 50%" },
+  { id: "underwriting", name: "Underwriting & Analysis", description: "Evaluate deals, run comps, and assess risk", icon: "Calculator", memberCount: 3, color: "142 71% 45%" },
+  { id: "operations", name: "Operations & Transactions", description: "Coordinate closings, title, and compliance", icon: "Settings", memberCount: 3, color: "0 72% 51%" },
 ];
+
+// ---- Announcements ----
 
 export const announcements: Announcement[] = [
-  { id: "a1", title: "Q2 Planning Kickoff", content: "All-hands meeting this Friday at 2pm to discuss Q2 goals and priorities.", departmentId: null, author: "Sarah Chen", createdAt: "2026-04-08", pinned: true },
-  { id: "a2", title: "New Design System Released", content: "Check out the updated component library in our docs.", departmentId: "design", author: "Alex Rivera", createdAt: "2026-04-07", pinned: false },
-  { id: "a3", title: "Infrastructure Migration Complete", content: "We've successfully migrated to the new cloud infrastructure.", departmentId: "eng", author: "Jordan Park", createdAt: "2026-04-06", pinned: false },
+  { id: "a1", title: "Q2 Wholesale Pipeline Update", content: "We have 14 active leads in the wholesale pipeline. Focus this week: follow up on all leads with motivated sellers and push 3 deals to contract.", departmentId: null, author: "Marcus Reed", createdAt: "2026-04-08", pinned: true },
+  { id: "a2", title: "Portfolio Acquisition Under LOI — 24-Unit Maple Ridge", content: "LOI accepted on Maple Ridge Apartments (24 units, $1.8M). Due diligence begins Monday. Underwriting team: prepare full analysis by Wednesday.", departmentId: "portfolio", author: "Marcus Reed", createdAt: "2026-04-07", pinned: false },
+  { id: "a3", title: "New Buyer Added to Dispo List", content: "Cash buyer verified: GreenLight Capital, LLC — looking for 3-4 bed SFR in Fulton County under $180K ARV. Add to the next blast.", departmentId: "dispositions", author: "Jasmine Cole", createdAt: "2026-04-06", pinned: false },
 ];
 
+// ---- Docs ----
+
 export const docPages: DocPage[] = [
-  { id: "d1", title: "Getting Started Guide", content: "<h2>Welcome to our team workspace</h2><p>This guide will help you navigate and use all the features available.</p><ul><li>Explore departments and team members</li><li>Browse and create documentation</li><li>Use databases to track goals, projects, and tasks</li></ul><div class=\"callout callout-info\"><p>Info: If you're new, start by visiting the <strong>People</strong> page to meet the team.</p></div>", parentId: null, visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, author: "Sarah Chen", createdAt: "2026-03-01", updatedAt: "2026-04-05", tags: ["onboarding", "guide"] },
-  { id: "d2", title: "Engineering Standards", content: "<h2>Coding Standards</h2><p>Our coding standards and best practices for all engineering projects.</p><h3>Code Reviews</h3><p>All pull requests require <strong>at least two approvals</strong> before merging.</p><div class=\"callout callout-warning\"><p>Warning: Never push directly to the main branch.</p></div>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, author: "Jordan Park", createdAt: "2026-03-10", updatedAt: "2026-04-02", tags: ["engineering", "standards"] },
-  { id: "d3", title: "Brand Guidelines", content: "<h2>Brand Identity</h2><p>Official brand colors, typography, and usage guidelines.</p><h3>Colors</h3><p>Primary: <mark style=\"background-color: #bfdbfe\">Blue (#2563eb)</mark>, Accent: <mark style=\"background-color: #e9d5ff\">Purple (#9333ea)</mark></p>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["design"], memberIds: [] }, author: "Alex Rivera", createdAt: "2026-03-15", updatedAt: "2026-04-01", tags: ["brand", "design"] },
-  { id: "d4", title: "API Documentation", content: "<h2>API Reference</h2><p>Complete API reference for our public and internal endpoints.</p><pre><code>GET /api/v1/users\nPOST /api/v1/users\nGET /api/v1/projects/:id</code></pre><div class=\"callout callout-success\"><p>Success: All endpoints support JSON responses.</p></div>", parentId: "d2", visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, author: "Jordan Park", createdAt: "2026-03-20", updatedAt: "2026-04-03", tags: ["api", "engineering"] },
-  { id: "d5", title: "Product Roadmap", content: "<h2>Product Vision</h2><p>Our product vision and upcoming features for the next two quarters.</p><h3>Q2 Priorities</h3><ol><li>Mobile app v2 launch</li><li>User retention improvements</li><li>New analytics dashboard</li></ol>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["product"], memberIds: [] }, author: "Maria Santos", createdAt: "2026-03-25", updatedAt: "2026-04-04", tags: ["roadmap", "product"] },
+  { id: "d1", title: "Wholesale Acquisitions SOP", content: "<h2>Wholesale Deal Flow</h2><p>This SOP covers the end-to-end process for sourcing, analyzing, and closing wholesale real estate deals.</p><h3>Step 1: Lead Generation</h3><p>Sources include driving for dollars, direct mail campaigns, cold calling, and MLS expired listings.</p><h3>Step 2: Initial Screening</h3><p>Run quick comps, verify motivation, and estimate repair costs before scheduling an appointment.</p><div class=\"callout callout-warning\"><p>Warning: Never submit an offer without running comps and getting a preliminary rehab estimate.</p></div>", parentId: null, visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, author: "Marcus Reed", createdAt: "2026-03-01", updatedAt: "2026-04-05", tags: ["wholesale", "sop"] },
+  { id: "d2", title: "Underwriting Checklist", content: "<h2>Deal Underwriting Checklist</h2><p>Use this checklist for every deal before submitting an offer.</p><ol><li>Pull 5+ comparable sales within 0.5 miles (last 6 months)</li><li>Estimate rehab costs with contractor or cost matrix</li><li>Calculate ARV (After Repair Value)</li><li>Apply the 70% rule: MAO = ARV × 0.70 − Repairs − Assignment Fee</li><li>Verify title status and liens</li><li>Confirm seller motivation and timeline</li></ol><div class=\"callout callout-info\"><p>Info: Use the Comps Database to log and share comparable sales data across the team.</p></div>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["underwriting", "wholesale"], memberIds: [] }, author: "Danielle Okafor", createdAt: "2026-03-10", updatedAt: "2026-04-02", tags: ["underwriting", "checklist"] },
+  { id: "d3", title: "Disposition Playbook", content: "<h2>Disposition Strategy</h2><p>How we market and assign/close deals to end buyers.</p><h3>Buyer List Management</h3><p>Maintain a segmented buyer list: cash buyers, fix-and-flip investors, buy-and-hold investors, and owner-occupants. Update contact status monthly.</p><h3>Marketing Channels</h3><p>Blast new deals via email, SMS, and post on investor marketplaces within 24 hours of contract execution.</p>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["dispositions"], memberIds: [] }, author: "Jasmine Cole", createdAt: "2026-03-15", updatedAt: "2026-04-01", tags: ["dispositions", "playbook"] },
+  { id: "d4", title: "Due Diligence Procedures", content: "<h2>Due Diligence</h2><p>Steps to complete during the inspection period for any acquisition.</p><ol><li>Order title search and review for liens, judgments, or encumbrances</li><li>Schedule property inspection (structural, roof, HVAC, plumbing, electrical)</li><li>Verify zoning and code compliance</li><li>Confirm insurance availability and cost</li><li>Review tenant leases (for portfolio acquisitions)</li></ol><div class=\"callout callout-success\"><p>Success: Complete DD within 10 business days to stay within contract timelines.</p></div>", parentId: null, visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, author: "Carlos Vega", createdAt: "2026-03-20", updatedAt: "2026-04-03", tags: ["due-diligence", "compliance"] },
+  { id: "d5", title: "JV Partnership Guidelines", content: "<h2>Joint Venture Partnerships</h2><p>Guidelines for structuring JV deals with capital partners.</p><h3>Deal Structure</h3><p>Standard split: 70/30 (capital partner / operator). Adjust based on deal size, risk, and operator contribution.</p><h3>Required Documentation</h3><ul><li>JV Operating Agreement</li><li>Capital commitment schedule</li><li>Exit strategy and timeline</li><li>Profit distribution waterfall</li></ul>", parentId: null, visibility: "departments", sharedWith: { departmentIds: ["portfolio"], memberIds: [] }, author: "Marcus Reed", createdAt: "2026-03-25", updatedAt: "2026-04-04", tags: ["jv", "partnerships"] },
 ];
 
 // ---- Database Templates ----
 
 export const databaseTemplates: { id: string; title: string; description: string; icon: string; columns: DatabaseColumn[] }[] = [
   {
-    id: "goals", title: "Goals Tracker", description: "Track OKRs and goals with progress", icon: "Target",
+    id: "deal-pipeline", title: "Deal Pipeline", description: "Track wholesale and acquisition deals from lead to close", icon: "Target",
     columns: [
-      { id: "title", name: "Title", type: "text", required: true },
-      { id: "status", name: "Status", type: "select", options: ["Not Started", "In Progress", "Completed", "Blocked"] },
-      { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High", "Urgent"] },
-      { id: "progress", name: "Progress", type: "progress" },
-      { id: "assignee", name: "Assignee", type: "person" },
-      { id: "due_date", name: "Due Date", type: "date" },
-      { id: "projects", name: "Projects", type: "relation", relationConfig: { databaseId: "db2", multiple: true } },
+      { id: "address", name: "Property Address", type: "text", required: true },
+      { id: "status", name: "Deal Status", type: "select", options: ["Lead", "Contacted", "Offer Sent", "Under Contract", "In DD", "Closing", "Closed", "Dead"] },
+      { id: "acq_type", name: "Acquisition Type", type: "select", options: ["Wholesale", "Fix & Flip", "Buy & Hold", "Portfolio", "Subject-To", "Seller Finance"] },
+      { id: "asking_price", name: "Asking Price", type: "number" },
+      { id: "offer_price", name: "Offer Price", type: "number" },
+      { id: "arv", name: "ARV", type: "number" },
+      { id: "rehab_estimate", name: "Rehab Estimate", type: "number" },
+      { id: "seller_contact", name: "Seller Contact", type: "text" },
+      { id: "assignee", name: "Assigned To", type: "person" },
+      { id: "dispo_strategy", name: "Disposition Strategy", type: "select", options: ["Assign Contract", "Double Close", "Novation", "Hold as Rental", "JV Partner"] },
+      { id: "due_date", name: "Closing Date", type: "date" },
     ],
   },
   {
-    id: "projects", title: "Project Board", description: "Manage projects with status and timeline", icon: "FolderKanban",
+    id: "property-tracker", title: "Property Tracker", description: "Track property details, condition, and inspections", icon: "Home",
     columns: [
-      { id: "title", name: "Title", type: "text", required: true },
-      { id: "status", name: "Status", type: "select", options: ["Not Started", "In Progress", "Completed", "Blocked"] },
-      { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High", "Urgent"] },
-      { id: "assignee", name: "Assignee", type: "person" },
-      { id: "due_date", name: "Due Date", type: "date" },
-      { id: "tags", name: "Tags", type: "multi_select", options: ["Frontend", "Backend", "Design", "DevOps", "Mobile"] },
-      { id: "goal", name: "Goal", type: "relation", relationConfig: { databaseId: "db1", multiple: false } },
-      { id: "tasks", name: "Tasks", type: "relation", relationConfig: { databaseId: "db3", multiple: true } },
+      { id: "address", name: "Address", type: "text", required: true },
+      { id: "unit_count", name: "Unit Count", type: "number" },
+      { id: "sqft", name: "Square Footage", type: "number" },
+      { id: "condition", name: "Condition", type: "select", options: ["Excellent", "Good", "Fair", "Poor", "Needs Full Rehab"] },
+      { id: "inspection_date", name: "Inspection Date", type: "date" },
+      { id: "rehab_estimate", name: "Rehab Estimate", type: "number" },
+      { id: "inspector", name: "Inspector", type: "person" },
+      { id: "notes", name: "Notes", type: "text" },
+    ],
+  },
+  {
+    id: "disposition-board", title: "Disposition Board", description: "Manage property assignments and buyer closings", icon: "TrendingUp",
+    columns: [
+      { id: "property", name: "Property", type: "text", required: true },
+      { id: "buyer", name: "Buyer", type: "text" },
+      { id: "assignment_fee", name: "Assignment Fee", type: "number" },
+      { id: "status", name: "Status", type: "select", options: ["Marketing", "Buyer Interested", "Under Contract", "Closing Scheduled", "Closed", "Fell Through"] },
+      { id: "close_date", name: "Close Date", type: "date" },
+      { id: "dispo_manager", name: "Dispo Manager", type: "person" },
+    ],
+  },
+  {
+    id: "comps", title: "Comps Database", description: "Comparable sales data for underwriting", icon: "Calculator",
+    columns: [
+      { id: "address", name: "Address", type: "text", required: true },
+      { id: "sale_price", name: "Sale Price", type: "number" },
+      { id: "sale_date", name: "Sale Date", type: "date" },
+      { id: "sqft", name: "Sq Ft", type: "number" },
+      { id: "price_sqft", name: "Price/Sq Ft", type: "number" },
+      { id: "beds", name: "Beds", type: "number" },
+      { id: "baths", name: "Baths", type: "number" },
+      { id: "condition", name: "Condition", type: "select", options: ["As-Is", "Rehabbed", "New Construction"] },
+      { id: "source", name: "Source", type: "select", options: ["MLS", "County Records", "Investor Network", "PropStream"] },
     ],
   },
   {
@@ -136,27 +170,6 @@ export const databaseTemplates: { id: string; title: string; description: string
       { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High"] },
       { id: "assignee", name: "Assignee", type: "person" },
       { id: "due_date", name: "Due Date", type: "date" },
-      { id: "project", name: "Project", type: "relation", relationConfig: { databaseId: "db2", multiple: false } },
-    ],
-  },
-  {
-    id: "bugs", title: "Bug Tracker", description: "Track and resolve bugs", icon: "Bug",
-    columns: [
-      { id: "title", name: "Title", type: "text", required: true },
-      { id: "severity", name: "Severity", type: "select", options: ["Critical", "High", "Medium", "Low"] },
-      { id: "status", name: "Status", type: "select", options: ["Open", "Investigating", "Fixed", "Closed"] },
-      { id: "reporter", name: "Reporter", type: "person" },
-      { id: "assignee", name: "Assignee", type: "person" },
-    ],
-  },
-  {
-    id: "content", title: "Content Calendar", description: "Plan and schedule content", icon: "Calendar",
-    columns: [
-      { id: "title", name: "Title", type: "text", required: true },
-      { id: "publish_date", name: "Publish Date", type: "date" },
-      { id: "status", name: "Status", type: "select", options: ["Draft", "In Review", "Approved", "Published"] },
-      { id: "author", name: "Author", type: "person" },
-      { id: "channel", name: "Channel", type: "select", options: ["Blog", "Social", "Email", "Newsletter"] },
     ],
   },
   {
@@ -171,49 +184,50 @@ export const databaseTemplates: { id: string; title: string; description: string
 
 export const databases: Database[] = [
   {
-    id: "db1", title: "Company Goals", description: "Q2 2026 OKRs and strategic goals", icon: "Target",
-    visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, createdBy: "Sarah Chen",
+    id: "db1", title: "Wholesale Deal Pipeline", description: "Active wholesale deals in the pipeline", icon: "Target",
+    visibility: "workspace", sharedWith: { departmentIds: [], memberIds: [] }, createdBy: "Marcus Reed",
     columns: databaseTemplates[0].columns,
   },
   {
-    id: "db2", title: "Engineering Projects", description: "Active engineering projects", icon: "FolderKanban",
-    visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, createdBy: "Jordan Park",
-    columns: databaseTemplates[1].columns,
+    id: "db2", title: "Disposition Board", description: "Properties being marketed to buyers", icon: "TrendingUp",
+    visibility: "departments", sharedWith: { departmentIds: ["dispositions"], memberIds: [] }, createdBy: "Jasmine Cole",
+    columns: databaseTemplates[2].columns,
   },
   {
-    id: "db3", title: "Sprint Tasks", description: "Current sprint task board", icon: "CheckSquare",
-    visibility: "departments", sharedWith: { departmentIds: ["eng"], memberIds: [] }, createdBy: "Jordan Park",
-    columns: databaseTemplates[2].columns,
+    id: "db3", title: "Comps — Fulton County", description: "Recent comparable sales in Fulton County", icon: "Calculator",
+    visibility: "departments", sharedWith: { departmentIds: ["underwriting", "wholesale"], memberIds: [] }, createdBy: "Danielle Okafor",
+    columns: databaseTemplates[3].columns,
   },
 ];
 
 export const databaseRows: DatabaseRow[] = [
-  // Company Goals rows — with relation to projects
-  { id: "r1", databaseId: "db1", values: { title: "Increase user retention by 20%", status: "In Progress", priority: "High", progress: 35, assignee: "Sarah Chen", due_date: "2026-06-30", projects: ["r4"] }, createdAt: "2026-03-01", updatedAt: "2026-04-08" },
-  { id: "r2", databaseId: "db1", values: { title: "Launch mobile app v2", status: "In Progress", priority: "Urgent", progress: 60, assignee: "Jordan Park", due_date: "2026-05-15", projects: ["r5"] }, createdAt: "2026-03-01", updatedAt: "2026-04-07" },
-  { id: "r3", databaseId: "db1", values: { title: "Rebrand marketing site", status: "Not Started", priority: "Medium", progress: 0, assignee: "Alex Rivera", due_date: "2026-07-01", projects: [] }, createdAt: "2026-03-05", updatedAt: "2026-04-06" },
+  // Wholesale Deal Pipeline
+  { id: "r1", databaseId: "db1", values: { address: "1423 Maple Dr, Atlanta, GA 30310", status: "Under Contract", acq_type: "Wholesale", asking_price: 145000, offer_price: 105000, arv: 210000, rehab_estimate: 45000, seller_contact: "James Whitfield (404-555-0123)", assignee: "Terrence Brooks", dispo_strategy: "Assign Contract", due_date: "2026-04-28" }, createdAt: "2026-04-01", updatedAt: "2026-04-10" },
+  { id: "r2", databaseId: "db1", values: { address: "782 Oak Ridge Ln, Decatur, GA 30032", status: "Offer Sent", acq_type: "Wholesale", asking_price: 180000, offer_price: 130000, arv: 265000, rehab_estimate: 60000, seller_contact: "Linda Barrows (678-555-0456)", assignee: "Terrence Brooks", dispo_strategy: "Double Close", due_date: "2026-05-10" }, createdAt: "2026-04-03", updatedAt: "2026-04-09" },
+  { id: "r3", databaseId: "db1", values: { address: "3901 Peachtree Industrial Blvd, Duluth, GA 30096", status: "Lead", acq_type: "Fix & Flip", asking_price: 220000, offer_price: null, arv: 340000, rehab_estimate: 75000, seller_contact: "Estate of R. Nguyen", assignee: "Keisha Monroe", dispo_strategy: "JV Partner", due_date: null }, createdAt: "2026-04-05", updatedAt: "2026-04-08" },
+  { id: "r4", databaseId: "db1", values: { address: "567 Cascade Rd SW, Atlanta, GA 30311", status: "In DD", acq_type: "Wholesale", asking_price: 95000, offer_price: 68000, arv: 155000, rehab_estimate: 35000, seller_contact: "Tony Mitchell (404-555-0789)", assignee: "Terrence Brooks", dispo_strategy: "Assign Contract", due_date: "2026-04-22" }, createdAt: "2026-04-02", updatedAt: "2026-04-11" },
 
-  // Engineering Projects rows — with relation to goals and tasks
-  { id: "r4", databaseId: "db2", values: { title: "Onboarding flow redesign", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-05-01", tags: ["Frontend", "Design"], goal: "r1", tasks: ["r7"] }, createdAt: "2026-03-10", updatedAt: "2026-04-05" },
-  { id: "r5", databaseId: "db2", values: { title: "Push notification system", status: "In Progress", priority: "High", assignee: "Jordan Park", due_date: "2026-04-28", tags: ["Backend", "Mobile"], goal: "r2", tasks: ["r8", "r9"] }, createdAt: "2026-03-12", updatedAt: "2026-04-04" },
-  { id: "r6", databaseId: "db2", values: { title: "Performance audit", status: "Not Started", priority: "Urgent", assignee: "Jordan Park", due_date: "2026-04-14", tags: ["DevOps"], goal: null, tasks: [] }, createdAt: "2026-03-15", updatedAt: "2026-04-03" },
+  // Disposition Board
+  { id: "r5", databaseId: "db2", values: { property: "209 Glenwood Ave, East Point, GA 30344", buyer: "FlipStar Investments LLC", assignment_fee: 12000, status: "Under Contract", close_date: "2026-04-18", dispo_manager: "Jasmine Cole" }, createdAt: "2026-04-01", updatedAt: "2026-04-10" },
+  { id: "r6", databaseId: "db2", values: { property: "1423 Maple Dr, Atlanta, GA 30310", buyer: "", assignment_fee: 15000, status: "Marketing", close_date: null, dispo_manager: "Jasmine Cole" }, createdAt: "2026-04-10", updatedAt: "2026-04-10" },
 
-  // Sprint Tasks rows — with relation to project
-  { id: "r7", databaseId: "db3", values: { title: "Design new onboarding screens", status: "In Progress", priority: "High", assignee: "Alex Rivera", due_date: "2026-04-15", project: "r4" }, createdAt: "2026-04-01", updatedAt: "2026-04-08" },
-  { id: "r8", databaseId: "db3", values: { title: "Implement FCM integration", status: "Done", priority: "High", assignee: "Jordan Park", due_date: "2026-04-10", project: "r5" }, createdAt: "2026-04-01", updatedAt: "2026-04-09" },
-  { id: "r9", databaseId: "db3", values: { title: "Write API tests for notifications", status: "In Progress", priority: "Medium", assignee: "Dev Patel", due_date: "2026-04-12", project: "r5" }, createdAt: "2026-04-02", updatedAt: "2026-04-08" },
-  { id: "r10", databaseId: "db3", values: { title: "Create email templates", status: "To Do", priority: "Low", assignee: "Maria Santos", due_date: "2026-04-20", project: null }, createdAt: "2026-04-03", updatedAt: "2026-04-07" },
+  // Comps
+  { id: "r7", databaseId: "db3", values: { address: "1501 Maple Dr, Atlanta, GA 30310", sale_price: 205000, sale_date: "2026-03-15", sqft: 1450, price_sqft: 141, beds: 3, baths: 2, condition: "Rehabbed", source: "MLS" }, createdAt: "2026-03-20", updatedAt: "2026-03-20" },
+  { id: "r8", databaseId: "db3", values: { address: "1389 Maple Dr, Atlanta, GA 30310", sale_price: 195000, sale_date: "2026-02-28", sqft: 1380, price_sqft: 141, beds: 3, baths: 2, condition: "Rehabbed", source: "County Records" }, createdAt: "2026-03-05", updatedAt: "2026-03-05" },
+  { id: "r9", databaseId: "db3", values: { address: "790 Oak Ridge Ln, Decatur, GA 30032", sale_price: 270000, sale_date: "2026-03-01", sqft: 1800, price_sqft: 150, beds: 4, baths: 2, condition: "Rehabbed", source: "MLS" }, createdAt: "2026-03-10", updatedAt: "2026-03-10" },
 ];
 
+// ---- Team Members ----
+
 export const teamMembers: TeamMember[] = [
-  { id: "m1", name: "Sarah Chen", email: "sarah@company.com", role: "Head of Product", departmentId: "product", avatar: null, joinedAt: "2024-01-15" },
-  { id: "m2", name: "Jordan Park", email: "jordan@company.com", role: "Lead Engineer", departmentId: "eng", avatar: null, joinedAt: "2024-02-01" },
-  { id: "m3", name: "Alex Rivera", email: "alex@company.com", role: "Design Lead", departmentId: "design", avatar: null, joinedAt: "2024-03-10" },
-  { id: "m4", name: "Maria Santos", email: "maria@company.com", role: "Marketing Manager", departmentId: "marketing", avatar: null, joinedAt: "2024-04-05" },
-  { id: "m5", name: "Dev Patel", email: "dev@company.com", role: "Senior Engineer", departmentId: "eng", avatar: null, joinedAt: "2024-05-20" },
-  { id: "m6", name: "Lisa Kim", email: "lisa@company.com", role: "UX Designer", departmentId: "design", avatar: null, joinedAt: "2024-06-01" },
-  { id: "m7", name: "Tom Wilson", email: "tom@company.com", role: "Operations Lead", departmentId: "ops", avatar: null, joinedAt: "2024-03-15" },
-  { id: "m8", name: "Emma Davis", email: "emma@company.com", role: "Content Strategist", departmentId: "marketing", avatar: null, joinedAt: "2024-07-10" },
-  { id: "m9", name: "Ryan Hughes", email: "ryan@company.com", role: "Frontend Engineer", departmentId: "eng", avatar: null, joinedAt: "2024-08-01" },
-  { id: "m10", name: "Nina Zhao", email: "nina@company.com", role: "Product Designer", departmentId: "design", avatar: null, joinedAt: "2024-09-15" },
+  { id: "m1", name: "Marcus Reed", email: "marcus@evergreenre.com", role: "CEO / Principal", departmentId: "wholesale", avatar: null, joinedAt: "2023-01-15" },
+  { id: "m2", name: "Terrence Brooks", email: "terrence@evergreenre.com", role: "Acquisitions Manager", departmentId: "wholesale", avatar: null, joinedAt: "2023-06-01" },
+  { id: "m3", name: "Keisha Monroe", email: "keisha@evergreenre.com", role: "Acquisitions Associate", departmentId: "wholesale", avatar: null, joinedAt: "2024-02-10" },
+  { id: "m4", name: "Jasmine Cole", email: "jasmine@evergreenre.com", role: "Disposition Manager", departmentId: "dispositions", avatar: null, joinedAt: "2023-08-15" },
+  { id: "m5", name: "Danielle Okafor", email: "danielle@evergreenre.com", role: "Lead Underwriter", departmentId: "underwriting", avatar: null, joinedAt: "2023-09-01" },
+  { id: "m6", name: "Carlos Vega", email: "carlos@evergreenre.com", role: "Transaction Coordinator", departmentId: "operations", avatar: null, joinedAt: "2024-01-20" },
+  { id: "m7", name: "Andre Washington", email: "andre@evergreenre.com", role: "Portfolio Analyst", departmentId: "portfolio", avatar: null, joinedAt: "2024-03-01" },
+  { id: "m8", name: "Brittany Fields", email: "brittany@evergreenre.com", role: "Marketing Coordinator", departmentId: "dispositions", avatar: null, joinedAt: "2024-05-10" },
+  { id: "m9", name: "Derek Lawson", email: "derek@evergreenre.com", role: "Property Inspector", departmentId: "underwriting", avatar: null, joinedAt: "2024-06-01" },
+  { id: "m10", name: "Natasha Kim", email: "natasha@evergreenre.com", role: "Portfolio Acquisitions Lead", departmentId: "portfolio", avatar: null, joinedAt: "2024-04-15" },
 ];
