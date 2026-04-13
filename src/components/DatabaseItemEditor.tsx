@@ -229,19 +229,7 @@ function FieldEditor({ column, value, onChange, onToggleMulti, multiValues, allD
         </div>
       );
     case "person":
-      return (
-        <div className="space-y-1.5">
-          <Label className="text-xs">{column.name}</Label>
-          <Select value={value || ""} onValueChange={onChange}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select person" /></SelectTrigger>
-            <SelectContent>
-              {teamMembers.map(m => (
-                <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
+      return <PersonEditor column={column} value={value} onChange={onChange} />;
     case "checkbox":
       return (
         <div className="flex items-center gap-2">
