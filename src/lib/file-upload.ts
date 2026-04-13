@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "crypto";
 
 export async function uploadFile(file: File): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const ext = file.name.split(".").pop() || "bin";
-  const path = `${user.id}/${uuidv4()}.${ext}`;
+  const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const path = `${user.id}/${uniqueId}.${ext}`;
 
   const { error } = await supabase.storage.from("files").upload(path, file);
   if (error) {
