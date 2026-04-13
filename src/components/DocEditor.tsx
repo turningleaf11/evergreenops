@@ -16,7 +16,7 @@ interface DocEditorProps {
   allDocs: DocPage[];
 }
 
-export default function DocEditor({ open, onClose, onSave, onDelete, doc, allDocs }: DocEditorProps) {
+export default function DocEditor({ open, onClose, onSave, doc, allDocs }: DocEditorProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tagsStr, setTagsStr] = useState("");
