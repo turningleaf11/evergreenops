@@ -99,8 +99,8 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
                 <Route path="/execution" element={<ExecutionPage />} />
-                <Route path="/issues" element={<IssuesPage />} />
-                <Route path="/vision" element={<VisionPage />} />
+                <Route path="/issues" element={<Navigate to="/execution" replace />} />
+                <Route path="/vision" element={<Navigate to="/ceo" replace />} />
               </Route>
             </Route>
 
