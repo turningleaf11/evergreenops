@@ -2,6 +2,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { Repeat } from "lucide-react";
 
 interface TableViewProps {
   items: any[];
@@ -50,7 +51,12 @@ export default function TableView({
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => onItemClick(item)}
               >
-                <TableCell className="font-medium">{item.title}</TableCell>
+                <TableCell className="font-medium">
+                  <span className="flex items-center gap-1.5">
+                    {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                    {item.title}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <Select
                     value={item.status}

@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, User } from "lucide-react";
+import { Calendar, User, Repeat } from "lucide-react";
 
 interface KanbanColumn {
   key: string;
@@ -49,7 +49,10 @@ export default function KanbanBoard({
                   onClick={() => onItemClick(item)}
                 >
                   <CardContent className="p-3 space-y-2">
-                    <p className="text-sm font-medium leading-snug">{item.title}</p>
+                    <p className="text-sm font-medium leading-snug flex items-center gap-1">
+                      {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      {item.title}
+                    </p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {item.priority && (
                         <Badge variant="outline" className={`text-[10px] ${priorityColors[item.priority] || ""}`}>
