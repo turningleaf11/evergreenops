@@ -600,28 +600,43 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           department_id: string | null
+          email: string | null
           full_name: string | null
           id: string
+          phone: string | null
+          reports_to: string | null
+          title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           department_id?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          reports_to?: string | null
+          title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           department_id?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          reports_to?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -904,6 +919,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      team_notes: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          subject_user_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          subject_user_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          subject_user_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       training_modules: {
         Row: {
