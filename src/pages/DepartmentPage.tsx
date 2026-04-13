@@ -408,7 +408,7 @@ export default function DepartmentPage() {
             {docs.length > 0 || dbs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {docs.slice(0, 6).map(d => (
-                  <Link key={d.id} to={`/docs?doc=${d.id}`}>
+                  <div key={d.id} className="cursor-pointer" onClick={() => openDocPreview(d.id)}>
                     <Card className="hover:border-primary/40 transition-colors h-full">
                       <CardContent className="p-3 flex items-start gap-2.5">
                         <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -418,7 +418,7 @@ export default function DepartmentPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </Link>
+                  </div>
                 ))}
                 {dbs.slice(0, 6).map(d => (
                   <Link key={d.id} to={`/databases?db=${d.id}`}>
