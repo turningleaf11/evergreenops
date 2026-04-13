@@ -72,7 +72,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
   return (
     <div className="rich-editor border rounded-lg bg-background">
       {/* Bubble Menu — appears on text selection */}
-      <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }} className="bubble-menu">
+      <BubbleMenu editor={editor} className="bubble-menu">
         <button onClick={() => editor.chain().focus().toggleBold().run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">
           <Bold className="h-3.5 w-3.5" />
         </button>
@@ -123,7 +123,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       </BubbleMenu>
 
       {/* Floating Menu — shows + button on empty lines */}
-      <FloatingMenu editor={editor} tippyOptions={{ duration: 150, placement: "left" }} className="floating-menu">
+      <FloatingMenu editor={editor} className="floating-menu">
         <button
           className="floating-add-btn"
           onClick={() => {
