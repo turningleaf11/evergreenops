@@ -31,8 +31,8 @@ interface StrategyItem { id: string; title: string; type: string; status: string
 interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
 
 function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId: string): boolean {
-  if (item.visibility === "workspace") return true;
-  if (item.visibility === "department" && item.shared_with) {
+  if (item.visibility === "workspace" || item.visibility === "team") return true;
+  if ((item.visibility === "departments" || item.visibility === "department") && item.shared_with) {
     const sw = typeof item.shared_with === "string" ? JSON.parse(item.shared_with) : item.shared_with;
     return (sw.departmentIds || []).includes(deptId);
   }
