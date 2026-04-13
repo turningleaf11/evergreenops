@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
+import DetailDrawer from "@/components/DetailDrawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +80,9 @@ export default function ExecutionPage() {
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [drawerItem, setDrawerItem] = useState<any>(null);
+  const [drawerType, setDrawerType] = useState<"project" | "task">("project");
+  const navigate = useNavigate();
 
   // Issues state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -403,7 +408,7 @@ export default function ExecutionPage() {
             const pTasks = tasksForProject(p.id);
             const goalTitle = goals.find(g => g.id === p.goal_id)?.title;
             return (
-              <Card key={p.id}>
+              <Card key={p.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("project"); setDrawerItem(p); }}>
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -438,7 +443,7 @@ export default function ExecutionPage() {
             const projectTitle = projects.find(p => p.id === t.project_id)?.title;
             const goalTitle = goals.find(g => g.id === t.goal_id)?.title;
             return (
-              <Card key={t.id}>
+              <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => { setDrawerType("task"); setDrawerItem(t); }}>
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -617,6 +622,19 @@ export default function ExecutionPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={!!drawerItem}
+        onOpenChange={o => { if (!o) setDrawerItem(null); }}
+        type={drawerType}
+        item={drawerItem}
+        onStatusChange={v => {
+          updateStatus(drawerType === "project" ? "projects" : "tasks", drawerItem.id, v);
+          setDrawerItem((prev: any) => prev ? { ...prev, status: v } : null);
+        }}
+        getName={getName}
+      />
     </div>
   );
 }

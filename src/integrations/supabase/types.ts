@@ -97,6 +97,47 @@ export type Database = {
           },
         ]
       }
+      comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content?: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       database_rows: {
         Row: {
           created_at: string
@@ -284,6 +325,36 @@ export type Database = {
           },
         ]
       }
+      entity_activity: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           created_at: string
@@ -461,6 +532,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          assignees: string[]
           created_at: string
           created_by: string | null
           department_id: string | null
@@ -468,12 +540,16 @@ export type Database = {
           due_date: string | null
           goal_id: string | null
           id: string
+          notes_content: string
           owner_id: string | null
+          priority: string
           status: string
+          tags: string[]
           title: string
           updated_at: string
         }
         Insert: {
+          assignees?: string[]
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -481,12 +557,16 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          notes_content?: string
           owner_id?: string | null
+          priority?: string
           status?: string
+          tags?: string[]
           title: string
           updated_at?: string
         }
         Update: {
+          assignees?: string[]
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -494,8 +574,11 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          notes_content?: string
           owner_id?: string | null
+          priority?: string
           status?: string
+          tags?: string[]
           title?: string
           updated_at?: string
         }
@@ -608,8 +691,12 @@ export type Database = {
           due_date: string | null
           goal_id: string | null
           id: string
+          notes_content: string
+          priority: string
           project_id: string | null
           status: string
+          subtasks: Json
+          tags: string[]
           title: string
           updated_at: string
         }
@@ -621,8 +708,12 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          notes_content?: string
+          priority?: string
           project_id?: string | null
           status?: string
+          subtasks?: Json
+          tags?: string[]
           title: string
           updated_at?: string
         }
@@ -634,8 +725,12 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          notes_content?: string
+          priority?: string
           project_id?: string | null
           status?: string
+          subtasks?: Json
+          tags?: string[]
           title?: string
           updated_at?: string
         }
