@@ -688,6 +688,35 @@ export default function DepartmentPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Add Pin Dialog */}
+      <Dialog open={addPinOpen} onOpenChange={setAddPinOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add to Pinboard</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={newPin.type} onValueChange={(v) => setNewPin(prev => ({ ...prev, type: v }))}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="link">🔗 Link / Button</SelectItem>
+                <SelectItem value="note">📝 Note</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input placeholder="Title" value={newPin.title} onChange={(e) => setNewPin(prev => ({ ...prev, title: e.target.value }))} className="h-8 text-sm" />
+            {newPin.type === "link" && (
+              <Input placeholder="https://..." value={newPin.url} onChange={(e) => setNewPin(prev => ({ ...prev, url: e.target.value }))} className="h-8 text-sm" />
+            )}
+            <Textarea placeholder={newPin.type === "note" ? "Note content..." : "Description (optional)"} value={newPin.description} onChange={(e) => setNewPin(prev => ({ ...prev, description: e.target.value }))} className="text-sm min-h-[60px]" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setAddPinOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={addPinboardItem} disabled={!newPin.title.trim() || pinUploading}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
