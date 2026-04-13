@@ -157,12 +157,12 @@ function EmbeddedLeadership({ deptId }: { deptId: string }) {
           <TabsTrigger value="execution" className="text-xs"><Brain className="h-3 w-3 mr-1" />Execution</TabsTrigger>
         </TabsList>
         <TabsContent value="strategy" className="space-y-6 mt-4">
-          <StrategyFeed deptId={deptId} />
-          <TranslationBlockComponent deptId={deptId} />
-          <UpwardProposalForm deptId={deptId} />
+          <StrategyFeed departmentId={deptId} />
+          <TranslationBlockComponent departmentId={deptId} />
+          <UpwardProposalForm departmentId={deptId} />
         </TabsContent>
         <TabsContent value="execution" className="mt-4">
-          <ExecutionSnapshot deptId={deptId} />
+          <ExecutionSnapshot departmentId={deptId} />
         </TabsContent>
       </Tabs>
 
@@ -172,7 +172,7 @@ function EmbeddedLeadership({ deptId }: { deptId: string }) {
       >
         <Bot className="h-5 w-5" />
       </button>
-      {chatOpen && <LeadershipAiChat deptId={deptId} deptName={dept.name} onClose={() => setChatOpen(false)} />}
+      {chatOpen && <LeadershipAiChat open={chatOpen} onOpenChange={setChatOpen} departmentId={deptId} />}
     </div>
   );
 }
