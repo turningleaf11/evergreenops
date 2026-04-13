@@ -321,7 +321,7 @@ export default function DepartmentPage() {
             {keyInitiatives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {keyInitiatives.map((p) => (
-                  <Link key={p.id} to={`/projects/${p.id}`}>
+                  <div key={p.id} className="cursor-pointer" onClick={() => openProjectDrawer(p)}>
                     <Card className="hover:border-primary/40 transition-colors h-full">
                       <CardContent className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
