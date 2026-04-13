@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useTraining, TrainingModule, TrainingModuleType, TrainingCategory } from "@/contexts/TrainingContext";
-import { teamMembers } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,14 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
-  GraduationCap, ChevronDown, GripVertical,
+  GraduationCap, ChevronDown, GripVertical, UserPlus, Mail,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -267,31 +268,8 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Users Tab */}
-        <TabsContent value="users" className="mt-4 space-y-3">
-          {teamMembers.map((member) => (
-            <Card key={member.id}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {member.name.split(" ").map((n) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{member.email}</p>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                  {member.role}
-                </Badge>
-              </CardContent>
-            </Card>
-          ))}
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            User role management will be available once all team members have signed up.
-          </p>
+        <TabsContent value="users" className="mt-4 space-y-4">
+          <UsersTab />
         </TabsContent>
       </Tabs>
     </div>
