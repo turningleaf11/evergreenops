@@ -1,7 +1,9 @@
+/* === Editor Core === */
 .rich-editor .tiptap {
   outline: none;
   min-height: 200px;
-  padding: 0.75rem;
+  padding: 1rem 1.25rem;
+  line-height: 1.7;
 }
 
 .rich-editor .tiptap p.is-editor-empty:first-child::before {
@@ -12,10 +14,12 @@
   height: 0;
 }
 
-.rich-editor .tiptap h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin: 1rem 0 0.5rem; }
-.rich-editor .tiptap h2 { font-size: 1.35rem; font-weight: 600; line-height: 1.3; margin: 0.75rem 0 0.4rem; }
-.rich-editor .tiptap h3 { font-size: 1.1rem; font-weight: 600; line-height: 1.4; margin: 0.6rem 0 0.3rem; }
+/* === Headings === */
+.rich-editor .tiptap h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin: 1.25rem 0 0.5rem; }
+.rich-editor .tiptap h2 { font-size: 1.35rem; font-weight: 600; line-height: 1.3; margin: 1rem 0 0.4rem; }
+.rich-editor .tiptap h3 { font-size: 1.1rem; font-weight: 600; line-height: 1.4; margin: 0.75rem 0 0.3rem; }
 
+/* === Lists === */
 .rich-editor .tiptap ul,
 .rich-editor .tiptap ol {
   padding-left: 1.5rem;
@@ -24,6 +28,7 @@
 .rich-editor .tiptap ul { list-style-type: disc; }
 .rich-editor .tiptap ol { list-style-type: decimal; }
 
+/* === Task List === */
 .rich-editor .tiptap ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;
@@ -41,6 +46,7 @@
   opacity: 0.6;
 }
 
+/* === Blockquote === */
 .rich-editor .tiptap blockquote {
   border-left: 3px solid hsl(var(--border));
   padding-left: 1rem;
@@ -49,6 +55,7 @@
   font-style: italic;
 }
 
+/* === Code === */
 .rich-editor .tiptap pre {
   background: hsl(var(--muted));
   border-radius: 0.5rem;
@@ -67,24 +74,35 @@
   font-size: 0.85rem;
 }
 
+/* === Divider === */
 .rich-editor .tiptap hr {
   border: none;
   border-top: 1px solid hsl(var(--border));
-  margin: 1rem 0;
+  margin: 1.25rem 0;
 }
 
+/* === Links === */
 .rich-editor .tiptap a {
   color: hsl(var(--primary));
   text-decoration: underline;
   cursor: pointer;
 }
 
+/* === Highlight === */
 .rich-editor .tiptap mark {
   border-radius: 0.15rem;
   padding: 0.05rem 0.15rem;
 }
 
-/* Callout blocks using blockquote data attributes */
+/* === Image === */
+.rich-editor .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+/* === Callouts === */
 .rich-editor .tiptap .callout {
   border-left: 4px solid;
   border-radius: 0.5rem;
@@ -107,4 +125,113 @@
 .rich-editor .tiptap .callout-error {
   border-color: hsl(0 72% 51%);
   background: hsl(0 72% 51% / 0.08);
+}
+
+/* === Bubble Menu === */
+.bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  box-shadow: 0 4px 16px -2px hsl(var(--foreground) / 0.12);
+}
+
+.bubble-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
+  transition: all 0.15s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.bubble-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.bubble-btn.is-active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.bubble-separator {
+  width: 1px;
+  height: 16px;
+  background: hsl(var(--border));
+  margin: 0 2px;
+}
+
+/* === Floating Menu (+) === */
+.floating-menu {
+  display: flex;
+}
+
+.floating-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.floating-add-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.2);
+}
+
+/* === Slash Command Menu === */
+.slash-menu {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  box-shadow: 0 8px 24px -4px hsl(var(--foreground) / 0.12);
+  padding: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 220px;
+}
+
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: hsl(var(--foreground));
+  transition: background 0.1s;
+}
+.slash-menu-item:hover,
+.slash-menu-item.is-selected {
+  background: hsl(var(--muted));
+}
+
+.slash-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
 }
