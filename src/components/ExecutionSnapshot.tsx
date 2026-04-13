@@ -14,19 +14,22 @@ export function ExecutionSnapshot({ departmentId }: Props) {
   const inExecution = items.filter((i) => i.status === "in_execution" || i.status === "translated");
   const deptTranslations = translations.filter((t) => t.departmentId === departmentId);
 
-  // Pull from databases for project/task data
-  const projectDb = databases.find((db) => db.title.toLowerCase().includes("project"));
-  const taskDb = databases.find((db) => db.title.toLowerCase().includes("task"));
-  const projectRows = projectDb ? databaseRows.filter((r) => r.databaseId === projectDb.id) : [];
-  const taskRows = taskDb ? databaseRows.filter((r) => r.databaseId === taskDb.id) : [];
+  const [dbRows, setDbRows] = useState<any[]>([]);
 
-  const activeProjects = projectRows.filter((r) => r.values.status === "In Progress");
-  const activeTasks = taskRows.filter((r) => r.values.status === "In Progress" || r.values.status === "To Do");
-  const blockedItems = [...projectRows, ...taskRows].filter((r) => r.values.status === "Blocked");
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase.from("database_rows").select("id, database_id, values");
+      if (data) setDbRows(data);
+    };
+    fetch();
+  }, []);
+
+  const activeProjects = dbRows.filter((r) => r.values?.status === "In Progress");
+  const activeTasks = dbRows.filter((r) => r.values?.status === "In Progress" || r.values?.status === "To Do");
+  const blockedItems = dbRows.filter((r) => r.values?.status === "Blocked");
 
   return (
     <div className="space-y-4">
-      {/* Strategy items in execution */}
       {inExecution.length > 0 && (
         <div>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Strategy in execution</p>
@@ -51,7 +54,6 @@ export function ExecutionSnapshot({ departmentId }: Props) {
         </div>
       )}
 
-      {/* Active projects */}
       <div>
         <div className="flex items-center gap-1.5 mb-2">
           <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
@@ -71,7 +73,6 @@ export function ExecutionSnapshot({ departmentId }: Props) {
         )}
       </div>
 
-      {/* Active tasks */}
       <div>
         <div className="flex items-center gap-1.5 mb-2">
           <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -91,7 +92,6 @@ export function ExecutionSnapshot({ departmentId }: Props) {
         )}
       </div>
 
-      {/* Blockers */}
       {blockedItems.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5 mb-2">
