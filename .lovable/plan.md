@@ -1,57 +1,75 @@
 
 
-# Phase 3: Recurring Tasks + Task Templates
+# Phase 4: Custom Database Fields + Advanced Database Experience
 
 ## Summary
-Add recurring task support with automatic next-occurrence generation, and a task templates system for reusable task configurations.
+Upgrade the database engine to support more field types, inline column management (add/rename/reorder/delete columns), and add filtering, sorting, and grouping controls to database views. Also add a record detail panel so database rows can be opened and worked inside.
 
 ---
 
-## 1. Recurring Tasks
+## 1. Expanded Field Types
 
-### Database Changes
-Add columns to `tasks` table:
-- `is_recurring` boolean default false
-- `recurrence_rule` jsonb default null — stores `{ frequency: 'daily'|'weekly'|'monthly'|'custom', interval: number, days_of_week?: number[], end_date?: string, parent_recurring_id?: string }`
-- `recurring_parent_id` uuid default null — links generated occurrences back to the original template task
+Add these column types to `ColumnType` in `mock-data.ts`:
+- `long_text`, `currency`, `email`, `phone`, `status`, `tags`, `file`
 
-### How It Works
-- When creating/editing a task, user can toggle "Make recurring" and pick frequency (daily, weekly, monthly, custom interval)
-- Optional end date or "no end date"
-- When a recurring task is marked `done`, an edge function (or client-side logic) auto-generates the next occurrence with the same title, description, subtasks, tags, priority, assignee — but a new due date shifted by the recurrence interval
-- Completed recurring instances are preserved in history (queryable by `recurring_parent_id`)
-- The Execution Hub task list shows a small repeat icon on recurring tasks
+Update `DatabaseItemEditor.tsx` field renderers and `DatabaseView.tsx` cell renderers to handle all new types. Currency renders with `$` prefix + number formatting. Email/phone render as clickable links. Status works like select but with colored dot indicators. Tags renders as chips. File is a placeholder for now (text URL field).
 
-### UI Changes
-- **TaskDetailPage.tsx**: Add a "Recurrence" section in the details tab — toggle + frequency picker + end date
-- **ExecutionPage.tsx**: When updating a task status to `done`, check if recurring and auto-create next occurrence
-- Small `Repeat` icon badge on recurring tasks in list/board/table views
+## 2. Inline Column Management
+
+Add a **column manager** to `DatabaseView.tsx`:
+- "+" button at the end of the table header to add a new column (name + type picker)
+- Right-click or kebab menu on column headers: rename, change type, reorder (move left/right), delete
+- Column changes persist by updating the `columns` JSONB on the `databases_meta` row via Supabase
+
+New component: `src/components/ColumnManager.tsx` — popover for add/edit column with type selector and options editor (for select/multi_select/status).
+
+## 3. Database View Controls (Filter, Sort, Group)
+
+Add a toolbar above database views with:
+- **Filter**: pick column → operator (is, is not, contains, is empty) → value — multiple filters, AND logic
+- **Sort**: pick column + direction — multiple sort keys
+- **Group**: pick a select/status column to group rows into sections (table & list views) or lanes (kanban)
+
+New component: `src/components/DatabaseViewControls.tsx` — filter/sort/group bar with popover editors. Applied client-side on the rows array before rendering.
+
+## 4. Record Detail Panel
+
+When clicking a database row, open a **side sheet** (not just the edit dialog) with:
+- Full field display + inline editing
+- Rich text notes area (already exists as `_notes`)
+- Comments section (reuse `CommentsSection` with entity_type = 'database_row')
+- Activity feed
+
+New component: `src/components/DatabaseRecordDetail.tsx` — Sheet-based detail view. Edit `DatabaseView.tsx` to open this on row click instead of the dialog.
+
+## 5. Saved Views (Stretch)
+
+Add a `database_views` table:
+- `id`, `database_id`, `name`, `view_type` (table/kanban/list), `filters` (jsonb), `sorts` (jsonb), `group_by` (text), `column_order` (text[]), `created_by`, `created_at`
+
+Users can save current filter/sort/group/view config as a named view and switch between saved views via tabs above the database.
 
 ---
 
-## 2. Task Templates
+## Database Changes
 
-### Database Changes
-New table: `task_templates`
-- `id` uuid PK
-- `title` text
-- `description` text default ''
-- `subtasks` jsonb default '[]'
-- `tags` text[] default '{}'
-- `priority` text default 'medium'
-- `assignee_id` uuid nullable
-- `due_date_offset_days` integer nullable — e.g. "7" means due 7 days from creation
-- `recurrence_rule` jsonb nullable
-- `custom_fields` jsonb default '{}'
-- `created_by` uuid
-- `created_at`, `updated_at` timestamps
+```text
+New table: database_views
+  id uuid PK
+  database_id uuid references databases_meta(id)
+  name text
+  view_type text default 'table'
+  filters jsonb default '[]'
+  sorts jsonb default '[]'
+  group_by text default null
+  column_order text[] default '{}'
+  created_by uuid
+  created_at timestamptz default now()
 
-RLS: authenticated can SELECT/INSERT; creators and admins can UPDATE/DELETE.
+RLS: authenticated can SELECT/INSERT; creators can UPDATE/DELETE.
+```
 
-### UI Changes
-- **New component**: `TaskTemplateManager.tsx` — dialog/panel to list, create, edit, and delete templates
-- **ExecutionPage.tsx**: "New Task" dropdown gets a "From Template" option that opens a template picker; selecting one pre-fills the create-task form
-- **TaskDetailPage.tsx**: "Save as Template" button in the task header that captures the current task's config into a new template
+No changes to `databases_meta` or `database_rows` schemas — columns are already JSONB and flexible.
 
 ---
 
@@ -59,12 +77,11 @@ RLS: authenticated can SELECT/INSERT; creators and admins can UPDATE/DELETE.
 
 | What | File |
 |------|------|
-| Recurring task logic + UI | Edit: `src/pages/TaskDetailPage.tsx` |
-| Auto-create next occurrence | Edit: `src/pages/ExecutionPage.tsx` |
-| Recurring icons in views | Edit: `src/components/execution/KanbanBoard.tsx`, `TableView.tsx` |
-| Task templates component | New: `src/components/TaskTemplateManager.tsx` |
-| Template picker in create flow | Edit: `src/pages/ExecutionPage.tsx` |
-| DB migration | New migration: add recurring columns to tasks + create task_templates table |
-
-No edge function needed — the next-occurrence logic runs client-side when marking a task done.
+| Expanded ColumnType | Edit: `src/lib/mock-data.ts` |
+| New field renderers | Edit: `src/components/DatabaseItemEditor.tsx`, `src/components/DatabaseView.tsx` |
+| Column manager | New: `src/components/ColumnManager.tsx` |
+| View controls (filter/sort/group) | New: `src/components/DatabaseViewControls.tsx` |
+| Record detail panel | New: `src/components/DatabaseRecordDetail.tsx` |
+| Saved views | Edit: `src/pages/DatabasesPage.tsx` |
+| DB migration | New migration for `database_views` table |
 
