@@ -21,9 +21,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
-  User,
+  User, Repeat,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import TaskTemplateManager from "@/components/TaskTemplateManager";
 
 type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
