@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
 import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -11,11 +12,13 @@ import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
 import Callout from "@/extensions/CalloutNode";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { SlashCommands } from "@/components/SlashCommandMenu";
+import { uploadFile } from "@/lib/file-upload";
+import { Plugin } from "@tiptap/pm/state";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
   Link as LinkIcon, Palette, Plus,
@@ -39,6 +42,54 @@ const TEXT_COLORS = [
   { label: "Pink", value: "#db2777" },
 ];
 
+function createImageUploadPlugin() {
+  return new Plugin({
+    props: {
+      handlePaste(view, event) {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+              uploadFile(file).then((url) => {
+                if (url) {
+                  const { schema } = view.state;
+                  const node = schema.nodes.image.create({ src: url });
+                  const tr = view.state.tr.replaceSelectionWith(node);
+                  view.dispatch(tr);
+                }
+              });
+            }
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop(view, event) {
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+        const file = files[0];
+        if (file.type.startsWith("image/")) {
+          event.preventDefault();
+          const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          uploadFile(file).then((url) => {
+            if (url && coordinates) {
+              const { schema } = view.state;
+              const node = schema.nodes.image.create({ src: url });
+              const tr = view.state.tr.insert(coordinates.pos, node);
+              view.dispatch(tr);
+            }
+          });
+          return true;
+        }
+        return false;
+      },
+    },
+  });
+}
+
 export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const isInternalChange = useRef(false);
@@ -57,6 +108,12 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       Image.configure({ inline: false, allowBase64: true }),
       Callout,
       SlashCommands,
+      Extension.create({
+        name: "imageUpload",
+        addProseMirrorPlugins() {
+          return [createImageUploadPlugin()];
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -67,9 +124,6 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       attributes: { class: "prose prose-sm max-w-none focus:outline-none" },
     },
   });
-
-  // No useEffect for content sync — the editor owns its state.
-  // The parent should not push content back in while the user is typing.
 
   if (!editor) return null;
 

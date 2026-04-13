@@ -289,6 +289,56 @@ export type Database = {
         }
         Relationships: []
       }
+      department_pinboard: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          department_id: string
+          description: string | null
+          icon: string | null
+          id: string
+          sort_order: number | null
+          title: string
+          type: string
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          department_id: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number | null
+          title: string
+          type?: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          department_id?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_pinboard_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           color: string | null

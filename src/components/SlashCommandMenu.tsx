@@ -21,11 +21,13 @@ import {
   Minus,
   Code2,
   Image as ImageIcon,
+  Paperclip,
   Info,
   AlertTriangle,
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 
 interface CommandItem {
   title: string;
@@ -117,13 +119,32 @@ const getSuggestionItems = (): CommandItem[] => [
   },
   {
     title: "Image",
-    description: "Embed an image via URL",
+    description: "Upload an image",
     icon: <ImageIcon className="h-4 w-4" />,
     command: ({ editor, range }) => {
-      const url = window.prompt("Image URL:");
-      if (url) {
-        editor.chain().focus().deleteRange(range).setImage({ src: url }).run();
-      }
+      editor.chain().focus().deleteRange(range).run();
+      triggerFileInput("image/*", async (file) => {
+        const url = await uploadFile(file);
+        if (url) {
+          editor.chain().focus().setImage({ src: url }).run();
+        }
+      });
+    },
+  },
+  {
+    title: "File Attachment",
+    description: "Upload and attach a file",
+    icon: <Paperclip className="h-4 w-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      triggerFileInput("*", async (file) => {
+        const url = await uploadFile(file);
+        if (url) {
+          editor.chain().focus().insertContent(
+            `<p><a href="${url}" target="_blank" rel="noopener noreferrer" class="file-attachment">📎 ${file.name}</a></p>`
+          ).run();
+        }
+      });
     },
   },
   {

@@ -8,7 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import {
   FileText, Pin, Database, Target, FolderKanban, CheckSquare,
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
-  Users, Flame, Shield, CircleDot, Maximize2,
+  Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
+  LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
@@ -21,6 +22,13 @@ import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadFile, triggerFileInput } from "@/lib/file-upload";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
@@ -33,6 +41,7 @@ interface Task { id: string; title: string; status: string; priority: string; pr
 interface Issue { id: string; title: string; status: string; priority: number; }
 interface StrategyItem { id: string; title: string; type: string; status: string; description: string | null; assigned_departments: string[] | null; }
 interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
+interface PinboardItem { id: string; department_id: string; type: string; title: string; url: string | null; description: string | null; icon: string | null; sort_order: number; created_by: string | null; }
 
 function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId: string): boolean {
   if (item.visibility === "workspace" || item.visibility === "team") return true;
@@ -69,6 +78,7 @@ export default function DepartmentPage() {
   const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === id);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -91,6 +101,12 @@ export default function DepartmentPage() {
   // Doc preview sheet state
   const [docSheetOpen, setDocSheetOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ id: string; title: string; content: string | null; author_name: string | null } | null>(null);
+
+  // Pinboard state
+  const [pinboardItems, setPinboardItems] = useState<PinboardItem[]>([]);
+  const [addPinOpen, setAddPinOpen] = useState(false);
+  const [newPin, setNewPin] = useState({ type: "link", title: "", url: "", description: "" });
+  const [pinUploading, setPinUploading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -144,6 +160,10 @@ export default function DepartmentPage() {
         setActivity([]);
       }
 
+      // Fetch pinboard items
+      const { data: pins } = await supabase.from("department_pinboard").select("*").eq("department_id", id).order("sort_order", { ascending: true });
+      setPinboardItems((pins as PinboardItem[]) || []);
+
       setLoading(false);
     };
     load();
@@ -186,6 +206,69 @@ export default function DepartmentPage() {
     if (data) {
       setPreviewDoc(data);
       setDocSheetOpen(true);
+    }
+  };
+
+  // Pinboard helpers
+  const addPinboardItem = async () => {
+    if (!id || !newPin.title.trim()) return;
+    setPinUploading(true);
+    const { data, error } = await supabase.from("department_pinboard").insert({
+      department_id: id,
+      type: newPin.type,
+      title: newPin.title.trim(),
+      url: newPin.url || null,
+      description: newPin.description || "",
+      icon: newPin.type === "link" ? "Link" : newPin.type === "file" ? "Paperclip" : newPin.type === "note" ? "StickyNote" : "Image",
+      sort_order: pinboardItems.length,
+      created_by: user?.id || null,
+    } as any).select().single();
+    if (!error && data) {
+      setPinboardItems(prev => [...prev, data as PinboardItem]);
+      toast.success("Pin added");
+    }
+    setNewPin({ type: "link", title: "", url: "", description: "" });
+    setPinUploading(false);
+    setAddPinOpen(false);
+  };
+
+  const handlePinFileUpload = () => {
+    triggerFileInput("*", async (file) => {
+      setPinUploading(true);
+      const url = await uploadFile(file);
+      if (url && id) {
+        const isImage = file.type.startsWith("image/");
+        const { data, error } = await supabase.from("department_pinboard").insert({
+          department_id: id,
+          type: isImage ? "image" : "file",
+          title: file.name,
+          url,
+          description: "",
+          icon: isImage ? "Image" : "Paperclip",
+          sort_order: pinboardItems.length,
+          created_by: user?.id || null,
+        } as any).select().single();
+        if (!error && data) {
+          setPinboardItems(prev => [...prev, data as PinboardItem]);
+          toast.success("File pinned");
+        }
+      }
+      setPinUploading(false);
+    });
+  };
+
+  const deletePinboardItem = async (pinId: string) => {
+    await supabase.from("department_pinboard").delete().eq("id", pinId);
+    setPinboardItems(prev => prev.filter(p => p.id !== pinId));
+  };
+
+  const pinTypeIcon = (type: string) => {
+    switch (type) {
+      case "link": return <LinkIcon className="h-4 w-4 text-blue-500" />;
+      case "file": return <Paperclip className="h-4 w-4 text-amber-500" />;
+      case "note": return <StickyNote className="h-4 w-4 text-green-500" />;
+      case "image": return <ImageIcon className="h-4 w-4 text-purple-500" />;
+      default: return <LinkIcon className="h-4 w-4" />;
     }
   };
 
@@ -439,7 +522,65 @@ export default function DepartmentPage() {
             )}
           </section>
 
-          {/* TEAM */}
+          {/* PINBOARD */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4" /> Pinboard
+              </h2>
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handlePinFileUpload} disabled={pinUploading}>
+                  <Paperclip className="h-3 w-3 mr-1" /> Upload
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAddPinOpen(true)}>
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              </div>
+            </div>
+            {pinboardItems.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {pinboardItems.map(pin => (
+                  <Card key={pin.id} className="group hover:border-primary/40 transition-colors">
+                    <CardContent className="p-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {pinTypeIcon(pin.type)}
+                          <p className="text-sm font-medium truncate">{pin.title}</p>
+                        </div>
+                        <button
+                          onClick={() => deletePinboardItem(pin.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                      {pin.description && <p className="text-[11px] text-muted-foreground truncate">{pin.description}</p>}
+                      {(pin.type === "link" || pin.type === "file" || pin.type === "image") && pin.url && (
+                        <a
+                          href={pin.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                        >
+                          {pin.type === "file" ? <><Download className="h-3 w-3" /> Download</> : pin.type === "image" ? <><ExternalLink className="h-3 w-3" /> View</> : <><ExternalLink className="h-3 w-3" /> Open</>}
+                        </a>
+                      )}
+                      {pin.type === "image" && pin.url && (
+                        <img src={pin.url} alt={pin.title} className="w-full h-20 object-cover rounded mt-1" />
+                      )}
+                      {pin.type === "note" && (
+                        <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">{pin.description}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No pins yet — add links, files, notes, or images</CardContent></Card>
+            )}
+          </section>
+
+
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" /> Team
@@ -547,6 +688,35 @@ export default function DepartmentPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Add Pin Dialog */}
+      <Dialog open={addPinOpen} onOpenChange={setAddPinOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add to Pinboard</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={newPin.type} onValueChange={(v) => setNewPin(prev => ({ ...prev, type: v }))}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="link">🔗 Link / Button</SelectItem>
+                <SelectItem value="note">📝 Note</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input placeholder="Title" value={newPin.title} onChange={(e) => setNewPin(prev => ({ ...prev, title: e.target.value }))} className="h-8 text-sm" />
+            {newPin.type === "link" && (
+              <Input placeholder="https://..." value={newPin.url} onChange={(e) => setNewPin(prev => ({ ...prev, url: e.target.value }))} className="h-8 text-sm" />
+            )}
+            <Textarea placeholder={newPin.type === "note" ? "Note content..." : "Description (optional)"} value={newPin.description} onChange={(e) => setNewPin(prev => ({ ...prev, description: e.target.value }))} className="text-sm min-h-[60px]" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setAddPinOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={addPinboardItem} disabled={!newPin.title.trim() || pinUploading}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
