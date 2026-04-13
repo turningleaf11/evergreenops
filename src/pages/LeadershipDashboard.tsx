@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function LeadershipDashboard() {
   const { deptId } = useParams<{ deptId: string }>();
+  const { departments } = useDepartments();
   const dept = departments.find((d) => d.id === deptId);
   const [chatOpen, setChatOpen] = useState(false);
 
