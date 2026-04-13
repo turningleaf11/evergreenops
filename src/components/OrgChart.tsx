@@ -5,7 +5,6 @@ interface Profile {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
-  avatar_url: string | null;
   department_id: string | null;
   title: string | null;
   reports_to: string | null;
