@@ -10,7 +10,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the requesting user is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
@@ -23,7 +22,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Use anon client to verify the caller
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -35,7 +33,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roles } = await adminClient
       .from("user_roles")
@@ -59,43 +56,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create user via admin API (auto-confirms email for invited users)
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email: email.trim(),
-      email_confirm: true,
-      user_metadata: { full_name: full_name || "" },
-    });
+    // Use inviteUserByEmail — creates the user AND sends an invitation email
+    const { data: inviteData, error: inviteError } =
+      await adminClient.auth.admin.inviteUserByEmail(email.trim(), {
+        data: { full_name: full_name || "" },
+      });
 
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+    if (inviteError) {
+      return new Response(JSON.stringify({ error: inviteError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Update profile with department if provided
-    if (department_id && newUser.user) {
+    const newUserId = inviteData.user?.id;
+
+    // Update profile with department and name if provided
+    if (newUserId && (department_id || full_name)) {
+      const updates: Record<string, string> = {};
+      if (department_id) updates.department_id = department_id;
+      if (full_name) updates.full_name = full_name;
       await adminClient
         .from("profiles")
-        .update({ department_id, full_name: full_name || "" })
-        .eq("user_id", newUser.user.id);
+        .update(updates)
+        .eq("user_id", newUserId);
     }
 
     // If role is admin, add admin role
-    if (role === "admin" && newUser.user) {
+    if (role === "admin" && newUserId) {
       await adminClient
         .from("user_roles")
-        .insert({ user_id: newUser.user.id, role: "admin" });
+        .insert({ user_id: newUserId, role: "admin" });
     }
 
-    // Send password reset so user can set their password
-    await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email: email.trim(),
-    });
-
     return new Response(
-      JSON.stringify({ success: true, user_id: newUser.user?.id }),
+      JSON.stringify({ success: true, user_id: newUserId }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
