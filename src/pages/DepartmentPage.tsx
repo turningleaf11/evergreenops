@@ -507,6 +507,47 @@ export default function DepartmentPage() {
           <EmbeddedLeadership deptId={id!} />
         </TabsContent>
       </Tabs>
+
+      {/* Task/Project Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        type={drawerType}
+        item={drawerItem}
+        onStatusChange={handleDrawerStatusChange}
+        getName={(uid) => getName(uid) || "Unassigned"}
+      />
+
+      {/* Doc Preview Sheet */}
+      <Sheet open={docSheetOpen} onOpenChange={setDocSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-3">
+            <SheetTitle className="text-lg pr-8">{previewDoc?.title}</SheetTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => { setDocSheetOpen(false); navigate(`/docs?doc=${previewDoc?.id}`); }}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1.5" /> Open full page
+            </Button>
+          </SheetHeader>
+          <div className="mt-6">
+            {previewDoc?.author_name && (
+              <p className="text-xs text-muted-foreground mb-4">By {previewDoc.author_name}</p>
+            )}
+            {previewDoc?.content ? (
+              <RichTextEditor
+                content={previewDoc.content}
+                onChange={() => {}}
+                editable={false}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No content yet</p>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
