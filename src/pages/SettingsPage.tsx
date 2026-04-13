@@ -471,6 +471,7 @@ function UsersTab() {
                     <SelectItem value="admin" className="text-xs">Admin</SelectItem>
                   </SelectContent>
                 </Select>
+                )}
               </div>
             </CardContent>
           </Card>
