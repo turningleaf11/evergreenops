@@ -7,7 +7,7 @@ import { TopPriorities } from "@/components/TopPriorities";
 import { DecisionLog } from "@/components/DecisionLog";
 import { StrategicTensions } from "@/components/StrategicTensions";
 import { MorningReset } from "@/components/MorningReset";
-import { CeoAiChat } from "@/components/CeoAiChat";
+
 import { StrategyItemCreator } from "@/components/StrategyItemCreator";
 import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +34,7 @@ const sectionMeta: Record<string, { label: string; icon: React.ElementType; desc
 export default function CeoDashboard() {
   const { data, update } = useCEOContext();
   const { user, isAdmin } = useAuth();
-  const [chatOpen, setChatOpen] = useState(false);
+  
   const [editingObjective, setEditingObjective] = useState(false);
   const [objectiveDraft, setObjectiveDraft] = useState(data.currentObjective);
   const [morningOpen, setMorningOpen] = useState(true);
@@ -96,13 +96,6 @@ export default function CeoDashboard() {
             <h1 className="text-2xl font-semibold text-foreground tracking-tight">Strategy Command Center</h1>
             <p className="text-sm text-muted-foreground mt-1">Evergreen Real Estate Ventures</p>
           </div>
-          <button
-            onClick={() => setChatOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 hover:bg-primary/10 text-primary text-sm font-medium transition-colors"
-          >
-            <Bot className="h-4 w-4" />
-            Strategy AI
-          </button>
         </div>
       </div>
 
@@ -273,8 +266,6 @@ export default function CeoDashboard() {
         </div>
       </div>
 
-      {/* AI Chat Sidebar */}
-      <CeoAiChat open={chatOpen} onOpenChange={setChatOpen} />
     </div>
   );
 }
