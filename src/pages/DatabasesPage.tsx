@@ -115,6 +115,8 @@ export default function DatabasesPage() {
           onAdd={isAdmin ? handleAddRow : undefined}
           onEdit={isAdmin ? handleEditRow : undefined}
           onDelete={isAdmin ? (id) => setAllRows(prev => prev.filter(r => r.id !== id)) : undefined}
+          allDatabases={allDatabases}
+          allRows={allRows}
         />
 
         {currentDb && (
@@ -125,6 +127,8 @@ export default function DatabasesPage() {
             onClose={() => setEditorOpen(false)}
             onSave={handleSaveRow}
             onDelete={isAdmin && editingRow ? handleDeleteRow : undefined}
+            allDatabases={allDatabases}
+            allRows={allRows}
           />
         )}
       </div>
