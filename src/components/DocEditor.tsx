@@ -96,11 +96,6 @@ export default function DocEditor({ open, onClose, onSave, doc, allDocs }: DocEd
           />
         </div>
         <DialogFooter className="gap-2">
-          {onDelete && (
-            <Button variant="destructive" size="sm" onClick={onDelete} className="mr-auto">
-              Delete
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={!title.trim()}>Save</Button>
         </DialogFooter>
