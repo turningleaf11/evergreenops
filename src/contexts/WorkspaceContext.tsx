@@ -7,12 +7,14 @@ interface WorkspaceState {
   name: string;
   description: string;
   logoUrl: string | null;
+  accentColor: string | null; // HSL hue, e.g. "220"
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
   setName: (name: string) => void;
   setDescription: (desc: string) => void;
   setLogoUrl: (url: string | null) => void;
+  setAccentColor: (hue: string | null) => void;
   loading: boolean;
 }
 
