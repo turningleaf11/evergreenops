@@ -5,14 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
+import { Pin, FileText, ArrowRight } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
-
-const iconMap: Record<string, React.ElementType> = {
-  Code2, Palette, Lightbulb, Megaphone, Settings,
-};
+import { getDeptIcon } from "@/lib/icon-map";
 
 const Index = () => {
   const { departments } = useDepartments();
@@ -71,7 +68,7 @@ const Index = () => {
         <h2 className="text-lg font-semibold mb-3">Departments</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {visibleDepartments.map((dept) => {
-            const Icon = iconMap[dept.icon] || Building2;
+            const Icon = getDeptIcon(dept.icon);
             return (
               <Link key={dept.id} to={`/department/${dept.id}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">

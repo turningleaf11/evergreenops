@@ -707,30 +707,59 @@ const ACCENT_PRESETS = [
 function AccentColorPicker() {
   const { accentColor, setAccentColor } = useWorkspace();
   const activeHue = accentColor || "220";
+  const [customHue, setCustomHue] = useState(
+    ACCENT_PRESETS.some(p => p.hue === activeHue) ? "" : activeHue
+  );
+
+  const handleCustomHue = (val: string) => {
+    setCustomHue(val);
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0 && num <= 360) {
+      setAccentColor(String(num));
+    }
+  };
 
   return (
-    <div className="flex flex-wrap gap-3">
-      {ACCENT_PRESETS.map((preset) => (
-        <button
-          key={preset.hue}
-          onClick={() => setAccentColor(preset.hue === "220" ? null : preset.hue)}
-          className="group relative flex flex-col items-center gap-1.5"
-          title={preset.label}
-        >
-          <div
-            className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
-            style={{
-              backgroundColor: preset.color,
-              ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
-            }}
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        {ACCENT_PRESETS.map((preset) => (
+          <button
+            key={preset.hue}
+            onClick={() => { setAccentColor(preset.hue === "220" ? null : preset.hue); setCustomHue(""); }}
+            className="group relative flex flex-col items-center gap-1.5"
+            title={preset.label}
           >
-            {activeHue === preset.hue && (
-              <Check className="h-4 w-4 text-white" />
-            )}
-          </div>
-          <span className="text-[10px] text-muted-foreground">{preset.label}</span>
-        </button>
-      ))}
+            <div
+              className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+              style={{
+                backgroundColor: preset.color,
+                ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
+              }}
+            >
+              {activeHue === preset.hue && (
+                <Check className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground">{preset.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <div
+          className="h-8 w-8 rounded-full shrink-0 border"
+          style={{ backgroundColor: `hsl(${customHue || activeHue}, 65%, 48%)` }}
+        />
+        <Input
+          value={customHue}
+          onChange={(e) => handleCustomHue(e.target.value)}
+          placeholder="Custom hue (0-360)"
+          className="h-8 text-sm w-40"
+          type="number"
+          min={0}
+          max={360}
+        />
+        <span className="text-xs text-muted-foreground">HSL hue value</span>
+      </div>
     </div>
   );
 }
