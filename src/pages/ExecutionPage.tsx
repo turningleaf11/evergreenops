@@ -51,6 +51,7 @@ type Issue = {
   root_cause: string; discussion_notes: string; resolution: string;
   resolved_action_type: string; resolved_action_id: string | null;
   created_at: string; updated_at: string;
+  category: string; assigned_to: string | null; tags: string[];
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -170,7 +171,10 @@ export default function ExecutionPage() {
   const [newIssueDesc, setNewIssueDesc] = useState("");
   const [newIssuePriority, setNewIssuePriority] = useState("2");
   const [newIssueDept, setNewIssueDept] = useState("");
+  const [newIssueCategory, setNewIssueCategory] = useState("general");
+  const [newIssueAssignee, setNewIssueAssignee] = useState("");
   const [issueViewTab, setIssueViewTab] = useState("open");
+  const [issueCategoryFilter, setIssueCategoryFilter] = useState("all");
 
   // View states for projects and tasks tabs
   const pv = useViewState();
@@ -314,9 +318,10 @@ export default function ExecutionPage() {
     const { error } = await supabase.from("issues").insert({
       title: newIssueTitle, description: newIssueDesc, priority: parseInt(newIssuePriority),
       raised_by: user?.id, department_id: newIssueDept || null,
+      category: newIssueCategory, assigned_to: newIssueAssignee || null,
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); fetchAll(); }
+    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); setNewIssueCategory("general"); setNewIssueAssignee(""); fetchAll(); }
   };
 
   const updateIssue = async (id: string, updates: Partial<Issue>) => {
@@ -355,8 +360,9 @@ export default function ExecutionPage() {
     toast({ title: "Issue dismissed" });
   };
 
-  const openIssues = issues.filter(i => !["solved", "dismissed"].includes(i.status));
-  const resolvedIssues = issues.filter(i => ["solved", "dismissed"].includes(i.status));
+  const filteredIssues = issueCategoryFilter === "all" ? issues : issues.filter(i => i.category === issueCategoryFilter);
+  const openIssues = filteredIssues.filter(i => !["solved", "dismissed"].includes(i.status));
+  const resolvedIssues = filteredIssues.filter(i => ["solved", "dismissed"].includes(i.status));
 
   const StatusBadge = ({ status }: { status: string }) => {
     const cfg = statusConfig[status] || { label: status, color: "bg-muted text-muted-foreground", icon: Circle };
