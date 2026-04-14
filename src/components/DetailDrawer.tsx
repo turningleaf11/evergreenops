@@ -183,14 +183,6 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   const detailPath = type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`;
   const goFullPage = () => { onOpenChange(false); navigate(detailPath); };
 
-  // Handle full page mode — navigate immediately when opened
-  useEffect(() => {
-    if (open && peekMode === "full" && item) {
-      onOpenChange(false);
-      navigate(type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`);
-    }
-  }, [open, peekMode, item]);
-
   if (peekMode === "center") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
