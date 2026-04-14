@@ -1,25 +1,37 @@
 
 
-# Clean Up Strategy Tab — Collapse Vision into Accordion
+# Scratch Pad + Command Tab Cleanup
 
-## What changes
+## 1. Convert Scratch Pad to Rich Text with Slash Commands
 
-The Strategy tab currently has Vision taking up 6+ full cards at the top, pushing the active strategy tools (Strategy Creator, Review Feed, Decision Log) way down. We'll fix this by:
+Replace the plain `<textarea>` in `ScratchPad.tsx` with the same TipTap `RichTextEditor` used in docs/tasks/projects. This gives you `/` slash commands (headings, lists, checklists, callouts, tables, image upload, etc.) out of the box.
 
-1. **Collapse all Vision sections into a single accordion** — one compact `<Accordion>` component with each vision section (Core Values, 10-Year Target, etc.) as a collapsible item. Closed by default. This shrinks Vision from ~6 full cards to a single row.
+- The content will be stored as HTML (same as docs) in the `ceo_scratch_pad.content` column (already text, no migration needed)
+- Image paste/drop still works (TipTap already handles this via the slash command image upload)
+- The `onProcess` callback will send the editor's text content + any embedded image URLs to the AI triage function
 
-2. **Reorder the Strategy tab** — Put the action-oriented tools first:
-   - Strategy Creator (top)
-   - Leadership Review Feed
-   - Decision Log
-   - Vision accordion (bottom — reference material, not daily-use)
-   - Quarterly Rocks (stays inside the Vision accordion as the last item)
+## 2. Better Triage Feedback — Show Where Items Go
+
+When approving a triage item, instead of just a generic toast, show a toast with:
+- The destination name (e.g. "Task created in Execution", "Idea added to Strategy Items", "Decision logged")
+- A clickable link in the toast that navigates to the relevant page (Execution page for tasks, Strategy tab for ideas/decisions)
+
+This way you always know where your stuff went.
+
+## 3. Move Morning Reset Under Top Priorities
+
+In the Command tab, instead of the current layout (2-column grid for Briefing + Priorities, then Morning Reset below), move Morning Reset to sit directly beneath Top Priorities within the same column. The layout becomes:
+
+| Left Column | Right Column |
+|-------------|-------------|
+| CEO Briefing | Top Priorities |
+| | Morning Reset (below priorities) |
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/pages/CeoDashboard.tsx` — Replace the Vision card-per-section layout with a single Accordion component, reorder sections so Strategy Creator / Review Feed / Decision Log come first, Vision accordion sits at the bottom |
-
-No new components, no database changes, no edge function changes. Pure layout restructure within the Strategy `TabsContent`.
+| Edit | `src/components/ScratchPad.tsx` — Replace textarea with TipTap RichTextEditor, extract text+images for AI processing |
+| Edit | `src/components/AiTriage.tsx` — Add destination labels and navigation links to approval toasts |
+| Edit | `src/pages/CeoDashboard.tsx` — Move MorningReset under TopPriorities in the right column of Command tab |
 
