@@ -1,44 +1,58 @@
 
 
-# Fix Settings Persistence + User Management + Center Peek Mode
+# CEO Brain Dump + Delegation Dashboard
 
-## Issue 1: Settings not saving
+## The idea
 
-**Root cause**: There is no row in the `workspaces` table. The fetch returns null, so `state.id` stays null, and `saveToDb` skips with `if (!s.id) return`. Nothing ever gets written.
+Add two new sections to the Strategy Command Center page:
 
-**Fix**:
-- Add a migration that seeds a default workspace row
-- Update `WorkspaceContext` to auto-create a workspace row if none exists (upsert on first save)
-- Remove the `as any` casts since types now include `accent_color`
-- Upload logo to the `files` storage bucket instead of storing base64 data URLs in the DB column (data URLs can be too large for text columns and won't persist reliably)
+1. **Scratch Pad** — A persistent, always-visible text area at the top of the strategy page where you jot anything: broken things, ideas, tasks, personal reminders, next projects. Like your physical notebook but digital. It auto-saves as you type. No structure required — just dump.
 
-## Issue 2: Edit/delete users in Settings > Users & Roles
+2. **"Process This" button** — When you're ready, hit the button. The AI reads your scratch pad, cross-references your current priorities/projects/team, and produces a **triage list**: each item extracted as a card categorized as Task, Decision, Idea, or Delegation. You review each card one by one — approve (creates the item in the system with assignee), edit, or dismiss. Nothing gets created until you confirm.
 
-Currently users can only change role and department. Add:
-- **Edit**: Inline editing of user name, clicking opens an edit mode or small popover
-- **Delete**: A delete button (with confirmation) that removes the user's profile and role entries. Cannot delete the primary admin. Will call a backend function to delete from `auth.users` (requires service role key via edge function)
-- Create an `admin-delete-user` edge function that uses the service role key to delete from auth
+3. **Delegation Board** — A new collapsible section showing everything you've delegated, with a toggle between **By Person** (see each team member and their plate) and **By Status** (waiting, in progress, done, stuck). This pulls from existing tasks/projects where you're the creator but someone else is assigned.
 
-## Issue 3: Center peek (modal) option for detail view
+## How it works
 
-The uploaded image shows Notion-style open modes: Side peek, Center peek, Full page, New tab. Currently `DetailDrawer` only does side peek (Sheet). Add:
-- A `viewMode` preference: `"side"` | `"center"` | `"full"`
-- **Side peek**: Current Sheet behavior (default)
-- **Center peek**: Opens as a Dialog (centered modal overlay) with the same content
-- **Full page**: Navigates to the full page route (existing behavior via the button)
-- Add a small dropdown/popover in the drawer header to switch between modes, similar to the Notion UI in the screenshot
-- Store preference in localStorage so it persists
-- Refactor `DetailDrawer` to render either a `Sheet` or `Dialog` based on the mode
+### Scratch Pad
+- New `ceo_scratch_pad` table: `id`, `user_id`, `content` (text), `updated_at`
+- Auto-saves on debounce (1.5s after typing stops)
+- Renders as a large, minimal textarea with a notebook-like feel — no borders, just lines
+- Persists between sessions
 
-## Files changed
+### Process This (AI Triage)
+- New edge function `ceo-triage` that:
+  - Takes the scratch pad text + current team roster + existing tasks/projects
+  - Uses tool calling to return structured output: array of `{ text, category, suggested_assignee_id, suggested_priority, reasoning }`
+- Frontend shows results as a scrollable list of cards, each with:
+  - Category badge (Task / Decision / Idea / Delegation)
+  - The extracted item text
+  - Suggested assignee (dropdown to change)
+  - Approve button → creates the task/decision in the system
+  - Dismiss button → removes the card
+- After processing, the scratch pad content stays (you can clear it manually)
+
+### Delegation Board
+- No new tables — queries existing `tasks` and `projects` where `created_by = current user` and `assigned_to != current user`
+- **By Person view**: Groups items under each team member's name/avatar with count
+- **By Status view**: Groups by status (todo, in_progress, done, blocked)
+- Toggle switch at the top to flip between views
+- Each item shows title, status badge, due date, priority dot
+
+## Database
+- **Migration**: Create `ceo_scratch_pad` table with RLS (admin-only read/write)
+
+## Files
 
 | Action | File |
 |--------|------|
-| Migration | Seed default workspace row |
-| Edit | `src/contexts/WorkspaceContext.tsx` — auto-create workspace if missing, upload logo to storage |
-| Edit | `src/pages/SettingsPage.tsx` — add edit/delete user actions, upload logo to storage bucket |
-| New | `supabase/functions/admin-delete-user/index.ts` — delete user via service role |
-| Edit | `src/components/DetailDrawer.tsx` — support side peek, center peek, full page modes with mode switcher |
-| Edit | `src/pages/ExecutionPage.tsx` — pass view mode state to DetailDrawer |
-| Edit | `src/pages/DepartmentPage.tsx` — pass view mode state to DetailDrawer |
+| Migration | Create `ceo_scratch_pad` table |
+| New | `src/components/ScratchPad.tsx` — auto-saving textarea |
+| New | `src/components/AiTriage.tsx` — triage results UI with approve/dismiss cards |
+| New | `src/components/DelegationBoard.tsx` — by-person / by-status toggle view |
+| New | `supabase/functions/ceo-triage/index.ts` — AI processing edge function |
+| Edit | `src/pages/CeoDashboard.tsx` — add Scratch Pad, Process button, and Delegation Board sections |
+
+## Start simple
+This is V1. We keep the scratch pad as plain text (not structured). The AI triage is a one-shot process (not continuous). The delegation board is read-only. We can layer on more later: recurring auto-triage, drag-to-assign, follow-up reminders, etc.
 
