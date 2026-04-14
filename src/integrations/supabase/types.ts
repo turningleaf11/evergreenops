@@ -630,6 +630,7 @@ export type Database = {
           content: string | null
           converted_doc_id: string | null
           created_at: string
+          folder: string | null
           id: string
           title: string
           updated_at: string
@@ -639,6 +640,7 @@ export type Database = {
           content?: string | null
           converted_doc_id?: string | null
           created_at?: string
+          folder?: string | null
           id?: string
           title?: string
           updated_at?: string
@@ -648,6 +650,7 @@ export type Database = {
           content?: string | null
           converted_doc_id?: string | null
           created_at?: string
+          folder?: string | null
           id?: string
           title?: string
           updated_at?: string

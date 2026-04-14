@@ -1,0 +1,1 @@
+ALTER TABLE public.notes ADD COLUMN folder text DEFAULT NULL;

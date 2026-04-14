@@ -1001,7 +1001,7 @@ export default function ExecutionPage() {
   );
 }
 
-// Unified create dialog
+// Unified create dialog — de-formed style
 function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projects, departments, profiles }: {
   title: string; open: boolean; onOpenChange: (o: boolean) => void;
   onSubmit: (data: any) => void; type: "goal" | "project" | "task";
@@ -1010,6 +1010,8 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
   profiles: { user_id: string; full_name: string | null }[];
 }) {
   const [form, setForm] = useState<Record<string, string>>({});
+  const [showDesc, setShowDesc] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSubmit = () => {
     if (!form.title?.trim()) { toast({ title: "Title required", variant: "destructive" }); return; }
@@ -1019,7 +1021,11 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
       quarter: form.quarter || currentQuarter(),
     });
     setForm({});
+    setShowDesc(false);
+    setShowAdvanced(false);
   };
+
+  const quarters = ["Q1", "Q2", "Q3", "Q4"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1028,93 +1034,110 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Title</Label>
-            <Input value={form.title || ""} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={form.description || ""} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} />
-          </div>
-          {type === "goal" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Quarter</Label>
-                <Select value={form.quarter || currentQuarter()} onValueChange={v => setForm(p => ({ ...p, quarter: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Q1","Q2","Q3","Q4"].map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Year</Label>
-                <Input type="number" value={form.year || currentYear()} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} />
-              </div>
-            </div>
+        <div className="space-y-3">
+          <Input
+            value={form.title || ""}
+            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+            placeholder={`${type.charAt(0).toUpperCase() + type.slice(1)} name...`}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+            autoFocus
+          />
+
+          {!showDesc ? (
+            <button onClick={() => setShowDesc(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              + Add description
+            </button>
+          ) : (
+            <Textarea
+              value={form.description || ""}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="Description..."
+              rows={2}
+              className="text-sm"
+            />
           )}
+
           {type === "goal" && (
             <>
-              <div>
-                <Label>Measurable Target</Label>
-                <Input value={form.measurable_target || ""} onChange={e => setForm(p => ({ ...p, measurable_target: e.target.value }))} placeholder="e.g. Increase revenue by 20%" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Quarter</span>
+                <div className="flex gap-1">
+                  {quarters.map(q => (
+                    <button
+                      key={q}
+                      onClick={() => setForm(p => ({ ...p, quarter: q }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        (form.quarter || currentQuarter()) === q
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-accent"
+                      }`}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  type="number"
+                  value={form.year || currentYear()}
+                  onChange={e => setForm(p => ({ ...p, year: e.target.value }))}
+                  className="w-20 h-8 text-xs"
+                />
               </div>
-              <div>
-                <Label>Deadline</Label>
-                <Input type="date" value={form.deadline || ""} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Alignment Notes</Label>
-                <Textarea value={form.alignment_notes || ""} onChange={e => setForm(p => ({ ...p, alignment_notes: e.target.value }))} rows={2} placeholder="How does this align with company strategy?" />
-              </div>
+
+              {!showAdvanced ? (
+                <button onClick={() => setShowAdvanced(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  + Target, deadline & alignment
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <Input value={form.measurable_target || ""} onChange={e => setForm(p => ({ ...p, measurable_target: e.target.value }))} placeholder="Measurable target, e.g. Increase revenue by 20%" className="text-sm" />
+                  <Input type="date" value={form.deadline || ""} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} className="text-sm" />
+                  <Textarea value={form.alignment_notes || ""} onChange={e => setForm(p => ({ ...p, alignment_notes: e.target.value }))} rows={2} placeholder="How does this align with company strategy?" className="text-sm" />
+                </div>
+              )}
             </>
           )}
-          {type === "project" && (
-            <div>
-              <Label>Link to Goal</Label>
-              <Select value={form.goal_id || ""} onValueChange={v => setForm(p => ({ ...p, goal_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
-                <SelectContent>
-                  {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+
+          {type === "project" && goals.length > 0 && (
+            <Select value={form.goal_id || ""} onValueChange={v => setForm(p => ({ ...p, goal_id: v }))}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="+ Link to goal" /></SelectTrigger>
+              <SelectContent>
+                {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
+              </SelectContent>
+            </Select>
           )}
+
           {type === "task" && (
-            <>
-              <div>
-                <Label>Link to Project</Label>
+            <div className="flex gap-2">
+              {projects.length > 0 && (
                 <Select value={form.project_id || ""} onValueChange={v => setForm(p => ({ ...p, project_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Project" /></SelectTrigger>
                   <SelectContent>
                     {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label>Assign To</Label>
-                <Select value={form.assigned_to || ""} onValueChange={v => setForm(p => ({ ...p, assigned_to: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select person" /></SelectTrigger>
-                  <SelectContent>
-                    {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-          {(type === "goal" || type === "project") && departments.length > 0 && (
-            <div>
-              <Label>Department</Label>
-              <Select value={form.department_id || ""} onValueChange={v => setForm(p => ({ ...p, department_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+              )}
+              <Select value={form.assigned_to || ""} onValueChange={v => setForm(p => ({ ...p, assigned_to: v }))}>
+                <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Assign" /></SelectTrigger>
                 <SelectContent>
-                  {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           )}
-          <Button onClick={handleSubmit} className="w-full">Create</Button>
+
+          {(type === "goal" || type === "project") && departments.length > 0 && (
+            <Select value={form.department_id || ""} onValueChange={v => setForm(p => ({ ...p, department_id: v }))}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="+ Department" /></SelectTrigger>
+              <SelectContent>
+                {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <Button onClick={handleSubmit} size="sm">Create</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
