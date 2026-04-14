@@ -7,7 +7,7 @@ interface WorkspaceState {
   name: string;
   description: string;
   logoUrl: string | null;
-  accentColor: string | null; // HSL hue, e.g. "220"
+  accentColor: string | null;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
@@ -20,6 +20,21 @@ interface WorkspaceContextValue extends WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
+function applyAccentHue(hue: string) {
+  const root = document.documentElement;
+  const isDark = root.classList.contains("dark");
+  const h = hue;
+
+  root.style.setProperty("--primary", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--primary-foreground", "0 0% 100%");
+  root.style.setProperty("--ring", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--sidebar-primary", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
+  root.style.setProperty("--sidebar-ring", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--sidebar-accent", `${h} 14% ${isDark ? "12" : "92"}%`);
+  root.style.setProperty("--sidebar-accent-foreground", `${h} 15% ${isDark ? "80" : "15"}%`);
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, isAdmin } = useAuth();
   const [state, setState] = useState<WorkspaceState>({
@@ -27,6 +42,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     name: "TeamSpace",
     description: "Your team's collaborative workspace",
     logoUrl: null,
+    accentColor: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -47,12 +63,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           name: data.name,
           description: data.description || "",
           logoUrl: data.logo_url,
+          accentColor: (data as any).accent_color || null,
         });
       }
       setLoading(false);
     };
     fetchWorkspace();
   }, [user]);
+
+  // Apply accent color whenever it changes
+  useEffect(() => {
+    const hue = state.accentColor || "220";
+    applyAccentHue(hue);
+  }, [state.accentColor]);
 
   const persist = useCallback(async (partial: Partial<WorkspaceState>) => {
     setState((prev) => ({ ...prev, ...partial }));
@@ -66,7 +89,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!s.id || !isAdmin) return;
     await supabase
       .from("workspaces")
-      .update({ name: s.name, description: s.description, logo_url: s.logoUrl })
+      .update({
+        name: s.name,
+        description: s.description,
+        logo_url: s.logoUrl,
+        accent_color: s.accentColor,
+      } as any)
       .eq("id", s.id);
   }, [isAdmin]);
 
@@ -88,6 +116,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setName: (name) => persist({ name }),
         setDescription: (description) => persist({ description }),
         setLogoUrl: (logoUrl) => persist({ logoUrl }),
+        setAccentColor: (accentColor) => persist({ accentColor }),
       }}
     >
       {children}
