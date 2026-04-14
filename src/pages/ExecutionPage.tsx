@@ -898,8 +898,14 @@ export default function ExecutionPage() {
                 </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs capitalize">{(selectedIssue.category || "general").replace("_", " ")}</Badge>
+                <Badge className={`text-xs ${priorityLabels[selectedIssue.priority]?.color}`}>{priorityLabels[selectedIssue.priority]?.label}</Badge>
+                {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
+                <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
+              </div>
 
-              <div className="space-y-4 mt-4">
+              <div className="space-y-4 mt-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Search className="h-4 w-4 text-primary" />
