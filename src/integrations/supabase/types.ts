@@ -380,6 +380,7 @@ export type Database = {
           created_at: string
           id: string
           parent_id: string | null
+          project_id: string | null
           shared_with: Json | null
           tags: string[] | null
           title: string
@@ -393,6 +394,7 @@ export type Database = {
           created_at?: string
           id?: string
           parent_id?: string | null
+          project_id?: string | null
           shared_with?: Json | null
           tags?: string[] | null
           title: string
@@ -406,6 +408,7 @@ export type Database = {
           created_at?: string
           id?: string
           parent_id?: string | null
+          project_id?: string | null
           shared_with?: Json | null
           tags?: string[] | null
           title?: string
@@ -418,6 +421,13 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -452,13 +462,47 @@ export type Database = {
         }
         Relationships: []
       }
-      goals: {
+      entity_links: {
         Row: {
           created_at: string
           created_by: string | null
+          id: string
+          source_id: string
+          source_type: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          source_id: string
+          source_type: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          source_id?: string
+          source_type?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          alignment_notes: string | null
+          created_at: string
+          created_by: string | null
+          deadline: string | null
           department_id: string | null
           description: string | null
           id: string
+          key_results: Json | null
+          measurable_target: string | null
           owner_id: string | null
           progress: number
           quarter: string
@@ -468,11 +512,15 @@ export type Database = {
           year: number
         }
         Insert: {
+          alignment_notes?: string | null
           created_at?: string
           created_by?: string | null
+          deadline?: string | null
           department_id?: string | null
           description?: string | null
           id?: string
+          key_results?: Json | null
+          measurable_target?: string | null
           owner_id?: string | null
           progress?: number
           quarter?: string
@@ -482,11 +530,15 @@ export type Database = {
           year?: number
         }
         Update: {
+          alignment_notes?: string | null
           created_at?: string
           created_by?: string | null
+          deadline?: string | null
           department_id?: string | null
           description?: string | null
           id?: string
+          key_results?: Json | null
+          measurable_target?: string | null
           owner_id?: string | null
           progress?: number
           quarter?: string
@@ -560,6 +612,44 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          content: string | null
+          converted_doc_id: string | null
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          converted_doc_id?: string | null
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          converted_doc_id?: string | null
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_converted_doc_id_fkey"
+            columns: ["converted_doc_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -710,6 +800,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reminders: {
+        Row: {
+          assigned_to: string | null
+          completed: boolean
+          created_at: string
+          description: string | null
+          due_at: string | null
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       strategy_items: {
         Row: {
