@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useCEOContext } from "@/lib/ceo-context";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CeoBriefing } from "@/components/CeoBriefing";
