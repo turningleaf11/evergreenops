@@ -26,6 +26,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  TableIcon,
+  ChevronRight,
 } from "lucide-react";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 
@@ -115,6 +117,24 @@ const getSuggestionItems = (): CommandItem[] => [
     icon: <Minus className="h-4 w-4" />,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+    },
+  },
+  {
+    title: "Table",
+    description: "Insert a simple table",
+    icon: <TableIcon className="h-4 w-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    },
+  },
+  {
+    title: "Toggle List",
+    description: "Collapsible content block",
+    icon: <ChevronRight className="h-4 w-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertContent(
+        `<details><summary>Toggle heading</summary><p>Hidden content</p></details>`
+      ).run();
     },
   },
   {

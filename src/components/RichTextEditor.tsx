@@ -11,6 +11,10 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import Callout from "@/extensions/CalloutNode";
 import { useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -106,6 +110,10 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder }),
       Image.configure({ inline: false, allowBase64: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
       Callout,
       SlashCommands,
       Extension.create({
