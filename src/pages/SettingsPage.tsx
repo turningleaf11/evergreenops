@@ -19,6 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
+  Pencil, X,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -48,19 +49,19 @@ export default function SettingsPage() {
     );
   }
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
       toast({ title: "File too large", description: "Logo must be under 2MB.", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      workspace.setLogoUrl(reader.result as string);
+    const url = await workspace.uploadLogo(file);
+    if (url) {
       toast({ title: "Logo updated" });
-    };
-    reader.readAsDataURL(file);
+    } else {
+      toast({ title: "Upload failed", variant: "destructive" });
+    }
   };
 
   const handleAddDepartment = () => {
@@ -307,6 +308,10 @@ function UsersTab() {
   const [inviteDept, setInviteDept] = useState("");
   const [inviteRole, setInviteRole] = useState<AppRole>("user");
   const [inviting, setInviting] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -385,6 +390,31 @@ function UsersTab() {
     setInviting(false);
   };
 
+  const handleSaveName = async (userId: string) => {
+    if (!editName.trim()) return;
+    await supabase.from("profiles").update({ full_name: editName.trim() }).eq("user_id", userId);
+    setEditingUserId(null);
+    fetchUsers();
+    toast({ title: "Name updated" });
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "User deleted" });
+      setDeleteConfirmId(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+    setDeleting(false);
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>;
 
   return (
@@ -439,13 +469,14 @@ function UsersTab() {
         </Dialog>
       </div>
 
-      {users.map((user) => {
-        const currentRole: AppRole = user.roles.includes("admin") ? "admin" : "user";
-        const initials = (user.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
-        const deptName = departments.find((d) => d.id === user.department_id)?.name;
+      {users.map((u) => {
+        const currentRole: AppRole = u.roles.includes("admin") ? "admin" : "user";
+        const initials = (u.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
+        const deptName = departments.find((d) => d.id === u.department_id)?.name;
+        const isEditing = editingUserId === u.user_id;
 
         return (
-          <Card key={user.user_id}>
+          <Card key={u.user_id} className="group">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-9 w-9 shrink-0">
@@ -454,12 +485,25 @@ function UsersTab() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{user.full_name || "Unnamed"}</p>
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-sm w-40" autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(u.user_id); if (e.key === "Escape") setEditingUserId(null); }} />
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleSaveName(u.user_id)}><Check className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingUserId(null)}><X className="h-3 w-3" /></Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">{u.full_name || "Unnamed"}</p>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => { setEditingUserId(u.user_id); setEditName(u.full_name || ""); }}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground truncate">{deptName || "No department"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Select value={user.department_id || ""} onValueChange={(v) => handleDeptChange(user.user_id, v)}>
+                <Select value={u.department_id || ""} onValueChange={(v) => handleDeptChange(u.user_id, v)}>
                   <SelectTrigger className="w-36 h-8 text-xs">
                     <SelectValue placeholder="Department" />
                   </SelectTrigger>
@@ -469,20 +513,34 @@ function UsersTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                {user.is_primary ? (
+                {u.is_primary ? (
                   <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
                     <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
                   </Badge>
                 ) : (
-                <Select value={currentRole} onValueChange={(v) => handleRoleChange(user.user_id, v as AppRole)}>
-                  <SelectTrigger className="w-24 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user" className="text-xs">User</SelectItem>
-                    <SelectItem value="admin" className="text-xs">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <>
+                    <Select value={currentRole} onValueChange={(v) => handleRoleChange(u.user_id, v as AppRole)}>
+                      <SelectTrigger className="w-24 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user" className="text-xs">User</SelectItem>
+                        <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {deleteConfirmId === u.user_id ? (
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={deleting} onClick={() => handleDeleteUser(u.user_id)}>
+                          {deleting ? "..." : "Confirm"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirmId(u.user_id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>

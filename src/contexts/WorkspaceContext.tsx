@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { uploadFile } from "@/lib/file-upload";
 
 interface WorkspaceState {
   id: string | null;
@@ -15,6 +16,7 @@ interface WorkspaceContextValue extends WorkspaceState {
   setDescription: (desc: string) => void;
   setLogoUrl: (url: string | null) => void;
   setAccentColor: (hue: string | null) => void;
+  uploadLogo: (file: File) => Promise<string | null>;
   loading: boolean;
 }
 
@@ -63,7 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           name: data.name,
           description: data.description || "",
           logoUrl: data.logo_url,
-          accentColor: (data as any).accent_color || null,
+          accentColor: data.accent_color || null,
         });
       }
       setLoading(false);
@@ -81,6 +83,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, ...partial }));
   }, []);
 
+  const uploadLogo = useCallback(async (file: File): Promise<string | null> => {
+    const url = await uploadFile(file);
+    if (url) {
+      setState((prev) => ({ ...prev, logoUrl: url }));
+    }
+    return url;
+  }, []);
+
   // Persist to DB whenever state changes (debounced effect)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -94,7 +104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         description: s.description,
         logo_url: s.logoUrl,
         accent_color: s.accentColor,
-      } as any)
+      })
       .eq("id", s.id);
   }, [isAdmin]);
 
@@ -117,6 +127,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setDescription: (description) => persist({ description }),
         setLogoUrl: (logoUrl) => persist({ logoUrl }),
         setAccentColor: (accentColor) => persist({ accentColor }),
+        uploadLogo,
       }}
     >
       {children}
