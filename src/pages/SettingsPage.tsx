@@ -19,11 +19,14 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X,
+  Pencil, X, Sun, Moon, Monitor,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useTheme } from "@/contexts/ThemeContext";
+import { DEPARTMENT_ICONS, getDeptIcon } from "@/lib/icon-map";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "video", "link"];
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
@@ -117,10 +120,21 @@ export default function SettingsPage() {
 
         {/* Workspace Tab */}
         <TabsContent value="workspace" className="mt-4 space-y-4">
+          {/* Theme */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Sun className="h-4 w-4" /> Theme</CardTitle>
+              <CardDescription>Choose light, dark, or system theme.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemeSelector />
+            </CardContent>
+          </Card>
+
           {/* Appearance */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Appearance</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Accent Color</CardTitle>
               <CardDescription>Choose an accent color for your workspace.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -201,15 +215,39 @@ export default function SettingsPage() {
               <CardDescription>Add, rename, or remove departments.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {departments.map((dept) => (
+              {departments.map((dept) => {
+                const DeptIcon = getDeptIcon(dept.icon);
+                return (
                 <div key={dept.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="h-8 w-8 rounded-md border flex items-center justify-center hover:bg-accent shrink-0" title="Change icon">
+                        <DeptIcon className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start">
+                      <div className="grid grid-cols-6 gap-1">
+                        {Object.entries(DEPARTMENT_ICONS).map(([name, IconComp]) => (
+                          <button
+                            key={name}
+                            onClick={() => updateDepartment(dept.id, { icon: name })}
+                            className={`h-8 w-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors ${dept.icon === name ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                            title={name}
+                          >
+                            <IconComp className="h-4 w-4" />
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Input value={dept.name} onChange={(e) => updateDepartment(dept.id, { name: e.target.value })} className="h-8 text-sm flex-1" />
                   <Input value={dept.description} onChange={(e) => updateDepartment(dept.id, { description: e.target.value })} placeholder="Description..." className="h-8 text-sm flex-1" />
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => { deleteDepartment(dept.id); toast({ title: "Deleted", description: `"${dept.name}" removed.` }); }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
               <div className="flex items-center gap-2 pt-2 border-t">
                 <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} placeholder="New department name..." className="h-8 text-sm flex-1" onKeyDown={(e) => e.key === "Enter" && handleAddDepartment()} />
                 <Button size="sm" variant="outline" onClick={handleAddDepartment} disabled={!newDeptName.trim()}>
@@ -693,6 +731,34 @@ function ModuleEditor({
   );
 }
 
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+  const options: { value: "light" | "dark" | "system"; label: string; icon: React.ReactNode }[] = [
+    { value: "light", label: "Light", icon: <Sun className="h-4 w-4" /> },
+    { value: "dark", label: "Dark", icon: <Moon className="h-4 w-4" /> },
+    { value: "system", label: "System", icon: <Monitor className="h-4 w-4" /> },
+  ];
+
+  return (
+    <div className="flex gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => setTheme(opt.value)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            theme === opt.value
+              ? "bg-primary/10 border-primary text-primary"
+              : "hover:bg-accent text-muted-foreground"
+          }`}
+        >
+          {opt.icon}
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const ACCENT_PRESETS = [
   { label: "Blue", hue: "220", color: "hsl(220, 65%, 48%)" },
   { label: "Indigo", hue: "245", color: "hsl(245, 65%, 48%)" },
@@ -707,30 +773,59 @@ const ACCENT_PRESETS = [
 function AccentColorPicker() {
   const { accentColor, setAccentColor } = useWorkspace();
   const activeHue = accentColor || "220";
+  const [customHue, setCustomHue] = useState(
+    ACCENT_PRESETS.some(p => p.hue === activeHue) ? "" : activeHue
+  );
+
+  const handleCustomHue = (val: string) => {
+    setCustomHue(val);
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0 && num <= 360) {
+      setAccentColor(String(num));
+    }
+  };
 
   return (
-    <div className="flex flex-wrap gap-3">
-      {ACCENT_PRESETS.map((preset) => (
-        <button
-          key={preset.hue}
-          onClick={() => setAccentColor(preset.hue === "220" ? null : preset.hue)}
-          className="group relative flex flex-col items-center gap-1.5"
-          title={preset.label}
-        >
-          <div
-            className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
-            style={{
-              backgroundColor: preset.color,
-              ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
-            }}
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        {ACCENT_PRESETS.map((preset) => (
+          <button
+            key={preset.hue}
+            onClick={() => { setAccentColor(preset.hue === "220" ? null : preset.hue); setCustomHue(""); }}
+            className="group relative flex flex-col items-center gap-1.5"
+            title={preset.label}
           >
-            {activeHue === preset.hue && (
-              <Check className="h-4 w-4 text-white" />
-            )}
-          </div>
-          <span className="text-[10px] text-muted-foreground">{preset.label}</span>
-        </button>
-      ))}
+            <div
+              className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+              style={{
+                backgroundColor: preset.color,
+                ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
+              }}
+            >
+              {activeHue === preset.hue && (
+                <Check className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground">{preset.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <div
+          className="h-8 w-8 rounded-full shrink-0 border"
+          style={{ backgroundColor: `hsl(${customHue || activeHue}, 65%, 48%)` }}
+        />
+        <Input
+          value={customHue}
+          onChange={(e) => handleCustomHue(e.target.value)}
+          placeholder="Custom hue (0-360)"
+          className="h-8 text-sm w-40"
+          type="number"
+          min={0}
+          max={360}
+        />
+        <span className="text-xs text-muted-foreground">HSL hue value</span>
+      </div>
     </div>
   );
 }

@@ -81,10 +81,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     fetchWorkspace();
   }, [user]);
 
-  // Apply accent color whenever it changes
+  // Apply accent color whenever it changes or theme toggles
   useEffect(() => {
     const hue = state.accentColor || "220";
     applyAccentHue(hue);
+
+    const onThemeChanged = () => applyAccentHue(stateRef.current.accentColor || "220");
+    window.addEventListener("theme-changed", onThemeChanged);
+    return () => window.removeEventListener("theme-changed", onThemeChanged);
   }, [state.accentColor]);
 
   const persist = useCallback(async (partial: Partial<WorkspaceState>) => {
