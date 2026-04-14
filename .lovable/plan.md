@@ -1,56 +1,54 @@
 
 
-# CEO Page Overhaul — Rename, 3 Tabs, Vision Portal
+# Standardize Docs/Notes Layout, Custom Colors, Dark Mode, Department Icons
 
-## Summary
+## 1. Standardize Docs & Notes Editor Padding
 
-Four changes: (1) Rename the page to "CEO Cockpit" (configurable in Settings), (2) let admins rename the "Departments" sidebar label, (3) collapse from 4 tabs to 3 by merging Strategy content into Command, (4) replace the Vision accordion with a small floating icon button that opens a slide-out sheet.
+**Problem**: The borderless RichTextEditor CSS uses `padding: 0.5rem 0` (no horizontal padding). Docs wraps the editor in a `p-6` container so it looks fine, but Notes puts it in a bare `flex-1 overflow-auto` div — no side cushion at all.
 
-## 1. Configurable Page & Department Names in Settings
+**Fix**: Update `RichTextEditor.css` to give the borderless mode consistent horizontal padding (`padding: 0.5rem 1.5rem`). Also ensure the Docs `InlineDocEditor` wrapper and Notes editor area use matching horizontal padding so the title, metadata, tags, and content all align consistently. Target: `~1.5rem` (24px) side padding on both pages.
 
-Add two new fields to the `workspaces` table: `ceo_page_name` (default "CEO Cockpit") and `dept_label` (default "Departments").
+## 2. Custom Accent Color (HSL Hue Input)
 
-**Settings page** gets a new card under the Workspace tab:
-- "CEO Page Title" — text input (e.g. "CEO Cockpit", "CEO Dash", "Command Center")
-- "Department Group Label" — text input (e.g. "Departments", "Teams", "Spaces", "Divisions")
+**Current**: The `AccentColorPicker` in Settings only offers 8 preset color swatches. No way to enter a custom value.
 
-Both values flow through `WorkspaceContext` so the sidebar and CEO page read them reactively.
+**Fix**: Add an `Input` field below the preset swatches that lets the admin type a custom hue value (0-360). Show a live preview swatch next to the input. When the user types a value, it applies via `setAccentColor` just like the presets.
 
-## 2. Collapse to 3 Tabs
+## 3. Dark / Light Mode Toggle
 
-Remove the **Strategy** tab. Move its contents into **Command**:
+**Current**: The CSS already has a full `.dark` theme defined in `index.css`, and the `applyAccentHue` function in `WorkspaceContext` already checks `root.classList.contains("dark")`. But there's no UI to toggle it, and no theme persistence.
 
-**Command tab** (new layout):
-- CEO Briefing + Top Priorities + Morning Reset (existing 2-col grid)
-- Strategy Creator (below grid)
-- Leadership Review Feed
-- Decision Log (collapsed accordion)
+**Fix**:
+- Add a `ThemeProvider` context that reads/writes theme preference to `localStorage` and applies the `dark` class to `<html>`.
+- Add a theme toggle (Sun/Moon icon) in:
+  - The sidebar footer (next to avatar/sign-out)
+  - The Settings > Appearance card (as an explicit Light/Dark/System selector)
+- When toggling, also re-run `applyAccentHue` so accent colors adjust for dark mode.
 
-This puts all operational + strategic tools in one place.
+## 4. Custom Icons for Department Pages
 
-## 3. Vision — Floating Icon Portal
+**Current**: Departments have an `icon` column storing a string (e.g. "Building2"), but the icon map in `AppSidebar` and `Index.tsx` only has 5 options: `Code2, Palette, Lightbulb, Megaphone, Settings`. All new departments default to `Building2`.
 
-Instead of the Vision accordion living inside a tab, add a small circular icon button in the top-right of the page header (next to the date/title area). The icon: **Binoculars** (lucide `Binoculars` icon) — subtle, thematic, a bit playful.
-
-- Hover tooltip: "Vision & Long-Term Targets"
-- Click opens a **Sheet** (slide-out drawer from the right) containing the full Vision accordion + Quarterly Rocks
-- Always accessible from any tab, but never in the way
-
-## 4. Migration
-
-```sql
-ALTER TABLE workspaces
-  ADD COLUMN IF NOT EXISTS ceo_page_name text DEFAULT 'CEO Cockpit',
-  ADD COLUMN IF NOT EXISTS dept_label text DEFAULT 'Departments';
-```
+**Fix**:
+- Expand the icon map to ~20 icons covering common department types (e.g. `Briefcase`, `DollarSign`, `Heart`, `Shield`, `Truck`, `Wrench`, `BarChart3`, `Globe`, `Phone`, `GraduationCap`, `Scale`, `Home`, `Layers`, `Target`, `Zap`, `Users`).
+- Add an icon picker to the department row in Settings. Show a grid of icon options in a popover — clicking one updates `dept.icon`.
+- Share the icon map from a single `lib/icon-map.ts` file so `AppSidebar`, `Index.tsx`, `DepartmentPage.tsx`, and `SettingsPage.tsx` all use the same set.
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Migrate | `workspaces` table — add `ceo_page_name`, `dept_label` columns |
-| Edit | `src/contexts/WorkspaceContext.tsx` — Add `ceoPageName`, `deptLabel` to state + setters + persistence |
-| Edit | `src/pages/SettingsPage.tsx` — Add "Naming" card with CEO page title and department label inputs |
-| Edit | `src/pages/CeoDashboard.tsx` — Use `ceoPageName` for title, collapse to 3 tabs, move Strategy content into Command, extract Vision into a Sheet triggered by a Binoculars icon button |
-| Edit | `src/components/AppSidebar.tsx` — Use `deptLabel` instead of hardcoded "Departments", use `ceoPageName` for sidebar nav label |
+| Edit | `src/components/RichTextEditor.css` — Add horizontal padding to borderless mode |
+| Edit | `src/pages/NotesPage.tsx` — Standardize editor wrapper padding to match Docs |
+| Edit | `src/pages/DocsPage.tsx` — Minor padding alignment if needed |
+| Create | `src/contexts/ThemeContext.tsx` — Theme provider with localStorage persistence + dark class toggle |
+| Edit | `src/main.tsx` — Wrap app in ThemeProvider |
+| Edit | `src/components/AppSidebar.tsx` — Add dark/light toggle icon in footer |
+| Edit | `src/pages/SettingsPage.tsx` — Add custom hue input to AccentColorPicker, add Light/Dark/System toggle in Appearance card, add icon picker to department rows |
+| Edit | `src/contexts/WorkspaceContext.tsx` — Re-apply accent hue when theme changes |
+| Create | `src/lib/icon-map.ts` — Shared department icon map (~20 icons) |
+| Edit | `src/pages/Index.tsx` — Use shared icon map |
+| Edit | `src/pages/DepartmentPage.tsx` — Use shared icon map |
+
+No database changes needed — the `departments.icon` column already stores icon name strings.
 
