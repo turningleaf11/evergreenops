@@ -7,6 +7,7 @@ import DetailDrawer from "@/components/DetailDrawer";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
+import DataTableView from "@/components/execution/DataTableView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -676,7 +677,7 @@ export default function ExecutionPage() {
           )}
 
           {pv.view === "table" && (
-            <TableView
+            <DataTableView
               items={filteredProjects}
               type="project"
               onItemClick={openProjectDrawer}
@@ -727,7 +728,7 @@ export default function ExecutionPage() {
           )}
 
           {tv.view === "table" && (
-            <TableView
+            <DataTableView
               items={visibleTasks}
               type="task"
               onItemClick={openTaskDrawer}
