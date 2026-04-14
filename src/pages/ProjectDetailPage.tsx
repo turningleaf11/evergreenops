@@ -338,6 +338,49 @@ export default function ProjectDetailPage() {
               )}
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Linked Docs */}
+          <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${docsOpen ? "" : "-rotate-90"}`} />
+              <FileText className="h-3.5 w-3.5" />
+              Documents {linkedDocs.length > 0 && <span className="text-xs font-normal">({linkedDocs.length})</span>}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 pt-2">
+              {linkedDocs.map(d => (
+                <div
+                  key={d.id}
+                  className="flex items-center gap-2.5 py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer"
+                  onClick={() => navigate("/docs")}
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{d.title}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{new Date(d.updated_at).toLocaleDateString()}</span>
+                </div>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={async () => {
+                  if (!user || !id) return;
+                  const { error } = await supabase.from("documents").insert({
+                    title: `${project.title} — Doc`,
+                    content: "",
+                    author_id: user.id,
+                    project_id: id,
+                    visibility: "workspace",
+                  });
+                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                  else { toast({ title: "Document created" }); fetchData(); }
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add document
+              </Button>
+              {linkedDocs.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">No documents linked yet.</p>
+              )}
+            </CollapsibleContent>
         </div>
 
         {/* Activity sidebar */}
