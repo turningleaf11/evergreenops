@@ -7,13 +7,15 @@ import { TopPriorities } from "@/components/TopPriorities";
 import { DecisionLog } from "@/components/DecisionLog";
 import { StrategicTensions } from "@/components/StrategicTensions";
 import { MorningReset } from "@/components/MorningReset";
-
 import { StrategyItemCreator } from "@/components/StrategyItemCreator";
 import { CeoReviewFeed } from "@/components/CeoReviewFeed";
+import { ScratchPad } from "@/components/ScratchPad";
+import { AiTriage, type TriageItem } from "@/components/AiTriage";
+import { DelegationBoard } from "@/components/DelegationBoard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, ChevronDown, ChevronRight, Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 
@@ -46,6 +48,11 @@ export default function CeoDashboard() {
   const [visionEditText, setVisionEditText] = useState("");
   const [visionGoals, setVisionGoals] = useState<{ id: string; title: string; status: string; quarter: string; year: number }[]>([]);
 
+  // Triage state
+  const [triageItems, setTriageItems] = useState<TriageItem[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+
   const fetchVision = useCallback(async () => {
     const [v, g] = await Promise.all([
       supabase.from("vision").select("*").order("sort_order"),
@@ -56,6 +63,12 @@ export default function CeoDashboard() {
   }, []);
 
   useEffect(() => { fetchVision(); }, [fetchVision]);
+
+  useEffect(() => {
+    supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
+      if (data) setProfiles(data);
+    });
+  }, []);
 
   const startVisionEdit = (section: VisionSection) => {
     setVisionEditing(section.id);
@@ -83,12 +96,25 @@ export default function CeoDashboard() {
     setEditingObjective(false);
   };
 
+  const handleProcess = async (text: string) => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ceo-triage", { body: { content: text } });
+      if (error) throw error;
+      if (data?.items) setTriageItems(data.items);
+      else toast({ title: "No items extracted", description: "Try adding more detail to your notes." });
+    } catch (err: any) {
+      toast({ title: "Processing failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="max-w-4xl mx-auto px-6 pt-10 pb-6">
         <div className="flex items-start justify-between">
           <div>
@@ -129,6 +155,24 @@ export default function CeoDashboard() {
             </div>
           )}
         </div>
+
+        {/* Scratch Pad */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
+        </div>
+
+        {/* AI Triage Results */}
+        {triageItems.length > 0 && (
+          <AiTriage
+            items={triageItems}
+            profiles={profiles}
+            onItemProcessed={(idx) => setTriageItems(prev => prev.filter((_, i) => i !== idx))}
+            onClear={() => setTriageItems([])}
+          />
+        )}
+
+        {/* Delegation Board */}
+        <DelegationBoard />
 
         {/* Vision Section */}
         <Collapsible open={visionOpen} onOpenChange={setVisionOpen}>
@@ -243,21 +287,18 @@ export default function CeoDashboard() {
           </div>
         </div>
 
-        {/* Strategy Items Manager */}
         <div>
           <div className="rounded-xl border border-border bg-card p-5">
             <StrategyItemCreator />
           </div>
         </div>
 
-        {/* CEO Review Feed */}
         <div>
           <div className="rounded-xl border border-border bg-card p-5">
             <CeoReviewFeed />
           </div>
         </div>
 
-        {/* Decision Log */}
         <div>
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Decision Log</h2>
           <div className="rounded-xl border border-border bg-card p-5">
@@ -265,7 +306,6 @@ export default function CeoDashboard() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
