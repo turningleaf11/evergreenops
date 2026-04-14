@@ -48,19 +48,19 @@ export default function SettingsPage() {
     );
   }
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
       toast({ title: "File too large", description: "Logo must be under 2MB.", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      workspace.setLogoUrl(reader.result as string);
+    const url = await workspace.uploadLogo(file);
+    if (url) {
       toast({ title: "Logo updated" });
-    };
-    reader.readAsDataURL(file);
+    } else {
+      toast({ title: "Upload failed", variant: "destructive" });
+    }
   };
 
   const handleAddDepartment = () => {
