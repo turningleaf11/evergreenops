@@ -5,6 +5,7 @@ import { NotificationBell } from "@/components/ActivityFeed";
 import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
+import { RemindersBell } from "@/components/RemindersWidget";
 
 export function Layout() {
   return (
@@ -17,6 +18,7 @@ export function Layout() {
               <SidebarTrigger className="mr-3" />
               <div className="flex items-center gap-2">
                 <GlobalCreateMenu />
+                <RemindersBell />
                 <NotificationBell />
               </div>
             </header>

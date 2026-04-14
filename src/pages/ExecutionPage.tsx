@@ -51,6 +51,7 @@ type Issue = {
   root_cause: string; discussion_notes: string; resolution: string;
   resolved_action_type: string; resolved_action_id: string | null;
   created_at: string; updated_at: string;
+  category: string; assigned_to: string | null; tags: string[];
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -170,7 +171,10 @@ export default function ExecutionPage() {
   const [newIssueDesc, setNewIssueDesc] = useState("");
   const [newIssuePriority, setNewIssuePriority] = useState("2");
   const [newIssueDept, setNewIssueDept] = useState("");
+  const [newIssueCategory, setNewIssueCategory] = useState("general");
+  const [newIssueAssignee, setNewIssueAssignee] = useState("");
   const [issueViewTab, setIssueViewTab] = useState("open");
+  const [issueCategoryFilter, setIssueCategoryFilter] = useState("all");
 
   // View states for projects and tasks tabs
   const pv = useViewState();
@@ -314,9 +318,10 @@ export default function ExecutionPage() {
     const { error } = await supabase.from("issues").insert({
       title: newIssueTitle, description: newIssueDesc, priority: parseInt(newIssuePriority),
       raised_by: user?.id, department_id: newIssueDept || null,
+      category: newIssueCategory, assigned_to: newIssueAssignee || null,
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); fetchAll(); }
+    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); setNewIssueCategory("general"); setNewIssueAssignee(""); fetchAll(); }
   };
 
   const updateIssue = async (id: string, updates: Partial<Issue>) => {
@@ -355,8 +360,9 @@ export default function ExecutionPage() {
     toast({ title: "Issue dismissed" });
   };
 
-  const openIssues = issues.filter(i => !["solved", "dismissed"].includes(i.status));
-  const resolvedIssues = issues.filter(i => ["solved", "dismissed"].includes(i.status));
+  const filteredIssues = issueCategoryFilter === "all" ? issues : issues.filter(i => i.category === issueCategoryFilter);
+  const openIssues = filteredIssues.filter(i => !["solved", "dismissed"].includes(i.status));
+  const resolvedIssues = filteredIssues.filter(i => ["solved", "dismissed"].includes(i.status));
 
   const StatusBadge = ({ status }: { status: string }) => {
     const cfg = statusConfig[status] || { label: status, color: "bg-muted text-muted-foreground", icon: Circle };
@@ -444,6 +450,19 @@ export default function ExecutionPage() {
                     <div><Label>Description</Label><Textarea value={newIssueDesc} onChange={e => setNewIssueDesc(e.target.value)} rows={3} /></div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
+                        <Label>Category</Label>
+                        <Select value={newIssueCategory} onValueChange={setNewIssueCategory}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">General</SelectItem>
+                            <SelectItem value="tools_systems">Tools & Systems</SelectItem>
+                            <SelectItem value="process">Process</SelectItem>
+                            <SelectItem value="change_request">Change Request</SelectItem>
+                            <SelectItem value="people">People</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label>Priority</Label>
                         <Select value={newIssuePriority} onValueChange={setNewIssuePriority}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -451,6 +470,17 @@ export default function ExecutionPage() {
                             <SelectItem value="1">High</SelectItem>
                             <SelectItem value="2">Medium</SelectItem>
                             <SelectItem value="3">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Assign To</Label>
+                        <Select value={newIssueAssignee} onValueChange={setNewIssueAssignee}>
+                          <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
@@ -776,6 +806,28 @@ export default function ExecutionPage() {
 
         {/* Issues tab */}
         <TabsContent value="issues" className="space-y-4">
+          {/* Category filter */}
+          <div className="flex gap-1 flex-wrap">
+            {[
+              { value: "all", label: "All" },
+              { value: "tools_systems", label: "Tools & Systems" },
+              { value: "process", label: "Process" },
+              { value: "change_request", label: "Change Requests" },
+              { value: "people", label: "People" },
+              { value: "general", label: "General" },
+            ].map(cat => (
+              <Button
+                key={cat.value}
+                variant={issueCategoryFilter === cat.value ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setIssueCategoryFilter(cat.value)}
+              >
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+
           <Tabs value={issueViewTab} onValueChange={setIssueViewTab}>
             <TabsList>
               <TabsTrigger value="open">Open ({openIssues.length})</TabsTrigger>
@@ -789,9 +841,11 @@ export default function ExecutionPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-medium">{issue.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
+                          {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
                           <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
                         </div>
                       </div>
@@ -814,6 +868,7 @@ export default function ExecutionPage() {
                         <h3 className="font-medium">{issue.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs capitalize">{issue.status}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           {issue.resolved_action_type !== "none" && (
                             <Badge variant="outline" className="text-xs">→ {issue.resolved_action_type}</Badge>
                           )}
@@ -843,8 +898,14 @@ export default function ExecutionPage() {
                 </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs capitalize">{(selectedIssue.category || "general").replace("_", " ")}</Badge>
+                <Badge className={`text-xs ${priorityLabels[selectedIssue.priority]?.color}`}>{priorityLabels[selectedIssue.priority]?.label}</Badge>
+                {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
+                <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
+              </div>
 
-              <div className="space-y-4 mt-4">
+              <div className="space-y-4 mt-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Search className="h-4 w-4 text-primary" />

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X } from "lucide-react";
+import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X, LayoutGrid, List } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import CommentsSection from "@/components/CommentsSection";
 
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -20,6 +21,7 @@ type Issue = {
   root_cause: string; discussion_notes: string; resolution: string;
   resolved_action_type: string; resolved_action_id: string | null;
   created_at: string; updated_at: string;
+  category: string; assigned_to: string | null; tags: string[];
 };
 
 const priorityLabels: Record<number, { label: string; color: string }> = {
@@ -28,7 +30,20 @@ const priorityLabels: Record<number, { label: string; color: string }> = {
   3: { label: "Low", color: "bg-green-100 text-green-800" },
 };
 
-const statusSteps = ["open", "identifying", "discussing", "solved", "dismissed"];
+const categoryLabels: Record<string, string> = {
+  general: "General",
+  tools_systems: "Tools & Systems",
+  process: "Process",
+  change_request: "Change Request",
+  people: "People",
+};
+
+const kanbanColumns = [
+  { key: "open", label: "Open" },
+  { key: "identifying", label: "Identifying" },
+  { key: "discussing", label: "Discussing" },
+  { key: "solved", label: "Solved" },
+];
 
 export default function IssuesPage() {
   const { user, isAdmin } = useAuth();
@@ -41,14 +56,18 @@ export default function IssuesPage() {
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState("2");
   const [newDept, setNewDept] = useState("");
+  const [newCategory, setNewCategory] = useState("general");
+  const [newAssignee, setNewAssignee] = useState("");
   const [viewTab, setViewTab] = useState("open");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"list" | "board">("list");
 
   const fetchAll = useCallback(async () => {
     const [i, p] = await Promise.all([
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name"),
     ]);
-    if (i.data) setIssues(i.data);
+    if (i.data) setIssues(i.data as any);
     if (p.data) setProfiles(p.data);
   }, []);
 
@@ -64,9 +83,15 @@ export default function IssuesPage() {
     const { error } = await supabase.from("issues").insert({
       title: newTitle, description: newDesc, priority: parseInt(newPriority),
       raised_by: user?.id, department_id: newDept || null,
+      category: newCategory, assigned_to: newAssignee || null,
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Issue raised" }); setCreateOpen(false); setNewTitle(""); setNewDesc(""); fetchAll(); }
+    else {
+      toast({ title: "Issue raised" });
+      setCreateOpen(false);
+      setNewTitle(""); setNewDesc(""); setNewCategory("general"); setNewAssignee("");
+      fetchAll();
+    }
   };
 
   const updateIssue = async (id: string, updates: Partial<Issue>) => {
@@ -79,9 +104,9 @@ export default function IssuesPage() {
   };
 
   const solveWithTask = async (issue: Issue) => {
-    const { data, error } = await supabase.from("tasks").insert({
+    const { data } = await supabase.from("tasks").insert({
       title: `[Issue] ${issue.title}`, description: issue.resolution || issue.root_cause,
-      created_by: user?.id, assigned_to: user?.id,
+      created_by: user?.id, assigned_to: issue.assigned_to || user?.id,
     }).select().single();
     if (data) {
       await updateIssue(issue.id, { status: "solved", resolved_action_type: "todo", resolved_action_id: data.id });
@@ -90,7 +115,7 @@ export default function IssuesPage() {
   };
 
   const solveWithProject = async (issue: Issue) => {
-    const { data, error } = await supabase.from("projects").insert({
+    const { data } = await supabase.from("projects").insert({
       title: `[Issue] ${issue.title}`, description: issue.resolution || issue.root_cause,
       created_by: user?.id, owner_id: user?.id,
     }).select().single();
@@ -105,8 +130,27 @@ export default function IssuesPage() {
     toast({ title: "Issue dismissed" });
   };
 
-  const openIssues = issues.filter(i => !["solved", "dismissed"].includes(i.status));
-  const resolvedIssues = issues.filter(i => ["solved", "dismissed"].includes(i.status));
+  const filtered = categoryFilter === "all" ? issues : issues.filter(i => i.category === categoryFilter);
+  const openIssues = filtered.filter(i => !["solved", "dismissed"].includes(i.status));
+  const resolvedIssues = filtered.filter(i => ["solved", "dismissed"].includes(i.status));
+
+  const IssueCard = ({ issue, dimmed = false }: { issue: Issue; dimmed?: boolean }) => (
+    <Card
+      className={`cursor-pointer hover:bg-accent/30 transition-colors ${dimmed ? "opacity-70" : ""}`}
+      onClick={() => setSelectedIssue(issue)}
+    >
+      <CardContent className="py-3">
+        <h3 className="font-medium text-sm">{issue.title}</h3>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+          <Badge variant="outline" className="text-xs">{categoryLabels[issue.category] || issue.category}</Badge>
+          <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
+          {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
+          <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -115,102 +159,153 @@ export default function IssuesPage() {
           <AlertCircle className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">Issues</h1>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Raise Issue</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Raise an Issue</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div><Label>Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} /></div>
-              <div><Label>Description</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={3} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={newPriority} onValueChange={setNewPriority}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">High</SelectItem>
-                      <SelectItem value="2">Medium</SelectItem>
-                      <SelectItem value="3">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {departments.length > 0 && (
+        <div className="flex items-center gap-2">
+          <div className="flex border rounded-md">
+            <Button variant={viewMode === "list" ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-r-none" onClick={() => setViewMode("list")}>
+              <List className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "board" ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-l-none" onClick={() => setViewMode("board")}>
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Raise Issue</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Raise an Issue</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div><Label>Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} /></div>
+                <div><Label>Description</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={3} /></div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Department</Label>
-                    <Select value={newDept} onValueChange={setNewDept}>
-                      <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                    <Label>Category</Label>
+                    <Select value={newCategory} onValueChange={setNewCategory}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        {Object.entries(categoryLabels).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                  <div>
+                    <Label>Priority</Label>
+                    <Select value={newPriority} onValueChange={setNewPriority}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">High</SelectItem>
+                        <SelectItem value="2">Medium</SelectItem>
+                        <SelectItem value="3">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Assign To</Label>
+                    <Select value={newAssignee} onValueChange={setNewAssignee}>
+                      <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                      <SelectContent>
+                        {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {departments.length > 0 && (
+                    <div>
+                      <Label>Department</Label>
+                      <Select value={newDept} onValueChange={setNewDept}>
+                        <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                        <SelectContent>
+                          {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                <Button onClick={createIssue} className="w-full">Submit</Button>
               </div>
-              <Button onClick={createIssue} className="w-full">Submit</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <Tabs value={viewTab} onValueChange={setViewTab}>
-        <TabsList>
-          <TabsTrigger value="open">Open ({openIssues.length})</TabsTrigger>
-          <TabsTrigger value="resolved">Resolved ({resolvedIssues.length})</TabsTrigger>
-        </TabsList>
+      {/* Category filter */}
+      <div className="flex gap-1 flex-wrap">
+        {[{ value: "all", label: "All" }, ...Object.entries(categoryLabels).map(([k, v]) => ({ value: k, label: v }))].map(cat => (
+          <Button
+            key={cat.value}
+            variant={categoryFilter === cat.value ? "default" : "outline"}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setCategoryFilter(cat.value)}
+          >
+            {cat.label}
+          </Button>
+        ))}
+      </div>
 
-        <TabsContent value="open" className="space-y-3">
-          {openIssues.map(issue => (
-            <Card key={issue.id} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setSelectedIssue(issue)}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{issue.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
-                      <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
-                      <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {openIssues.length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No open issues. 🎉</CardContent></Card>
-          )}
-        </TabsContent>
+      {viewMode === "list" ? (
+        <Tabs value={viewTab} onValueChange={setViewTab}>
+          <TabsList>
+            <TabsTrigger value="open">Open ({openIssues.length})</TabsTrigger>
+            <TabsTrigger value="resolved">Resolved ({resolvedIssues.length})</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="resolved" className="space-y-3">
-          {resolvedIssues.map(issue => (
-            <Card key={issue.id} className="opacity-70">
-              <CardContent className="py-4">
+          <TabsContent value="open" className="space-y-3">
+            {openIssues.map(issue => <IssueCard key={issue.id} issue={issue} />)}
+            {openIssues.length === 0 && (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">No open issues. 🎉</CardContent></Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="resolved" className="space-y-3">
+            {resolvedIssues.map(issue => <IssueCard key={issue.id} issue={issue} dimmed />)}
+            {resolvedIssues.length === 0 && (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">No resolved issues yet.</CardContent></Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        /* Kanban board */
+        <div className="grid grid-cols-4 gap-4">
+          {kanbanColumns.map(col => {
+            const colIssues = filtered.filter(i => i.status === col.key);
+            return (
+              <div key={col.key} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{issue.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs capitalize">{issue.status}</Badge>
-                      {issue.resolved_action_type !== "none" && (
-                        <Badge variant="outline" className="text-xs">→ {issue.resolved_action_type}</Badge>
-                      )}
-                      {issue.resolution && <span className="text-xs text-muted-foreground truncate max-w-60">{issue.resolution}</span>}
-                    </div>
-                  </div>
+                  <h3 className="text-sm font-semibold text-muted-foreground">{col.label}</h3>
+                  <Badge variant="secondary" className="text-xs">{colIssues.length}</Badge>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-          {resolvedIssues.length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No resolved issues yet.</CardContent></Card>
-          )}
-        </TabsContent>
-      </Tabs>
+                <div className="space-y-2 min-h-[100px]">
+                  {colIssues.map(issue => (
+                    <Card
+                      key={issue.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setSelectedIssue(issue)}
+                    >
+                      <CardContent className="p-3">
+                        <p className="text-sm font-medium">{issue.title}</p>
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          <Badge className={`text-[10px] ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{categoryLabels[issue.category] || issue.category}</Badge>
+                        </div>
+                        {issue.assigned_to && (
+                          <p className="text-[10px] text-muted-foreground mt-1">→ {getName(issue.assigned_to)}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* IDS Detail Dialog */}
       <Dialog open={!!selectedIssue} onOpenChange={o => !o && setSelectedIssue(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           {selectedIssue && (
             <>
               <DialogHeader>
@@ -219,10 +314,15 @@ export default function IssuesPage() {
                 </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs">{categoryLabels[selectedIssue.category] || selectedIssue.category}</Badge>
+                <Badge className={`text-xs ${priorityLabels[selectedIssue.priority]?.color}`}>{priorityLabels[selectedIssue.priority]?.label}</Badge>
+                {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
+                <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
+              </div>
 
               {/* IDS Steps */}
-              <div className="space-y-4 mt-4">
-                {/* Step 1: Identify */}
+              <div className="space-y-4 mt-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Search className="h-4 w-4 text-primary" />
@@ -241,7 +341,6 @@ export default function IssuesPage() {
                   )}
                 </div>
 
-                {/* Step 2: Discuss */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-primary" />
@@ -260,7 +359,6 @@ export default function IssuesPage() {
                   )}
                 </div>
 
-                {/* Step 3: Solve */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Lightbulb className="h-4 w-4 text-primary" />
@@ -298,6 +396,11 @@ export default function IssuesPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Comments */}
+              <div className="mt-4 border-t pt-4">
+                <CommentsSection entityType="issue" entityId={selectedIssue.id} />
               </div>
             </>
           )}
