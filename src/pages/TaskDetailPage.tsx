@@ -419,6 +419,47 @@ export default function TaskDetailPage() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Linked Documents */}
+          <Collapsible open={linkedDocsOpen} onOpenChange={setLinkedDocsOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${linkedDocsOpen ? "" : "-rotate-90"}`} />
+              <Link2 className="h-3.5 w-3.5" />
+              Linked Docs {linkedDocs.length > 0 && <span className="text-xs font-normal">({linkedDocs.length})</span>}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 pt-2">
+              {linkedDocs.map(d => (
+                <div key={d.id} className="flex items-center gap-2.5 py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer" onClick={() => navigate("/docs")}>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{d.title}</span>
+                </div>
+              ))}
+              <Select
+                value=""
+                onValueChange={async (docId) => {
+                  if (!user || !id) return;
+                  const { error } = await supabase.from("entity_links").insert({
+                    source_type: "task",
+                    source_id: id,
+                    target_type: "document",
+                    target_id: docId,
+                    created_by: user.id,
+                  });
+                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                  else { toast({ title: "Document linked" }); fetchData(); }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs border-dashed w-48">
+                  <SelectValue placeholder="+ Link a document..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDocs.filter(d => !linkedDocs.find(ld => ld.id === d.id)).map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Activity sidebar */}
