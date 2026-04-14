@@ -1,37 +1,56 @@
 
 
-# Scratch Pad + Command Tab Cleanup
+# CEO Page Overhaul — Rename, 3 Tabs, Vision Portal
 
-## 1. Convert Scratch Pad to Rich Text with Slash Commands
+## Summary
 
-Replace the plain `<textarea>` in `ScratchPad.tsx` with the same TipTap `RichTextEditor` used in docs/tasks/projects. This gives you `/` slash commands (headings, lists, checklists, callouts, tables, image upload, etc.) out of the box.
+Four changes: (1) Rename the page to "CEO Cockpit" (configurable in Settings), (2) let admins rename the "Departments" sidebar label, (3) collapse from 4 tabs to 3 by merging Strategy content into Command, (4) replace the Vision accordion with a small floating icon button that opens a slide-out sheet.
 
-- The content will be stored as HTML (same as docs) in the `ceo_scratch_pad.content` column (already text, no migration needed)
-- Image paste/drop still works (TipTap already handles this via the slash command image upload)
-- The `onProcess` callback will send the editor's text content + any embedded image URLs to the AI triage function
+## 1. Configurable Page & Department Names in Settings
 
-## 2. Better Triage Feedback — Show Where Items Go
+Add two new fields to the `workspaces` table: `ceo_page_name` (default "CEO Cockpit") and `dept_label` (default "Departments").
 
-When approving a triage item, instead of just a generic toast, show a toast with:
-- The destination name (e.g. "Task created in Execution", "Idea added to Strategy Items", "Decision logged")
-- A clickable link in the toast that navigates to the relevant page (Execution page for tasks, Strategy tab for ideas/decisions)
+**Settings page** gets a new card under the Workspace tab:
+- "CEO Page Title" — text input (e.g. "CEO Cockpit", "CEO Dash", "Command Center")
+- "Department Group Label" — text input (e.g. "Departments", "Teams", "Spaces", "Divisions")
 
-This way you always know where your stuff went.
+Both values flow through `WorkspaceContext` so the sidebar and CEO page read them reactively.
 
-## 3. Move Morning Reset Under Top Priorities
+## 2. Collapse to 3 Tabs
 
-In the Command tab, instead of the current layout (2-column grid for Briefing + Priorities, then Morning Reset below), move Morning Reset to sit directly beneath Top Priorities within the same column. The layout becomes:
+Remove the **Strategy** tab. Move its contents into **Command**:
 
-| Left Column | Right Column |
-|-------------|-------------|
-| CEO Briefing | Top Priorities |
-| | Morning Reset (below priorities) |
+**Command tab** (new layout):
+- CEO Briefing + Top Priorities + Morning Reset (existing 2-col grid)
+- Strategy Creator (below grid)
+- Leadership Review Feed
+- Decision Log (collapsed accordion)
+
+This puts all operational + strategic tools in one place.
+
+## 3. Vision — Floating Icon Portal
+
+Instead of the Vision accordion living inside a tab, add a small circular icon button in the top-right of the page header (next to the date/title area). The icon: **Binoculars** (lucide `Binoculars` icon) — subtle, thematic, a bit playful.
+
+- Hover tooltip: "Vision & Long-Term Targets"
+- Click opens a **Sheet** (slide-out drawer from the right) containing the full Vision accordion + Quarterly Rocks
+- Always accessible from any tab, but never in the way
+
+## 4. Migration
+
+```sql
+ALTER TABLE workspaces
+  ADD COLUMN IF NOT EXISTS ceo_page_name text DEFAULT 'CEO Cockpit',
+  ADD COLUMN IF NOT EXISTS dept_label text DEFAULT 'Departments';
+```
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/components/ScratchPad.tsx` — Replace textarea with TipTap RichTextEditor, extract text+images for AI processing |
-| Edit | `src/components/AiTriage.tsx` — Add destination labels and navigation links to approval toasts |
-| Edit | `src/pages/CeoDashboard.tsx` — Move MorningReset under TopPriorities in the right column of Command tab |
+| Migrate | `workspaces` table — add `ceo_page_name`, `dept_label` columns |
+| Edit | `src/contexts/WorkspaceContext.tsx` — Add `ceoPageName`, `deptLabel` to state + setters + persistence |
+| Edit | `src/pages/SettingsPage.tsx` — Add "Naming" card with CEO page title and department label inputs |
+| Edit | `src/pages/CeoDashboard.tsx` — Use `ceoPageName` for title, collapse to 3 tabs, move Strategy content into Command, extract Vision into a Sheet triggered by a Binoculars icon button |
+| Edit | `src/components/AppSidebar.tsx` — Use `deptLabel` instead of hardcoded "Departments", use `ceoPageName` for sidebar nav label |
 
