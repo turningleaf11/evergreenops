@@ -677,7 +677,7 @@ export default function ExecutionPage() {
           )}
 
           {pv.view === "table" && (
-            <TableView
+            <DataTableView
               items={filteredProjects}
               type="project"
               onItemClick={openProjectDrawer}
@@ -728,7 +728,7 @@ export default function ExecutionPage() {
           )}
 
           {tv.view === "table" && (
-            <TableView
+            <DataTableView
               items={visibleTasks}
               type="task"
               onItemClick={openTaskDrawer}
