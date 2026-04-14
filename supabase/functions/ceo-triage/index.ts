@@ -7,8 +7,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { content } = await req.json();
-    if (!content || content.trim().length < 5) {
+    const { content, images } = await req.json();
+    if ((!content || content.trim().length < 5) && (!images || images.length === 0)) {
       return new Response(JSON.stringify({ error: "Content too short" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `You are an executive assistant AI for a CEO. You help organize raw notes into actionable items.
 
-Given the CEO's scratch pad notes, extract individual items and categorize each as one of: task, decision, idea, delegation.
+Given the CEO's scratch pad notes (which may include text and/or images of handwritten notes), extract individual items and categorize each as one of: task, decision, idea, delegation.
 
 Context — Team Roster:
 ${teamRoster}
@@ -47,6 +47,24 @@ ${activeProjects || "None"}
 
 For each item, suggest an assignee from the team roster if appropriate (use their user_id UUID), and suggest a priority (low, medium, high). Provide brief reasoning for your categorization and assignment.`;
 
+    // Build multimodal user content
+    const userContent: any[] = [];
+    if (content && content.trim().length > 0) {
+      userContent.push({ type: "text", text: `Here are my raw notes:\n\n${content}\n\nExtract and organize these into actionable items.` });
+    }
+    if (images && images.length > 0) {
+      for (const imageUrl of images) {
+        userContent.push({
+          type: "image_url",
+          image_url: { url: imageUrl },
+        });
+      }
+      if (userContent.length === images.length) {
+        // Only images, no text
+        userContent.unshift({ type: "text", text: "Here are images of my handwritten notes. Read them carefully and extract all items into actionable items." });
+      }
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -54,10 +72,10 @@ For each item, suggest an assignee from the team roster if appropriate (use thei
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Here are my raw notes:\n\n${content}\n\nExtract and organize these into actionable items.` },
+          { role: "user", content: userContent.length === 1 && userContent[0].type === "text" ? userContent[0].text : userContent },
         ],
         tools: [
           {

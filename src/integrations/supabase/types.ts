@@ -97,6 +97,27 @@ export type Database = {
           },
         ]
       }
+      ceo_briefing_config: {
+        Row: {
+          config: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ceo_scratch_pad: {
         Row: {
           content: string
