@@ -1180,6 +1180,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          accent_color: string | null
           created_at: string
           description: string | null
           id: string
@@ -1188,6 +1189,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accent_color?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1196,6 +1198,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accent_color?: string | null
           created_at?: string
           description?: string | null
           id?: string
