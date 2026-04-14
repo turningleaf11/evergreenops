@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Pin, FileText, ArrowRight, Code2, Palette, Lightbulb, Megaphone, Settings, Building2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { RemindersWidget } from "@/components/RemindersWidget";
 
 const iconMap: Record<string, React.ElementType> = {
   Code2, Palette, Lightbulb, Megaphone, Settings,
@@ -19,7 +20,6 @@ const Index = () => {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
 
-  // Filter departments: regular users only see their own
   const visibleDepartments = isAdmin
     ? departments
     : departments.filter((d) => d.id === profile?.department_id);
@@ -32,14 +32,12 @@ const Index = () => {
       ]);
       if (annRes.data) setAnnouncements(annRes.data);
       if (docRes.data) {
-        // Filter docs for non-admins by visibility
         const filtered = isAdmin
           ? docRes.data.slice(0, 3)
           : docRes.data
               .filter((doc: any) => {
                 if (doc.visibility === "workspace") return true;
                 if (doc.visibility === "private") return doc.author_id === profile?.user_id;
-                // department-scoped
                 const sw = doc.shared_with || { departmentIds: [], memberIds: [] };
                 return (sw.departmentIds || []).includes(profile?.department_id) ||
                        (sw.memberIds || []).includes(profile?.user_id);
@@ -95,34 +93,37 @@ const Index = () => {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Recent Docs</h2>
-            <Link to="/docs" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
-          </div>
-          <div className="space-y-2">
-            {recentDocs.map((doc) => (
-              <Card key={doc.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="p-3 flex items-start gap-3">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{doc.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Updated {doc.updated_at?.split("T")[0]} · {doc.author_name}</p>
-                    <div className="flex gap-1 mt-1.5 flex-wrap">
-                      {(doc.tags || []).map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">{tag}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {recentDocs.length === 0 && <p className="text-sm text-muted-foreground">No documents yet.</p>}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-1">
+          <RemindersWidget />
         </section>
 
-        <ActivityFeed limit={10} />
+        <section className="lg:col-span-1">
+          <Card>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 className="text-base font-semibold">Recent Docs</h2>
+                <Link to="/docs" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
+              </div>
+              <div className="px-4 pb-4 space-y-2">
+                {recentDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-start gap-3 p-2 rounded hover:bg-muted/50 transition-colors">
+                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{doc.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Updated {doc.updated_at?.split("T")[0]}</p>
+                    </div>
+                  </div>
+                ))}
+                {recentDocs.length === 0 && <p className="text-sm text-muted-foreground">No documents yet.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="lg:col-span-1">
+          <ActivityFeed limit={8} />
+        </section>
       </div>
     </div>
   );

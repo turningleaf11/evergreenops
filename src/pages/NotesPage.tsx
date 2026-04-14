@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, FileText, ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -18,12 +20,15 @@ interface Note {
 }
 
 export default function NotesPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const location = useLocation();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertTitle, setConvertTitle] = useState("");
 
   const fetchNotes = useCallback(async () => {
     if (!user) return;
@@ -36,6 +41,17 @@ export default function NotesPage() {
   }, [user]);
 
   useEffect(() => { fetchNotes(); }, [fetchNotes]);
+
+  // Handle instant-create from GlobalCreateMenu
+  useEffect(() => {
+    const state = location.state as { selectNoteId?: string } | null;
+    if (state?.selectNoteId && notes.length > 0) {
+      const note = notes.find(n => n.id === state.selectNoteId);
+      if (note) selectNote(note);
+      // Clear state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, notes]);
 
   const selectNote = (note: Note) => {
     setSelectedId(note.id);
@@ -91,27 +107,40 @@ export default function NotesPage() {
     toast({ title: "Note deleted" });
   };
 
+  const openConvertDialog = () => {
+    setConvertTitle(title || "Untitled");
+    setConvertOpen(true);
+  };
+
   const convertToDoc = async () => {
     if (!selectedId || !user) return;
     const { data, error } = await supabase
       .from("documents")
       .insert({
-        title,
+        title: convertTitle.trim() || title,
         content,
         author_id: user.id,
+        author_name: profile?.full_name || "Unknown",
         visibility: "workspace",
       })
       .select("id")
       .single();
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error converting note", description: error.message, variant: "destructive" });
       return;
     }
     if (data) {
       await supabase.from("notes").update({ converted_doc_id: data.id }).eq("id", selectedId);
-      toast({ title: "Converted to document" });
+      toast({ title: "Converted to document", description: `"${convertTitle}" is now in Docs.` });
+      setConvertOpen(false);
       fetchNotes();
     }
+  };
+
+  const getPreview = (html: string) => {
+    if (!html) return "Empty note";
+    const text = html.replace(/<[^>]+>/g, "").trim();
+    return text.slice(0, 80) || "Empty note";
   };
 
   const selectedNote = notes.find((n) => n.id === selectedId);
@@ -141,8 +170,9 @@ export default function NotesPage() {
                   <FileText className="h-3 w-3 text-muted-foreground shrink-0 ml-1" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">
-                {new Date(note.updated_at).toLocaleDateString()}
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{getPreview(note.content)}</p>
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(note.updated_at).toLocaleDateString()} · {new Date(note.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
           ))}
@@ -167,7 +197,7 @@ export default function NotesPage() {
               />
               <div className="flex gap-1 shrink-0">
                 {!selectedNote?.converted_doc_id && (
-                  <Button variant="outline" size="sm" onClick={convertToDoc}>
+                  <Button variant="outline" size="sm" onClick={openConvertDialog}>
                     <ArrowRight className="h-3 w-3 mr-1" /> Convert to Doc
                   </Button>
                 )}
@@ -194,6 +224,22 @@ export default function NotesPage() {
           </div>
         )}
       </div>
+
+      {/* Convert confirmation dialog */}
+      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Convert to Document</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This will create a new document in Docs with the note's content.</p>
+          <div>
+            <label className="text-sm font-medium">Document title</label>
+            <Input value={convertTitle} onChange={e => setConvertTitle(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertOpen(false)}>Cancel</Button>
+            <Button onClick={convertToDoc}>Convert</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
