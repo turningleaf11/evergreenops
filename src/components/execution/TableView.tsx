@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Calendar, Repeat } from "lucide-react";
+import { ChevronDown, Calendar, Repeat, Pencil, Archive, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableViewProps {
@@ -71,6 +72,38 @@ function StatusDot({ status, statusOptions, onStatusChange, itemId }: {
   );
 }
 
+function HoverActions({ onEdit, onArchive }: { onEdit?: () => void; onArchive?: () => void }) {
+  return (
+    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+      {onEdit && (
+        <button
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          onClick={e => { e.stopPropagation(); onEdit(); }}
+          title="Edit"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onArchive && (
+        <button
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          onClick={e => { e.stopPropagation(); onArchive(); }}
+          title="Archive"
+        >
+          <Archive className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <button
+        className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+        onClick={e => e.stopPropagation()}
+        title="More"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function TableView({
   items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
 }: TableViewProps) {
@@ -85,6 +118,10 @@ export default function TableView({
   const toggleGroup = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
+  const handleQuickComplete = (itemId: string, checked: boolean) => {
+    if (checked) onStatusChange(itemId, "done");
+  };
+
   return (
     <div className="space-y-4">
       {grouped.map(group => {
@@ -93,88 +130,108 @@ export default function TableView({
         const isOpen = !collapsed[group.value];
 
         return (
-          <Collapsible key={group.value} open={isOpen} onOpenChange={() => toggleGroup(group.value)}>
-            <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
-              <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
-              <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
-              <span className="text-sm font-semibold">{group.label}</span>
-              <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="ml-6 space-y-0.5 mt-1">
-                {group.items.map(item => {
-                  const ownerName = getName(item[ownerField]);
-                  const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
-                  const projectTitle = projects?.find((p: any) => p.id === item.project_id)?.title;
+          <div key={group.value} className="rounded-xl bg-muted/20 p-3">
+            <Collapsible open={isOpen} onOpenChange={() => toggleGroup(group.value)}>
+              <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
+                <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
+                <span className="text-sm font-semibold">{group.label}</span>
+                <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1.5 mt-2">
+                  {group.items.map(item => {
+                    const ownerName = getName(item[ownerField]);
+                    const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
+                    const projectTitle = projects?.find((p: any) => p.id === item.project_id)?.title;
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer hover:bg-accent/40 transition-colors group/row"
-                      onClick={() => onItemClick(item)}
-                    >
-                      {/* Status dot */}
-                      <StatusDot
-                        status={item.status}
-                        statusOptions={statusOptions}
-                        onStatusChange={onStatusChange}
-                        itemId={item.id}
-                      />
-
-                      {/* Title + context */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate flex items-center gap-1.5">
-                          {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
-                          {item.title}
-                        </p>
-                        {(goalTitle || projectTitle) && (
-                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                            {goalTitle && `🎯 ${goalTitle}`}
-                            {goalTitle && projectTitle && " · "}
-                            {projectTitle && `📁 ${projectTitle}`}
-                          </p>
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 cursor-pointer group/row transition-all duration-150 hover:shadow-md hover:-translate-y-[1px] hover:bg-muted/50"
+                        style={{ minHeight: 56 }}
+                        onClick={() => onItemClick(item)}
+                      >
+                        {/* Quick-complete checkbox for tasks */}
+                        {type === "task" && item.status !== "done" && (
+                          <Checkbox
+                            className="h-4 w-4 shrink-0"
+                            checked={false}
+                            onCheckedChange={(checked) => {
+                              handleQuickComplete(item.id, !!checked);
+                            }}
+                            onClick={e => e.stopPropagation()}
+                          />
                         )}
-                      </div>
 
-                      {/* Priority pill */}
-                      {item.priority && (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
-                            priorityStyles[item.priority] || ""
+                        {/* Status dot */}
+                        <StatusDot
+                          status={item.status}
+                          statusOptions={statusOptions}
+                          onStatusChange={onStatusChange}
+                          itemId={item.id}
+                        />
+
+                        {/* Title + context */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                            {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                            {item.title}
+                          </p>
+                          {(goalTitle || projectTitle) && (
+                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                              {goalTitle && `🎯 ${goalTitle}`}
+                              {goalTitle && projectTitle && " · "}
+                              {projectTitle && `📁 ${projectTitle}`}
+                            </p>
                           )}
-                        >
-                          {item.priority}
-                        </Badge>
-                      )}
-
-                      {/* Due date */}
-                      {item.due_date && (
-                        <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground whitespace-nowrap">
-                          <Calendar className="h-3 w-3" />
-                          {item.due_date}
-                        </span>
-                      )}
-
-                      {/* Avatar */}
-                      {ownerName && ownerName !== "Unassigned" && (
-                        <div
-                          className={cn(
-                            "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0",
-                            hashColor(ownerName)
-                          )}
-                          title={ownerName}
-                        >
-                          {getInitials(ownerName)}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+
+                        {/* Priority pill */}
+                        {item.priority && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
+                              priorityStyles[item.priority] || ""
+                            )}
+                          >
+                            {item.priority}
+                          </Badge>
+                        )}
+
+                        {/* Due date */}
+                        {item.due_date && (
+                          <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground whitespace-nowrap">
+                            <Calendar className="h-3 w-3" />
+                            {item.due_date}
+                          </span>
+                        )}
+
+                        {/* Avatar */}
+                        {ownerName && ownerName !== "Unassigned" && (
+                          <div
+                            className={cn(
+                              "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0",
+                              hashColor(ownerName)
+                            )}
+                            title={ownerName}
+                          >
+                            {getInitials(ownerName)}
+                          </div>
+                        )}
+
+                        {/* Hover actions */}
+                        <HoverActions
+                          onEdit={() => onItemClick(item)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         );
       })}
 
