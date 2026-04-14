@@ -381,6 +381,7 @@ export default function ProjectDetailPage() {
                 <p className="text-sm text-muted-foreground text-center py-2">No documents linked yet.</p>
               )}
             </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Activity sidebar */}
