@@ -214,7 +214,7 @@ export default function DatabasesPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight">Databases</h1><p className="text-muted-foreground mt-1">Create and manage your team's databases.</p></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">Lists</h1><p className="text-muted-foreground mt-1">Create and manage your team's lists.</p></div>
         {isAdmin && (<Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Database</Button>)}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

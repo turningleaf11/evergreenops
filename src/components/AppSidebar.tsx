@@ -39,7 +39,7 @@ export function AppSidebar() {
     { title: "Execution Hub", url: "/execution", icon: Target },
     { title: "Docs", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
-    { title: "Databases", url: "/databases", icon: DbIcon },
+    { title: "Lists", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
     { title: "Training", url: "/training", icon: GraduationCap },
   ];
