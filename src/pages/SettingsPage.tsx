@@ -308,6 +308,10 @@ function UsersTab() {
   const [inviteDept, setInviteDept] = useState("");
   const [inviteRole, setInviteRole] = useState<AppRole>("user");
   const [inviting, setInviting] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
