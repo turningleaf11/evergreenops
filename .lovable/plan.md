@@ -1,52 +1,43 @@
 
 
-# Fix Notes, Standardize Docs, Lists Button, Quick Actions, Hex Colors, More Icons
+# Card-Enhanced List UI for Projects & Tasks
 
-## 1. Fix Notes Not Switching Content
+## Summary
 
-**Problem**: The `RichTextEditor` uses TipTap's `useEditor` which only reads `content` on initial mount. Clicking a different note updates React state but the editor keeps showing the old content.
+Replace the current plain HTML `<Table>` rows in `TableView.tsx` (and polish `KanbanBoard.tsx` to match) with a modern card-enhanced list: colored left border per status, rounded status/priority pills, avatar circles for assignees, and status-grouped sections with collapsible headers.
 
-**Fix**: Add `key={selectedId}` to the `RichTextEditor` in `NotesPage.tsx` so React remounts the editor when switching notes. This is the same pattern Docs uses (`key={selected.id}` on `InlineDocEditor`).
+## What changes
 
-## 2. Standardize Docs Editor — Remove Border Box
+### 1. Rewrite `TableView.tsx` as a card-enhanced list
 
-**Problem**: Docs uses `<RichTextEditor>` without `borderless` prop, so it renders with `border rounded-lg`. Notes uses `borderless` which looks cleaner.
+- Remove the `<Table>` markup entirely
+- Render items grouped by status, each group with a collapsible header showing status label + count
+- Each row becomes a flex container with:
+  - **Left accent bar** (3px, colored by status)
+  - **Title** (medium weight, truncated)
+  - **Status pill** (colored rounded-full badge)
+  - **Priority pill** (small colored badge)
+  - **Avatar circle** (initials from assignee/owner name, colored background)
+  - **Due date** (small muted text, right-aligned)
+- Clicking a row still calls `onItemClick`
+- Status is still inline-changeable via clicking the status pill (opens a small popover/select)
 
-**Fix**: Pass `borderless` to the `RichTextEditor` in the `InlineDocEditor` component inside `DocsPage.tsx` (line 376).
+### 2. Polish `KanbanBoard.tsx` cards to match
 
-## 3. Rename "New Database" Button to "New List"
+- Add avatar circles instead of plain text names
+- Match the same priority pill styling
+- Consistent typography and spacing
 
-One-line text change in `DatabasesPage.tsx` line 218.
+### 3. Dark mode compatibility
 
-## 4. Quick Actions Dropdown on Department Pages
-
-Add a "Quick Actions" dropdown button in the department page header (next to the tabs). It pulls from the existing `department_pinboard` table (which already stores links). Renders as a dropdown menu with external link items — each opens in a new tab. Admins can add/remove items via the existing pinboard management UI already on the page.
-
-No database changes needed — reuses `department_pinboard`.
-
-## 5. Custom Color — Hex Input Instead of HSL Hue
-
-Replace the HSL hue number input in `AccentColorPicker` with a hex color input (`#RRGGBB`). When the user enters a hex value, convert it to HSL hue and apply via `setAccentColor`. Show the hex value as the primary input format.
-
-## 6. Add Missing Department Icons
-
-Add to `icon-map.ts`: `Handshake`, `Search`, `Building`, `TreePine`, `Wallet` (money bag equivalent), `Pencil`. Lucide has all of these.
-
-## 7. Fix Runtime Error — useWorkspace outside WorkspaceProvider
-
-The `CeoDashboard` crashes because it calls `useWorkspace()` but may render outside the provider. Need to check the provider tree in `App.tsx` and ensure `WorkspaceProvider` wraps the CEO route.
+- Use Tailwind's `dark:` variants for the status/priority pill colors so they look correct in both themes
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/pages/NotesPage.tsx` — Add `key={selectedId}` to RichTextEditor |
-| Edit | `src/pages/DocsPage.tsx` — Add `borderless` prop to RichTextEditor in InlineDocEditor |
-| Edit | `src/pages/DatabasesPage.tsx` — Change "New Database" to "New List" |
-| Edit | `src/pages/DepartmentPage.tsx` — Add Quick Actions dropdown in header using pinboard links |
-| Edit | `src/pages/SettingsPage.tsx` — Replace HSL hue input with hex color input + conversion |
-| Edit | `src/lib/icon-map.ts` — Add Handshake, Search, Building, TreePine, Wallet, Pencil icons |
-| Edit | `src/App.tsx` — Verify WorkspaceProvider wrapping (fix runtime error) |
+| Rewrite | `src/components/execution/TableView.tsx` — Card-enhanced grouped list |
+| Edit | `src/components/execution/KanbanBoard.tsx` — Avatar circles + pill consistency |
 
-No database changes needed.
+No database or routing changes needed.
 
