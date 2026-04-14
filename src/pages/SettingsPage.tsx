@@ -120,10 +120,21 @@ export default function SettingsPage() {
 
         {/* Workspace Tab */}
         <TabsContent value="workspace" className="mt-4 space-y-4">
+          {/* Theme */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Sun className="h-4 w-4" /> Theme</CardTitle>
+              <CardDescription>Choose light, dark, or system theme.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemeSelector />
+            </CardContent>
+          </Card>
+
           {/* Appearance */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Appearance</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Accent Color</CardTitle>
               <CardDescription>Choose an accent color for your workspace.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -204,15 +215,39 @@ export default function SettingsPage() {
               <CardDescription>Add, rename, or remove departments.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {departments.map((dept) => (
+              {departments.map((dept) => {
+                const DeptIcon = getDeptIcon(dept.icon);
+                return (
                 <div key={dept.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="h-8 w-8 rounded-md border flex items-center justify-center hover:bg-accent shrink-0" title="Change icon">
+                        <DeptIcon className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start">
+                      <div className="grid grid-cols-6 gap-1">
+                        {Object.entries(DEPARTMENT_ICONS).map(([name, IconComp]) => (
+                          <button
+                            key={name}
+                            onClick={() => updateDepartment(dept.id, { icon: name })}
+                            className={`h-8 w-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors ${dept.icon === name ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                            title={name}
+                          >
+                            <IconComp className="h-4 w-4" />
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Input value={dept.name} onChange={(e) => updateDepartment(dept.id, { name: e.target.value })} className="h-8 text-sm flex-1" />
                   <Input value={dept.description} onChange={(e) => updateDepartment(dept.id, { description: e.target.value })} placeholder="Description..." className="h-8 text-sm flex-1" />
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => { deleteDepartment(dept.id); toast({ title: "Deleted", description: `"${dept.name}" removed.` }); }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
               <div className="flex items-center gap-2 pt-2 border-t">
                 <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} placeholder="New department name..." className="h-8 text-sm flex-1" onKeyDown={(e) => e.key === "Enter" && handleAddDepartment()} />
                 <Button size="sm" variant="outline" onClick={handleAddDepartment} disabled={!newDeptName.trim()}>
