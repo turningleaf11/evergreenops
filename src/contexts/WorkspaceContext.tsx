@@ -26,17 +26,31 @@ interface WorkspaceContextValue extends WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
-function applyAccentHue(hue: string) {
+function parseAccentColor(value: string): { h: number; s: number; l: number } {
+  // Full HSL string like "160 54 35" or just a hue like "220"
+  const parts = value.trim().split(/\s+/);
+  if (parts.length >= 3) {
+    return { h: parseFloat(parts[0]), s: parseFloat(parts[1]), l: parseFloat(parts[2]) };
+  }
+  // Bare hue — use default S/L
+  return { h: parseFloat(parts[0]) || 220, s: 65, l: 48 };
+}
+
+function applyAccentColor(value: string) {
   const root = document.documentElement;
   const isDark = root.classList.contains("dark");
-  const h = hue;
+  const { h, s, l } = parseAccentColor(value);
 
-  root.style.setProperty("--primary", `${h} 65% ${isDark ? "55" : "48"}%`);
+  // Adjust lightness for dark mode
+  const mainL = isDark ? Math.min(l + 10, 65) : l;
+  const primary = `${h} ${s}% ${mainL}%`;
+
+  root.style.setProperty("--primary", primary);
   root.style.setProperty("--primary-foreground", "0 0% 100%");
-  root.style.setProperty("--ring", `${h} 65% ${isDark ? "55" : "48"}%`);
-  root.style.setProperty("--sidebar-primary", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--ring", primary);
+  root.style.setProperty("--sidebar-primary", primary);
   root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
-  root.style.setProperty("--sidebar-ring", `${h} 65% ${isDark ? "55" : "48"}%`);
+  root.style.setProperty("--sidebar-ring", primary);
   root.style.setProperty("--sidebar-accent", `${h} 14% ${isDark ? "12" : "92"}%`);
   root.style.setProperty("--sidebar-accent-foreground", `${h} 15% ${isDark ? "80" : "15"}%`);
 }
@@ -83,10 +97,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   // Apply accent color whenever it changes or theme toggles
   useEffect(() => {
-    const hue = state.accentColor || "220";
-    applyAccentHue(hue);
+    const color = state.accentColor || "220";
+    applyAccentColor(color);
 
-    const onThemeChanged = () => applyAccentHue(stateRef.current.accentColor || "220");
+    const onThemeChanged = () => applyAccentColor(stateRef.current.accentColor || "220");
     window.addEventListener("theme-changed", onThemeChanged);
     return () => window.removeEventListener("theme-changed", onThemeChanged);
   }, [state.accentColor]);
