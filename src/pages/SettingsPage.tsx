@@ -476,7 +476,7 @@ function UsersTab() {
         const isEditing = editingUserId === u.user_id;
 
         return (
-          <Card key={u.user_id}>
+          <Card key={u.user_id} className="group">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-9 w-9 shrink-0">
