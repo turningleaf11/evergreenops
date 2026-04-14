@@ -390,6 +390,31 @@ function UsersTab() {
     setInviting(false);
   };
 
+  const handleSaveName = async (userId: string) => {
+    if (!editName.trim()) return;
+    await supabase.from("profiles").update({ full_name: editName.trim() }).eq("user_id", userId);
+    setEditingUserId(null);
+    fetchUsers();
+    toast({ title: "Name updated" });
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "User deleted" });
+      setDeleteConfirmId(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+    setDeleting(false);
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>;
 
   return (
