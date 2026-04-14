@@ -26,6 +26,7 @@ export function AppSidebar() {
   const { profile, isAdmin, role, signOut } = useAuth();
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
+  const { resolvedTheme, setTheme } = useTheme();
 
   // Admins see all departments; users see only their assigned department
   const departments = isAdmin
