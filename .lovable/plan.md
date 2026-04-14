@@ -1,64 +1,31 @@
 
 
-# Reminders, Quick Create, Notes UX, and Issues Overhaul
+# Fix Icon Clash + De-form the UI
 
-## 1. Reminders — Home widget + header bell, remove from sidebar
+## 1. Differentiate header icons
 
-- **Remove** "Reminders" from `AppSidebar.tsx` nav and `/reminders` route from `App.tsx`
-- **Delete** `src/pages/RemindersPage.tsx`
-- **Home page widget** (`Index.tsx`): Add a "Reminders" card showing overdue (red) + upcoming (next 7 days). Checkbox to complete inline. "New Reminder" button opens a mini dialog.
-- **Header bell** (`Layout.tsx`): Bell icon with badge count of pending reminders. Dropdown popover shows the list with quick-complete and "View all" that scrolls to the home widget.
+Both `RemindersBell` and `NotificationBell` use the `Bell` icon from lucide-react. Change reminders to use `AlarmClock` (or `Clock`) so they're visually distinct at a glance.
 
-## 2. Global Create Menu — tailored forms per entity
+## 2. Make create dialogs less "form-y"
 
-Rebuild `GlobalCreateMenu.tsx` so each entity type gets a proper form:
+The `GlobalCreateMenu` and `RemindersWidget` dialogs use stacked `<Label>` + `<Input>` patterns with explicit labels. Following the project's existing style direction (badge-style selectors, no focus rings, minimal chrome):
 
-- **Task**: Title, assignee picker, priority (high/med/low), optional project picker
-- **Project**: Title, department picker, owner
-- **Reminder**: Title, due date/time, delegate-to picker
-- **Note**: No dialog — instantly creates an untitled note and navigates to `/notes`
-- **Document**: No dialog — instantly creates an untitled doc and navigates to `/docs` (opens inline editor)
+- **Remove explicit `<Label>` elements** — use placeholder text inside inputs instead
+- **Priority/status**: Render as inline clickable badges (pill buttons) instead of `<Select>` dropdowns — e.g., three small pills for High / Medium / Low, highlighted state shows selection
+- **Assignee/Department/Owner**: Use a compact popover trigger styled as a subtle text button ("+ Assign", "+ Department") instead of a full Select with label
+- **Due date**: Use a calendar popover with quick-pick buttons (Today, Tomorrow, Next week) instead of `<Input type="datetime-local">`
+- **Description**: Only show when user clicks "Add description" link — hidden by default to reduce visual weight
+- **Layout**: Single-column flow with inline actions, no grid of labeled fields
+- **Create button**: Slim, right-aligned or use Enter-to-submit instead of full-width button
 
-## 3. Notes — fix Convert to Doc + improve UX
+## 3. Reminder widget create dialog — same treatment
 
-- **Fix the convert bug**: The `convertToDoc` function in `NotesPage.tsx` inserts into `documents` but likely fails silently due to missing `author_name`. Add proper error handling and pass `author_name` from the profile.
-- **Keep Notes separate** in sidebar as requested — but clean up UX:
-  - Show note preview snippets in the list
-  - Add last-edited timestamp
-  - "Convert to Doc" should show a confirmation with the target doc title
+Apply the same de-forming to the "New Reminder" dialog in `RemindersWidget.tsx`: placeholder-only title input, calendar popover for due date, optional delegate picker as a subtle "+ Assign" button.
 
-## 4. Issues — expand into dual-purpose tracker with categories
+## Files changed
 
-### Database migration
-Add columns to `issues` table:
-- `category` (text, default `'general'`) — values: `tools_systems`, `process`, `people`, `change_request`, `general`
-- `assigned_to` (uuid, nullable) — who's responsible for resolving
-- `tags` (text[], default `'{}'`)
-
-### UI changes to `IssuesPage.tsx`
-- **Category filter tabs** at the top: All | Tools & Systems | Process | Change Requests | General
-- **Assignee field** in the create dialog and detail view — pick a team member to own resolution
-- **Tags** — free-form tags for cross-cutting concerns
-- **Comments section** — reuse the existing `CommentsSection` component (which uses the `comments` table with `entity_type = 'issue'`)
-- **Kanban view toggle** — show issues as a board with columns: Open → Identifying → Discussing → Solved/Dismissed (reuse the stage flow that already exists)
-- **Linked entities** — in the detail dialog, show ability to link existing tasks/docs using the `entity_links` table
-
-### Create dialog improvements
-- Add category picker (dropdown)
-- Add assignee picker
-- Add optional tags input
-
-## Summary of changes
-
-| Action | File |
-|--------|------|
-| Edit | `src/components/AppSidebar.tsx` — remove Reminders link |
-| Edit | `src/App.tsx` — remove `/reminders` route |
-| Delete | `src/pages/RemindersPage.tsx` |
-| Edit | `src/pages/Index.tsx` — add reminders widget |
-| Edit | `src/components/Layout.tsx` — add bell icon with reminders dropdown |
-| Edit | `src/components/GlobalCreateMenu.tsx` — tailored forms, instant-create for notes/docs |
-| Edit | `src/pages/NotesPage.tsx` — fix convert-to-doc, UX improvements |
-| Edit | `src/pages/IssuesPage.tsx` — categories, assignee, tags, kanban view, comments |
-| Migration | Add `category`, `assigned_to`, `tags` columns to `issues` table |
+| File | Change |
+|------|--------|
+| `src/components/RemindersWidget.tsx` | Change Bell → AlarmClock icon; restyle create dialog |
+| `src/components/GlobalCreateMenu.tsx` | Restyle all create dialogs with inline badge pickers, no labels, collapsible description |
 
