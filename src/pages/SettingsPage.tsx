@@ -640,11 +640,10 @@ function AccentColorPicker() {
           title={preset.label}
         >
           <div
-            className="h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ring-2 ring-offset-2 ring-offset-background"
+            className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
             style={{
               backgroundColor: preset.color,
-              ringColor: activeHue === preset.hue ? preset.color : "transparent",
-              boxShadow: activeHue === preset.hue ? `0 0 0 2px ${preset.color}` : "none",
+              ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
             }}
           >
             {activeHue === preset.hue && (
