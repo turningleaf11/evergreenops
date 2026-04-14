@@ -209,79 +209,6 @@ export default function CeoDashboard() {
 
           {/* Strategy Tab */}
           <TabsContent value="strategy" className="space-y-6">
-            {/* Vision */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Vision</h2>
-              </div>
-              {visionSections.map(section => {
-                const meta = sectionMeta[section.section];
-                if (!meta) return null;
-                const Icon = meta.icon;
-                const content = section.content as any;
-                const text = content?.text || "";
-                const isEditing = visionEditing === section.id;
-
-                return (
-                  <Card key={section.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-primary" />
-                          {meta.label}
-                        </CardTitle>
-                        {isAdmin && !isEditing && (
-                          <Button variant="ghost" size="sm" onClick={() => startVisionEdit(section)}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {isAdmin && isEditing && (
-                          <Button variant="ghost" size="sm" onClick={() => saveVisionEdit(section)}>
-                            <Save className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{meta.description}</p>
-                    </CardHeader>
-                    <CardContent>
-                      {isEditing ? (
-                        <Textarea value={visionEditText} onChange={e => setVisionEditText(e.target.value)} rows={4} className="text-sm" />
-                      ) : text ? (
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{text}</p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">Not yet defined. {isAdmin && "Click the pencil to add content."}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    Quarterly Rocks
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">Auto-pulled from Execution Hub goals for the current quarter</p>
-                </CardHeader>
-                <CardContent>
-                  {currentQuarterGoals.length > 0 ? (
-                    <ul className="space-y-2">
-                      {currentQuarterGoals.map(g => (
-                        <li key={g.id} className="flex items-center gap-2 text-sm">
-                          <span className={`w-2 h-2 rounded-full ${g.status === "done" ? "bg-green-500" : g.status === "at_risk" ? "bg-red-500" : "bg-blue-500"}`} />
-                          {g.title}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">No goals for the current quarter.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Strategy Creator */}
             <div className="rounded-xl border border-border bg-card p-5">
               <StrategyItemCreator />
@@ -298,6 +225,81 @@ export default function CeoDashboard() {
               <div className="rounded-xl border border-border bg-card p-5">
                 <DecisionLog />
               </div>
+            </div>
+
+            {/* Vision — collapsed accordion */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Vision &amp; Long-Term Targets</h2>
+              </div>
+              <Accordion type="multiple" className="w-full">
+                {visionSections.map(section => {
+                  const meta = sectionMeta[section.section];
+                  if (!meta) return null;
+                  const Icon = meta.icon;
+                  const content = section.content as any;
+                  const text = content?.text || "";
+                  const isEditing = visionEditing === section.id;
+
+                  return (
+                    <AccordionItem key={section.id} value={section.id}>
+                      <AccordionTrigger className="text-sm font-medium py-3">
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5 text-primary" />
+                          {meta.label}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs text-muted-foreground">{meta.description}</p>
+                          {isAdmin && !isEditing && (
+                            <Button variant="ghost" size="sm" onClick={() => startVisionEdit(section)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {isAdmin && isEditing && (
+                            <Button variant="ghost" size="sm" onClick={() => saveVisionEdit(section)}>
+                              <Save className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {isEditing ? (
+                          <Textarea value={visionEditText} onChange={e => setVisionEditText(e.target.value)} rows={4} className="text-sm" />
+                        ) : text ? (
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{text}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic">Not yet defined. {isAdmin && "Click the pencil to add content."}</p>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+
+                <AccordionItem value="quarterly-rocks">
+                  <AccordionTrigger className="text-sm font-medium py-3">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                      Quarterly Rocks
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="text-xs text-muted-foreground mb-2">Auto-pulled from Execution Hub goals for the current quarter</p>
+                    {currentQuarterGoals.length > 0 ? (
+                      <ul className="space-y-2">
+                        {currentQuarterGoals.map(g => (
+                          <li key={g.id} className="flex items-center gap-2 text-sm">
+                            <span className={`w-2 h-2 rounded-full ${g.status === "done" ? "bg-green-500" : g.status === "at_risk" ? "bg-red-500" : "bg-blue-500"}`} />
+                            {g.title}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No goals for the current quarter.</p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </TabsContent>
         </Tabs>
