@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X, LayoutGrid, List } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { CommentsSection } from "@/components/CommentsSection";
+import CommentsSection from "@/components/CommentsSection";
 
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
