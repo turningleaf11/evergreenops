@@ -1,7 +1,7 @@
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
-  Code2, Palette, Lightbulb, Megaphone, Settings, Building2,
-  ShieldCheck, Compass, GraduationCap, Target, StickyNote,
+  Settings, Building2, ShieldCheck, Compass, GraduationCap,
+  Target, StickyNote, Sun, Moon,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -12,14 +12,11 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
-
-const deptIconMap: Record<string, React.ElementType> = {
-  Code2, Palette, Lightbulb, Megaphone, Settings,
-};
+import { useTheme } from "@/contexts/ThemeContext";
+import { getDeptIcon } from "@/lib/icon-map";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -99,7 +96,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {departments.map((dept) => {
-                    const Icon = deptIconMap[dept.icon] || Building2;
+                    const Icon = getDeptIcon(dept.icon);
                     return (
                       <SidebarMenuItem key={dept.id}>
                         <SidebarMenuButton asChild>
@@ -146,11 +143,18 @@ export function AppSidebar() {
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1">
               <span className="text-xs font-medium text-sidebar-foreground">{profile?.full_name || "User"}</span>
               <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
           )}
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors"
+            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
         </div>
         {!collapsed && (
           <button
