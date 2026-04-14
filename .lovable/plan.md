@@ -1,37 +1,60 @@
 
 
-# Fix Accent Color + Redesign TableView Rows
+# Card-Enhanced List + Data Table + Hover Actions
 
-## 1. Fix Custom Accent Color (store full HSL, not just hue)
+## Summary
 
-**Problem**: `applyAccentHue` only uses the hue value and reconstructs with hardcoded S=65% L=48%. So `#29896e` (hue 160, sat 54%, light 35%) gets displayed as a different, brighter green.
+Three changes: (1) upgrade the **List view** with card-styled rows, status blocks, and hover action buttons; (2) create a separate **Table view** as a proper data-grid with column headers and sortable columns; (3) both views currently render the same `TableView` component — fix that.
 
-**Fix**:
-- Change `accentColor` storage from hue-only string (e.g. `"160"`) to full HSL string (e.g. `"160 54% 35%"`) when a custom hex is entered
-- Update `applyAccentHue` → `applyAccentColor` to accept either a bare hue (for presets, backward compat) or a full `"H S% L%"` string
-- Update `hexToHue` → `hexToHsl` to return full H/S/L values
-- Keep presets working as before (they already have fixed S/L)
+## 1. Upgrade List View (`TableView.tsx` → card-enhanced)
 
-**Files**: `src/contexts/WorkspaceContext.tsx`, `src/pages/SettingsPage.tsx`
+Current `TableView` becomes the **List view** only (used when `view === "list"`).
 
-## 2. Redesign TableView Rows
+**Row styling:**
+- Height 56–64px, `rounded-xl` (12px), tinted background (`bg-muted/30`), padding `px-4 py-3`
+- On hover: `hover:shadow-md hover:-translate-y-[1px]` for lift effect
+- Maintain status dot on left, title, priority pill, due date, avatar on right
 
-**Changes**:
-- Remove the colored `border-l-[3px]` from each row
-- Add a small clickable **status dot** (colored circle, ~10px) on the left of each row; clicking it opens the status `<Select>` dropdown
-- Remove the separate status pill from the right side (the dot replaces it)
-- **Indent rows** under their group header — group header stays at `px-1`, rows get `ml-6` so they visually nest under the status group label
-- Keep everything else (priority pill, avatar, due date) on the right
+**Status group blocks:**
+- Each group wrapped in a container with `rounded-xl bg-muted/20 p-3 space-y-1.5` so it feels like its own visual block
+- Group header with dot + label + count stays as-is, rows indented inside the block
 
-**Files**: `src/components/execution/TableView.tsx`
+**Hover action buttons:**
+- On row hover, show 2–3 icon buttons on the far right (Edit/Pencil, Archive, MoreHorizontal)
+- Hidden by default, visible via `opacity-0 group-hover/row:opacity-100` transition
+- Each button is an icon-only ghost button, clicks stop propagation
 
-## Files Summary
+**Quick-complete checkbox (tasks only):**
+- For task type, show a small checkbox on the far left (before the status dot)
+- Checking it sets status to "done"
+
+## 2. New Data Table View (`DataTableView.tsx`)
+
+Create `src/components/execution/DataTableView.tsx` — a proper columnar grid.
+
+**Structure:**
+- Uses `<Table>` components from `ui/table.tsx`
+- Column headers: Name, Status, Priority, Assignee, Due Date — clickable for sorting
+- Compact rows (~40px height), no card styling, dense data view
+- Status and priority shown as small inline pills
+- Clicking a row opens the detail drawer (same `onItemClick`)
+- Status cell is a clickable Select (inline edit)
+
+**Props:** Same interface as `TableView` so it's a drop-in swap.
+
+## 3. Wire up in ExecutionPage
+
+- `view === "list"` → renders `TableView` (card-enhanced list)
+- `view === "table"` → renders new `DataTableView`
+- Currently both render `TableView` — fix the table case to use `DataTableView`
+
+## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/contexts/WorkspaceContext.tsx` — Update `applyAccentHue` to handle full HSL |
-| Edit | `src/pages/SettingsPage.tsx` — `hexToHsl` instead of `hexToHue`, store full HSL |
-| Edit | `src/components/execution/TableView.tsx` — Status dot + indented rows |
+| Edit | `src/components/execution/TableView.tsx` — Card styling, hover actions, status blocks, checkbox |
+| Create | `src/components/execution/DataTableView.tsx` — Columnar data table |
+| Edit | `src/pages/ExecutionPage.tsx` — Import `DataTableView`, use it for `view === "table"` |
 
 No database changes needed.
 
