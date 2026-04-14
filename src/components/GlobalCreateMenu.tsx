@@ -6,19 +6,26 @@ import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, CheckSquare, FolderKanban, Bell, FileText, StickyNote } from "lucide-react";
+import { Plus, CheckSquare, FolderKanban, AlarmClock, FileText, StickyNote, CalendarIcon, User, Building2, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { format, addDays } from "date-fns";
 
 type CreateType = "task" | "project" | "reminder" | null;
+
+const priorityOptions = [
+  { value: "high", label: "High", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  { value: "medium", label: "Med", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  { value: "low", label: "Low", className: "bg-muted text-muted-foreground border-border" },
+];
 
 export function GlobalCreateMenu() {
   const { user, profile } = useAuth();
@@ -26,15 +33,17 @@ export function GlobalCreateMenu() {
   const navigate = useNavigate();
   const [createType, setCreateType] = useState<CreateType>(null);
 
-  // Task fields
   const [title, setTitle] = useState("");
+  const [showDesc, setShowDesc] = useState(false);
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
   const [assignee, setAssignee] = useState("");
   const [deptId, setDeptId] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [deptOpen, setDeptOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
 
-  // People for pickers
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
   useEffect(() => {
@@ -47,15 +56,18 @@ export function GlobalCreateMenu() {
     setCreateType(null);
     setTitle("");
     setDescription("");
+    setShowDesc(false);
     setPriority("medium");
     setAssignee("");
     setDeptId("");
-    setDueDate("");
+    setDueDate(undefined);
   };
+
+  const assigneeName = profiles.find(p => p.user_id === assignee)?.full_name;
+  const deptName = departments.find(d => d.id === deptId)?.name;
 
   const handleCreate = async () => {
     if (!title.trim() || !user) return;
-
     switch (createType) {
       case "task": {
         const { error } = await supabase.from("tasks").insert({
@@ -87,12 +99,19 @@ export function GlobalCreateMenu() {
           description,
           user_id: user.id,
           assigned_to: assignee || null,
-          due_at: dueDate || null,
+          due_at: dueDate ? dueDate.toISOString() : null,
         });
         if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
         else { toast({ title: "Reminder created" }); reset(); }
         break;
       }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey && title.trim()) {
+      e.preventDefault();
+      handleCreate();
     }
   };
 
@@ -104,9 +123,7 @@ export function GlobalCreateMenu() {
       .select("id")
       .single();
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else {
-      navigate("/notes", { state: { selectNoteId: data.id } });
-    }
+    else navigate("/notes", { state: { selectNoteId: data.id } });
   };
 
   const instantCreateDoc = async () => {
@@ -123,9 +140,7 @@ export function GlobalCreateMenu() {
       .select("id")
       .single();
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else {
-      navigate("/docs", { state: { selectDocId: data.id } });
-    }
+    else navigate("/docs", { state: { selectDocId: data.id } });
   };
 
   const typeLabels: Record<string, string> = {
@@ -150,7 +165,7 @@ export function GlobalCreateMenu() {
             <FolderKanban className="h-4 w-4 mr-2" /> Project
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setCreateType("reminder")}>
-            <Bell className="h-4 w-4 mr-2" /> Reminder
+            <AlarmClock className="h-4 w-4 mr-2" /> Reminder
           </DropdownMenuItem>
           <DropdownMenuItem onClick={instantCreateNote}>
             <StickyNote className="h-4 w-4 mr-2" /> Quick Note
@@ -162,102 +177,176 @@ export function GlobalCreateMenu() {
       </DropdownMenu>
 
       <Dialog open={!!createType} onOpenChange={(o) => !o && reset()}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{createType ? typeLabels[createType] : ""}</DialogTitle>
+        <DialogContent className="max-w-sm gap-0 p-5">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-base">{createType ? typeLabels[createType] : ""}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Title</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter a title..." autoFocus />
+
+          <div className="space-y-3">
+            {/* Title input — no label */}
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Title..."
+              className="border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
+              autoFocus
+            />
+
+            {/* Description — expandable */}
+            {showDesc ? (
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add a description..."
+                rows={2}
+                className="w-full resize-none rounded-md bg-muted/50 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none"
+              />
+            ) : (
+              <button
+                onClick={() => setShowDesc(true)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                + Add description
+              </button>
+            )}
+
+            {/* Inline metadata row */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {/* Priority badges — task only */}
+              {createType === "task" && (
+                <div className="flex gap-1">
+                  {priorityOptions.map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => setPriority(p.value)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
+                        priority === p.value ? p.className : "border-transparent text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Assignee picker */}
+              {(createType === "task" || createType === "reminder") && (
+                <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                      <User className="h-3 w-3" />
+                      {assigneeName || (createType === "reminder" ? "Delegate" : "Assign")}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    {profiles.map(p => (
+                      <button
+                        key={p.user_id}
+                        onClick={() => { setAssignee(p.user_id); setAssigneeOpen(false); }}
+                        className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        {p.full_name || "Unnamed"}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Owner picker — project */}
+              {createType === "project" && (
+                <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                      <User className="h-3 w-3" />
+                      {assigneeName || "Owner"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    {profiles.map(p => (
+                      <button
+                        key={p.user_id}
+                        onClick={() => { setAssignee(p.user_id); setAssigneeOpen(false); }}
+                        className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        {p.full_name || "Unnamed"}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Department picker — project */}
+              {createType === "project" && departments.length > 0 && (
+                <Popover open={deptOpen} onOpenChange={setDeptOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                      <Building2 className="h-3 w-3" />
+                      {deptName || "Department"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    {departments.map(d => (
+                      <button
+                        key={d.id}
+                        onClick={() => { setDeptId(d.id); setDeptOpen(false); }}
+                        className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        {d.name}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Due date — reminder */}
+              {createType === "reminder" && (
+                <Popover open={calOpen} onOpenChange={setCalOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                      <CalendarIcon className="h-3 w-3" />
+                      {dueDate ? format(dueDate, "MMM d") : "Due date"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex gap-1 p-2 border-b">
+                      {[
+                        { label: "Today", date: new Date() },
+                        { label: "Tomorrow", date: addDays(new Date(), 1) },
+                        { label: "Next week", date: addDays(new Date(), 7) },
+                      ].map(q => (
+                        <button
+                          key={q.label}
+                          onClick={() => { setDueDate(q.date); setCalOpen(false); }}
+                          className="rounded-md px-2.5 py-1 text-xs hover:bg-muted transition-colors"
+                        >
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={(d) => { setDueDate(d); setCalOpen(false); }}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Optional description..." />
+
+            {/* Create action */}
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleCreate}
+                disabled={!title.trim()}
+                size="sm"
+                className="h-8 px-4 text-xs"
+              >
+                Create
+              </Button>
             </div>
-
-            {/* Task-specific fields */}
-            {createType === "task" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Assignee</Label>
-                  <Select value={assignee} onValueChange={setAssignee}>
-                    <SelectTrigger><SelectValue placeholder="Me" /></SelectTrigger>
-                    <SelectContent>
-                      {profiles.map(p => (
-                        <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {/* Project-specific fields */}
-            {createType === "project" && (
-              <div className="grid grid-cols-2 gap-3">
-                {departments.length > 0 && (
-                  <div>
-                    <Label>Department</Label>
-                    <Select value={deptId} onValueChange={setDeptId}>
-                      <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
-                      <SelectContent>
-                        {departments.map(d => (
-                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div>
-                  <Label>Owner</Label>
-                  <Select value={assignee} onValueChange={setAssignee}>
-                    <SelectTrigger><SelectValue placeholder="Me" /></SelectTrigger>
-                    <SelectContent>
-                      {profiles.map(p => (
-                        <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {/* Reminder-specific fields */}
-            {createType === "reminder" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Due date & time</Label>
-                  <Input type="datetime-local" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Delegate to</Label>
-                  <Select value={assignee} onValueChange={setAssignee}>
-                    <SelectTrigger><SelectValue placeholder="Just me" /></SelectTrigger>
-                    <SelectContent>
-                      {profiles.map(p => (
-                        <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            <Button onClick={handleCreate} className="w-full" disabled={!title.trim()}>
-              Create
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
