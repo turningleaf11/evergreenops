@@ -115,7 +115,19 @@ export default function SettingsPage() {
         </TabsList>
 
         {/* Workspace Tab */}
-        <TabsContent value="workspace" className="mt-4">
+        <TabsContent value="workspace" className="mt-4 space-y-4">
+          {/* Appearance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Appearance</CardTitle>
+              <CardDescription>Choose an accent color for your workspace.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AccentColorPicker />
+            </CardContent>
+          </Card>
+
+          {/* Workspace Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Workspace Settings</CardTitle>
