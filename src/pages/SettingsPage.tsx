@@ -731,7 +731,34 @@ function ModuleEditor({
   );
 }
 
-const ACCENT_PRESETS = [
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+  const options: { value: "light" | "dark" | "system"; label: string; icon: React.ReactNode }[] = [
+    { value: "light", label: "Light", icon: <Sun className="h-4 w-4" /> },
+    { value: "dark", label: "Dark", icon: <Moon className="h-4 w-4" /> },
+    { value: "system", label: "System", icon: <Monitor className="h-4 w-4" /> },
+  ];
+
+  return (
+    <div className="flex gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => setTheme(opt.value)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            theme === opt.value
+              ? "bg-primary/10 border-primary text-primary"
+              : "hover:bg-accent text-muted-foreground"
+          }`}
+        >
+          {opt.icon}
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
   { label: "Blue", hue: "220", color: "hsl(220, 65%, 48%)" },
   { label: "Indigo", hue: "245", color: "hsl(245, 65%, 48%)" },
   { label: "Purple", hue: "280", color: "hsl(280, 65%, 48%)" },
