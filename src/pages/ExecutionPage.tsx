@@ -30,6 +30,7 @@ type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
   status: string; owner_id: string | null; department_id: string | null;
   created_by: string | null; progress: number; created_at: string; updated_at: string;
+  measurable_target: string; deadline: string | null; key_results: any[]; alignment_notes: string;
 };
 type Project = {
   id: string; title: string; description: string; goal_id: string | null;
@@ -217,11 +218,18 @@ export default function ExecutionPage() {
   const tasksForProject = (projectId: string) => tasks.filter(t => t.project_id === projectId);
   const tasksForGoal = (goalId: string) => tasks.filter(t => t.goal_id === goalId && !t.project_id);
 
-  const createGoal = async (data: { title: string; quarter: string; year: number; description: string; department_id: string }) => {
+  const createGoal = async (data: {
+    title: string; quarter: string; year: number; description: string; department_id: string;
+    measurable_target?: string; deadline?: string; key_results?: any[]; alignment_notes?: string;
+  }) => {
     const { error } = await supabase.from("goals").insert({
       title: data.title, quarter: data.quarter, year: data.year,
       description: data.description, department_id: data.department_id || null,
       owner_id: user?.id, created_by: user?.id,
+      measurable_target: data.measurable_target || "",
+      deadline: data.deadline || null,
+      key_results: data.key_results || [],
+      alignment_notes: data.alignment_notes || "",
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Goal created" }); setCreateGoalOpen(false); fetchAll(); }
