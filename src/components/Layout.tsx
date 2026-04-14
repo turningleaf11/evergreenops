@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/ActivityFeed";
 import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
+import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
 
 export function Layout() {
   return (
@@ -14,7 +15,10 @@ export function Layout() {
           <div className="flex-1 flex flex-col min-w-0">
             <header className="h-12 flex items-center border-b px-4 shrink-0 justify-between">
               <SidebarTrigger className="mr-3" />
-              <NotificationBell />
+              <div className="flex items-center gap-2">
+                <GlobalCreateMenu />
+                <NotificationBell />
+              </div>
             </header>
             <main className="flex-1 overflow-auto">
               <Outlet />

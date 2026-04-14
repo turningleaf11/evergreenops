@@ -14,9 +14,11 @@ export function OnboardingBanner() {
     completedOnboardingSteps,
     markOnboardingStepComplete,
     isOnboardingStepComplete,
-    onboardingProgress,
+    getOnboardingProgress,
   } = useTrainingProgress();
   const { onboardingSteps } = useTraining();
+
+  const onboardingProgress = getOnboardingProgress(onboardingSteps.length);
 
   if (onboardingDismissed) return null;
 

@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
@@ -30,6 +31,7 @@ type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
   status: string; owner_id: string | null; department_id: string | null;
   created_by: string | null; progress: number; created_at: string; updated_at: string;
+  measurable_target: string; deadline: string | null; key_results: any[]; alignment_notes: string;
 };
 type Project = {
   id: string; title: string; description: string; goal_id: string | null;
@@ -217,11 +219,18 @@ export default function ExecutionPage() {
   const tasksForProject = (projectId: string) => tasks.filter(t => t.project_id === projectId);
   const tasksForGoal = (goalId: string) => tasks.filter(t => t.goal_id === goalId && !t.project_id);
 
-  const createGoal = async (data: { title: string; quarter: string; year: number; description: string; department_id: string }) => {
+  const createGoal = async (data: {
+    title: string; quarter: string; year: number; description: string; department_id: string;
+    measurable_target?: string; deadline?: string; key_results?: any[]; alignment_notes?: string;
+  }) => {
     const { error } = await supabase.from("goals").insert({
       title: data.title, quarter: data.quarter, year: data.year,
       description: data.description, department_id: data.department_id || null,
       owner_id: user?.id, created_by: user?.id,
+      measurable_target: data.measurable_target || "",
+      deadline: data.deadline || null,
+      key_results: data.key_results || [],
+      alignment_notes: data.alignment_notes || "",
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Goal created" }); setCreateGoalOpen(false); fetchAll(); }
@@ -511,6 +520,35 @@ export default function ExecutionPage() {
                       <CollapsibleContent>
                         <CardContent className="pt-0 space-y-3">
                           {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
+                          {goal.measurable_target && (
+                            <div className="text-xs"><span className="font-medium">Target:</span> <span className="text-muted-foreground">{goal.measurable_target}</span></div>
+                          )}
+                          {goal.deadline && (
+                            <div className="text-xs"><span className="font-medium">Deadline:</span> <span className="text-muted-foreground">{goal.deadline}</span></div>
+                          )}
+                          {goal.alignment_notes && (
+                            <div className="text-xs"><span className="font-medium">Alignment:</span> <span className="text-muted-foreground">{goal.alignment_notes}</span></div>
+                          )}
+                          {Array.isArray(goal.key_results) && goal.key_results.length > 0 && (
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Key Results</h4>
+                              {goal.key_results.map((kr: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={!!kr.done}
+                                    onCheckedChange={async (checked) => {
+                                      const updated = [...goal.key_results];
+                                      updated[i] = { ...kr, done: !!checked };
+                                      await supabase.from("goals").update({ key_results: updated } as any).eq("id", goal.id);
+                                      fetchAll();
+                                    }}
+                                    className="h-3.5 w-3.5"
+                                  />
+                                  <span className={kr.done ? "line-through text-muted-foreground" : ""}>{kr.title || kr}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {gProjects.length > 0 && (
                             <div className="space-y-2">
                               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Projects</h4>
@@ -954,6 +992,22 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
                 <Input type="number" value={form.year || currentYear()} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} />
               </div>
             </div>
+          )}
+          {type === "goal" && (
+            <>
+              <div>
+                <Label>Measurable Target</Label>
+                <Input value={form.measurable_target || ""} onChange={e => setForm(p => ({ ...p, measurable_target: e.target.value }))} placeholder="e.g. Increase revenue by 20%" />
+              </div>
+              <div>
+                <Label>Deadline</Label>
+                <Input type="date" value={form.deadline || ""} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Alignment Notes</Label>
+                <Textarea value={form.alignment_notes || ""} onChange={e => setForm(p => ({ ...p, alignment_notes: e.target.value }))} rows={2} placeholder="How does this align with company strategy?" />
+              </div>
+            </>
           )}
           {type === "project" && (
             <div>

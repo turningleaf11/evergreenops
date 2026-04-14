@@ -15,7 +15,7 @@ interface TrainingProgressContextValue extends TrainingProgressState {
   markOnboardingStepComplete: (stepId: string) => void;
   isOnboardingStepComplete: (stepId: string) => boolean;
   dismissOnboarding: () => void;
-  onboardingProgress: number;
+  getOnboardingProgress: (totalSteps: number) => number;
 }
 
 const STORAGE_KEY = "teamspace-training-progress";
@@ -92,7 +92,10 @@ export function TrainingProgressProvider({ children }: { children: React.ReactNo
     setState((prev) => ({ ...prev, onboardingDismissed: true }));
   }, []);
 
-  const onboardingProgress = Math.round((state.completedOnboardingSteps.length / 5) * 100);
+  const getOnboardingProgress = useCallback((totalSteps: number) => {
+    if (totalSteps === 0) return 100;
+    return Math.round((state.completedOnboardingSteps.length / totalSteps) * 100);
+  }, [state.completedOnboardingSteps]);
 
   const value: TrainingProgressContextValue = {
     ...state,
@@ -104,7 +107,7 @@ export function TrainingProgressProvider({ children }: { children: React.ReactNo
     markOnboardingStepComplete,
     isOnboardingStepComplete,
     dismissOnboarding,
-    onboardingProgress,
+    getOnboardingProgress,
   };
 
   return React.createElement(TrainingProgressContext.Provider, { value }, children);

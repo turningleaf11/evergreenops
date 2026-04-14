@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -53,23 +53,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const persist = useCallback(async (partial: Partial<WorkspaceState>) => {
-    setState((prev) => {
-      const next = { ...prev, ...partial };
-      // Async update to DB
-      if (prev.id) {
-        supabase
-          .from("workspaces")
-          .update({
-            name: next.name,
-            description: next.description,
-            logo_url: next.logoUrl,
-          } as any)
-          .eq("id", prev.id)
-          .then();
-      }
-      return next;
-    });
+    setState((prev) => ({ ...prev, ...partial }));
   }, []);
+
+  // Persist to DB whenever state changes (debounced effect)
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const saveToDb = useCallback(async (s: WorkspaceState) => {
+    if (!s.id || !isAdmin) return;
+    await supabase
+      .from("workspaces")
+      .update({ name: s.name, description: s.description, logo_url: s.logoUrl })
+      .eq("id", s.id);
+  }, [isAdmin]);
+
+  // Save to DB when state changes (skip initial load)
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      if (!loading) initialLoadDone.current = true;
+      return;
+    }
+    saveToDb(state);
+  }, [state, loading, saveToDb]);
 
   return (
     <WorkspaceContext.Provider

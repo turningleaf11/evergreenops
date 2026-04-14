@@ -19,6 +19,7 @@ interface Doc {
   title: string;
   content: string;
   parentId: string | null;
+  projectId: string | null;
   visibility: Visibility;
   sharedWith: SharedWith;
   author: string;
@@ -34,6 +35,7 @@ function mapRow(row: any): Doc {
     title: row.title,
     content: row.content || "",
     parentId: row.parent_id,
+    projectId: row.project_id || null,
     visibility: row.visibility as Visibility,
     sharedWith: (row.shared_with as SharedWith) || { departmentIds: [], memberIds: [] },
     author: row.author_name || "Unknown",

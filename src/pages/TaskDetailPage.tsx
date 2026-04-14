@@ -13,7 +13,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, Tag, X, Plus, CheckSquare, Repeat, Save,
-  ChevronDown, Circle, Zap, AlertTriangle, FolderOpen, Target,
+  ChevronDown, Circle, Zap, AlertTriangle, FolderOpen, Target, FileText, Link2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -54,6 +54,8 @@ export default function TaskDetailPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
+  const [allDocs, setAllDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -61,14 +63,16 @@ export default function TaskDetailPage() {
   const [newSubtask, setNewSubtask] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [subtasksOpen, setSubtasksOpen] = useState(true);
+  const [linkedDocsOpen, setLinkedDocsOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [tRes, pRes, gRes, prRes] = await Promise.all([
+    const [tRes, pRes, gRes, prRes, docsRes] = await Promise.all([
       supabase.from("tasks").select("*").eq("id", id).single(),
       supabase.from("projects").select("id, title"),
       supabase.from("goals").select("id, title"),
       supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("documents").select("id, title"),
     ]);
     if (tRes.data) {
       const data = tRes.data;
@@ -79,6 +83,24 @@ export default function TaskDetailPage() {
     if (pRes.data) setProjects(pRes.data);
     if (gRes.data) setGoals(gRes.data);
     if (prRes.data) setProfiles(prRes.data);
+    if (docsRes.data) setAllDocs(docsRes.data);
+
+    // Fetch linked docs via entity_links
+    const { data: links } = await supabase
+      .from("entity_links")
+      .select("*")
+      .eq("source_type", "task")
+      .eq("source_id", id);
+    if (links) {
+      const docIds = links.filter(l => l.target_type === "document").map(l => l.target_id);
+      if (docIds.length > 0) {
+        const { data: docs } = await supabase.from("documents").select("id, title").in("id", docIds);
+        setLinkedDocs(docs || []);
+      } else {
+        setLinkedDocs([]);
+      }
+    }
+
     setLoading(false);
   }, [id]);
 
@@ -395,6 +417,47 @@ export default function TaskDetailPage() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Linked Documents */}
+          <Collapsible open={linkedDocsOpen} onOpenChange={setLinkedDocsOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${linkedDocsOpen ? "" : "-rotate-90"}`} />
+              <Link2 className="h-3.5 w-3.5" />
+              Linked Docs {linkedDocs.length > 0 && <span className="text-xs font-normal">({linkedDocs.length})</span>}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 pt-2">
+              {linkedDocs.map(d => (
+                <div key={d.id} className="flex items-center gap-2.5 py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer" onClick={() => navigate("/docs")}>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{d.title}</span>
+                </div>
+              ))}
+              <Select
+                value=""
+                onValueChange={async (docId) => {
+                  if (!user || !id) return;
+                  const { error } = await supabase.from("entity_links").insert({
+                    source_type: "task",
+                    source_id: id,
+                    target_type: "document",
+                    target_id: docId,
+                    created_by: user.id,
+                  });
+                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                  else { toast({ title: "Document linked" }); fetchData(); }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs border-dashed w-48">
+                  <SelectValue placeholder="+ Link a document..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDocs.filter(d => !linkedDocs.find(ld => ld.id === d.id)).map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </CollapsibleContent>
           </Collapsible>
         </div>
