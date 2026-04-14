@@ -384,7 +384,7 @@ export default function NotesPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto">
-              <RichTextEditor content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
+              <RichTextEditor key={selectedId} content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
             </div>
           </>
         ) : (

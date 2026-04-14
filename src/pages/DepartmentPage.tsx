@@ -10,7 +10,9 @@ import {
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
   Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
   LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
+  MoreHorizontal,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { StrategyFeed } from "@/components/StrategyFeed";
@@ -315,9 +317,30 @@ export default function DepartmentPage() {
       {/* Department Header with accent */}
       <div className="relative">
         <div className="absolute inset-x-0 top-0 h-1 rounded-t-lg" style={{ backgroundColor: `hsl(${deptColor})` }} />
-        <div className="pt-4">
-          <h1 className="text-2xl font-bold tracking-tight">{dept.name}</h1>
-          {dept.description && <p className="text-muted-foreground mt-1">{dept.description}</p>}
+        <div className="pt-4 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{dept.name}</h1>
+            {dept.description && <p className="text-muted-foreground mt-1">{dept.description}</p>}
+          </div>
+          {pinboardItems.filter(p => p.type === "link" && p.url).length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Zap className="h-3.5 w-3.5" /> Quick Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {pinboardItems.filter(p => p.type === "link" && p.url).map(pin => (
+                  <DropdownMenuItem key={pin.id} asChild>
+                    <a href={pin.url!} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {pin.title}
+                    </a>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 

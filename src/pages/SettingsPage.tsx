@@ -770,18 +770,51 @@ const ACCENT_PRESETS = [
   { label: "Green", hue: "142", color: "hsl(142, 65%, 48%)" },
 ];
 
+function hexToHue(hex: string): number | null {
+  const match = hex.replace("#", "").match(/^([0-9a-f]{6})$/i);
+  if (!match) return null;
+  const r = parseInt(match[1].slice(0, 2), 16) / 255;
+  const g = parseInt(match[1].slice(2, 4), 16) / 255;
+  const b = parseInt(match[1].slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max === min) return 0;
+  let h = 0;
+  const d = max - min;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return Math.round(h);
+}
+
+function hueToHex(hue: string): string {
+  const h = parseInt(hue, 10) || 0;
+  const s = 0.65, l = 0.48;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 function AccentColorPicker() {
   const { accentColor, setAccentColor } = useWorkspace();
   const activeHue = accentColor || "220";
-  const [customHue, setCustomHue] = useState(
-    ACCENT_PRESETS.some(p => p.hue === activeHue) ? "" : activeHue
+  const [customHex, setCustomHex] = useState(
+    ACCENT_PRESETS.some(p => p.hue === activeHue) ? "" : hueToHex(activeHue)
   );
 
-  const handleCustomHue = (val: string) => {
-    setCustomHue(val);
-    const num = parseInt(val, 10);
-    if (!isNaN(num) && num >= 0 && num <= 360) {
-      setAccentColor(String(num));
+  const handleCustomHex = (val: string) => {
+    setCustomHex(val);
+    const hue = hexToHue(val);
+    if (hue !== null) {
+      setAccentColor(String(hue));
     }
   };
 
@@ -791,7 +824,7 @@ function AccentColorPicker() {
         {ACCENT_PRESETS.map((preset) => (
           <button
             key={preset.hue}
-            onClick={() => { setAccentColor(preset.hue === "220" ? null : preset.hue); setCustomHue(""); }}
+            onClick={() => { setAccentColor(preset.hue === "220" ? null : preset.hue); setCustomHex(""); }}
             className="group relative flex flex-col items-center gap-1.5"
             title={preset.label}
           >
@@ -813,18 +846,16 @@ function AccentColorPicker() {
       <div className="flex items-center gap-3">
         <div
           className="h-8 w-8 rounded-full shrink-0 border"
-          style={{ backgroundColor: `hsl(${customHue || activeHue}, 65%, 48%)` }}
+          style={{ backgroundColor: customHex && hexToHue(customHex) !== null ? customHex : `hsl(${activeHue}, 65%, 48%)` }}
         />
         <Input
-          value={customHue}
-          onChange={(e) => handleCustomHue(e.target.value)}
-          placeholder="Custom hue (0-360)"
-          className="h-8 text-sm w-40"
-          type="number"
-          min={0}
-          max={360}
+          value={customHex}
+          onChange={(e) => handleCustomHex(e.target.value)}
+          placeholder="#3B82F6"
+          className="h-8 text-sm w-40 font-mono"
+          maxLength={7}
         />
-        <span className="text-xs text-muted-foreground">HSL hue value</span>
+        <span className="text-xs text-muted-foreground">Hex color</span>
       </div>
     </div>
   );

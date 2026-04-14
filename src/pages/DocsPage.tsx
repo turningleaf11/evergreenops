@@ -373,7 +373,7 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
       </div>
 
       {isAdmin ? (
-        <RichTextEditor content={content} onChange={(c) => { setContent(c); scheduleAutoSave({ content: c }); }} placeholder="Start writing..." />
+        <RichTextEditor content={content} onChange={(c) => { setContent(c); scheduleAutoSave({ content: c }); }} placeholder="Start writing..." borderless />
       ) : (
         <div className="prose prose-sm max-w-none text-foreground" dangerouslySetInnerHTML={{ __html: content }} />
       )}
