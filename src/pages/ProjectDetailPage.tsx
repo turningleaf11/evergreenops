@@ -45,6 +45,7 @@ export default function ProjectDetailPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -52,19 +53,22 @@ export default function ProjectDetailPage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(true);
+  const [docsOpen, setDocsOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [pRes, tRes, gRes, prRes] = await Promise.all([
+    const [pRes, tRes, gRes, prRes, dRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
       supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("documents").select("id, title, updated_at").eq("project_id", id).order("updated_at", { ascending: false }),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
     if (tRes.data) setTasks(tRes.data);
     if (gRes.data) setGoals(gRes.data);
     if (prRes.data) setProfiles(prRes.data);
+    if (dRes.data) setLinkedDocs(dRes.data);
     setLoading(false);
   }, [id]);
 
