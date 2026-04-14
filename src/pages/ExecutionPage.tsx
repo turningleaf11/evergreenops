@@ -806,6 +806,28 @@ export default function ExecutionPage() {
 
         {/* Issues tab */}
         <TabsContent value="issues" className="space-y-4">
+          {/* Category filter */}
+          <div className="flex gap-1 flex-wrap">
+            {[
+              { value: "all", label: "All" },
+              { value: "tools_systems", label: "Tools & Systems" },
+              { value: "process", label: "Process" },
+              { value: "change_request", label: "Change Requests" },
+              { value: "people", label: "People" },
+              { value: "general", label: "General" },
+            ].map(cat => (
+              <Button
+                key={cat.value}
+                variant={issueCategoryFilter === cat.value ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setIssueCategoryFilter(cat.value)}
+              >
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+
           <Tabs value={issueViewTab} onValueChange={setIssueViewTab}>
             <TabsList>
               <TabsTrigger value="open">Open ({openIssues.length})</TabsTrigger>
@@ -819,9 +841,11 @@ export default function ExecutionPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-medium">{issue.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
+                          {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
                           <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
                         </div>
                       </div>
@@ -844,6 +868,7 @@ export default function ExecutionPage() {
                         <h3 className="font-medium">{issue.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs capitalize">{issue.status}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           {issue.resolved_action_type !== "none" && (
                             <Badge variant="outline" className="text-xs">→ {issue.resolved_action_type}</Badge>
                           )}
