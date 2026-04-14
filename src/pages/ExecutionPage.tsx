@@ -450,6 +450,19 @@ export default function ExecutionPage() {
                     <div><Label>Description</Label><Textarea value={newIssueDesc} onChange={e => setNewIssueDesc(e.target.value)} rows={3} /></div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
+                        <Label>Category</Label>
+                        <Select value={newIssueCategory} onValueChange={setNewIssueCategory}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">General</SelectItem>
+                            <SelectItem value="tools_systems">Tools & Systems</SelectItem>
+                            <SelectItem value="process">Process</SelectItem>
+                            <SelectItem value="change_request">Change Request</SelectItem>
+                            <SelectItem value="people">People</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label>Priority</Label>
                         <Select value={newIssuePriority} onValueChange={setNewIssuePriority}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -457,6 +470,17 @@ export default function ExecutionPage() {
                             <SelectItem value="1">High</SelectItem>
                             <SelectItem value="2">Medium</SelectItem>
                             <SelectItem value="3">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Assign To</Label>
+                        <Select value={newIssueAssignee} onValueChange={setNewIssueAssignee}>
+                          <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
