@@ -194,16 +194,17 @@ export default function CeoDashboard() {
                   <CeoBriefing />
                 </div>
               </div>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Top Priorities</h2>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Top Priorities</h2>
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <TopPriorities />
+                  </div>
+                </div>
                 <div className="rounded-xl border border-border bg-card p-5">
-                  <TopPriorities />
+                  <MorningReset />
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-card p-5">
-              <MorningReset />
             </div>
           </TabsContent>
 
