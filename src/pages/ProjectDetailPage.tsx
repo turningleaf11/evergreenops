@@ -15,7 +15,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, FolderOpen, Plus, CheckCircle2, Circle, Clock,
-  Tag, X, ChevronDown, Target, Zap, AlertTriangle,
+  Tag, X, ChevronDown, Target, Zap, AlertTriangle, FileText,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
