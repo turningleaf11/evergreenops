@@ -759,6 +759,7 @@ function ThemeSelector() {
   );
 }
 
+const ACCENT_PRESETS = [
   { label: "Blue", hue: "220", color: "hsl(220, 65%, 48%)" },
   { label: "Indigo", hue: "245", color: "hsl(245, 65%, 48%)" },
   { label: "Purple", hue: "280", color: "hsl(280, 65%, 48%)" },
