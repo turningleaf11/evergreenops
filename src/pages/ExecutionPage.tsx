@@ -993,6 +993,22 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
               </div>
             </div>
           )}
+          {type === "goal" && (
+            <>
+              <div>
+                <Label>Measurable Target</Label>
+                <Input value={form.measurable_target || ""} onChange={e => setForm(p => ({ ...p, measurable_target: e.target.value }))} placeholder="e.g. Increase revenue by 20%" />
+              </div>
+              <div>
+                <Label>Deadline</Label>
+                <Input type="date" value={form.deadline || ""} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Alignment Notes</Label>
+                <Textarea value={form.alignment_notes || ""} onChange={e => setForm(p => ({ ...p, alignment_notes: e.target.value }))} rows={2} placeholder="How does this align with company strategy?" />
+              </div>
+            </>
+          )}
           {type === "project" && (
             <div>
               <Label>Link to Goal</Label>
