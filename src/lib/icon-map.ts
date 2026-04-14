@@ -3,6 +3,7 @@ import {
   Briefcase, DollarSign, Heart, Shield, Truck, Wrench,
   BarChart3, Globe, Phone, GraduationCap, Scale, Home,
   Layers, Target, Zap, Users, Headphones, ShoppingCart,
+  Handshake, Search, Building, TreePine, Wallet, Pencil,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,12 @@ export const DEPARTMENT_ICONS: Record<string, LucideIcon> = {
   Users,
   Headphones,
   ShoppingCart,
+  Handshake,
+  Search,
+  Building,
+  TreePine,
+  Wallet,
+  Pencil,
 };
 
 export function getDeptIcon(iconName: string | null | undefined): LucideIcon {
