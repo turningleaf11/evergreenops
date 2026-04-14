@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Calendar, Repeat, Pencil, Archive, MoreHorizontal } from "lucide-react";
+import { ChevronDown, Calendar, Repeat, Pencil, Archive, MoreHorizontal, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableViewProps {
@@ -16,6 +15,14 @@ interface TableViewProps {
   goals?: any[];
   projects?: any[];
 }
+
+const statusRingColors: Record<string, string> = {
+  not_started: "border-muted-foreground text-muted-foreground",
+  todo: "border-muted-foreground text-muted-foreground",
+  in_progress: "border-blue-500 text-blue-500",
+  done: "border-green-500 bg-green-500 text-white",
+  blocked: "border-red-500 text-red-500",
+};
 
 const statusDotColors: Record<string, string> = {
   not_started: "bg-muted-foreground",
@@ -47,13 +54,14 @@ function hashColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
-function StatusDot({ status, statusOptions, onStatusChange, itemId }: {
+function StatusCircle({ status, statusOptions, onStatusChange, itemId }: {
   status: string;
   statusOptions: { value: string; label: string }[];
   onStatusChange: (id: string, status: string) => void;
   itemId: string;
 }) {
-  const dotColor = statusDotColors[status] || statusDotColors.not_started;
+  const isDone = status === "done";
+  const ringColor = statusRingColors[status] || statusRingColors.not_started;
 
   return (
     <Select value={status} onValueChange={v => onStatusChange(itemId, v)}>
@@ -61,7 +69,13 @@ function StatusDot({ status, statusOptions, onStatusChange, itemId }: {
         className="h-auto w-auto p-0 border-0 shadow-none bg-transparent focus:ring-0 focus:ring-offset-0"
         onClick={e => e.stopPropagation()}
       >
-        <div className={cn("h-2.5 w-2.5 rounded-full shrink-0 cursor-pointer transition-transform hover:scale-150", dotColor)} />
+        <div className={cn(
+          "h-4 w-4 rounded-full shrink-0 cursor-pointer transition-all hover:scale-125 flex items-center justify-center",
+          isDone ? "border-2" : "border-2 bg-transparent",
+          ringColor
+        )}>
+          {isDone && <Check className="h-2.5 w-2.5" />}
+        </div>
       </SelectTrigger>
       <SelectContent>
         {statusOptions.map(s => (
@@ -118,10 +132,6 @@ export default function TableView({
   const toggleGroup = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const handleQuickComplete = (itemId: string, checked: boolean) => {
-    if (checked) onStatusChange(itemId, "done");
-  };
-
   return (
     <div className="space-y-4">
       {grouped.map(group => {
@@ -148,24 +158,12 @@ export default function TableView({
                     return (
                       <div
                         key={item.id}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 cursor-pointer group/row transition-all duration-150 hover:shadow-md hover:-translate-y-[1px] hover:bg-muted/50"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 cursor-pointer group/row transition-colors duration-150 hover:bg-muted/50"
                         style={{ minHeight: 56 }}
                         onClick={() => onItemClick(item)}
                       >
-                        {/* Quick-complete checkbox for tasks */}
-                        {type === "task" && item.status !== "done" && (
-                          <Checkbox
-                            className="h-4 w-4 shrink-0"
-                            checked={false}
-                            onCheckedChange={(checked) => {
-                              handleQuickComplete(item.id, !!checked);
-                            }}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        )}
-
-                        {/* Status dot */}
-                        <StatusDot
+                        {/* Status circle */}
+                        <StatusCircle
                           status={item.status}
                           statusOptions={statusOptions}
                           onStatusChange={onStatusChange}
