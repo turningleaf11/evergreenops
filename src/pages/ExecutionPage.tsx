@@ -651,46 +651,15 @@ export default function ExecutionPage() {
           />
 
           {pv.view === "list" && (
-            <div className="space-y-2">
-              {filteredProjects.map(p => {
-                const pTasks = tasksForProject(p.id);
-                const goalTitle = goals.find(g => g.id === p.goal_id)?.title;
-                return (
-                  <Card key={p.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => openProjectDrawer(p)}>
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{p.title}</h3>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
-                            {p.priority && (
-                              <Badge variant="outline" className="text-xs capitalize">{p.priority}</Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground">{getName(p.owner_id)}</span>
-                            <span className="text-xs text-muted-foreground">{pTasks.filter(t=>t.status==="done").length}/{pTasks.length} tasks</span>
-                            {p.due_date && <span className="text-xs text-muted-foreground">Due {p.due_date}</span>}
-                            {(p.tags || []).map(tag => (
-                              <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <Select value={p.status} onValueChange={v => updateStatus("projects", p.id, v)}>
-                          <SelectTrigger className="w-28 h-8 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {projectStatusOptions.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              {filteredProjects.length === 0 && (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">No projects match your filters.</CardContent></Card>
-              )}
-            </div>
+            <TableView
+              items={filteredProjects}
+              type="project"
+              onItemClick={openProjectDrawer}
+              onStatusChange={(id, status) => updateStatus("projects", id, status)}
+              getName={getName}
+              statusOptions={projectStatusOptions}
+              goals={goals}
+            />
           )}
 
           {pv.view === "board" && (
@@ -733,49 +702,15 @@ export default function ExecutionPage() {
           />
 
           {tv.view === "list" && (
-            <div className="space-y-2">
-              {visibleTasks.map(t => {
-                const projectTitle = projects.find(p => p.id === t.project_id)?.title;
-                const goalTitle = goals.find(g => g.id === t.goal_id)?.title;
-                return (
-                  <Card key={t.id} className="cursor-pointer hover:bg-accent/20 transition-colors" onClick={() => openTaskDrawer(t)}>
-                    <CardContent className="py-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm flex items-center gap-1.5">
-                            {t.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
-                            {t.title}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {goalTitle && <Badge variant="outline" className="text-xs">🎯 {goalTitle}</Badge>}
-                            {projectTitle && <Badge variant="outline" className="text-xs">📁 {projectTitle}</Badge>}
-                            {t.priority && (
-                              <Badge variant="outline" className="text-xs capitalize">{t.priority}</Badge>
-                            )}
-                            {t.due_date && <span className="text-xs text-muted-foreground">Due {t.due_date}</span>}
-                            <span className="text-xs text-muted-foreground">{getName(t.assigned_to)}</span>
-                            {(t.tags || []).map(tag => (
-                              <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <Select value={t.status} onValueChange={v => updateStatus("tasks", t.id, v)}>
-                          <SelectTrigger className="w-24 h-8 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {taskStatusOptions.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              {visibleTasks.length === 0 && (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks match your filters.</CardContent></Card>
-              )}
-            </div>
+            <TableView
+              items={visibleTasks}
+              type="task"
+              onItemClick={openTaskDrawer}
+              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+              getName={getName}
+              statusOptions={taskStatusOptions}
+              projects={projects}
+            />
           )}
 
           {tv.view === "board" && (
