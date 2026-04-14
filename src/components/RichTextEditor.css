@@ -9,7 +9,7 @@
 /* === Borderless / Workspace Mode === */
 .rich-editor-borderless .tiptap {
   min-height: 400px;
-  padding: 0.5rem 0;
+  padding: 0.5rem 1.5rem;
 }
 
 .rich-editor .tiptap p.is-editor-empty:first-child::before {
