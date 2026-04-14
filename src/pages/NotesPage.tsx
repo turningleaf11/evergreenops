@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, FileText, ArrowRight, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -14,6 +14,7 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  folder: string | null;
   converted_doc_id: string | null;
   created_at: string;
   updated_at: string;
@@ -29,6 +30,13 @@ export default function NotesPage() {
   const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
+
+  // Folder state
+  const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All Notes
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const fetchNotes = useCallback(async () => {
     if (!user) return;
@@ -48,10 +56,30 @@ export default function NotesPage() {
     if (state?.selectNoteId && notes.length > 0) {
       const note = notes.find(n => n.id === state.selectNoteId);
       if (note) selectNote(note);
-      // Clear state
       window.history.replaceState({}, document.title);
     }
   }, [location.state, notes]);
+
+  // Derive folders from notes
+  const folders = useMemo(() => {
+    const folderSet = new Set<string>();
+    notes.forEach(n => { if (n.folder) folderSet.add(n.folder); });
+    return Array.from(folderSet).sort();
+  }, [notes]);
+
+  const filteredNotes = useMemo(() => {
+    if (activeFolder === null) return notes;
+    return notes.filter(n => n.folder === activeFolder);
+  }, [notes, activeFolder]);
+
+  const folderCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    notes.forEach(n => {
+      const f = n.folder || "__unfiled";
+      counts[f] = (counts[f] || 0) + 1;
+    });
+    return counts;
+  }, [notes]);
 
   const selectNote = (note: Note) => {
     setSelectedId(note.id);
@@ -63,7 +91,7 @@ export default function NotesPage() {
     if (!user) return;
     const { data, error } = await supabase
       .from("notes")
-      .insert({ user_id: user.id, title: "Untitled Note", content: "" })
+      .insert({ user_id: user.id, title: "Untitled Note", content: "", folder: activeFolder })
       .select()
       .single();
     if (error) {
@@ -107,6 +135,42 @@ export default function NotesPage() {
     toast({ title: "Note deleted" });
   };
 
+  const moveToFolder = async (noteId: string, folder: string | null) => {
+    await supabase.from("notes").update({ folder }).eq("id", noteId);
+    fetchNotes();
+  };
+
+  const createFolder = () => {
+    if (!newFolderName.trim()) return;
+    // Just set the active folder — it will exist once a note is moved there
+    setActiveFolder(newFolderName.trim());
+    setNewFolderName("");
+    setCreatingFolder(false);
+  };
+
+  const renameFolder = async (oldName: string, newName: string) => {
+    if (!newName.trim() || newName === oldName) { setRenamingFolder(null); return; }
+    // Update all notes in this folder
+    const notesInFolder = notes.filter(n => n.folder === oldName);
+    for (const n of notesInFolder) {
+      await supabase.from("notes").update({ folder: newName.trim() }).eq("id", n.id);
+    }
+    if (activeFolder === oldName) setActiveFolder(newName.trim());
+    setRenamingFolder(null);
+    fetchNotes();
+  };
+
+  const deleteFolder = async (folderName: string) => {
+    // Move all notes in this folder to unfiled
+    const notesInFolder = notes.filter(n => n.folder === folderName);
+    for (const n of notesInFolder) {
+      await supabase.from("notes").update({ folder: null }).eq("id", n.id);
+    }
+    if (activeFolder === folderName) setActiveFolder(null);
+    fetchNotes();
+    toast({ title: "Folder removed", description: "Notes moved to All Notes" });
+  };
+
   const openConvertDialog = () => {
     setConvertTitle(title || "Untitled");
     setConvertOpen(true);
@@ -137,30 +201,112 @@ export default function NotesPage() {
     }
   };
 
-  const getPreview = (html: string) => {
-    if (!html) return "Empty note";
-    const text = html.replace(/<[^>]+>/g, "").trim();
-    return text.slice(0, 80) || "Empty note";
-  };
-
   const selectedNote = notes.find((n) => n.id === selectedId);
 
   return (
     <div className="flex h-[calc(100vh-3rem)]">
       {/* Sidebar */}
-      <div className="w-64 border-r flex flex-col shrink-0">
-        <div className="p-3 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Notes</h2>
+      <div className="w-60 border-r border-border/50 flex flex-col shrink-0 bg-muted/30">
+        <div className="p-3 border-b border-border/50 flex items-center justify-between">
+          <h2 className="font-semibold text-sm">My Notes</h2>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={createNote}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 overflow-auto">
-          {notes.map((note) => (
+
+        {/* Folder navigation */}
+        <div className="px-2 pt-2 pb-1 space-y-0.5">
+          <button
+            onClick={() => setActiveFolder(null)}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              activeFolder === null ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50"
+            }`}
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">All Notes</span>
+            <span className="text-[10px] text-muted-foreground">{notes.length}</span>
+          </button>
+
+          {folders.map(f => (
+            <div key={f} className="group flex items-center">
+              {renamingFolder === f ? (
+                <Input
+                  autoFocus
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onBlur={() => renameFolder(f, renameValue)}
+                  onKeyDown={e => { if (e.key === "Enter") renameFolder(f, renameValue); if (e.key === "Escape") setRenamingFolder(null); }}
+                  className="h-7 text-xs px-2 mx-1"
+                />
+              ) : (
+                <button
+                  onClick={() => setActiveFolder(f)}
+                  className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    activeFolder === f ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                  <span className="flex-1 text-left truncate">{f}</span>
+                  <span className="text-[10px] text-muted-foreground">{folderCounts[f] || 0}</span>
+                </button>
+              )}
+              {renamingFolder !== f && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity">
+                      <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-32 p-1" align="end">
+                    <button
+                      onClick={() => { setRenamingFolder(f); setRenameValue(f); }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg hover:bg-accent"
+                    >
+                      <Pencil className="h-3 w-3" /> Rename
+                    </button>
+                    <button
+                      onClick={() => deleteFolder(f)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg hover:bg-destructive/10 text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          ))}
+
+          {creatingFolder ? (
+            <div className="flex items-center gap-1 px-1">
+              <Input
+                autoFocus
+                value={newFolderName}
+                onChange={e => setNewFolderName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") setCreatingFolder(false); }}
+                placeholder="Folder name"
+                className="h-7 text-xs flex-1"
+              />
+              <button onClick={() => setCreatingFolder(false)} className="p-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Plus className="h-3 w-3" /> New Folder
+            </button>
+          )}
+        </div>
+
+        {/* Notes list — clean: title + date only */}
+        <div className="flex-1 overflow-auto border-t border-border/50 mt-1">
+          {filteredNotes.map((note) => (
             <div
               key={note.id}
-              className={`p-3 border-b cursor-pointer hover:bg-accent/50 transition-colors ${
-                selectedId === note.id ? "bg-accent" : ""
+              className={`px-3 py-2 cursor-pointer transition-colors border-b border-border/30 ${
+                selectedId === note.id ? "bg-accent" : "hover:bg-accent/30"
               }`}
               onClick={() => selectNote(note)}
             >
@@ -170,15 +316,14 @@ export default function NotesPage() {
                   <FileText className="h-3 w-3 text-muted-foreground shrink-0 ml-1" />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground truncate mt-0.5">{getPreview(note.content)}</p>
               <span className="text-[10px] text-muted-foreground">
-                {new Date(note.updated_at).toLocaleDateString()} · {new Date(note.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {new Date(note.updated_at).toLocaleDateString()}
               </span>
             </div>
           ))}
-          {notes.length === 0 && (
+          {filteredNotes.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
-              No notes yet. Create one to get started.
+              {activeFolder ? "No notes in this folder." : "No notes yet. Create one to get started."}
             </div>
           )}
         </div>
@@ -188,26 +333,53 @@ export default function NotesPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {selectedId ? (
           <>
-            <div className="p-3 border-b flex items-center gap-2">
+            <div className="p-3 border-b border-border/50 flex items-center gap-2">
               <Input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                className="border-0 text-lg font-semibold p-0 h-auto focus-visible:ring-0 shadow-none"
+                className="border-0 text-lg font-semibold p-0 h-auto focus-visible:ring-0 focus-visible:border-0 shadow-none bg-transparent"
                 placeholder="Note title..."
               />
-              <div className="flex gap-1 shrink-0">
+              <div className="flex gap-1 shrink-0 items-center">
+                {/* Folder picker */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground gap-1">
+                      <Folder className="h-3 w-3" />
+                      {selectedNote?.folder || "Unfiled"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-40 p-1" align="end">
+                    <button
+                      onClick={() => moveToFolder(selectedId, null)}
+                      className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-accent ${!selectedNote?.folder ? "font-medium" : ""}`}
+                    >
+                      Unfiled
+                    </button>
+                    {folders.map(f => (
+                      <button
+                        key={f}
+                        onClick={() => moveToFolder(selectedId, f)}
+                        className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-accent ${selectedNote?.folder === f ? "font-medium" : ""}`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+
                 {!selectedNote?.converted_doc_id && (
-                  <Button variant="outline" size="sm" onClick={openConvertDialog}>
-                    <ArrowRight className="h-3 w-3 mr-1" /> Convert to Doc
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openConvertDialog}>
+                    <ArrowRight className="h-3 w-3 mr-1" /> Doc
                   </Button>
                 )}
                 {selectedNote?.converted_doc_id && (
-                  <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">
+                  <span className="text-[10px] text-muted-foreground px-2 py-1 bg-muted rounded-full">
                     Converted
                   </span>
                 )}
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => deleteNote(selectedId)}>
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => deleteNote(selectedId)}>
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -218,7 +390,7 @@ export default function NotesPage() {
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-2">
-              <FileText className="h-10 w-10 mx-auto opacity-30" />
+              <FileText className="h-10 w-10 mx-auto opacity-20" />
               <p className="text-sm">Select a note or create a new one</p>
             </div>
           </div>
@@ -230,10 +402,7 @@ export default function NotesPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Convert to Document</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">This will create a new document in Docs with the note's content.</p>
-          <div>
-            <label className="text-sm font-medium">Document title</label>
-            <Input value={convertTitle} onChange={e => setConvertTitle(e.target.value)} />
-          </div>
+          <Input value={convertTitle} onChange={e => setConvertTitle(e.target.value)} placeholder="Document title" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvertOpen(false)}>Cancel</Button>
             <Button onClick={convertToDoc}>Convert</Button>
