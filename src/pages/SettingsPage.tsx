@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/collapsible";
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
-  GraduationCap, ChevronDown, GripVertical, UserPlus, Mail,
+  GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -115,7 +115,19 @@ export default function SettingsPage() {
         </TabsList>
 
         {/* Workspace Tab */}
-        <TabsContent value="workspace" className="mt-4">
+        <TabsContent value="workspace" className="mt-4 space-y-4">
+          {/* Appearance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> Appearance</CardTitle>
+              <CardDescription>Choose an accent color for your workspace.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AccentColorPicker />
+            </CardContent>
+          </Card>
+
+          {/* Workspace Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Workspace Settings</CardTitle>
@@ -600,5 +612,47 @@ function ModuleEditor({
         </CollapsibleContent>
       </div>
     </Collapsible>
+  );
+}
+
+const ACCENT_PRESETS = [
+  { label: "Blue", hue: "220", color: "hsl(220, 65%, 48%)" },
+  { label: "Indigo", hue: "245", color: "hsl(245, 65%, 48%)" },
+  { label: "Purple", hue: "280", color: "hsl(280, 65%, 48%)" },
+  { label: "Pink", hue: "330", color: "hsl(330, 65%, 48%)" },
+  { label: "Red", hue: "0", color: "hsl(0, 65%, 48%)" },
+  { label: "Orange", hue: "25", color: "hsl(25, 65%, 48%)" },
+  { label: "Teal", hue: "175", color: "hsl(175, 65%, 48%)" },
+  { label: "Green", hue: "142", color: "hsl(142, 65%, 48%)" },
+];
+
+function AccentColorPicker() {
+  const { accentColor, setAccentColor } = useWorkspace();
+  const activeHue = accentColor || "220";
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      {ACCENT_PRESETS.map((preset) => (
+        <button
+          key={preset.hue}
+          onClick={() => setAccentColor(preset.hue === "220" ? null : preset.hue)}
+          className="group relative flex flex-col items-center gap-1.5"
+          title={preset.label}
+        >
+          <div
+            className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+            style={{
+              backgroundColor: preset.color,
+              ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
+            }}
+          >
+            {activeHue === preset.hue && (
+              <Check className="h-4 w-4 text-white" />
+            )}
+          </div>
+          <span className="text-[10px] text-muted-foreground">{preset.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }

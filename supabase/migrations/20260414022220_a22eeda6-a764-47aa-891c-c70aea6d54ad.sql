@@ -1,0 +1,1 @@
+ALTER TABLE public.workspaces ADD COLUMN accent_color text DEFAULT NULL;
