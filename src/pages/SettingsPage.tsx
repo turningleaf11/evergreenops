@@ -128,6 +128,26 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Naming */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Naming</CardTitle>
+              <CardDescription>Customize labels used throughout the workspace.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ceo-page-name">CEO Page Title</Label>
+                <Input id="ceo-page-name" value={workspace.ceoPageName} onChange={(e) => workspace.setCeoPageName(e.target.value)} placeholder="CEO Cockpit" />
+                <p className="text-xs text-muted-foreground">Shown in the sidebar and page header (e.g. "CEO Cockpit", "CEO Dash", "Command Center")</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dept-label">Department Group Label</Label>
+                <Input id="dept-label" value={workspace.deptLabel} onChange={(e) => workspace.setDeptLabel(e.target.value)} placeholder="Departments" />
+                <p className="text-xs text-muted-foreground">How departments are labeled in the sidebar (e.g. "Departments", "Teams", "Spaces")</p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Workspace Info */}
           <Card>
             <CardHeader>
