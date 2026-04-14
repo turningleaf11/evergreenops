@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -16,12 +16,12 @@ interface TableViewProps {
   projects?: any[];
 }
 
-const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  not_started: { bg: "bg-muted/60 dark:bg-muted/30", text: "text-muted-foreground", border: "border-l-muted-foreground" },
-  todo: { bg: "bg-muted/60 dark:bg-muted/30", text: "text-muted-foreground", border: "border-l-muted-foreground" },
-  in_progress: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-300", border: "border-l-blue-500" },
-  done: { bg: "bg-green-50 dark:bg-green-950/40", text: "text-green-700 dark:text-green-300", border: "border-l-green-500" },
-  blocked: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", border: "border-l-red-500" },
+const statusDotColors: Record<string, string> = {
+  not_started: "bg-muted-foreground",
+  todo: "bg-muted-foreground",
+  in_progress: "bg-blue-500",
+  done: "bg-green-500",
+  blocked: "bg-red-500",
 };
 
 const priorityStyles: Record<string, string> = {
@@ -46,6 +46,31 @@ function hashColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
+function StatusDot({ status, statusOptions, onStatusChange, itemId }: {
+  status: string;
+  statusOptions: { value: string; label: string }[];
+  onStatusChange: (id: string, status: string) => void;
+  itemId: string;
+}) {
+  const dotColor = statusDotColors[status] || statusDotColors.not_started;
+
+  return (
+    <Select value={status} onValueChange={v => onStatusChange(itemId, v)}>
+      <SelectTrigger
+        className="h-auto w-auto p-0 border-0 shadow-none bg-transparent focus:ring-0 focus:ring-offset-0"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className={cn("h-2.5 w-2.5 rounded-full shrink-0 cursor-pointer transition-transform hover:scale-150", dotColor)} />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map(s => (
+          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function TableView({
   items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
 }: TableViewProps) {
@@ -61,22 +86,22 @@ export default function TableView({
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {grouped.map(group => {
         if (group.items.length === 0) return null;
-        const colors = statusColors[group.value] || statusColors.not_started;
+        const dotColor = statusDotColors[group.value] || statusDotColors.not_started;
         const isOpen = !collapsed[group.value];
 
         return (
           <Collapsible key={group.value} open={isOpen} onOpenChange={() => toggleGroup(group.value)}>
             <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
               <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
-              <div className={cn("h-2 w-2 rounded-full", colors.border.replace("border-l-", "bg-"))} />
-              <span className="text-sm font-medium">{group.label}</span>
-              <span className="text-xs text-muted-foreground">{group.items.length}</span>
+              <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
+              <span className="text-sm font-semibold">{group.label}</span>
+              <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="space-y-1 mt-1">
+              <div className="ml-6 space-y-0.5 mt-1">
                 {group.items.map(item => {
                   const ownerName = getName(item[ownerField]);
                   const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
@@ -85,14 +110,17 @@ export default function TableView({
                   return (
                     <div
                       key={item.id}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/40 cursor-pointer",
-                        "hover:bg-accent/30 transition-colors group/row",
-                        "border-l-[3px]",
-                        colors.border
-                      )}
+                      className="flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer hover:bg-accent/40 transition-colors group/row"
                       onClick={() => onItemClick(item)}
                     >
+                      {/* Status dot */}
+                      <StatusDot
+                        status={item.status}
+                        statusOptions={statusOptions}
+                        onStatusChange={onStatusChange}
+                        itemId={item.id}
+                      />
+
                       {/* Title + context */}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate flex items-center gap-1.5">
@@ -107,24 +135,6 @@ export default function TableView({
                           </p>
                         )}
                       </div>
-
-                      {/* Status pill */}
-                      <Select value={item.status} onValueChange={v => onStatusChange(item.id, v)}>
-                        <SelectTrigger
-                          className={cn(
-                            "h-6 w-auto gap-1 rounded-full border-0 px-2.5 text-[11px] font-medium shadow-none",
-                            colors.bg, colors.text
-                          )}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusOptions.map(s => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
 
                       {/* Priority pill */}
                       {item.priority && (

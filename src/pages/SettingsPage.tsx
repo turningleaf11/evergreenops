@@ -770,25 +770,29 @@ const ACCENT_PRESETS = [
   { label: "Green", hue: "142", color: "hsl(142, 65%, 48%)" },
 ];
 
-function hexToHue(hex: string): number | null {
+function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
   const match = hex.replace("#", "").match(/^([0-9a-f]{6})$/i);
   if (!match) return null;
   const r = parseInt(match[1].slice(0, 2), 16) / 255;
   const g = parseInt(match[1].slice(2, 4), 16) / 255;
   const b = parseInt(match[1].slice(4, 6), 16) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  if (max === min) return 0;
-  let h = 0;
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
   const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
   if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
   else if (max === g) h = ((b - r) / d + 2) * 60;
   else h = ((r - g) / d + 4) * 60;
-  return Math.round(h);
+  return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
-function hueToHex(hue: string): string {
-  const h = parseInt(hue, 10) || 0;
-  const s = 0.65, l = 0.48;
+function accentToHex(accent: string): string {
+  const parts = accent.trim().split(/\s+/);
+  const h = parseInt(parts[0], 10) || 0;
+  const s = (parts.length >= 3 ? parseInt(parts[1], 10) : 65) / 100;
+  const l = (parts.length >= 3 ? parseInt(parts[2], 10) : 48) / 100;
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;
@@ -805,16 +809,16 @@ function hueToHex(hue: string): string {
 
 function AccentColorPicker() {
   const { accentColor, setAccentColor } = useWorkspace();
-  const activeHue = accentColor || "220";
+  const activeAccent = accentColor || "220";
   const [customHex, setCustomHex] = useState(
-    ACCENT_PRESETS.some(p => p.hue === activeHue) ? "" : hueToHex(activeHue)
+    ACCENT_PRESETS.some(p => p.hue === activeAccent) ? "" : accentToHex(activeAccent)
   );
 
   const handleCustomHex = (val: string) => {
     setCustomHex(val);
-    const hue = hexToHue(val);
-    if (hue !== null) {
-      setAccentColor(String(hue));
+    const hsl = hexToHsl(val);
+    if (hsl !== null) {
+      setAccentColor(`${hsl.h} ${hsl.s} ${hsl.l}`);
     }
   };
 
@@ -827,15 +831,16 @@ function AccentColorPicker() {
             onClick={() => { setAccentColor(preset.hue === "220" ? null : preset.hue); setCustomHex(""); }}
             className="group relative flex flex-col items-center gap-1.5"
             title={preset.label}
+            type="button"
           >
             <div
-              className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeHue === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+              className={`h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ${activeAccent === preset.hue ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
               style={{
                 backgroundColor: preset.color,
-                ...(activeHue === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
+                ...(activeAccent === preset.hue ? { boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${preset.color}` } : {}),
               }}
             >
-              {activeHue === preset.hue && (
+              {activeAccent === preset.hue && (
                 <Check className="h-4 w-4 text-white" />
               )}
             </div>
@@ -846,7 +851,7 @@ function AccentColorPicker() {
       <div className="flex items-center gap-3">
         <div
           className="h-8 w-8 rounded-full shrink-0 border"
-          style={{ backgroundColor: customHex && hexToHue(customHex) !== null ? customHex : `hsl(${activeHue}, 65%, 48%)` }}
+          style={{ backgroundColor: customHex && hexToHsl(customHex) !== null ? customHex : `hsl(${activeAccent.split(/\s+/)[0]}, 65%, 48%)` }}
         />
         <Input
           value={customHex}
