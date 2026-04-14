@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { CeoBriefing } from "@/components/CeoBriefing";
 import { TopPriorities } from "@/components/TopPriorities";
 import { DecisionLog } from "@/components/DecisionLog";
-import { StrategicTensions } from "@/components/StrategicTensions";
 import { MorningReset } from "@/components/MorningReset";
 import { StrategyItemCreator } from "@/components/StrategyItemCreator";
 import { CeoReviewFeed } from "@/components/CeoReviewFeed";
@@ -15,8 +14,8 @@ import { DelegationBoard } from "@/components/DelegationBoard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronRight, Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2 } from "lucide-react";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type VisionSection = {
@@ -36,11 +35,9 @@ const sectionMeta: Record<string, { label: string; icon: React.ElementType; desc
 export default function CeoDashboard() {
   const { data, update } = useCEOContext();
   const { user, isAdmin } = useAuth();
-  
+
   const [editingObjective, setEditingObjective] = useState(false);
   const [objectiveDraft, setObjectiveDraft] = useState(data.currentObjective);
-  const [morningOpen, setMorningOpen] = useState(true);
-  const [visionOpen, setVisionOpen] = useState(false);
 
   // Vision state
   const [visionSections, setVisionSections] = useState<VisionSection[]>([]);
@@ -96,10 +93,12 @@ export default function CeoDashboard() {
     setEditingObjective(false);
   };
 
-  const handleProcess = async (text: string) => {
+  const handleProcess = async (text: string, images: string[]) => {
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ceo-triage", { body: { content: text } });
+      const { data, error } = await supabase.functions.invoke("ceo-triage", {
+        body: { content: text, images },
+      });
       if (error) throw error;
       if (data?.items) setTriageItems(data.items);
       else toast({ title: "No items extracted", description: "Try adding more detail to your notes." });
@@ -115,19 +114,18 @@ export default function CeoDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 pt-10 pb-6">
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-6">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs text-muted-foreground tracking-wide uppercase mb-1">{dateStr}</p>
             <h1 className="text-2xl font-semibold text-foreground tracking-tight">Strategy Command Center</h1>
-            <p className="text-sm text-muted-foreground mt-1">Evergreen Real Estate Ventures</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 pb-16 space-y-8">
-        {/* Current Objective */}
-        <div className="border-b border-border pb-6">
+      <div className="max-w-5xl mx-auto px-6 pb-16 space-y-6">
+        {/* Current Objective — pinned */}
+        <div className="border-b border-border pb-5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Current Objective</p>
           {editingObjective ? (
             <div className="flex items-center gap-2">
@@ -156,155 +154,152 @@ export default function CeoDashboard() {
           )}
         </div>
 
-        {/* Scratch Pad */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
-        </div>
+        {/* Tabbed cockpit */}
+        <Tabs defaultValue="braindump" className="w-full">
+          <TabsList className="w-full justify-start mb-4">
+            <TabsTrigger value="braindump">Brain Dump</TabsTrigger>
+            <TabsTrigger value="delegation">Delegation</TabsTrigger>
+            <TabsTrigger value="command">Command</TabsTrigger>
+            <TabsTrigger value="strategy">Strategy</TabsTrigger>
+          </TabsList>
 
-        {/* AI Triage Results */}
-        {triageItems.length > 0 && (
-          <AiTriage
-            items={triageItems}
-            profiles={profiles}
-            onItemProcessed={(idx) => setTriageItems(prev => prev.filter((_, i) => i !== idx))}
-            onClear={() => setTriageItems([])}
-          />
-        )}
+          {/* Brain Dump Tab */}
+          <TabsContent value="braindump" className="space-y-6">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
+            </div>
 
-        {/* Delegation Board */}
-        <DelegationBoard />
+            {triageItems.length > 0 && (
+              <AiTriage
+                items={triageItems}
+                profiles={profiles}
+                onItemProcessed={(idx) => setTriageItems(prev => prev.filter((_, i) => i !== idx))}
+                onClear={() => setTriageItems([])}
+              />
+            )}
+          </TabsContent>
 
-        {/* Vision Section */}
-        <Collapsible open={visionOpen} onOpenChange={setVisionOpen}>
-          <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
-            {visionOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            <Eye className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Vision</h2>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-4 space-y-4">
-            {visionSections.map(section => {
-              const meta = sectionMeta[section.section];
-              if (!meta) return null;
-              const Icon = meta.icon;
-              const content = section.content as any;
-              const text = content?.text || "";
-              const isEditing = visionEditing === section.id;
+          {/* Delegation Tab */}
+          <TabsContent value="delegation">
+            <DelegationBoard />
+          </TabsContent>
 
-              return (
-                <Card key={section.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-primary" />
-                        {meta.label}
-                      </CardTitle>
-                      {isAdmin && !isEditing && (
-                        <Button variant="ghost" size="sm" onClick={() => startVisionEdit(section)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                      {isAdmin && isEditing && (
-                        <Button variant="ghost" size="sm" onClick={() => saveVisionEdit(section)}>
-                          <Save className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{meta.description}</p>
-                  </CardHeader>
-                  <CardContent>
-                    {isEditing ? (
-                      <Textarea value={visionEditText} onChange={e => setVisionEditText(e.target.value)} rows={4} className="text-sm" />
-                    ) : text ? (
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{text}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Not yet defined. {isAdmin && "Click the pencil to add content."}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+          {/* Command Tab */}
+          <TabsContent value="command" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">CEO Briefing</h2>
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <CeoBriefing />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Top Priorities</h2>
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <TopPriorities />
+                </div>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  Quarterly Rocks
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">Auto-pulled from Execution Hub goals for the current quarter</p>
-              </CardHeader>
-              <CardContent>
-                {currentQuarterGoals.length > 0 ? (
-                  <ul className="space-y-2">
-                    {currentQuarterGoals.map(g => (
-                      <li key={g.id} className="flex items-center gap-2 text-sm">
-                        <span className={`w-2 h-2 rounded-full ${g.status === "done" ? "bg-green-500" : g.status === "at_risk" ? "bg-red-500" : "bg-blue-500"}`} />
-                        {g.title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">No goals for the current quarter.</p>
-                )}
-              </CardContent>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Morning Reset */}
-        <Collapsible open={morningOpen} onOpenChange={setMorningOpen}>
-          <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
-            {morningOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Morning Reset</h2>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-4">
             <div className="rounded-xl border border-border bg-card p-5">
               <MorningReset />
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </TabsContent>
 
-        {/* Two-column layout: Briefing + Priorities */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">CEO Briefing</h2>
-            <div className="rounded-xl border border-border bg-card p-5">
-              <CeoBriefing />
+          {/* Strategy Tab */}
+          <TabsContent value="strategy" className="space-y-6">
+            {/* Vision */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Vision</h2>
+              </div>
+              {visionSections.map(section => {
+                const meta = sectionMeta[section.section];
+                if (!meta) return null;
+                const Icon = meta.icon;
+                const content = section.content as any;
+                const text = content?.text || "";
+                const isEditing = visionEditing === section.id;
+
+                return (
+                  <Card key={section.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-primary" />
+                          {meta.label}
+                        </CardTitle>
+                        {isAdmin && !isEditing && (
+                          <Button variant="ghost" size="sm" onClick={() => startVisionEdit(section)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {isAdmin && isEditing && (
+                          <Button variant="ghost" size="sm" onClick={() => saveVisionEdit(section)}>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{meta.description}</p>
+                    </CardHeader>
+                    <CardContent>
+                      {isEditing ? (
+                        <Textarea value={visionEditText} onChange={e => setVisionEditText(e.target.value)} rows={4} className="text-sm" />
+                      ) : text ? (
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{text}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Not yet defined. {isAdmin && "Click the pencil to add content."}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    Quarterly Rocks
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Auto-pulled from Execution Hub goals for the current quarter</p>
+                </CardHeader>
+                <CardContent>
+                  {currentQuarterGoals.length > 0 ? (
+                    <ul className="space-y-2">
+                      {currentQuarterGoals.map(g => (
+                        <li key={g.id} className="flex items-center gap-2 text-sm">
+                          <span className={`w-2 h-2 rounded-full ${g.status === "done" ? "bg-green-500" : g.status === "at_risk" ? "bg-red-500" : "bg-blue-500"}`} />
+                          {g.title}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No goals for the current quarter.</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Top Priorities</h2>
+
+            {/* Strategy Creator */}
             <div className="rounded-xl border border-border bg-card p-5">
-              <TopPriorities />
+              <StrategyItemCreator />
             </div>
-          </div>
-        </div>
 
-        {/* Strategic Tensions */}
-        <div>
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Strategic Tensions</h2>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <StrategicTensions />
-          </div>
-        </div>
+            {/* Review Feed */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <CeoReviewFeed />
+            </div>
 
-        <div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <StrategyItemCreator />
-          </div>
-        </div>
-
-        <div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <CeoReviewFeed />
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Decision Log</h2>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <DecisionLog />
-          </div>
-        </div>
+            {/* Decision Log */}
+            <div>
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Decision Log</h2>
+              <div className="rounded-xl border border-border bg-card p-5">
+                <DecisionLog />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
