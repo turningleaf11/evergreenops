@@ -68,6 +68,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .eq("id", s.id);
   }, [isAdmin]);
 
+  // Save to DB when state changes (skip initial load)
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      if (!loading) initialLoadDone.current = true;
+      return;
+    }
+    saveToDb(state);
+  }, [state, loading, saveToDb]);
+
   return (
     <WorkspaceContext.Provider
       value={{
