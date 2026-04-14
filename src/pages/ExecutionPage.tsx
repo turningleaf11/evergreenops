@@ -519,6 +519,35 @@ export default function ExecutionPage() {
                       <CollapsibleContent>
                         <CardContent className="pt-0 space-y-3">
                           {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
+                          {goal.measurable_target && (
+                            <div className="text-xs"><span className="font-medium">Target:</span> <span className="text-muted-foreground">{goal.measurable_target}</span></div>
+                          )}
+                          {goal.deadline && (
+                            <div className="text-xs"><span className="font-medium">Deadline:</span> <span className="text-muted-foreground">{goal.deadline}</span></div>
+                          )}
+                          {goal.alignment_notes && (
+                            <div className="text-xs"><span className="font-medium">Alignment:</span> <span className="text-muted-foreground">{goal.alignment_notes}</span></div>
+                          )}
+                          {Array.isArray(goal.key_results) && goal.key_results.length > 0 && (
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Key Results</h4>
+                              {goal.key_results.map((kr: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={!!kr.done}
+                                    onCheckedChange={async (checked) => {
+                                      const updated = [...goal.key_results];
+                                      updated[i] = { ...kr, done: !!checked };
+                                      await supabase.from("goals").update({ key_results: updated } as any).eq("id", goal.id);
+                                      fetchAll();
+                                    }}
+                                    className="h-3.5 w-3.5"
+                                  />
+                                  <span className={kr.done ? "line-through text-muted-foreground" : ""}>{kr.title || kr}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {gProjects.length > 0 && (
                             <div className="space-y-2">
                               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Projects</h4>
