@@ -1,43 +1,37 @@
 
 
-# Card-Enhanced List UI for Projects & Tasks
+# Fix Accent Color + Redesign TableView Rows
 
-## Summary
+## 1. Fix Custom Accent Color (store full HSL, not just hue)
 
-Replace the current plain HTML `<Table>` rows in `TableView.tsx` (and polish `KanbanBoard.tsx` to match) with a modern card-enhanced list: colored left border per status, rounded status/priority pills, avatar circles for assignees, and status-grouped sections with collapsible headers.
+**Problem**: `applyAccentHue` only uses the hue value and reconstructs with hardcoded S=65% L=48%. So `#29896e` (hue 160, sat 54%, light 35%) gets displayed as a different, brighter green.
 
-## What changes
+**Fix**:
+- Change `accentColor` storage from hue-only string (e.g. `"160"`) to full HSL string (e.g. `"160 54% 35%"`) when a custom hex is entered
+- Update `applyAccentHue` → `applyAccentColor` to accept either a bare hue (for presets, backward compat) or a full `"H S% L%"` string
+- Update `hexToHue` → `hexToHsl` to return full H/S/L values
+- Keep presets working as before (they already have fixed S/L)
 
-### 1. Rewrite `TableView.tsx` as a card-enhanced list
+**Files**: `src/contexts/WorkspaceContext.tsx`, `src/pages/SettingsPage.tsx`
 
-- Remove the `<Table>` markup entirely
-- Render items grouped by status, each group with a collapsible header showing status label + count
-- Each row becomes a flex container with:
-  - **Left accent bar** (3px, colored by status)
-  - **Title** (medium weight, truncated)
-  - **Status pill** (colored rounded-full badge)
-  - **Priority pill** (small colored badge)
-  - **Avatar circle** (initials from assignee/owner name, colored background)
-  - **Due date** (small muted text, right-aligned)
-- Clicking a row still calls `onItemClick`
-- Status is still inline-changeable via clicking the status pill (opens a small popover/select)
+## 2. Redesign TableView Rows
 
-### 2. Polish `KanbanBoard.tsx` cards to match
+**Changes**:
+- Remove the colored `border-l-[3px]` from each row
+- Add a small clickable **status dot** (colored circle, ~10px) on the left of each row; clicking it opens the status `<Select>` dropdown
+- Remove the separate status pill from the right side (the dot replaces it)
+- **Indent rows** under their group header — group header stays at `px-1`, rows get `ml-6` so they visually nest under the status group label
+- Keep everything else (priority pill, avatar, due date) on the right
 
-- Add avatar circles instead of plain text names
-- Match the same priority pill styling
-- Consistent typography and spacing
+**Files**: `src/components/execution/TableView.tsx`
 
-### 3. Dark mode compatibility
-
-- Use Tailwind's `dark:` variants for the status/priority pill colors so they look correct in both themes
-
-## Files
+## Files Summary
 
 | Action | File |
 |--------|------|
-| Rewrite | `src/components/execution/TableView.tsx` — Card-enhanced grouped list |
-| Edit | `src/components/execution/KanbanBoard.tsx` — Avatar circles + pill consistency |
+| Edit | `src/contexts/WorkspaceContext.tsx` — Update `applyAccentHue` to handle full HSL |
+| Edit | `src/pages/SettingsPage.tsx` — `hexToHsl` instead of `hexToHue`, store full HSL |
+| Edit | `src/components/execution/TableView.tsx` — Status dot + indented rows |
 
-No database or routing changes needed.
+No database changes needed.
 
