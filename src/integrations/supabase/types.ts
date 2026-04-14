@@ -559,6 +559,8 @@ export type Database = {
       }
       issues: {
         Row: {
+          assigned_to: string | null
+          category: string
           created_at: string
           department_id: string | null
           description: string | null
@@ -571,10 +573,13 @@ export type Database = {
           resolved_action_type: string | null
           root_cause: string | null
           status: string
+          tags: string[]
           title: string
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
+          category?: string
           created_at?: string
           department_id?: string | null
           description?: string | null
@@ -587,10 +592,13 @@ export type Database = {
           resolved_action_type?: string | null
           root_cause?: string | null
           status?: string
+          tags?: string[]
           title: string
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
+          category?: string
           created_at?: string
           department_id?: string | null
           description?: string | null
@@ -603,6 +611,7 @@ export type Database = {
           resolved_action_type?: string | null
           root_cause?: string | null
           status?: string
+          tags?: string[]
           title?: string
           updated_at?: string
         }
