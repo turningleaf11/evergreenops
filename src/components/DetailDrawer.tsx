@@ -170,6 +170,14 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   const navigate = useNavigate();
   const [peekMode, setPeekMode] = usePeekMode();
 
+  // Handle full page mode — navigate immediately when opened
+  useEffect(() => {
+    if (open && peekMode === "full" && item) {
+      onOpenChange(false);
+      navigate(type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`);
+    }
+  }, [open, peekMode, item]);
+
   if (!item) return null;
 
   const detailPath = type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`;
