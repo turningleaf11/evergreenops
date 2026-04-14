@@ -108,7 +108,44 @@
   margin: 0.75rem 0;
 }
 
-/* === Callouts === */
+/* === Tables === */
+.rich-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+.rich-editor .tiptap table td,
+.rich-editor .tiptap table th {
+  border: 1px solid hsl(var(--border));
+  padding: 0.4rem 0.6rem;
+  min-width: 80px;
+  vertical-align: top;
+  font-size: 0.875rem;
+}
+.rich-editor .tiptap table th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+.rich-editor .tiptap table .selectedCell {
+  background: hsl(var(--primary) / 0.08);
+}
+
+/* === Toggle / Details === */
+.rich-editor .tiptap details {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+.rich-editor .tiptap details summary {
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.rich-editor .tiptap details[open] summary {
+  margin-bottom: 0.5rem;
+}
 .rich-editor .tiptap .callout,
 .rich-editor .tiptap div[data-callout-type] {
   border-left: 4px solid;
