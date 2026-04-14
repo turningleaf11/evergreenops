@@ -131,6 +131,11 @@ export function AppSidebar() {
               <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
           )}
+          {isAdmin && (
+            <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
+              <Settings className="h-3.5 w-3.5" />
+            </NavLink>
+          )}
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors"
