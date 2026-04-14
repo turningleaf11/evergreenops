@@ -9,6 +9,8 @@ interface WorkspaceState {
   description: string;
   logoUrl: string | null;
   accentColor: string | null;
+  ceoPageName: string;
+  deptLabel: string;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
@@ -16,6 +18,8 @@ interface WorkspaceContextValue extends WorkspaceState {
   setDescription: (desc: string) => void;
   setLogoUrl: (url: string | null) => void;
   setAccentColor: (hue: string | null) => void;
+  setCeoPageName: (name: string) => void;
+  setDeptLabel: (label: string) => void;
   uploadLogo: (file: File) => Promise<string | null>;
   loading: boolean;
 }
@@ -45,6 +49,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     description: "Your team's collaborative workspace",
     logoUrl: null,
     accentColor: null,
+    ceoPageName: "CEO Cockpit",
+    deptLabel: "Departments",
   });
   const [loading, setLoading] = useState(true);
 
@@ -66,6 +72,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           description: data.description || "",
           logoUrl: data.logo_url,
           accentColor: data.accent_color || null,
+          ceoPageName: (data as any).ceo_page_name || "CEO Cockpit",
+          deptLabel: (data as any).dept_label || "Departments",
         });
       }
       setLoading(false);
@@ -104,7 +112,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         description: s.description,
         logo_url: s.logoUrl,
         accent_color: s.accentColor,
-      })
+        ceo_page_name: s.ceoPageName,
+        dept_label: s.deptLabel,
+      } as any)
       .eq("id", s.id);
   }, [isAdmin]);
 
@@ -127,6 +137,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setDescription: (description) => persist({ description }),
         setLogoUrl: (logoUrl) => persist({ logoUrl }),
         setAccentColor: (accentColor) => persist({ accentColor }),
+        setCeoPageName: (ceoPageName) => persist({ ceoPageName }),
+        setDeptLabel: (deptLabel) => persist({ deptLabel }),
         uploadLogo,
       }}
     >

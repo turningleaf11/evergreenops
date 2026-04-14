@@ -27,7 +27,7 @@ export function AppSidebar() {
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
   const { profile, isAdmin, role, signOut } = useAuth();
-  const { name: workspaceName, logoUrl } = useWorkspace();
+  const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
 
   // Admins see all departments; users see only their assigned department
@@ -37,7 +37,7 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
-    ...(isAdmin ? [{ title: "Strategy", url: "/ceo", icon: Compass }] : []),
+    ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
     { title: "Docs", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
@@ -90,7 +90,7 @@ export function AppSidebar() {
               <CollapsibleTrigger className="flex w-full items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Building2 className="h-3.5 w-3.5" />
-                  {!collapsed && "Departments"}
+                  {!collapsed && deptLabel}
                 </span>
                 {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
               </CollapsibleTrigger>
