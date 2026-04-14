@@ -614,3 +614,46 @@ function ModuleEditor({
     </Collapsible>
   );
 }
+
+const ACCENT_PRESETS = [
+  { label: "Blue", hue: "220", color: "hsl(220, 65%, 48%)" },
+  { label: "Indigo", hue: "245", color: "hsl(245, 65%, 48%)" },
+  { label: "Purple", hue: "280", color: "hsl(280, 65%, 48%)" },
+  { label: "Pink", hue: "330", color: "hsl(330, 65%, 48%)" },
+  { label: "Red", hue: "0", color: "hsl(0, 65%, 48%)" },
+  { label: "Orange", hue: "25", color: "hsl(25, 65%, 48%)" },
+  { label: "Teal", hue: "175", color: "hsl(175, 65%, 48%)" },
+  { label: "Green", hue: "142", color: "hsl(142, 65%, 48%)" },
+];
+
+function AccentColorPicker() {
+  const { accentColor, setAccentColor } = useWorkspace();
+  const activeHue = accentColor || "220";
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      {ACCENT_PRESETS.map((preset) => (
+        <button
+          key={preset.hue}
+          onClick={() => setAccentColor(preset.hue === "220" ? null : preset.hue)}
+          className="group relative flex flex-col items-center gap-1.5"
+          title={preset.label}
+        >
+          <div
+            className="h-9 w-9 rounded-full transition-all duration-200 flex items-center justify-center ring-2 ring-offset-2 ring-offset-background"
+            style={{
+              backgroundColor: preset.color,
+              ringColor: activeHue === preset.hue ? preset.color : "transparent",
+              boxShadow: activeHue === preset.hue ? `0 0 0 2px ${preset.color}` : "none",
+            }}
+          >
+            {activeHue === preset.hue && (
+              <Check className="h-4 w-4 text-white" />
+            )}
+          </div>
+          <span className="text-[10px] text-muted-foreground">{preset.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
