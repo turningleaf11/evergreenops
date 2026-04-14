@@ -97,13 +97,14 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             </Button>
           )}
           <Button
-            size="sm"
+            size="icon"
+            variant="default"
             onClick={handleProcess}
             disabled={isProcessing || isEmpty}
-            className="gap-1.5"
+            className="h-8 w-8"
+            title="Process This"
           >
             {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Process This
           </Button>
         </div>
       </div>
