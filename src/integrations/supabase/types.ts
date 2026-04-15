@@ -96,34 +96,40 @@ export type Database = {
         Row: {
           author_id: string | null
           author_name: string | null
+          banner_color: string | null
           content: string | null
           created_at: string
           department_id: string | null
           id: string
           pinned: boolean | null
           title: string
+          type: string
           updated_at: string
         }
         Insert: {
           author_id?: string | null
           author_name?: string | null
+          banner_color?: string | null
           content?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
           pinned?: boolean | null
           title: string
+          type?: string
           updated_at?: string
         }
         Update: {
           author_id?: string | null
           author_name?: string | null
+          banner_color?: string | null
           content?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
           pinned?: boolean | null
           title?: string
+          type?: string
           updated_at?: string
         }
         Relationships: [
@@ -1044,6 +1050,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      post_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          entity_id: string
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_replies: {
+        Row: {
+          author_name: string | null
+          content: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          content?: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string | null
+          content?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
