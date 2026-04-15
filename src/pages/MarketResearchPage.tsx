@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building, Search, Loader2, MapPin, TrendingUp, Briefcase, Users, Home } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Building, Search, Loader2, MapPin, TrendingUp, Briefcase, ChevronDown, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface MarketResearch {
   id: string;
   market_name: string;
   strategy: string;
+  custom_criteria: string | null;
   ai_analysis: any;
   status: string;
   created_at: string;
@@ -36,6 +38,7 @@ export default function MarketResearchPage() {
   const [loading, setLoading] = useState(false);
   const [market, setMarket] = useState("");
   const [strategy, setStrategy] = useState("buy_and_hold");
+  const [customCriteria, setCustomCriteria] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const fetchResearches = useCallback(async () => {
@@ -49,23 +52,23 @@ export default function MarketResearchPage() {
     if (!user || !market.trim()) { toast.error("Enter a market name"); return; }
     setLoading(true);
     try {
-      // Create the record first
       const { data: record, error: insertError } = await supabase.from("market_research").insert({
         market_name: market.trim(),
         strategy,
+        custom_criteria: customCriteria.trim() || null,
         status: "analyzing",
         created_by: user.id,
       }).select().single();
       if (insertError) throw insertError;
 
-      // Call edge function for AI analysis
       const { data, error } = await supabase.functions.invoke("market-research", {
-        body: { market: market.trim(), strategy, recordId: (record as any).id },
+        body: { market: market.trim(), strategy, customCriteria: customCriteria.trim(), recordId: (record as any).id },
       });
       if (error) throw error;
 
       toast.success("Analysis complete!");
       setMarket("");
+      setCustomCriteria("");
       fetchResearches();
     } catch (e: any) {
       toast.error(e.message || "Analysis failed");
@@ -84,18 +87,12 @@ export default function MarketResearchPage() {
         <p className="text-sm text-muted-foreground">AI-powered real estate market analysis</p>
       </div>
 
-      {/* New Analysis */}
       <Card>
-        <CardContent className="p-5">
+        <CardContent className="p-5 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <label className="text-xs text-muted-foreground">Market (City, State or ZIP)</label>
-              <Input
-                value={market}
-                onChange={e => setMarket(e.target.value)}
-                placeholder="e.g. Austin, TX or 78701"
-                className="mt-1"
-              />
+              <Input value={market} onChange={e => setMarket(e.target.value)} placeholder="e.g. Austin, TX or 78701" className="mt-1" />
             </div>
             <div className="w-full sm:w-48">
               <label className="text-xs text-muted-foreground">Investment Strategy</label>
@@ -108,18 +105,26 @@ export default function MarketResearchPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
-              <Button onClick={runAnalysis} disabled={loading} className="gap-2 w-full sm:w-auto">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Analyze Market
-              </Button>
-            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Your Strategy & Criteria (optional)</label>
+            <Textarea
+              value={customCriteria}
+              onChange={e => setCustomCriteria(e.target.value)}
+              placeholder="Describe your exact strategy, criteria, budget, target returns, property types, etc. The AI will factor this into its analysis."
+              className="mt-1 min-h-[80px]"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={runAnalysis} disabled={loading} className="gap-2">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Analyze Market
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Research list */}
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Past Analyses</h2>
           {researches.length === 0 ? (
@@ -137,9 +142,7 @@ export default function MarketResearchPage() {
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-sm font-medium">{r.market_name}</span>
                     </div>
-                    <Badge variant={r.status === "complete" ? "default" : "secondary"} className="text-[10px]">
-                      {r.status}
-                    </Badge>
+                    <Badge variant={r.status === "complete" ? "default" : "secondary"} className="text-[10px]">{r.status}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 capitalize">{r.strategy.replace(/_/g, " ")}</p>
                 </CardContent>
@@ -148,7 +151,6 @@ export default function MarketResearchPage() {
           )}
         </div>
 
-        {/* Analysis detail */}
         <div className="lg:col-span-2">
           {selected && analysis ? (
             <div className="space-y-4">
@@ -159,6 +161,11 @@ export default function MarketResearchPage() {
                     {selected.market_name}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground capitalize">Strategy: {selected.strategy.replace(/_/g, " ")}</p>
+                  {selected.custom_criteria && (
+                    <div className="mt-2 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Your criteria:</span> {selected.custom_criteria}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {analysis.summary && (
@@ -207,6 +214,25 @@ export default function MarketResearchPage() {
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.risks}</p>
                     </div>
                   )}
+
+                  {/* Sources & Methodology */}
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      <Info className="h-3.5 w-3.5" />
+                      Sources & Methodology
+                      <ChevronDown className="h-3 w-3" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2 p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground space-y-2">
+                      {analysis.sources_note ? (
+                        <p className="whitespace-pre-wrap">{analysis.sources_note}</p>
+                      ) : (
+                        <p>Analysis based on publicly available market data, census information, economic reports, and real estate market trends.</p>
+                      )}
+                      <p className="italic border-t border-border/50 pt-2">
+                        ⚠️ Analysis generated by AI based on publicly available market data and trends. Not financial advice. Always verify data with local sources before making investment decisions.
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </CardContent>
               </Card>
             </div>

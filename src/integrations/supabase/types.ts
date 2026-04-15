@@ -832,6 +832,7 @@ export type Database = {
           ai_analysis: Json | null
           created_at: string
           created_by: string | null
+          custom_criteria: string | null
           id: string
           market_name: string
           status: string
@@ -843,6 +844,7 @@ export type Database = {
           ai_analysis?: Json | null
           created_at?: string
           created_by?: string | null
+          custom_criteria?: string | null
           id?: string
           market_name: string
           status?: string
@@ -854,6 +856,7 @@ export type Database = {
           ai_analysis?: Json | null
           created_at?: string
           created_by?: string | null
+          custom_criteria?: string | null
           id?: string
           market_name?: string
           status?: string
@@ -1108,6 +1111,39 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      posts: {
+        Row: {
+          author_id: string
+          author_name: string | null
+          content: string
+          created_at: string
+          gif_url: string | null
+          id: string
+          image_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_name?: string | null
+          content?: string
+          created_at?: string
+          gif_url?: string | null
+          id?: string
+          image_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string | null
+          content?: string
+          created_at?: string
+          gif_url?: string | null
+          id?: string
+          image_url?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

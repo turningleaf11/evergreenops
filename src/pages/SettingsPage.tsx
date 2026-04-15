@@ -12,14 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -120,6 +120,9 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="addons" className="gap-1.5">
             <Package className="h-3.5 w-3.5" /> Add-Ons
+          </TabsTrigger>
+          <TabsTrigger value="forms" className="gap-1.5">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Forms
           </TabsTrigger>
         </TabsList>
 
@@ -351,6 +354,10 @@ export default function SettingsPage() {
 
         <TabsContent value="addons" className="mt-4">
           <AddOnsTab />
+        </TabsContent>
+
+        <TabsContent value="forms" className="mt-4">
+          <FormsManagementTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -916,6 +923,191 @@ function AddOnsTab() {
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+function FormsManagementTab() {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<any>(null);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newFields, setNewFields] = useState<{ name: string; type: string; required: boolean; options?: string[] }[]>([]);
+
+  const fetchData = useCallback(async () => {
+    const [tRes, sRes] = await Promise.all([
+      supabase.from("form_templates").select("*").order("name"),
+      supabase.from("form_submissions").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (tRes.data) setTemplates(tRes.data);
+    if (sRes.data) setSubmissions(sRes.data);
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const openNew = () => {
+    setEditTemplate(null);
+    setNewName(""); setNewDesc(""); setNewFields([{ name: "", type: "text", required: false }]);
+    setEditOpen(true);
+  };
+
+  const openEdit = (t: any) => {
+    setEditTemplate(t);
+    setNewName(t.name); setNewDesc(t.description || "");
+    setNewFields(t.fields || [{ name: "", type: "text", required: false }]);
+    setEditOpen(true);
+  };
+
+  const saveTemplate = async () => {
+    const validFields = newFields.filter(f => f.name.trim());
+    if (!newName.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+    if (editTemplate) {
+      await supabase.from("form_templates").update({
+        name: newName.trim(), description: newDesc.trim(), fields: validFields,
+      }).eq("id", editTemplate.id);
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("form_templates").insert({
+        name: newName.trim(), description: newDesc.trim(), fields: validFields,
+        created_by: user?.id,
+      });
+    }
+    setEditOpen(false);
+    fetchData();
+    toast({ title: editTemplate ? "Template updated" : "Template created" });
+  };
+
+  const deleteTemplate = async (id: string) => {
+    await supabase.from("form_templates").delete().eq("id", id);
+    fetchData();
+    toast({ title: "Template deleted" });
+  };
+
+  const updateStatus = async (id: string, status: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("form_submissions").update({ status, reviewed_by: user?.id } as any).eq("id", id);
+    fetchData();
+    toast({ title: `Submission ${status}` });
+  };
+
+  const getTemplateName = (id: string) => templates.find(t => t.id === id)?.name || "Unknown";
+
+  const pendingCount = submissions.filter(s => s.status === "pending").length;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Form Templates</CardTitle>
+            <CardDescription>Create and manage form templates for your team.</CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={openNew} className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> New Template
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No templates yet</p>
+          ) : templates.map(t => (
+            <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <p className="text-sm font-medium">{t.name}</p>
+                {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+                <p className="text-[10px] text-muted-foreground mt-0.5">{(t.fields as any[])?.length || 0} fields</p>
+              </div>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(t)}>
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => deleteTemplate(t.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Pending Submissions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            Review Queue
+            {pendingCount > 0 && <Badge variant="secondary" className="text-[10px]">{pendingCount}</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {submissions.filter(s => s.status === "pending").length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
+          ) : (
+            <div className="space-y-2">
+              {submissions.filter(s => s.status === "pending").map(s => (
+                <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="text-sm font-medium">{getTemplateName(s.template_id)}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {Object.entries(s.values as Record<string, any>).map(([k, v]) => (
+                        <Badge key={k} variant="outline" className="text-[10px]">{k}: {String(v)}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-green-600" onClick={() => updateStatus(s.id, "approved")}>Approve</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => updateStatus(s.id, "denied")}>Deny</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Template Editor Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editTemplate ? "Edit Template" : "New Template"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Form name" value={newName} onChange={e => setNewName(e.target.value)} />
+            <Textarea placeholder="Description (optional)" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="min-h-[60px]" />
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Fields</Label>
+              {newFields.map((f, i) => (
+                <div key={i} className="flex gap-1 items-center">
+                  <Input
+                    placeholder="Field name"
+                    value={f.name}
+                    onChange={e => { const n = [...newFields]; n[i] = { ...n[i], name: e.target.value }; setNewFields(n); }}
+                    className="h-8 text-sm flex-1"
+                  />
+                  <Select value={f.type} onValueChange={v => { const n = [...newFields]; n[i] = { ...n[i], type: v }; setNewFields(n); }}>
+                    <SelectTrigger className="h-8 text-xs w-24"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="textarea">Textarea</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="select">Select</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setNewFields(newFields.filter((_, j) => j !== i))}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setNewFields([...newFields, { name: "", type: "text", required: false }])}>
+                + Add Field
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={saveTemplate} disabled={!newName.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
