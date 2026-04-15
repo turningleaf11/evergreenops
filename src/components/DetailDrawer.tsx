@@ -4,10 +4,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Maximize2, Calendar, User, PanelRight, Square, Expand, ChevronDown } from "lucide-react";
+import { Maximize2, Calendar, User, PanelRight, Square, Expand, Tag, Flag, AlertCircle } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
+import { cn } from "@/lib/utils";
 
 type PeekMode = "side" | "center" | "full";
 
@@ -28,10 +29,25 @@ const statusLabels: Record<string, string> = {
   blocked: "Blocked", todo: "To Do",
 };
 
-const peekModes: { value: PeekMode; label: string; icon: React.ElementType }[] = [
-  { value: "side", label: "Side peek", icon: PanelRight },
-  { value: "center", label: "Center peek", icon: Square },
-  { value: "full", label: "Full page", icon: Expand },
+const statusColors: Record<string, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  todo: "bg-muted text-muted-foreground",
+  in_progress: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  done: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  blocked: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+};
+
+const priorityColors: Record<string, string> = {
+  low: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  high: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  urgent: "bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200",
+};
+
+const peekModes: { value: PeekMode; icon: React.ElementType; label: string }[] = [
+  { value: "side", icon: PanelRight, label: "Side peek" },
+  { value: "center", icon: Square, label: "Center peek" },
+  { value: "full", icon: Expand, label: "Full page" },
 ];
 
 function usePeekMode(): [PeekMode, (m: PeekMode) => void] {
@@ -45,6 +61,18 @@ function usePeekMode(): [PeekMode, (m: PeekMode) => void] {
   return [mode, set];
 }
 
+function PropertyRow({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-2 w-28 shrink-0">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
 function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMode, setPeekMode }: {
   type: "project" | "task"; item: any; onStatusChange: (s: string) => void;
   getName: (uid: string | null) => string; onFullPage: () => void;
@@ -53,113 +81,118 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
   const statuses = type === "project" ? projectStatuses : taskStatuses;
 
   return (
-    <div className="space-y-6">
-      {/* Mode switcher */}
+    <div className="space-y-5">
+      {/* Toolbar: mode switcher + full page */}
       <div className="flex items-center justify-between">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7">
-              {(() => { const m = peekModes.find(p => p.value === peekMode); const Icon = m?.icon || PanelRight; return <Icon className="h-3.5 w-3.5" />; })()}
-              {peekModes.find(p => p.value === peekMode)?.label}
-              <ChevronDown className="h-3 w-3 ml-0.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {peekModes.map(m => (
-              <DropdownMenuItem key={m.value} onClick={() => {
+        <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
+          {peekModes.map(m => (
+            <button
+              key={m.value}
+              onClick={() => {
                 if (m.value === "full") { onFullPage(); return; }
                 setPeekMode(m.value);
-              }}>
-                <m.icon className="h-3.5 w-3.5 mr-2" />
-                {m.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              }}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                peekMode === m.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={m.label}
+            >
+              <m.icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
 
-        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={onFullPage}>
+        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={onFullPage}>
           <Maximize2 className="h-3 w-3" /> Open full page
         </Button>
       </div>
 
-      {/* Status */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground w-20">Status</span>
-        <Select value={item.status} onValueChange={onStatusChange}>
-          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {statuses.map(s => (
-              <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Priority */}
-      {item.priority && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground w-20">Priority</span>
-          <Badge variant="outline" className="text-xs capitalize">{item.priority}</Badge>
-        </div>
-      )}
-
-      {/* Owner/Assignee */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground w-20">
-          {type === "project" ? "Owner" : "Assignee"}
-        </span>
-        <div className="flex items-center gap-1.5 text-sm">
-          <User className="h-3.5 w-3.5 text-muted-foreground" />
-          {getName(type === "project" ? item.owner_id : item.assigned_to)}
+      {/* Header zone */}
+      <div className="pb-4 border-b border-border/50">
+        <div className="flex items-start gap-2 flex-wrap">
+          <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.not_started)}>
+            {statusLabels[item.status] || item.status}
+          </Badge>
+          {item.priority && (
+            <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium capitalize", priorityColors[item.priority])}>
+              {item.priority}
+            </Badge>
+          )}
         </div>
       </div>
 
-      {/* Due date */}
-      {item.due_date && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground w-20">Due</span>
-          <div className="flex items-center gap-1.5 text-sm">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            {item.due_date}
-          </div>
-        </div>
-      )}
+      {/* Property grid */}
+      <div className="divide-y divide-border/30">
+        <PropertyRow icon={AlertCircle} label="Status">
+          <Select value={item.status} onValueChange={onStatusChange}>
+            <SelectTrigger className="w-36 h-7 text-xs border-border/50"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {statuses.map(s => (
+                <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </PropertyRow>
 
-      {/* Tags */}
-      {item.tags && item.tags.length > 0 && (
-        <div className="flex items-start gap-3">
-          <span className="text-sm text-muted-foreground w-20 pt-0.5">Tags</span>
-          <div className="flex flex-wrap gap-1">
-            {item.tags.map((t: string) => (
-              <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
-            ))}
-          </div>
-        </div>
-      )}
+        {item.priority && (
+          <PropertyRow icon={Flag} label="Priority">
+            <span className="text-sm capitalize">{item.priority}</span>
+          </PropertyRow>
+        )}
+
+        <PropertyRow icon={User} label={type === "project" ? "Owner" : "Assignee"}>
+          <span className="text-sm">{getName(type === "project" ? item.owner_id : item.assigned_to)}</span>
+        </PropertyRow>
+
+        {item.due_date && (
+          <PropertyRow icon={Calendar} label="Due date">
+            <span className="text-sm">{item.due_date}</span>
+          </PropertyRow>
+        )}
+
+        {item.tags && item.tags.length > 0 && (
+          <PropertyRow icon={Tag} label="Tags">
+            <div className="flex flex-wrap gap-1">
+              {item.tags.map((t: string) => (
+                <Badge key={t} variant="secondary" className="text-[10px] rounded-full">{t}</Badge>
+              ))}
+            </div>
+          </PropertyRow>
+        )}
+      </div>
 
       {/* Description */}
       {item.description && (
-        <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">Description</span>
-          <p className="text-sm text-foreground/90">{item.description}</p>
-        </div>
+        <Card className="bg-muted/30 border-border/30">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Description</p>
+            <p className="text-sm text-foreground/90 leading-relaxed">{item.description}</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Subtasks for tasks */}
+      {/* Subtasks */}
       {type === "task" && item.subtasks && item.subtasks.length > 0 && (
-        <div className="space-y-2">
-          <span className="text-sm text-muted-foreground">Subtasks</span>
-          {item.subtasks.map((st: any, i: number) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={st.done} readOnly className="rounded" />
-              <span className={st.done ? "line-through text-muted-foreground" : ""}>{st.title}</span>
+        <Card className="bg-muted/30 border-border/30">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-3">Subtasks</p>
+            <div className="space-y-2">
+              {item.subtasks.map((st: any, i: number) => (
+                <div key={i} className="flex items-center gap-2.5 text-sm">
+                  <input type="checkbox" checked={st.done} readOnly className="rounded border-border" />
+                  <span className={st.done ? "line-through text-muted-foreground" : ""}>{st.title}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Comments */}
-      <div className="border-t pt-4">
+      <div className="pt-2 border-t border-border/30">
         <CommentsSection entityType={type} entityId={item.id} />
       </div>
     </div>
@@ -170,7 +203,6 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   const navigate = useNavigate();
   const [peekMode, setPeekMode] = usePeekMode();
 
-  // Handle full page mode — navigate immediately when opened
   useEffect(() => {
     if (open && peekMode === "full" && item) {
       onOpenChange(false);
@@ -186,9 +218,9 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   if (peekMode === "center") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg pr-8">{item.title}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold pr-8">{item.title}</DialogTitle>
           </DialogHeader>
           <DetailContent
             type={type} item={item} onStatusChange={onStatusChange}
@@ -202,9 +234,9 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
         <SheetHeader className="space-y-3">
-          <SheetTitle className="text-lg pr-8">{item.title}</SheetTitle>
+          <SheetTitle className="text-xl font-semibold pr-8">{item.title}</SheetTitle>
         </SheetHeader>
         <div className="mt-6">
           <DetailContent
