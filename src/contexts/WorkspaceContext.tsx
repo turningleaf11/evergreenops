@@ -45,6 +45,14 @@ function applyAccentColor(value: string) {
   const mainL = isDark ? Math.min(l + 10, 65) : l;
   const primary = `${h} ${s}% ${mainL}%`;
 
+  // Clear stale sidebar surface tints from previous implementations
+  root.style.removeProperty("--sidebar-background");
+  root.style.removeProperty("--sidebar-foreground");
+  root.style.removeProperty("--sidebar-accent");
+  root.style.removeProperty("--sidebar-accent-foreground");
+  root.style.removeProperty("--sidebar-border");
+
+  // Only tint action/indicator colors — sidebar shell stays neutral
   root.style.setProperty("--primary", primary);
   root.style.setProperty("--primary-foreground", "0 0% 100%");
   root.style.setProperty("--ring", primary);
