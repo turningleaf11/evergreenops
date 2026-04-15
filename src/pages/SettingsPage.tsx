@@ -131,6 +131,17 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* App Style */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> App Style</CardTitle>
+              <CardDescription>Choose a visual style for the entire workspace.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AppStylePicker />
+            </CardContent>
+          </Card>
+
           {/* Appearance */}
           <Card>
             <CardHeader>
