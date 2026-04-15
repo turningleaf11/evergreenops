@@ -1,60 +1,92 @@
 
 
-# Scrap Crystal, Elevate Standard with Arc-Inspired Polish
+# Premium SaaS UI Design System Overhaul
 
-## Why Crystal Failed
-Crystal tried to differentiate through glassmorphism alone — translucent backgrounds and blurs. But the underlying layout, spacing, shadows, and color usage stayed the same, so it looked nearly identical. The real issue is that Standard itself needs more personality.
+## What's Wrong Now
+The app looks flat and basic — the sidebar tinting was the only visible change. Cards lack depth, spacing is tight, typography hierarchy is weak, and there's no sense of premium polish. The screenshot confirms it: everything blends together with no clear surface separation.
 
-## What Arc Does Well
-Arc's aesthetic is about **colorful confidence**: the sidebar has a tinted, saturated background that follows your chosen accent color. Cards have real depth with layered shadows. Surfaces feel distinct from each other. There's warmth and personality without being unprofessional.
+## Design Direction
+Modern SaaS with soft depth (think Linear, Notion, Vercel Dashboard): neutral base, controlled accent, layered surfaces, generous spacing, clear hierarchy. No playful colors — premium internal tool feel.
 
-## The Plan
+## Changes
 
-### 1. Remove Crystal entirely
-- Delete all `.style-crystal` CSS blocks from `src/index.css` (~200 lines)
-- Remove `appStyle` state, class toggle, and DB persist from `src/contexts/WorkspaceContext.tsx`
-- Remove the App Style picker card from `src/pages/SettingsPage.tsx`
-- Remove `data-content="main"` from `src/components/Layout.tsx` (no longer needed)
-- Remove `data-peek-surface` / `data-peek-title` / `data-peek-body` attributes from `src/components/DetailDrawer.tsx` (only existed for Crystal)
+### 1. Color tokens — better surface separation (`src/index.css`)
+- **Light mode**: Background `220 20% 96%` (slightly cooler), card stays pure white `0 0% 100%`
+- **Dark mode**: Background `224 24% 4%`, card `224 20% 7%` — more contrast between page and cards
+- **Sidebar**: Revert to neutral tones (remove accent tinting) — light: `220 16% 98%`, dark: `224 22% 5.5%`. Clean, slightly lighter than content area
+- **Borders**: Softer in light (`220 14% 92%`), more visible in dark (`220 12% 16%`)
+- **Muted foreground**: `220 10% 46%` light, `220 10% 50%` dark — better readability
 
-### 2. Accent-tinted sidebar (Arc's signature move)
-Currently the sidebar uses flat `--sidebar-background` (a neutral gray). Change the accent color system so the sidebar background gets a **subtle tint of the workspace accent color**:
-- Light: `hsl(accent-hue, 20%, 95%)` — just enough color to feel intentional
-- Dark: `hsl(accent-hue, 18%, 10%)` — deep tinted surface
-- Active nav item gets a stronger accent pill (like Arc's tab highlighting)
-- Update `applyAccentColor()` in WorkspaceContext to set these sidebar variables dynamically
+### 2. Remove accent-tinted sidebar (`src/contexts/WorkspaceContext.tsx`)
+Remove the sidebar-background/foreground/border overrides from `applyAccentColor()`. The sidebar should stay neutral — only `--primary`, `--ring`, and `--sidebar-primary` should change with accent color.
 
-### 3. Better card depth and surface hierarchy
-Replace the current flat cards with a more layered system:
-- **Cards**: Slightly stronger shadow (`0 2px 8px -2px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)`), subtle border, and a 1px top highlight in light mode
-- **Dark mode cards**: Lighter border (`border: 1px solid hsl(220, 14%, 18%)`), faint inner glow
-- **Hover states**: Cards lift slightly on hover with shadow increase (`transition: box-shadow 0.2s, transform 0.2s`)
-- Update `shadow-card` utility and card component defaults in `src/index.css`
+### 3. Card component upgrade (`src/components/ui/card.tsx`)
+- Increase border-radius to `rounded-2xl` (already done, keep it)
+- Use `bg-card` with `shadow-sm` default, `border-border/40`
+- Add `data-slot="card"` already handled in CSS
 
-### 4. Warmer, more alive color tokens
-Refine the base palette slightly:
-- **Light mode background**: Shift from pure warm gray (`36 25% 97%`) to a very slight accent-tinted white — makes the whole app feel cohesive
-- **Dark mode**: Deepen the background slightly (`224 22% 5%`) for more contrast with cards
-- **Muted foreground**: Bump from 46% to 42% lightness for slightly better readability
-- **Border**: Make borders slightly more visible in dark mode (`220 14% 18%`)
+### 4. Enhanced card CSS depth system (`src/index.css`)
+- Light cards: soft multi-layer shadow + top 1px white highlight (`box-shadow: inset 0 1px 0 rgba(255,255,255,0.7)`)
+- Dark cards: inner glow top edge, subtle border bump
+- Hover: gentle shadow increase, NO transform (transform causes layout jank)
+- Remove `transform` from card hover transitions
 
-### 5. Active nav item polish
-The current active state (`bg-sidebar-accent`) is barely visible. Make it:
-- A **pill shape** with the accent color at 12% opacity, rounded-lg
-- **Left edge indicator**: 3px accent-colored bar on the active item
-- Slightly bolder text weight on active
+### 5. Typography hierarchy (`src/index.css`)
+Add base typography utilities:
+- `.page-title`: `text-2xl font-bold tracking-tight` (currently `text-2xl font-semibold`)
+- `.section-title`: `text-base font-semibold text-foreground`
+- Update `h1` base to `font-bold` (from `font-semibold`)
+
+### 6. Spacing & layout improvements (`src/pages/Index.tsx`)
+- Increase page padding from `p-6` to `p-8`
+- Increase section gap from `space-y-8` to `space-y-10`
+- Department cards grid gap from `gap-3` to `gap-4`
+- Bottom section grid gap from `gap-6` to `gap-6` (keep)
+- Welcome title: `text-3xl font-bold` (from `text-2xl font-semibold`)
+- Subtitle: `text-base` (from `text-sm`)
+
+### 7. Sidebar polish (`src/components/AppSidebar.tsx`)
+- Remove the accent tinting visual effect
+- Active item: keep the `nav-active-indicator` left bar + `bg-primary/8` pill (softer than 10%)
+- Hover: `hover:bg-muted/60` (softer)
+- Header logo: slightly larger `h-8 w-8`, cleaner spacing
+
+### 8. Button refinements (`src/components/ui/button.tsx`)
+- Default: add `shadow-sm` (already has it, keep)
+- Outline: add `shadow-xs` for subtle depth
+- Ghost: no change
+- All: ensure `rounded-xl` (bump from `rounded-lg`)
+
+### 9. Badge softening (`src/components/ui/badge.tsx`)
+- Default variant: `bg-primary/10 text-primary border-primary/20` (soft background, not solid)
+- Keep destructive solid
+- Add `font-medium` (from `font-semibold`) for less visual weight
+
+### 10. Input refinement (`src/components/ui/input.tsx`)
+- Add `shadow-xs` for subtle inset feel
+- Ensure `rounded-xl` consistency
+
+### 11. Header bar (`src/components/Layout.tsx`)
+- Make header `bg-card/80 backdrop-blur-sm` for subtle glass effect
+- Border: `border-border/30` (softer)
+
+### 12. Active nav indicator CSS (`src/index.css`)
+- Keep the left bar indicator
+- Soften: height `50%`, width `2.5px`, slight rounded
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/index.css` — Remove all Crystal CSS, improve card shadows, refine color tokens |
-| Edit | `src/contexts/WorkspaceContext.tsx` — Remove appStyle, enhance accent color to tint sidebar |
-| Edit | `src/pages/SettingsPage.tsx` — Remove App Style picker section |
-| Edit | `src/components/Layout.tsx` — Remove data-content attribute |
-| Edit | `src/components/DetailDrawer.tsx` — Remove peek data attributes |
-| Edit | `src/components/AppSidebar.tsx` — Active nav item left indicator styling |
-| Edit | `src/components/NavLink.tsx` — Updated active class for pill + indicator |
+| Edit | `src/index.css` — Token refinements, card depth, typography utilities |
+| Edit | `src/contexts/WorkspaceContext.tsx` — Remove sidebar tinting from applyAccentColor |
+| Edit | `src/components/ui/card.tsx` — Border/shadow class tweaks |
+| Edit | `src/components/ui/button.tsx` — Rounded-xl, shadow consistency |
+| Edit | `src/components/ui/badge.tsx` — Softer default variant |
+| Edit | `src/components/ui/input.tsx` — Shadow-xs, rounded-xl |
+| Edit | `src/components/Layout.tsx` — Header glass effect |
+| Edit | `src/components/AppSidebar.tsx` — Softer hover/active states |
+| Edit | `src/pages/Index.tsx` — Spacing, typography hierarchy |
 
-No migration needed — the `app_style` column can stay in DB harmlessly.
+No migrations needed.
 
