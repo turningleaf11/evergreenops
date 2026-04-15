@@ -60,12 +60,15 @@ export default function NotesPage() {
     }
   }, [location.state, notes]);
 
-  // Derive folders from notes
-  const folders = useMemo(() => {
-    const folderSet = new Set<string>();
-    notes.forEach(n => { if (n.folder) folderSet.add(n.folder); });
-    return Array.from(folderSet).sort();
-  }, [notes]);
+  // Fetch folders from DB
+  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
+  const fetchFolders = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("note_folders").select("id, name").eq("user_id", user.id).order("sort_order");
+    if (data) setFolders(data as any[]);
+  }, [user]);
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+  const folderNames = folders.map(f => f.name);
 
   const filteredNotes = useMemo(() => {
     if (activeFolder === null) return notes;
