@@ -397,6 +397,7 @@ export default function ExecutionPage() {
                 </span>
               )}
             </TabsTrigger>
+            {isAdmin && <TabsTrigger value="submissions">Submissions</TabsTrigger>}
           </TabsList>
           <div className="flex gap-2">
             {tab === "goals" && (
