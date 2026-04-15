@@ -876,3 +876,46 @@ function AccentColorPicker() {
     </div>
   );
 }
+
+function AddOnsTab() {
+  const { packs, enabledIds, loading, toggle } = useAllAddons();
+
+  if (loading) return <p className="text-sm text-muted-foreground py-8 text-center">Loading add-ons...</p>;
+
+  if (packs.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center space-y-2">
+          <Package className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <p className="font-medium">No add-on packs available yet</p>
+          <p className="text-sm text-muted-foreground">Add-on packs will appear here when they become available.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {packs.map((pack: any) => {
+        const isEnabled = enabledIds.includes(pack.id);
+        return (
+          <Card key={pack.id} className={isEnabled ? "border-primary/30" : ""}>
+            <CardContent className="p-4 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary shrink-0" />
+                  <p className="font-medium text-sm">{pack.name}</p>
+                  {pack.price_tier !== "free" && (
+                    <Badge variant="secondary" className="text-[10px]">{pack.price_tier}</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{pack.description}</p>
+              </div>
+              <Switch checked={isEnabled} onCheckedChange={() => toggle(pack.id)} />
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
