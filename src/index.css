@@ -128,3 +128,80 @@
     box-shadow: 0 1px 3px 0 hsl(30 10% 40% / 0.06), 0 1px 2px -1px hsl(30 10% 40% / 0.06);
   }
 }
+
+/* ── Crystal (Glassmorphism) Style ── */
+
+.style-crystal body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 20%, hsl(var(--primary) / 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.04) 0%, transparent 50%);
+}
+
+.dark.style-crystal body::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 20%, hsl(var(--primary) / 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.06) 0%, transparent 50%);
+}
+
+/* Cards */
+.style-crystal [data-slot="card"],
+.style-crystal .card-glass {
+  background: hsl(var(--card) / 0.6) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: hsl(var(--border) / 0.3) !important;
+}
+.dark.style-crystal [data-slot="card"],
+.dark.style-crystal .card-glass {
+  background: hsl(var(--card) / 0.4) !important;
+  border-color: hsl(0 0% 100% / 0.06) !important;
+}
+
+/* Sidebar */
+.style-crystal [data-sidebar="sidebar"] {
+  background: hsl(var(--sidebar-background) / 0.65) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.dark.style-crystal [data-sidebar="sidebar"] {
+  background: hsl(var(--sidebar-background) / 0.5) !important;
+}
+
+/* Header */
+.style-crystal header,
+.style-crystal [data-header="main"] {
+  background: hsl(var(--card) / 0.5) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.dark.style-crystal header,
+.dark.style-crystal [data-header="main"] {
+  background: hsl(var(--card) / 0.35) !important;
+}
+
+/* Popovers & Dialogs */
+.style-crystal [data-radix-popper-content-wrapper] > *,
+.style-crystal [role="dialog"] > div {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.style-crystal [data-radix-popper-content-wrapper] > * {
+  background: hsl(var(--popover) / 0.75) !important;
+}
+.dark.style-crystal [data-radix-popper-content-wrapper] > * {
+  background: hsl(var(--popover) / 0.6) !important;
+}
+
+/* Sheet / Drawer */
+.style-crystal [data-state="open"][role="dialog"] {
+  background: hsl(var(--card) / 0.7) !important;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}

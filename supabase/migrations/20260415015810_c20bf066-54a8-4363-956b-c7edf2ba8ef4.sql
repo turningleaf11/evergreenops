@@ -1,0 +1,1 @@
+ALTER TABLE public.workspaces ADD COLUMN IF NOT EXISTS app_style text NOT NULL DEFAULT 'standard';

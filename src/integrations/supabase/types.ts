@@ -1223,6 +1223,7 @@ export type Database = {
       workspaces: {
         Row: {
           accent_color: string | null
+          app_style: string
           ceo_page_name: string
           created_at: string
           dept_label: string
@@ -1234,6 +1235,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          app_style?: string
           ceo_page_name?: string
           created_at?: string
           dept_label?: string
@@ -1245,6 +1247,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          app_style?: string
           ceo_page_name?: string
           created_at?: string
           dept_label?: string
