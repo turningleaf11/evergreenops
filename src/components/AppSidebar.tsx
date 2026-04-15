@@ -1,7 +1,8 @@
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon,
+  Target, StickyNote, Sun, Moon, Clock, Building, FileSpreadsheet,
+  Megaphone, Heart, BarChart3,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -17,6 +18,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getDeptIcon } from "@/lib/icon-map";
+import { useAddonEnabled } from "@/hooks/useAddonEnabled";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -27,6 +29,9 @@ export function AppSidebar() {
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
   const { resolvedTheme, setTheme } = useTheme();
+
+  const timeClockEnabled = useAddonEnabled("time-clock");
+  const marketResearchEnabled = useAddonEnabled("real-estate-research");
 
   // Admins see all departments; users see only their assigned department
   const departments = isAdmin
@@ -42,6 +47,18 @@ export function AppSidebar() {
     { title: "Lists", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
     { title: "Training", url: "/training", icon: GraduationCap },
+  ];
+
+  const intranetNav = [
+    { title: "Announcements", url: "/announcements", icon: Megaphone },
+    { title: "Polls", url: "/polls", icon: BarChart3 },
+    { title: "Kudos", url: "/kudos", icon: Heart },
+    { title: "Forms", url: "/forms", icon: FileSpreadsheet },
+  ];
+
+  const addonNav = [
+    ...(timeClockEnabled ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
+    ...(marketResearchEnabled ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
   ];
 
   return (
@@ -115,7 +132,57 @@ export function AppSidebar() {
           </Collapsible>
         </SidebarGroup>
 
-        
+        {/* Intranet */}
+        <SidebarGroup>
+          <Collapsible className="group/collapsible">
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Megaphone className="h-3.5 w-3.5" />
+                  {!collapsed && "Intranet"}
+                </span>
+                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {intranetNav.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        {/* Add-Ons */}
+        {addonNav.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px]">Add-Ons</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {addonNav.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">

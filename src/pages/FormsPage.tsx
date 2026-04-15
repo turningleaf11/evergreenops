@@ -23,6 +23,7 @@ interface FormTemplate {
 interface FormSubmission {
   id: string;
   template_id: string;
+  submitted_by: string;
   values: Record<string, any>;
   status: string;
   review_notes: string;
