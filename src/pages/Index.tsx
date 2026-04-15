@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 
 const Index = () => {
   const { departments } = useDepartments();
@@ -27,6 +28,11 @@ const Index = () => {
   const [fillOpen, setFillOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+  
+  // Time clock state
+  const [timeClockEnabled, setTimeClockEnabled] = useState(false);
+  const [activeClockEntry, setActiveClockEntry] = useState<any>(null);
+  const [elapsedTime, setElapsedTime] = useState("");
 
   const visibleDepartments = isAdmin
     ? departments
