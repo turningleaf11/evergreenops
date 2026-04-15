@@ -21,6 +21,7 @@ interface WorkspaceContextValue extends WorkspaceState {
   setAccentColor: (hue: string | null) => void;
   setCeoPageName: (name: string) => void;
   setDeptLabel: (label: string) => void;
+  setAppStyle: (style: string) => void;
   uploadLogo: (file: File) => Promise<string | null>;
   loading: boolean;
 }
@@ -66,6 +67,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     accentColor: null,
     ceoPageName: "CEO Cockpit",
     deptLabel: "Departments",
+    appStyle: "standard",
   });
   const [loading, setLoading] = useState(true);
 
@@ -89,6 +91,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           accentColor: data.accent_color || null,
           ceoPageName: (data as any).ceo_page_name || "CEO Cockpit",
           deptLabel: (data as any).dept_label || "Departments",
+          appStyle: (data as any).app_style || "standard",
         });
       }
       setLoading(false);
