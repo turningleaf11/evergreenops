@@ -143,12 +143,13 @@ export default function NotesPage() {
     fetchNotes();
   };
 
-  const createFolder = () => {
-    if (!newFolderName.trim()) return;
-    // Just set the active folder — it will exist once a note is moved there
+  const createFolder = async () => {
+    if (!newFolderName.trim() || !user) return;
+    await supabase.from("note_folders").insert({ name: newFolderName.trim(), user_id: user.id });
     setActiveFolder(newFolderName.trim());
     setNewFolderName("");
     setCreatingFolder(false);
+    fetchFolders();
   };
 
   const renameFolder = async (oldName: string, newName: string) => {
