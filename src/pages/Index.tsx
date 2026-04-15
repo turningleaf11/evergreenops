@@ -145,6 +145,42 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Forms & Requests */}
+      {formTemplates.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" /> Forms & Requests
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {formTemplates.map((t) => (
+              <Card key={t.id} className="hover:border-primary/40 transition-colors cursor-pointer" onClick={() => openForm(t)}>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{t.name}</p>
+                      {t.description && <p className="text-[10px] text-muted-foreground truncate">{t.description}</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {mySubmissions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Recent Submissions</p>
+              {mySubmissions.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 text-xs py-1">
+                  {statusIcon[s.status]}
+                  <span>{formTemplates.find((t: any) => t.id === s.template_id)?.name || "Form"}</span>
+                  <Badge variant="secondary" className="text-[10px] capitalize ml-auto">{s.status}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="lg:col-span-1">
           <RemindersWidget />
@@ -177,6 +213,54 @@ const Index = () => {
           <ActivityFeed limit={8} />
         </section>
       </div>
+
+      {/* Form Fill Dialog */}
+      <Dialog open={fillOpen} onOpenChange={setFillOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{activeTemplate?.name}</DialogTitle></DialogHeader>
+          {activeTemplate?.description && <p className="text-sm text-muted-foreground">{activeTemplate.description}</p>}
+          <div className="space-y-3">
+            {(activeTemplate?.fields || []).map((field: any) => (
+              <div key={field.name}>
+                <label className="text-xs text-muted-foreground">
+                  {field.name} {field.required && <span className="text-destructive">*</span>}
+                </label>
+                {field.type === "select" && field.options ? (
+                  <Select value={formValues[field.name] || ""} onValueChange={v => setFormValues(prev => ({ ...prev, [field.name]: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      {field.options.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : field.type === "textarea" ? (
+                  <Textarea
+                    value={formValues[field.name] || ""}
+                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    className="mt-1 min-h-[60px]"
+                  />
+                ) : field.type === "date" ? (
+                  <Input
+                    type="date"
+                    value={formValues[field.name] || ""}
+                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <Input
+                    value={formValues[field.name] || ""}
+                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                    className="mt-1"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFillOpen(false)}>Cancel</Button>
+            <Button onClick={submitForm} className="gap-1.5"><Send className="h-3.5 w-3.5" /> Submit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
