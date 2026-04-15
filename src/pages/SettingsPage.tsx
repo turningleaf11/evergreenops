@@ -595,6 +595,10 @@ function UsersTab() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5" title="Time clock access">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Switch checked={u.time_clock_enabled} onCheckedChange={(v) => handleTimeClockToggle(u.user_id, v)} />
+                </div>
                 {u.is_primary ? (
                   <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
                     <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
