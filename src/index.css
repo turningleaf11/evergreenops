@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 220 16% 97%;
+    --background: 220 20% 96%;
     --foreground: 220 20% 10%;
 
     --card: 0 0% 100%;
@@ -22,7 +22,7 @@
     --secondary-foreground: 220 20% 10%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 42%;
+    --muted-foreground: 220 10% 46%;
 
     --accent: 220 14% 94%;
     --accent-foreground: 220 20% 10%;
@@ -30,13 +30,13 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 10% 91%;
-    --input: 220 10% 91%;
+    --border: 220 14% 92%;
+    --input: 220 14% 92%;
     --ring: 220 65% 48%;
 
     --radius: 0.875rem;
 
-    --sidebar-background: 220 16% 96%;
+    --sidebar-background: 220 16% 98%;
     --sidebar-foreground: 220 15% 25%;
     --sidebar-primary: 220 65% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -54,13 +54,13 @@
   }
 
   .dark {
-    --background: 224 22% 5%;
+    --background: 224 24% 4%;
     --foreground: 210 20% 92%;
 
-    --card: 224 20% 8%;
+    --card: 224 20% 7%;
     --card-foreground: 210 20% 92%;
 
-    --popover: 224 20% 8%;
+    --popover: 224 20% 7%;
     --popover-foreground: 210 20% 92%;
 
     --primary: 220 65% 55%;
@@ -70,7 +70,7 @@
     --secondary-foreground: 210 20% 92%;
 
     --muted: 220 14% 14%;
-    --muted-foreground: 220 10% 55%;
+    --muted-foreground: 220 10% 50%;
 
     --accent: 220 14% 14%;
     --accent-foreground: 210 20% 92%;
@@ -78,17 +78,17 @@
     --destructive: 0 62% 30%;
     --destructive-foreground: 210 20% 92%;
 
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
+    --border: 220 12% 16%;
+    --input: 220 12% 16%;
     --ring: 220 65% 55%;
 
-    --sidebar-background: 224 22% 6%;
+    --sidebar-background: 224 22% 5.5%;
     --sidebar-foreground: 210 15% 80%;
     --sidebar-primary: 220 65% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 12%;
     --sidebar-accent-foreground: 210 15% 80%;
-    --sidebar-border: 220 14% 16%;
+    --sidebar-border: 220 12% 14%;
     --sidebar-ring: 220 65% 55%;
 
     --success: 142 71% 35%;
@@ -111,7 +111,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    @apply font-bold tracking-tight;
   }
 
   code, pre {
@@ -135,26 +135,36 @@
       0 4px 16px -4px rgba(0, 0, 0, 0.12),
       0 2px 4px rgba(0, 0, 0, 0.06);
   }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight;
+  }
+
+  .section-title {
+    @apply text-base font-semibold text-foreground;
+  }
 }
 
 /* ── Card depth & surface hierarchy ── */
 
 [data-slot="card"] {
   box-shadow:
-    0 2px 8px -2px rgba(0, 0, 0, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-  border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+    0 2px 8px -2px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border: 1px solid hsl(var(--border) / 0.5);
+  transition: box-shadow 0.2s ease;
 }
 
 [data-slot="card"]:hover {
   box-shadow:
-    0 4px 16px -4px rgba(0, 0, 0, 0.12),
-    0 2px 4px rgba(0, 0, 0, 0.06);
+    0 4px 16px -4px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .dark [data-slot="card"] {
-  border: 1px solid hsl(220 14% 18%);
+  border: 1px solid hsl(220 12% 16%);
   box-shadow:
     0 2px 8px -2px rgba(0, 0, 0, 0.3),
     0 1px 2px rgba(0, 0, 0, 0.2),
@@ -180,8 +190,8 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
+  width: 2.5px;
+  height: 50%;
   border-radius: 0 2px 2px 0;
   background: hsl(var(--sidebar-primary));
 }
