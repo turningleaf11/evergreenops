@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ImageIcon, Send, Megaphone, BarChart3, Heart, X, Loader2, Link as LinkIcon } from "lucide-react";
+import { ImageIcon, Send, Megaphone, BarChart3, Heart, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFile } from "@/lib/file-upload";
+import { GiphyPicker } from "@/components/feed/GiphyPicker";
 
 interface FeedComposerProps {
   onPost: () => void;
@@ -27,7 +28,6 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [gifUrl, setGifUrl] = useState("");
-  const [showGifInput, setShowGifInput] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -50,7 +50,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error("Image must be under 50MB"); return; }
     setUploading(true);
     const url = await uploadFile(file);
     if (url) setImageUrl(url);
@@ -59,7 +59,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   };
 
   const reset = () => {
-    setContent(""); setImageUrl(null); setGifUrl(""); setShowGifInput(false);
+    setContent(""); setImageUrl(null); setGifUrl("");
     setAnnTitle(""); setAnnType("general"); setAnnPinned(false);
     setPollTitle(""); setPollOptions(["", ""]);
     setKudosTo(""); setKudosCat("great_work");
@@ -261,22 +261,14 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
-              {/* GIF URL input */}
-              {showGifInput && (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Paste GIF URL..."
-                    value={gifUrl}
-                    onChange={(e) => setGifUrl(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                  <Button size="sm" variant="ghost" className="h-8" onClick={() => { setGifUrl(""); setShowGifInput(false); }}>
+              {/* GIF preview */}
+              {gifUrl && (
+                <div className="relative">
+                  <img src={gifUrl} alt="GIF" className="rounded-lg max-h-48 object-cover" />
+                  <Button size="icon" variant="secondary" className="absolute top-1 right-1 h-6 w-6" onClick={() => setGifUrl("")}>
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
-              )}
-              {gifUrl && (
-                <img src={gifUrl} alt="GIF" className="rounded-lg max-h-48 object-cover" />
               )}
 
               {/* Action bar */}
@@ -288,10 +280,11 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
                         Photo
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground" onClick={() => setShowGifInput(!showGifInput)}>
-                        <LinkIcon className="h-3.5 w-3.5" />
-                        GIF
-                      </Button>
+                      <GiphyPicker onSelect={(url) => setGifUrl(url)}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground">
+                          GIF
+                        </Button>
+                      </GiphyPicker>
                     </>
                   )}
                 </div>
