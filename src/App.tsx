@@ -48,7 +48,7 @@ function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   return <Outlet />;
@@ -88,6 +88,7 @@ const App = () => (
           <Routes>
             {/* Public auth routes */}
             <Route element={<PublicRoute />}>
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
             </Route>

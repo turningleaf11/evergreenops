@@ -88,6 +88,17 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="workspaceName">Workspace Name</Label>
+              <Input
+                id="workspaceName"
+                type="text"
+                placeholder="Acme Corp"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
                 id="fullName"
