@@ -121,6 +121,9 @@ export default function SettingsPage() {
           <TabsTrigger value="addons" className="gap-1.5">
             <Package className="h-3.5 w-3.5" /> Add-Ons
           </TabsTrigger>
+          <TabsTrigger value="forms" className="gap-1.5">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Forms
+          </TabsTrigger>
         </TabsList>
 
         {/* Workspace Tab */}
