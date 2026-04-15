@@ -1,81 +1,86 @@
 
 
-# Customizable Home Page Widgets + Rich Feed Preview
+# CEO Cockpit Premium UI Refinement
 
 ## Overview
-Transform the home page into a fully customizable "launchpad" with drag-and-drop widget arrangement, user preferences, and admin-controlled defaults. Upgrade the feed preview from basic text to a polished card carousel.
+Refine the CEO Cockpit and establish a consistent design system across the app: premium layering, calm surfaces, polished tabs, and subtle interaction feedback.
 
 ---
 
-## 1. Widget Configuration System
+## 1. Brain Dump — Primary Command Surface
 
-**Database Migration**: Create `widget_preferences` table:
-- `id` (uuid, PK), `user_id` (uuid), `widget_id` (text), `visible` (boolean, default true), `sort_order` (int), `column` (int, 0 or 1), `created_at`
-- RLS: users CRUD their own rows
+**File**: `src/pages/CeoDashboard.tsx`
+- Wrap Brain Dump in an elevated container: `bg-primary/[0.03]` tinted background, `shadow-md` soft shadow, `p-8` generous padding, `rounded-2xl`
+- The inner `RichTextEditor` stays clean (neutral `bg-card` or white)
+- Remove the current `rounded-xl border border-border bg-card p-5` wrapper — replace with the elevated style
+- Brain Dump visually dominates; other cards stay at lower elevation
 
-**Database Migration**: Create `widget_defaults` table (admin-managed):
-- `id` (uuid, PK), `widget_id` (text, unique), `visible` (boolean, default true), `sort_order` (int), `column` (int)
-- RLS: all authenticated can read, only admins can write (via `has_role` or profile role check)
+## 2. Current Objective — Slim, Above Brain Dump
 
-**Widget registry** (constant in code):
-```
-time_clock, announcements, departments, forms,
-my_tasks, quick_links, feed_preview, reminders,
-recent_docs, activity_feed
-```
+**File**: `src/pages/CeoDashboard.tsx`
+- Reduce from `text-xl font-semibold` to `text-base font-medium`
+- Keep muted label (`text-xs uppercase tracking-widest`)
+- Remove heavy `border-b` divider, use `mb-6` spacing instead
+- Should feel like a pinned context line, not a section
 
-**Logic**: On load, check if user has `widget_preferences` rows. If not, fall back to `widget_defaults`. If no defaults, use hardcoded order. Users can toggle widgets on/off and reorder via drag-and-drop.
+## 3. Premium Tab Styling
+
+**File**: `src/pages/CeoDashboard.tsx` (TabsList/TabsTrigger overrides via className)
+- Active tab: `bg-primary/10 text-primary font-semibold` with `transition-all duration-200`
+- Inactive tab: `text-muted-foreground hover:text-foreground` with no background
+- TabsList: transparent background, no pill container — just the tab buttons
+- Add `transition-colors duration-200` to all triggers
+
+## 4. Global Layering System
+
+**File**: `src/index.css`
+- Define utility classes for consistent elevation:
+  - `.elevation-0` — page background (neutral base, no shadow)
+  - `.elevation-1` — standard cards: `shadow-sm` + subtle border
+  - `.elevation-2` — Brain Dump / featured surfaces: `shadow-md`, slightly tinted bg
+  - `.elevation-3` — floating buttons/popovers: `shadow-lg`
+- All shadows use the existing soft multi-layer style, just at different intensities
+
+## 5. Interaction Feedback
+
+**File**: `src/index.css` + component overrides
+- Buttons: add `active:scale-[0.97]` (already on primary, extend to all)
+- Inputs: `focus:ring-2 focus:ring-primary/20` subtle glow (no harsh ring)
+- Cards: hover shadow increase already exists via `[data-slot="card"]`, keep consistent
+- Tabs: `transition-all duration-200` for color/background changes
+
+## 6. Remove Heavy Gray Backgrounds
+
+**File**: `src/pages/CeoDashboard.tsx`
+- Replace `bg-card` on Command tab cards with lighter treatment
+- Use `bg-card/80` or `bg-background` for less visual weight
+- Section headers: remove `uppercase tracking-widest` heavy style, use `text-xs font-medium text-muted-foreground`
+
+## 7. Icon Consistency
+
+**File**: `src/pages/CeoDashboard.tsx`
+- Ensure all Lucide icons use consistent `h-4 w-4` sizing
+- Apply `text-muted-foreground/70` (not pure black) to non-primary icons
+- Sidebar icons already use Lucide — verify consistent stroke width across the page
+
+## 8. Spacing & Radius Standardization
+
+**Files**: `src/pages/CeoDashboard.tsx`, `src/index.css`
+- Cards: `rounded-2xl` consistently (already in aesthetic memory)
+- Inputs/buttons: `rounded-xl` (12px, already set)
+- Internal spacing: 8px scale (`p-4`, `p-6`, `p-8`, `gap-4`, `gap-6`)
+- Page padding: `px-8 pt-10 pb-16`
 
 ---
 
-## 2. Drag-and-Drop Arrangement
+## Technical Summary
 
-Use `@dnd-kit/core` + `@dnd-kit/sortable` for reordering widgets within a single-column sortable list (simpler than 2-column grid DnD, more reliable). Each widget becomes a draggable card with a subtle grip handle visible on hover.
+| File | Changes |
+|------|---------|
+| `src/pages/CeoDashboard.tsx` | Brain Dump elevation, slim objective, tab styling, icon consistency, spacing |
+| `src/index.css` | Elevation utility classes, interaction feedback utilities |
+| `src/components/ScratchPad.tsx` | Padding/spacing adjustments for breathing room |
+| `src/components/ui/tabs.tsx` | Update default tab styles for smoother transitions |
 
-A small "Customize" button (gear icon) in the page header opens a panel/sheet where users can:
-- Toggle widgets on/off with switches
-- Reorder via drag handles
-- "Reset to defaults" button
-
-Changes auto-save to `widget_preferences`.
-
----
-
-## 3. Admin Default Configuration
-
-In Settings page, add a "Home Page Widgets" section (admin only):
-- Same toggle + reorder UI as the user customization panel
-- Saves to `widget_defaults` table
-- New users (no preferences yet) inherit these defaults
-
----
-
-## 4. Rich Feed Preview — Card Carousel
-
-Replace the basic text list with a horizontal scrollable card strip:
-- Each card: author avatar, name, timestamp, first ~120 chars of content, image/GIF thumbnail if present
-- Cards are ~280px wide, scroll horizontally with snap points
-- Subtle left/right arrow buttons for navigation
-- Click any card → navigates to `/feed`
-- Fetch more fields: `image_url`, `gif_url`, `type` to show richer previews
-- "View all →" link persists above the carousel
-
----
-
-## 5. Time Clock Fix
-
-The current code already renders a card widget (not a banner). Will verify it renders correctly and ensure the `OnboardingBanner` component (which may be what you're seeing) is not confused with the time clock. Will also confirm `time_clock_enabled` is `true` on your profile.
-
----
-
-## Technical Details
-
-| Action | Detail |
-|--------|--------|
-| Install | `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` |
-| Migration | Create `widget_preferences` + `widget_defaults` tables with RLS |
-| New | `src/components/home/WidgetCustomizer.tsx` — toggle/reorder sheet |
-| New | `src/components/home/FeedCarousel.tsx` — horizontal card carousel |
-| Refactor | `src/pages/Index.tsx` — Extract each section into named widget components, render dynamically based on preferences |
-| Edit | `src/pages/SettingsPage.tsx` — Add admin widget defaults section |
+No database changes. No new dependencies. Pure CSS/className refinement.
 
