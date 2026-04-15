@@ -118,10 +118,10 @@ export default function CeoDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-6 pt-10 pb-6">
+      <div className="max-w-5xl mx-auto px-8 pt-10 pb-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-muted-foreground tracking-wide uppercase mb-1">{dateStr}</p>
+            <p className="text-xs text-muted-foreground/70 tracking-wide uppercase mb-1">{dateStr}</p>
             <h1 className="text-2xl font-semibold text-foreground tracking-tight">{ceoPageName}</h1>
           </div>
 
@@ -131,8 +131,8 @@ export default function CeoDashboard() {
               <Sheet>
                 <SheetTrigger asChild>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 shrink-0">
-                      <Binoculars className="h-5 w-5 text-primary" />
+                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 shrink-0 elevation-1 hover:elevation-2 transition-shadow duration-200">
+                      <Binoculars className="h-4 w-4 text-primary" />
                     </Button>
                   </TooltipTrigger>
                 </SheetTrigger>
@@ -165,21 +165,21 @@ export default function CeoDashboard() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 pb-16 space-y-6">
-        {/* Current Objective — pinned */}
-        <div className="border-b border-border pb-5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Current Objective</p>
+      <div className="max-w-5xl mx-auto px-8 pb-16 space-y-8">
+        {/* Current Objective — slim pinned context line */}
+        <div className="mb-2">
+          <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-widest mb-1.5">Current Objective</p>
           {editingObjective ? (
             <div className="flex items-center gap-2">
               <input
                 value={objectiveDraft}
                 onChange={(e) => setObjectiveDraft(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && saveObjective()}
-                className="flex-1 bg-transparent text-xl font-semibold text-foreground border-none outline-none placeholder:text-muted-foreground/30"
+                className="flex-1 bg-transparent text-base font-medium text-foreground border-none outline-none placeholder:text-muted-foreground/30"
                 placeholder="What is the one thing that matters right now?"
                 autoFocus
               />
-              <button onClick={saveObjective} className="text-primary hover:text-primary/80">
+              <button onClick={saveObjective} className="text-primary hover:text-primary/80 transition-colors duration-150">
                 <Check className="h-4 w-4" />
               </button>
             </div>
@@ -188,17 +188,17 @@ export default function CeoDashboard() {
               onClick={() => { setEditingObjective(true); setObjectiveDraft(data.currentObjective); }}
               className="cursor-pointer group flex items-center gap-2"
             >
-              <p className="text-xl font-semibold text-foreground">
+              <p className="text-base font-medium text-foreground">
                 {data.currentObjective || <span className="text-muted-foreground/40 italic font-normal">Click to set your current objective...</span>}
               </p>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
             </div>
           )}
         </div>
 
         {/* 3-Tab cockpit */}
         <Tabs defaultValue="braindump" className="w-full">
-          <TabsList className="w-full justify-start mb-4">
+          <TabsList className="w-full justify-start mb-6 bg-transparent">
             <TabsTrigger value="braindump">Brain Dump</TabsTrigger>
             <TabsTrigger value="command">Command</TabsTrigger>
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
@@ -206,7 +206,7 @@ export default function CeoDashboard() {
 
           {/* Brain Dump Tab */}
           <TabsContent value="braindump" className="space-y-6">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
               <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
             </div>
 
@@ -220,42 +220,42 @@ export default function CeoDashboard() {
             )}
           </TabsContent>
 
-          {/* Command Tab — merged with Strategy content */}
+          {/* Command Tab */}
           <TabsContent value="command" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">CEO Briefing</h2>
-                <div className="rounded-xl border border-border bg-card p-5">
+                <h2 className="text-xs font-medium text-muted-foreground mb-4">CEO Briefing</h2>
+                <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
                   <CeoBriefing />
                 </div>
               </div>
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest mb-4">Top Priorities</h2>
-                  <div className="rounded-xl border border-border bg-card p-5">
+                  <h2 className="text-xs font-medium text-muted-foreground mb-4">Top Priorities</h2>
+                  <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
                     <TopPriorities />
                   </div>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-5">
+                <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
                   <MorningReset />
                 </div>
               </div>
             </div>
 
             {/* Strategy Creator */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
               <StrategyItemCreator />
             </div>
 
             {/* Review Feed */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
               <CeoReviewFeed />
             </div>
 
             {/* Decision Log — collapsed accordion */}
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="decision-log" className="rounded-xl border border-border bg-card px-5">
-                <AccordionTrigger className="text-sm font-semibold uppercase tracking-widest py-4">
+              <AccordionItem value="decision-log" className="rounded-2xl border border-border/50 bg-card/80 px-6 elevation-1">
+                <AccordionTrigger className="text-xs font-medium text-muted-foreground py-4">
                   Decision Log
                 </AccordionTrigger>
                 <AccordionContent>
