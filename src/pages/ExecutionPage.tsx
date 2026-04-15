@@ -397,6 +397,7 @@ export default function ExecutionPage() {
                 </span>
               )}
             </TabsTrigger>
+            {isAdmin && <TabsTrigger value="submissions">Submissions</TabsTrigger>}
           </TabsList>
           <div className="flex gap-2">
             {tab === "goals" && (
@@ -820,6 +821,13 @@ export default function ExecutionPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+
+        {/* Submissions tab */}
+        {isAdmin && (
+          <TabsContent value="submissions" className="space-y-4">
+            <SubmissionsReviewTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Issue Detail Dialog */}
@@ -932,6 +940,106 @@ export default function ExecutionPage() {
         }}
         getName={getName}
       />
+    </div>
+  );
+}
+
+// Submissions review tab for form submissions
+function SubmissionsReviewTab() {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [reviewFilter, setReviewFilter] = useState("pending");
+  const { user } = useAuth();
+
+  const fetchData = useCallback(async () => {
+    const [tRes, sRes] = await Promise.all([
+      supabase.from("form_templates").select("*"),
+      supabase.from("form_submissions").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (tRes.data) setTemplates(tRes.data);
+    if (sRes.data) setSubmissions(sRes.data);
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const getTemplateName = (id: string) => templates.find((t: any) => t.id === id)?.name || "Unknown";
+
+  const updateStatus = async (id: string, status: string, notes?: string) => {
+    await supabase.from("form_submissions").update({
+      status,
+      reviewed_by: user?.id,
+      review_notes: notes || "",
+    } as any).eq("id", id);
+    fetchData();
+    toast({ title: `Submission ${status}` });
+  };
+
+  const filtered = reviewFilter === "all"
+    ? submissions
+    : submissions.filter(s => s.status === reviewFilter);
+
+  const pendingCount = submissions.filter(s => s.status === "pending").length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {["pending", "approved", "denied", "all"].map(f => (
+            <Button
+              key={f}
+              size="sm"
+              variant={reviewFilter === f ? "default" : "outline"}
+              className="h-7 text-xs capitalize"
+              onClick={() => setReviewFilter(f)}
+            >
+              {f}
+              {f === "pending" && pendingCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-primary-foreground/20 text-[10px] font-semibold h-4 min-w-4 px-1">
+                  {pendingCount}
+                </span>
+              )}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No {reviewFilter === "all" ? "" : reviewFilter} submissions.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(s => (
+            <Card key={s.id}>
+              <CardContent className="p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium">{getTemplateName(s.template_id)}</p>
+                    <Badge variant={s.status === "pending" ? "secondary" : s.status === "approved" ? "default" : "destructive"} className="text-[10px] capitalize">
+                      {s.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{new Date(s.created_at).toLocaleDateString()}</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Object.entries(s.values as Record<string, any>).map(([k, v]) => (
+                      <Badge key={k} variant="outline" className="text-[10px]">{k}: {String(v)}</Badge>
+                    ))}
+                  </div>
+                  {s.review_notes && <p className="text-xs text-muted-foreground mt-1 italic">Note: {s.review_notes}</p>}
+                </div>
+                {s.status === "pending" && (
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-green-600" onClick={() => updateStatus(s.id, "approved")}>Approve</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => updateStatus(s.id, "denied")}>Deny</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

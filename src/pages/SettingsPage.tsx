@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -371,6 +371,7 @@ interface DBUser {
   email?: string;
   roles: string[];
   is_primary?: boolean;
+  time_clock_enabled: boolean;
 }
 
 function UsersTab() {
@@ -393,7 +394,7 @@ function UsersTab() {
     // Fetch all profiles
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id");
+      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled");
 
     if (!profiles) { setLoading(false); return; }
 
@@ -436,6 +437,12 @@ function UsersTab() {
     await supabase.from("profiles").update({ department_id: deptId || null } as any).eq("user_id", userId);
     fetchUsers();
     toast({ title: "Department updated" });
+  };
+
+  const handleTimeClockToggle = async (userId: string, enabled: boolean) => {
+    await supabase.from("profiles").update({ time_clock_enabled: enabled }).eq("user_id", userId);
+    fetchUsers();
+    toast({ title: enabled ? "Time clock enabled" : "Time clock disabled" });
   };
 
   const handleInvite = async () => {
@@ -588,6 +595,10 @@ function UsersTab() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5" title="Time clock access">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Switch checked={u.time_clock_enabled} onCheckedChange={(v) => handleTimeClockToggle(u.user_id, v)} />
+                </div>
                 {u.is_primary ? (
                   <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
                     <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
@@ -929,7 +940,6 @@ function AddOnsTab() {
 
 function FormsManagementTab() {
   const [templates, setTemplates] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<any>(null);
   const [newName, setNewName] = useState("");
@@ -937,12 +947,8 @@ function FormsManagementTab() {
   const [newFields, setNewFields] = useState<{ name: string; type: string; required: boolean; options?: string[] }[]>([]);
 
   const fetchData = useCallback(async () => {
-    const [tRes, sRes] = await Promise.all([
-      supabase.from("form_templates").select("*").order("name"),
-      supabase.from("form_submissions").select("*").order("created_at", { ascending: false }),
-    ]);
-    if (tRes.data) setTemplates(tRes.data);
-    if (sRes.data) setSubmissions(sRes.data);
+    const { data } = await supabase.from("form_templates").select("*").order("name");
+    if (data) setTemplates(data);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -985,17 +991,6 @@ function FormsManagementTab() {
     toast({ title: "Template deleted" });
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("form_submissions").update({ status, reviewed_by: user?.id } as any).eq("id", id);
-    fetchData();
-    toast({ title: `Submission ${status}` });
-  };
-
-  const getTemplateName = (id: string) => templates.find(t => t.id === id)?.name || "Unknown";
-
-  const pendingCount = submissions.filter(s => s.status === "pending").length;
-
   return (
     <div className="space-y-4">
       <Card>
@@ -1031,40 +1026,7 @@ function FormsManagementTab() {
         </CardContent>
       </Card>
 
-      {/* Pending Submissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            Review Queue
-            {pendingCount > 0 && <Badge variant="secondary" className="text-[10px]">{pendingCount}</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {submissions.filter(s => s.status === "pending").length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
-          ) : (
-            <div className="space-y-2">
-              {submissions.filter(s => s.status === "pending").map(s => (
-                <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div>
-                    <p className="text-sm font-medium">{getTemplateName(s.template_id)}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {Object.entries(s.values as Record<string, any>).map(([k, v]) => (
-                        <Badge key={k} variant="outline" className="text-[10px]">{k}: {String(v)}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-green-600" onClick={() => updateStatus(s.id, "approved")}>Approve</Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => updateStatus(s.id, "denied")}>Deny</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <p className="text-xs text-muted-foreground">Form submissions are reviewed in the Execution Hub → Submissions tab.</p>
 
       {/* Template Editor Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
