@@ -150,6 +150,36 @@ const Index = () => {
         <p className="text-base text-muted-foreground">Here's what's happening in your workspace.</p>
       </div>
 
+      {/* Time Clock Widget */}
+      {timeClockEnabled && (
+        <Card className={`border-l-4 ${activeClockEntry ? "border-l-green-500" : "border-l-amber-500"}`}>
+          <CardContent className="py-3 px-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className={`h-5 w-5 ${activeClockEntry ? "text-green-500" : "text-amber-500"}`} />
+              <div>
+                <p className="font-medium text-sm">
+                  {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Don't forget to clock in"}
+                </p>
+                {activeClockEntry && (
+                  <p className="text-xs text-muted-foreground">
+                    Since {format(parseISO(activeClockEntry.clock_in), "h:mm a")}
+                  </p>
+                )}
+              </div>
+            </div>
+            {activeClockEntry ? (
+              <Button size="sm" variant="destructive" onClick={punchOut} className="gap-1.5">
+                <Square className="h-3 w-3" /> Clock Out
+              </Button>
+            ) : (
+              <Button size="sm" onClick={punchIn} className="gap-1.5">
+                <Play className="h-3 w-3" /> Clock In
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <OnboardingBanner />
 
       {announcements.length > 0 && (
