@@ -65,7 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     accentColor: null,
     ceoPageName: "CEO Cockpit",
     deptLabel: "Departments",
-    appStyle: "standard",
+    
   });
   const [loading, setLoading] = useState(true);
 
@@ -89,7 +89,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           accentColor: data.accent_color || null,
           ceoPageName: (data as any).ceo_page_name || "CEO Cockpit",
           deptLabel: (data as any).dept_label || "Departments",
-          appStyle: (data as any).app_style || "standard",
+          
         });
       }
       setLoading(false);
@@ -107,15 +107,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("theme-changed", onThemeChanged);
   }, [state.accentColor]);
 
-  // Apply app style class
-  useEffect(() => {
-    const root = document.documentElement;
-    if (state.appStyle === "crystal") {
-      root.classList.add("style-crystal");
-    } else {
-      root.classList.remove("style-crystal");
-    }
-  }, [state.appStyle]);
 
   const persist = useCallback(async (partial: Partial<WorkspaceState>) => {
     setState((prev) => ({ ...prev, ...partial }));
@@ -144,7 +135,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         accent_color: s.accentColor,
         ceo_page_name: s.ceoPageName,
         dept_label: s.deptLabel,
-        app_style: s.appStyle,
+        
       } as any)
       .eq("id", s.id);
   }, [isAdmin]);
@@ -170,7 +161,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setAccentColor: (accentColor) => persist({ accentColor }),
         setCeoPageName: (ceoPageName) => persist({ ceoPageName }),
         setDeptLabel: (deptLabel) => persist({ deptLabel }),
-        setAppStyle: (appStyle) => persist({ appStyle }),
+        
         uploadLogo,
       }}
     >

@@ -131,16 +131,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* App Style */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" /> App Style</CardTitle>
-              <CardDescription>Choose a visual style for the entire workspace.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AppStylePicker />
-            </CardContent>
-          </Card>
 
           {/* Appearance */}
           <Card>
@@ -818,63 +808,6 @@ function accentToHex(accent: string): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-const APP_STYLES = [
-  {
-    id: "standard",
-    label: "Standard",
-    description: "Solid backgrounds, clean and crisp",
-    preview: (
-      <div className="w-full h-16 rounded-lg bg-card border relative overflow-hidden">
-        <div className="absolute top-2 left-2 w-8 h-full bg-muted rounded-sm" />
-        <div className="absolute top-2 left-12 right-2 h-5 bg-muted rounded-sm" />
-        <div className="absolute top-9 left-12 right-2 h-5 bg-muted/60 rounded-sm" />
-      </div>
-    ),
-  },
-  {
-    id: "crystal",
-    label: "Crystal",
-    description: "Frosted glass with depth and blur",
-    preview: (
-      <div className="w-full h-16 rounded-lg relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05))" }}>
-        <div className="absolute top-2 left-2 w-8 h-full bg-card/40 backdrop-blur rounded-sm border border-white/10" />
-        <div className="absolute top-2 left-12 right-2 h-5 bg-card/40 backdrop-blur rounded-sm border border-white/10" />
-        <div className="absolute top-9 left-12 right-2 h-5 bg-card/30 backdrop-blur rounded-sm border border-white/10" />
-      </div>
-    ),
-  },
-];
-
-function AppStylePicker() {
-  const { appStyle, setAppStyle } = useWorkspace();
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      {APP_STYLES.map((style) => (
-        <button
-          key={style.id}
-          onClick={() => setAppStyle(style.id)}
-          type="button"
-          className={`relative p-3 rounded-xl border-2 transition-all text-left space-y-2 ${
-            appStyle === style.id
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-muted-foreground/30"
-          }`}
-        >
-          {appStyle === style.id && (
-            <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-              <Check className="h-3 w-3 text-primary-foreground" />
-            </div>
-          )}
-          {style.preview}
-          <div>
-            <p className="text-sm font-medium">{style.label}</p>
-            <p className="text-[11px] text-muted-foreground">{style.description}</p>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function AccentColorPicker() {
   const { accentColor, setAccentColor } = useWorkspace();
