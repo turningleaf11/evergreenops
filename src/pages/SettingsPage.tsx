@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -123,6 +123,9 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="forms" className="gap-1.5">
             <FileSpreadsheet className="h-3.5 w-3.5" /> Forms
+          </TabsTrigger>
+          <TabsTrigger value="home_widgets" className="gap-1.5">
+            <LayoutDashboard className="h-3.5 w-3.5" /> Home Widgets
           </TabsTrigger>
         </TabsList>
 
@@ -358,6 +361,10 @@ export default function SettingsPage() {
 
         <TabsContent value="forms" className="mt-4">
           <FormsManagementTab />
+        </TabsContent>
+
+        <TabsContent value="home_widgets" className="mt-4">
+          <HomeWidgetDefaultsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -1071,5 +1078,76 @@ function FormsManagementTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function HomeWidgetDefaultsTab() {
+  const [defaults, setDefaults] = useState<Array<{ id?: string; widget_id: string; visible: boolean; sort_order: number }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  const registry = [
+    { id: "time_clock", label: "Time Clock" },
+    { id: "announcements", label: "Pinned Announcements" },
+    { id: "departments", label: "Departments" },
+    { id: "forms", label: "Forms & Requests" },
+    { id: "my_tasks", label: "My Tasks" },
+    { id: "quick_links", label: "Quick Links" },
+    { id: "feed_preview", label: "Feed Preview" },
+    { id: "reminders", label: "Reminders" },
+    { id: "recent_docs", label: "Recent Docs" },
+    { id: "activity_feed", label: "Activity Feed" },
+  ];
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from("widget_defaults").select("*").order("sort_order", { ascending: true });
+      if (data && data.length > 0) {
+        setDefaults(data);
+      } else {
+        setDefaults(registry.map((w, i) => ({ widget_id: w.id, visible: true, sort_order: i })));
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const save = async (updated: typeof defaults) => {
+    setDefaults(updated);
+    // Upsert via delete + insert
+    await supabase.from("widget_defaults").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("widget_defaults").insert(
+      updated.map((w) => ({ widget_id: w.widget_id, visible: w.visible, sort_order: w.sort_order }))
+    );
+    toast({ title: "Defaults saved", description: "New users will see this widget layout." });
+  };
+
+  const toggleWidget = (widgetId: string) => {
+    const updated = defaults.map((w) => w.widget_id === widgetId ? { ...w, visible: !w.visible } : w);
+    save(updated);
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading...</p>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /> Default Home Widgets</CardTitle>
+        <CardDescription>Configure which widgets new users see on the Home page by default. Users can customize their own layout.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {defaults.map((w) => {
+          const meta = registry.find((r) => r.id === w.widget_id);
+          return (
+            <div key={w.widget_id} className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{meta?.label || w.widget_id}</span>
+              </div>
+              <Switch checked={w.visible} onCheckedChange={() => toggleWidget(w.widget_id)} />
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }

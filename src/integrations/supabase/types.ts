@@ -1917,6 +1917,57 @@ export type Database = {
         }
         Relationships: []
       }
+      widget_defaults: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          visible: boolean
+          widget_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          visible?: boolean
+          widget_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          visible?: boolean
+          widget_id?: string
+        }
+        Relationships: []
+      }
+      widget_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          user_id: string
+          visible: boolean
+          widget_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          user_id: string
+          visible?: boolean
+          widget_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          user_id?: string
+          visible?: boolean
+          widget_id?: string
+        }
+        Relationships: []
+      }
       workspace_addons: {
         Row: {
           addon_id: string
