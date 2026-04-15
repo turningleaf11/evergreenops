@@ -10,10 +10,11 @@ import {
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
   Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
   LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
-  MoreHorizontal,
+  MoreHorizontal, ChevronDown,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
 import { StrategyFeed } from "@/components/StrategyFeed";
 import { TranslationBlockComponent } from "@/components/TranslationBlock";
