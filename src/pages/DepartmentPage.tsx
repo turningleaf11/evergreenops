@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { StrategyFeed } from "@/components/StrategyFeed";
 import { TranslationBlockComponent } from "@/components/TranslationBlock";
-import { ExecutionSnapshot } from "@/components/ExecutionSnapshot";
+
 import { UpwardProposalForm } from "@/components/UpwardProposal";
 import { LeadershipAiChat } from "@/components/LeadershipAiChat";
 import { formatDistanceToNow } from "date-fns";
@@ -763,20 +763,9 @@ function EmbeddedLeadership({ deptId }: { deptId: string }) {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="strategy">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="strategy" className="text-xs"><Zap className="h-3 w-3 mr-1" />Strategy</TabsTrigger>
-          <TabsTrigger value="execution" className="text-xs"><Brain className="h-3 w-3 mr-1" />Execution</TabsTrigger>
-        </TabsList>
-        <TabsContent value="strategy" className="space-y-6 mt-4">
-          <StrategyFeed departmentId={deptId} />
-          <TranslationBlockComponent departmentId={deptId} />
-          <UpwardProposalForm departmentId={deptId} />
-        </TabsContent>
-        <TabsContent value="execution" className="mt-4">
-          <ExecutionSnapshot departmentId={deptId} />
-        </TabsContent>
-      </Tabs>
+      <StrategyFeed departmentId={deptId} />
+      <TranslationBlockComponent departmentId={deptId} />
+      <UpwardProposalForm departmentId={deptId} />
 
       <button onClick={() => setChatOpen(!chatOpen)} className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors">
         <Bot className="h-5 w-5" />
