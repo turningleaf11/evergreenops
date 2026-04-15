@@ -394,7 +394,7 @@ function UsersTab() {
     // Fetch all profiles
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id");
+      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled");
 
     if (!profiles) { setLoading(false); return; }
 
