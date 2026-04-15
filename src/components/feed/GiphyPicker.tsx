@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Search, Loader2 } from "lucide-react";
 
 interface GiphyPickerProps {
@@ -9,41 +8,39 @@ interface GiphyPickerProps {
   children: React.ReactNode;
 }
 
-interface GiphyGif {
+interface TenorGif {
   id: string;
-  images: {
-    fixed_height_small: { url: string };
-    fixed_height: { url: string };
-    original: { url: string };
-  };
   title: string;
+  media_formats: {
+    tinygif: { url: string };
+    gif: { url: string };
+  };
 }
 
-const GIPHY_KEY = "dc6zaTOxFJmzC"; // Giphy public beta key
+const TENOR_KEY = "AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ"; // Google public Tenor API key
 
 export function GiphyPicker({ onSelect, children }: GiphyPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [gifs, setGifs] = useState<GiphyGif[]>([]);
+  const [gifs, setGifs] = useState<TenorGif[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Load trending on open
   useEffect(() => {
     if (open && gifs.length === 0 && !query) {
-      fetchGifs("trending");
+      fetchGifs("featured");
     }
   }, [open]);
 
-  const fetchGifs = async (type: "trending" | "search", q?: string) => {
+  const fetchGifs = async (type: "featured" | "search", q?: string) => {
     setLoading(true);
     try {
-      const endpoint = type === "trending"
-        ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=20&rating=pg`
-        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q || "")}&limit=20&rating=pg`;
+      const endpoint = type === "featured"
+        ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=20&media_filter=tinygif,gif&contentfilter=medium`
+        : `https://tenor.googleapis.com/v2/search?key=${TENOR_KEY}&q=${encodeURIComponent(q || "")}&limit=20&media_filter=tinygif,gif&contentfilter=medium`;
       const res = await fetch(endpoint);
       const json = await res.json();
-      setGifs(json.data || []);
+      setGifs(json.results || []);
     } catch {
       setGifs([]);
     } finally {
@@ -56,12 +53,12 @@ export function GiphyPicker({ onSelect, children }: GiphyPickerProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (value.trim()) fetchGifs("search", value);
-      else fetchGifs("trending");
+      else fetchGifs("featured");
     }, 400);
   };
 
-  const handleSelect = (gif: GiphyGif) => {
-    onSelect(gif.images.fixed_height.url);
+  const handleSelect = (gif: TenorGif) => {
+    onSelect(gif.media_formats.gif.url);
     setOpen(false);
     setQuery("");
     setGifs([]);
@@ -94,7 +91,7 @@ export function GiphyPicker({ onSelect, children }: GiphyPickerProps) {
               className="rounded-md overflow-hidden hover:ring-2 ring-primary transition-all"
             >
               <img
-                src={gif.images.fixed_height_small.url}
+                src={gif.media_formats.tinygif.url}
                 alt={gif.title}
                 className="w-full h-24 object-cover"
                 loading="lazy"
@@ -105,7 +102,7 @@ export function GiphyPicker({ onSelect, children }: GiphyPickerProps) {
             <p className="col-span-2 text-center text-xs text-muted-foreground py-8">No GIFs found</p>
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground text-right mt-2 opacity-60">Powered by GIPHY</p>
+        <p className="text-[10px] text-muted-foreground text-right mt-2 opacity-60">Powered by Tenor</p>
       </PopoverContent>
     </Popover>
   );
