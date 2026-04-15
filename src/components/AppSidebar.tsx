@@ -126,36 +126,6 @@ export function AppSidebar() {
           </Collapsible>
         </SidebarGroup>
 
-        {/* Intranet */}
-        <SidebarGroup>
-          <Collapsible className="group/collapsible">
-            <SidebarGroupLabel asChild>
-              <CollapsibleTrigger className="flex w-full items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Megaphone className="h-3.5 w-3.5" />
-                  {!collapsed && "Intranet"}
-                </span>
-                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
-              </CollapsibleTrigger>
-            </SidebarGroupLabel>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {intranetNav.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                          <item.icon className="h-4 w-4" />
-                          {!collapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </SidebarGroup>
 
         {/* Add-Ons */}
         {addonNav.length > 0 && (
