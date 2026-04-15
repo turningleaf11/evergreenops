@@ -1,70 +1,44 @@
 
 
-# App Style Switcher + Glassmorphism Theme
+# Crystal Mode Overhaul: Bold Glassmorphism with Energy
 
-## Summary
+The current Crystal mode is too subtle — the gradient blobs are at 6-12% opacity and the glass barely differs from Standard. This overhaul makes Crystal feel like a distinctly premium, modern workspace aesthetic.
 
-Add an **App Style** setting (stored in workspace context + DB) that lets users switch between visual styles. Launch with two: **Standard** (current look) and **Crystal** (glassmorphism). The Crystal style applies translucent backgrounds, backdrop blurs, and a subtle gradient mesh behind content to give the glass something to show through.
+## What Changes
 
----
+### 1. Animated gradient mesh background (`src/index.css`)
+Replace the static, barely-visible gradient with a bold, slowly-animating mesh:
+- **3-4 large gradient blobs** at 25-35% opacity (light) / 15-25% opacity (dark), using the accent hue
+- **Slow 20s CSS animation** (`@keyframes mesh-drift`) that gently shifts blob positions — creates a living, breathing feel without being distracting
+- Blobs use the `--primary` CSS variable so they follow the workspace accent color
 
-## 1. Style System
+### 2. Aggressive glass surfaces (`src/index.css`)
+- **Cards**: Drop to `bg-white/45` (light) / `bg-white/[0.04]` (dark), add `border: 1px solid rgba(255,255,255,0.18)` top-edge highlight, increase blur to `blur(24px)`, add a subtle inner glow via `box-shadow: inset 0 1px 0 rgba(255,255,255,0.12)`
+- **Sidebar**: `bg-white/35` with `blur(28px)`, frosted left edge highlight
+- **Header**: `bg-white/40` with `blur(20px)`, bottom border goes to `rgba(255,255,255,0.1)`
+- **Popovers/Dialogs**: Stronger blur (24px), lower opacity backgrounds
+- **Inputs in Crystal mode**: Slightly transparent backgrounds so they feel part of the glass
 
-**Type**: `"standard" | "crystal"` — stored as `appStyle` in WorkspaceContext, persisted to the `workspaces` table via a new `app_style` column.
+### 3. Crystal-specific color token overrides (`src/index.css`)
+When `.style-crystal` is active, override some CSS variables:
+- `--border` gets lighter/more transparent
+- `--card` shifts slightly toward the accent hue for a tinted glass effect
+- `--sidebar-border` becomes near-invisible
+- Add a `--glass-highlight: 0 0% 100%` variable for the white edge highlights
 
-When `crystal` is active, a CSS class `.style-crystal` is added to `<html>`. All glass overrides are scoped under `.style-crystal` in CSS — no component changes needed for the base styling.
+### 4. Dark mode Crystal gets extra love
+- Gradient blobs use a slightly different palette (blue-violet shift) for depth
+- Cards get a faint colored border glow (`box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1)`)
+- Sidebar gets a subtle accent-tinted left border strip
 
----
-
-## 2. CSS: Crystal Overrides (`src/index.css`)
-
-Under `.style-crystal`:
-- **Cards**: `background: hsl(var(--card) / 0.6)`, `backdrop-filter: blur(16px)`, `border: 1px solid hsl(var(--border) / 0.3)`
-- **Sidebar**: `background: hsl(var(--sidebar-background) / 0.65)`, `backdrop-filter: blur(20px)`
-- **Header**: `background: hsl(var(--card) / 0.5)`, `backdrop-filter: blur(16px)`
-- **Popovers/Dialogs**: Semi-transparent with blur
-- **Dark mode variants** under `.dark.style-crystal` with lower opacities (e.g. `bg-white/5`)
-
-**Background mesh**: A subtle radial gradient overlay on `body` using `::before` pseudo-element — soft color blobs (using the accent hue) so the glass has depth. Only active in `.style-crystal`.
-
----
-
-## 3. WorkspaceContext Changes
-
-- Add `appStyle: string` to `WorkspaceState` (default: `"standard"`)
-- Add `setAppStyle` setter
-- On change, toggle `.style-crystal` class on `document.documentElement`
-- Persist to DB via existing save mechanism
-
----
-
-## 4. Database Migration
-
-Add column to `workspaces` table:
-```sql
-ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS app_style text DEFAULT 'standard';
-```
-
----
-
-## 5. Settings UI
-
-Add a new card in the Workspace tab (between Theme and Accent Color):
-
-**"App Style"** — Two visual option cards side by side:
-- **Standard**: Small preview swatch showing solid cards on a flat background. Label: "Standard"
-- **Crystal**: Small preview swatch showing translucent cards with blur effect. Label: "Crystal"
-
-Selected style gets a primary border + check icon (same pattern as accent color picker).
-
----
+### 5. No component file changes needed
+All overrides are pure CSS scoped to `.style-crystal` — the existing class toggle in WorkspaceContext handles everything.
 
 ## Files
 
 | Action | File |
 |--------|------|
-| Edit | `src/index.css` — Add `.style-crystal` overrides + background mesh |
-| Edit | `src/contexts/WorkspaceContext.tsx` — Add `appStyle` state, class toggle, DB persist |
-| Edit | `src/pages/SettingsPage.tsx` — Add App Style picker card |
-| Migration | Add `app_style` column to `workspaces` |
+| Edit | `src/index.css` — Replace Crystal section with bold glassmorphism + animated mesh |
+
+Single file change. No migration, no component edits.
 
