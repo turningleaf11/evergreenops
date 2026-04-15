@@ -929,7 +929,6 @@ function AddOnsTab() {
 
 function FormsManagementTab() {
   const [templates, setTemplates] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<any>(null);
   const [newName, setNewName] = useState("");
@@ -937,12 +936,8 @@ function FormsManagementTab() {
   const [newFields, setNewFields] = useState<{ name: string; type: string; required: boolean; options?: string[] }[]>([]);
 
   const fetchData = useCallback(async () => {
-    const [tRes, sRes] = await Promise.all([
-      supabase.from("form_templates").select("*").order("name"),
-      supabase.from("form_submissions").select("*").order("created_at", { ascending: false }),
-    ]);
-    if (tRes.data) setTemplates(tRes.data);
-    if (sRes.data) setSubmissions(sRes.data);
+    const { data } = await supabase.from("form_templates").select("*").order("name");
+    if (data) setTemplates(data);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
