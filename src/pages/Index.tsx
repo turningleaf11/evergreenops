@@ -47,12 +47,12 @@ const Index = () => {
   }, [isAdmin, profile]);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <div className="p-8 max-w-6xl mx-auto space-y-10">
+      <div className="space-y-1.5">
+        <h1 className="text-3xl font-bold tracking-tight">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
         </h1>
-        <p className="text-sm text-muted-foreground">Here's what's happening in your workspace.</p>
+        <p className="text-base text-muted-foreground">Here's what's happening in your workspace.</p>
       </div>
 
       <OnboardingBanner />
@@ -73,7 +73,7 @@ const Index = () => {
 
       <section>
         <h2 className="text-lg font-semibold mb-3">Departments</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {visibleDepartments.map((dept) => {
             const Icon = getDeptIcon(dept.icon);
             return (

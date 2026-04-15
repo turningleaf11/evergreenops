@@ -51,13 +51,6 @@ function applyAccentColor(value: string) {
   root.style.setProperty("--sidebar-primary", primary);
   root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
   root.style.setProperty("--sidebar-ring", primary);
-  root.style.setProperty("--sidebar-accent", `${h} 14% ${isDark ? "12" : "92"}%`);
-  root.style.setProperty("--sidebar-accent-foreground", `${h} 15% ${isDark ? "80" : "15"}%`);
-
-  // Arc-inspired: tint sidebar background with accent hue
-  root.style.setProperty("--sidebar-background", `${h} 20% ${isDark ? "7" : "95"}%`);
-  root.style.setProperty("--sidebar-foreground", `${h} 15% ${isDark ? "80" : "25"}%`);
-  root.style.setProperty("--sidebar-border", `${h} 12% ${isDark ? "14" : "88"}%`);
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {

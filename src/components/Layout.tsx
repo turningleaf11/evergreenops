@@ -14,7 +14,7 @@ export function Layout() {
         <div className="min-h-screen flex w-full">
           <AppSidebar />
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center border-b border-border/50 px-5 shrink-0 justify-between bg-card/60">
+            <header className="h-14 flex items-center border-b border-border/30 px-5 shrink-0 justify-between bg-card/80 backdrop-blur-sm">
               <SidebarTrigger className="mr-3" />
               <div className="flex items-center gap-2">
                 <GlobalCreateMenu />
