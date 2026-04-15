@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
-  FileText, Pin, Database, Target, FolderKanban, CheckSquare,
+  FileText, Pin, Database, Target, FolderKanban, CheckSquare, 
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
   Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
   LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
