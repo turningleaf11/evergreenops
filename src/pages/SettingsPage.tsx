@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor,
+  Pencil, X, Sun, Moon, Monitor, Package,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -27,6 +27,8 @@ import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
 import { DEPARTMENT_ICONS, getDeptIcon } from "@/lib/icon-map";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAllAddons } from "@/hooks/useAddonEnabled";
+import { Switch } from "@/components/ui/switch";
 
 const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "video", "link"];
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
@@ -115,6 +117,9 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-1.5">
             <Users className="h-3.5 w-3.5" /> Users & Roles
+          </TabsTrigger>
+          <TabsTrigger value="addons" className="gap-1.5">
+            <Package className="h-3.5 w-3.5" /> Add-Ons
           </TabsTrigger>
         </TabsList>
 
@@ -342,6 +347,10 @@ export default function SettingsPage() {
         {/* Users Tab */}
         <TabsContent value="users" className="mt-4 space-y-4">
           <UsersTab />
+        </TabsContent>
+
+        <TabsContent value="addons" className="mt-4">
+          <AddOnsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -864,6 +873,49 @@ function AccentColorPicker() {
         />
         <span className="text-xs text-muted-foreground">Hex color</span>
       </div>
+    </div>
+  );
+}
+
+function AddOnsTab() {
+  const { packs, enabledIds, loading, toggle } = useAllAddons();
+
+  if (loading) return <p className="text-sm text-muted-foreground py-8 text-center">Loading add-ons...</p>;
+
+  if (packs.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center space-y-2">
+          <Package className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <p className="font-medium">No add-on packs available yet</p>
+          <p className="text-sm text-muted-foreground">Add-on packs will appear here when they become available.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {packs.map((pack: any) => {
+        const isEnabled = enabledIds.includes(pack.id);
+        return (
+          <Card key={pack.id} className={isEnabled ? "border-primary/30" : ""}>
+            <CardContent className="p-4 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary shrink-0" />
+                  <p className="font-medium text-sm">{pack.name}</p>
+                  {pack.price_tier !== "free" && (
+                    <Badge variant="secondary" className="text-[10px]">{pack.price_tier}</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{pack.description}</p>
+              </div>
+              <Switch checked={isEnabled} onCheckedChange={() => toggle(pack.id)} />
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

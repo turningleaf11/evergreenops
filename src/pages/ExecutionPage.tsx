@@ -375,7 +375,7 @@ export default function ExecutionPage() {
   const openTaskDrawer = (t: any) => { setDrawerType("task"); setDrawerItem(t); };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Target className="h-6 w-6 text-primary" />
@@ -532,9 +532,8 @@ export default function ExecutionPage() {
                               <CardTitle className="text-base">{goal.title}</CardTitle>
                               <p className="text-xs text-muted-foreground mt-1">{getName(goal.owner_id)}</p>
                             </div>
-                            <StatusBadge status={goal.status} />
                             <Select value={goal.status} onValueChange={v => updateStatus("goals", goal.id, v)}>
-                              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className={`w-32 h-8 text-xs rounded-full border-0 ${statusConfig[goal.status]?.color || ''}`}><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {["on_track","behind","at_risk","done","not_done"].map(s => (
                                   <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>

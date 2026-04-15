@@ -1,0 +1,60 @@
+# Project Memory
+
+## Core
+- **Stack**: Supabase (Auth, RLS, public 'files' bucket), Edge Functions for AI/backend.
+- **Aesthetic**: Apple/Arc-inspired minimal. Glassmorphism, 0.75rem (12px) radius, bg-muted/50 hover.
+- **UI Patterns**: Minimal chrome. Status/Priority as clickable badges. Assignees as popovers.
+- **Terminology**: Use 'Lists' instead of 'Databases' across the entire UI.
+- **Rich Text**: TipTap borderless editor, inline "true doc" style editing, debounced auto-save.
+- **Record Views**: Flexible 'Peek' view system (Side, Center, Full) persisted in localStorage.
+- **Lists UI**: Card-Enhanced List UI for projects. 56-64px tinted rows, hollow/solid status dots.
+- **Visibility**: Strict RBAC. Members see assigned dept only. Admins/CEO see all.
+- **Architecture**: Use polymorphic 'entity_links' table for generic many-to-many associations.
+- **Sidebar**: Icon-accent-only active state (no background fill, no indicator bar). Hover = text color shift only.
+
+## Memories
+- [Vision & Domain](mem://project/vision) — Evergreen Real Estate Ventures portal, multi-department hubs
+- [Acquisitions Domain](mem://domain/real-estate-acquisitions) — Templates for Deal Pipeline, Disposition, Comps
+- [Backend Stack](mem://architecture/backend-stack) — Supabase RLS, relational data, public 'files' bucket
+- [Database Relations](mem://features/database-relations) — Cross-database linking via 'relation' column type
+- [Relational Linking](mem://architecture/relational-linking) — Direct FKs plus polymorphic 'entity_links' table
+- [Execution Schema](mem://architecture/schema-execution-details) — Priority (text), tags (array), notes_content (HTML), subtasks
+- [People Model](mem://architecture/people-data-model) — Profiles hierarchy, team_notes for 1-on-1s
+- [RBAC Model](mem://auth/rbac-model) — Admin/User roles, Primary Admin safeguards, secure deletion
+- [Invite System](mem://auth/invite-system) — Supabase inviteUserByEmail, auto-initialization
+- [Access Control](mem://features/access-control) — Workspace, Department, Private sharing via AccessPicker
+- [Department Visibility](mem://ui/department-visibility-logic) — Role-based UI access restrictions per department
+- [Docs RBAC](mem://features/docs-rbac) — Document visibility by department or explicit Workspace flag
+- [Rich Text Editor](mem://features/rich-text-editor) — TipTap block editor, slash commands, media to cloud storage
+- [Docs Inline Editing](mem://features/docs-inline-editing) — Notion-style borderless title and content editing
+- [Docs Tag System](mem://features/docs-tag-system) — Inline pill tags, multi-select popover filter (AND logic)
+- [Strategy Flow](mem://features/strategy-flow-system) — CEO to Leadership status flow (New to Resolved)
+- [Leadership Dashboard](mem://features/leadership-dashboard) — Dual-mode Execution and AI Think+Improve dashboard
+- [Upward Strategy](mem://features/upward-strategy-feedback) — Structured CEO feedback and proposals
+- [CEO Cockpit](mem://features/ceo-cockpit-command) — Brain Dump (AI OCR), Command, Delegation tabs
+- [Vision Portal](mem://features/vision-portal) — Slide-out long-term strategy sheet
+- [Onboarding Hub](mem://features/onboarding-training-hub) — Dynamic progress tracking via active DB steps
+- [Activity Notifications](mem://features/activity-notifications) — Real-time event tracking via header bell and feed
+- [Leadership AI](mem://ai/leadership-companion-logic) — Supabase Edge Function chat with strategy context
+- [Executive AI](mem://ai/executive-companion-logic) — Global FAB Admin AI, Suggest-then-Confirm proactive briefings
+- [Execution Hub](mem://features/execution-hub) — Goals, Projects, Tasks, Issues across Board/List/Table views
+- [Task Workspaces](mem://features/project-task-workspaces) — Card-Enhanced List UI, hover actions, status dots
+- [Threaded Comments](mem://features/threaded-comments-activity) — Merged activity feed of comments and system logs
+- [Saved Views](mem://features/saved-database-views) — Persistent configurations for DB filters/sorts/columns
+- [Recurring Tasks](mem://features/recurring-tasks-templates) — Automated generation, templates with relative due dates
+- [Directory Management](mem://features/people-directory-management) — Searchable Directory, Org Chart, Person Detail sheet
+- [Department Hubs](mem://features/department-hubs) — Command Centers with Quick Actions and 4 core tabs
+- [Smart Goals](mem://features/smart-goals) — SMART criteria, JSONB key results, alignment notes
+- [Personal Notes](mem://features/personal-notes) — Folder-based scratchpad, 1-click conversion to official doc
+- [Global Quick Create](mem://ui/global-quick-create) — Header dropdown for structured entities and quick notes
+- [Peek View Modes](mem://ui/peek-view-modes) — Toggable Side/Center/Full page record viewing
+- [GHL Integration](mem://integrations/gohighlevel) — Real-time pipeline fetching via secure Edge Function
+- [Issue Tracking](mem://features/issue-tracking) — Friction tracking and Kanban triage board
+- [Workspace Branding](mem://features/workspace-branding-labels) — Custom labels, hex accents, dynamic department icons
+- [Reminders](mem://features/reminders-delegation) — Delegable reminders, global header AlarmClock bell
+- [Reminders Multi-Delegation](mem://features/reminders-multi-delegation) — Multi-user delegation via junction table and people picker
+- [Navigation Hierarchy](mem://ui/navigation-hierarchy) — Operational 'Lists' and CEO Cockpit focus
+- [UI Detail Polish](mem://style/ui-detail-polish) — Minimal chrome, contextual triggers, hover darkening
+- [Aesthetic](mem://style/aesthetic) — Apple/Arc-inspired, glassmorphism, 0.75rem radius, light/dark modes
+- [Database Engine](mem://features/database-engine) — 'Lists' engine, inline management, multi-criteria controls
+- [Add-On Packs](mem://features/addon-packs) — SaaS-ready gating with addon_packs/workspace_addons tables and useAddonEnabled hook
