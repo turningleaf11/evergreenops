@@ -11,7 +11,6 @@ interface WorkspaceState {
   accentColor: string | null;
   ceoPageName: string;
   deptLabel: string;
-  appStyle: string;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
@@ -21,7 +20,6 @@ interface WorkspaceContextValue extends WorkspaceState {
   setAccentColor: (hue: string | null) => void;
   setCeoPageName: (name: string) => void;
   setDeptLabel: (label: string) => void;
-  setAppStyle: (style: string) => void;
   uploadLogo: (file: File) => Promise<string | null>;
   loading: boolean;
 }
