@@ -821,6 +821,13 @@ export default function ExecutionPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+
+        {/* Submissions tab */}
+        {isAdmin && (
+          <TabsContent value="submissions" className="space-y-4">
+            <SubmissionsReviewTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Issue Detail Dialog */}
