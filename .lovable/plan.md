@@ -1,100 +1,110 @@
 
 
-# Multi-Issue Fix & Feature Discussion
+# Comprehensive Plan — Strategy Simplification, Leadership Cleanup, Fixes, Add-Ons, Intranet Features
 
-## 1. Fix Double Status on Goals
-**Problem**: Line 535 renders a `StatusBadge` and line 536 renders a `Select` dropdown — both showing the same status side by side (visible in your screenshot).
+## Phase 1: Fixes & Cleanup
 
-**Fix**: Remove the `StatusBadge` on line 535. The `Select` dropdown already shows the current status and lets users change it — one element is sufficient. Style the Select trigger to match the status color so it serves as both display and control.
+### 1A. Remove Execution Snapshot & Simplify Leadership Tab
+- **Delete** `src/components/ExecutionSnapshot.tsx`
+- **Refactor** `src/pages/LeadershipDashboard.tsx`:
+  - Remove Tabs (Execution Mode / Think + Improve) — single scrollable page
+  - Layout: Strategy Feed → Action Required (renamed from "Translation Required") → Promote Upward
+  - Keep Leadership AI button in header
+  - Remove all ExecutionSnapshot references
+- **Update** `src/components/DepartmentPage.tsx` if it references ExecutionSnapshot
 
-**File**: `src/pages/ExecutionPage.tsx` — delete line 535 (`<StatusBadge status={goal.status} />`), then style the SelectTrigger with the status color from `statusConfig`.
+### 1B. Fix Double Status on Goals
+- `src/pages/ExecutionPage.tsx`: Remove duplicate `StatusBadge`, keep only the `Select` dropdown styled with status color
+
+### 1C. Fix Notes Folder Persistence
+- **Migration**: Create `note_folders` table (id, name, user_id, workspace_id, created_at)
+- **RLS**: Users can CRUD their own folders
+- Update `src/pages/NotesPage.tsx` to persist folders to DB instead of local state only
+
+### 1D. Strategy Flow UX Simplification
+- Rename "Translation Required" → "Action Required" or "Needs Your Response"
+- Make the response flow simpler: Acknowledge button + optional Department Notes field (free text)
+- Remove rigid "What this means" / "What changes immediately" structure — replace with a single optional notes area
+- Add friendly helper text explaining the purpose: "Review this directive from leadership and acknowledge when your team is aligned"
+
+## Phase 2: Add-On Packs Infrastructure
+
+### 2A. Seed Add-On Catalog & Stripe Readiness
+- **Migration**: Add `price_tier` column to `addon_packs` if not present (values: 'free', 'paid')
+- Add `stripe_price_id` column (nullable) for future Stripe integration
+- Seed two packs: "Time Clock" (free) and "Real Estate Market Research" (paid)
+- Update Settings → Add-Ons UI to show price tier badges and a "Coming Soon" payment indicator for paid packs
+
+### 2B. Time Clock Add-On
+- **New tables**: `time_entries` (user_id, clock_in, clock_out, is_manual, notes), `time_off_requests` (user_id, start_date, end_date, type, status, approved_by)
+- **New page**: `src/pages/TimeClockPage.tsx` — Punch In/Out button, weekly timesheet grid, manual entry form (flagged as "Manual"), time-off request form
+- **Sidebar**: Conditionally rendered via `useAddonEnabled('time-clock')`
+- **RLS**: Users see own entries; admins see all in workspace
+
+### 2C. Real Estate Market Research Add-On
+- **New page**: `src/pages/MarketResearchPage.tsx` — Input markets (city/zip), investment strategy, trigger AI analysis
+- **New table**: `market_research` (id, workspace_id, market_name, strategy, ai_analysis JSONB, created_at)
+- **Edge Function**: `market-research` — Takes market + strategy, uses Lovable AI (Gemini 2.5 Pro) to analyze job growth, industries, population trends, rental demand, and recommend optimal strategy
+- **Sidebar**: Gated behind `useAddonEnabled('real-estate-research')`
+
+## Phase 3: Core Intranet Features
+
+### 3A. Team Polls & Surveys
+- **New tables**: `polls` (title, options JSONB, created_by, department_id, expires_at), `poll_votes` (poll_id, user_id, option_index)
+- **New component**: `src/components/TeamPolls.tsx` — Create poll, vote, see results
+- Accessible from department hubs or a dedicated nav item
+
+### 3B. Announcements / News Feed
+- **New table**: `announcements` (title, content, author_id, pinned, department_id nullable for company-wide, created_at)
+- **New component**: `src/components/AnnouncementsFeed.tsx` — Pinned items at top, chronological feed
+- Show on Home page and optionally in department hubs
+
+### 3C. Team Kudos / Recognition
+- **New table**: `kudos` (from_user_id, to_user_id, message, category, created_at)
+- **New component**: `src/components/KudosWall.tsx` — Give kudos to teammates, public recognition feed
+- Categories: "Great Work", "Team Player", "Innovation", "Leadership"
+
+### 3D. Internal Forms / Requests
+- **New tables**: `form_templates` (name, fields JSONB, department_id), `form_submissions` (template_id, submitted_by, values JSONB, status)
+- **New page**: `src/pages/FormsPage.tsx` — Browse templates, submit forms, track status
+- Pre-seed templates: PTO Request, IT Ticket, Procurement Request
+
+### 3E. Employee Directory Enhancements
+- **Migration**: Add `skills` (text[]), `timezone`, `availability_status` columns to profiles
+- Update `src/pages/PeoplePage.tsx` to display and filter by skills, timezone, availability
+
+## Phase 4: Reminders Multi-Delegation
+- Already has migration for `reminder_assignees` junction table
+- Update `RemindersWidget.tsx` with multi-select people picker
+- Update reminder queries to include junction table assignees
+
+## Phase 5: Mobile Optimization
+- Responsive padding and grid adjustments across Layout, Index, ExecutionPage, and all new pages
+- Safe-area-inset padding on Layout
+- Single-column stacking on small screens
 
 ---
 
-## 2. Reminders: Multi-User Delegation
-**Problem**: The `reminders` table has a single `assigned_to` column. You want reminders pushed to multiple users.
+## Files Summary
 
-**Changes**:
-- **Migration**: Create a `reminder_assignees` junction table (`reminder_id UUID FK → reminders, user_id UUID FK → auth.users`). Keep `assigned_to` on reminders for backward compat or drop it.
-- **RLS**: Assignees can read/complete their own reminders.
-- **UI** (`RemindersWidget.tsx`): Replace the single-user delegation with a multi-select people picker (reuse the profile popover pattern from Execution Hub). When creating a reminder, allow selecting multiple team members. Each assignee sees the reminder in their bell.
-- **Query**: Fetch reminders where `user_id = me` OR exists in `reminder_assignees`.
-
----
-
-## 3. Mobile Optimization
-**Key changes across the app**:
-- **Layout.tsx**: Sidebar already uses SidebarProvider (collapsible). Verify it collapses on mobile. Add `safe-area-inset` padding.
-- **Index.tsx / ExecutionPage.tsx**: Switch grid layouts to single-column on `sm:` breakpoint. Reduce `p-8` to `p-4` on mobile.
-- **Cards**: Ensure text doesn't overflow — add `truncate` and `min-w-0` where needed.
-- **Goal cards**: Stack status Select below title on mobile instead of inline.
-- **Dialogs**: Use `Drawer` on mobile viewports instead of `Dialog` for create flows (or ensure dialogs are full-width on small screens).
-- **Header**: Compact spacing, smaller icons on mobile.
-- **Sidebar**: Ensure overlay mode on mobile with swipe-to-close.
-- **Tables** (DataTableView, TableView): Horizontal scroll wrapper on mobile with sticky first column.
-
----
-
-## 4. Intranet/Team Feature Ideas
-
-Here are features commonly found in premium intranet/team platforms:
-
-| Feature | Description |
-|---------|-------------|
-| **Company Wiki** | Structured knowledge base with nested pages, search, and version history |
-| **Team Polls / Surveys** | Quick internal polls for decision-making or feedback |
-| **Company Calendar** | Shared events, milestones, department schedules |
-| **Employee Directory Enhancements** | Skills/expertise tags, availability status, timezone display |
-| **Announcements / News Feed** | Pinned company-wide announcements with read receipts |
-| **Resource Booking** | Conference rooms, equipment, shared assets |
-| **Time Tracking** | Per-task or per-project time logging with reports |
-| **Internal Forms / Requests** | PTO requests, IT tickets, procurement — templated workflows |
-| **Team Kudos / Recognition** | Peer recognition wall, badges, shout-outs |
-| **File Library** | Centralized document repository with folders and permissions |
-
----
-
-## 5. Add-On Packs Architecture
-
-This is a great SaaS monetization strategy. Here's a suggested architecture:
-
-### Data Model
-- **`addon_packs`** table: `id`, `slug` (e.g. `real-estate-research`), `name`, `description`, `icon`, `price_tier`, `is_active` (global toggle)
-- **`workspace_addons`** table: `workspace_id`, `addon_id`, `enabled_at`, `enabled_by` — tracks which workspaces have activated which packs
-- Each pack's actual content (tabs, pages, edge functions) lives in normal code but is **gated** behind an `useAddonEnabled(slug)` hook
-
-### How It Works
-1. Admin goes to Settings → Add-Ons
-2. Sees a marketplace-style grid of available packs
-3. Clicks "Enable" on a pack → row inserted into `workspace_addons`
-4. The sidebar and routing conditionally render the pack's tab/pages based on `workspace_addons`
-5. When you add payments later, enabling a paid pack triggers a checkout flow first
-
-### Example Packs
-- **Real Estate Market Research** — AI-powered comps, market analysis tab
-- **CRM Pipeline** — GoHighLevel-style deal tracking (you already have pieces)
-- **HR & Payroll** — Time-off tracking, payroll integration hooks
-- **Client Portal** — External-facing project status for clients
-- **Analytics Dashboard** — Charts, KPIs, custom report builder
-
-### Implementation Priority
-For now, just build the **gating infrastructure** (the two tables + hook + Settings UI). Then you can add individual packs over time without restructuring.
-
----
-
-## Summary of Code Changes
-
-| Action | File/Target |
-|--------|-------------|
-| Edit | `src/pages/ExecutionPage.tsx` — Remove duplicate StatusBadge on goals |
-| Migration | Create `reminder_assignees` junction table |
-| Edit | `src/components/RemindersWidget.tsx` — Multi-user picker for delegation |
-| Edit | `src/components/Layout.tsx` — Mobile safe-area, responsive tweaks |
-| Edit | `src/pages/Index.tsx` — Mobile-responsive grid/spacing |
-| Edit | `src/pages/ExecutionPage.tsx` — Mobile-responsive goal cards and tables |
-| Edit | Multiple page files — Add responsive breakpoint classes |
-| Migration | Create `addon_packs` and `workspace_addons` tables |
-| New | `src/hooks/useAddonEnabled.ts` — Hook to check if a pack is active |
-| New | Add-Ons section in `src/pages/SettingsPage.tsx` — Marketplace grid |
-| Edit | `src/components/AppSidebar.tsx` — Conditionally render add-on nav items |
+| Action | Target |
+|--------|--------|
+| Delete | `src/components/ExecutionSnapshot.tsx` |
+| Edit | `src/pages/LeadershipDashboard.tsx` — Remove tabs, single-page layout |
+| Edit | `src/pages/ExecutionPage.tsx` — Remove duplicate StatusBadge |
+| Edit | `src/pages/NotesPage.tsx` — Persist folders to DB |
+| Edit | `src/components/TranslationBlock.tsx` — Simplify response flow |
+| Edit | `src/pages/SettingsPage.tsx` — Price tier badges on add-ons |
+| Edit | `src/components/RemindersWidget.tsx` — Multi-select delegation |
+| Edit | `src/pages/PeoplePage.tsx` — Skills, timezone, availability |
+| Edit | `src/components/Layout.tsx` — Mobile safe-area |
+| Edit | `src/pages/Index.tsx` — Mobile responsive |
+| New | `src/pages/TimeClockPage.tsx` |
+| New | `src/pages/MarketResearchPage.tsx` |
+| New | `src/pages/FormsPage.tsx` |
+| New | `src/components/TeamPolls.tsx` |
+| New | `src/components/AnnouncementsFeed.tsx` |
+| New | `src/components/KudosWall.tsx` |
+| New | `supabase/functions/market-research/index.ts` |
+| Migrations | note_folders, time_entries, time_off_requests, market_research, polls, poll_votes, announcements, kudos, form_templates, form_submissions, profiles columns |
 
