@@ -40,6 +40,7 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
+    { title: "Feed", url: "/feed", icon: Megaphone },
     ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
     { title: "Docs", url: "/docs", icon: FileText },
@@ -47,11 +48,6 @@ export function AppSidebar() {
     { title: "Lists", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
     { title: "Training", url: "/training", icon: GraduationCap },
-  ];
-
-  const intranetNav = [
-    { title: "Feed", url: "/feed", icon: Megaphone },
-    { title: "Forms", url: "/forms", icon: FileSpreadsheet },
   ];
 
   const addonNav = [
