@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square, ListTodo, Star, X, Plus, Loader2, MessageSquare } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -15,12 +15,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { format, parseISO, differenceInMinutes } from "date-fns";
+import { format, parseISO, differenceInMinutes, formatDistanceToNow } from "date-fns";
+
+const statusColors: Record<string, string> = {
+  todo: "bg-muted-foreground",
+  in_progress: "bg-blue-500",
+  done: "bg-green-500",
+  blocked: "bg-red-500",
+};
 
 const Index = () => {
   const { departments } = useDepartments();
   const { user, isAdmin, profile } = useAuth();
+  const navigate = useNavigate();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
   const [formTemplates, setFormTemplates] = useState<any[]>([]);
@@ -33,6 +42,14 @@ const Index = () => {
   const [timeClockEnabled, setTimeClockEnabled] = useState(false);
   const [activeClockEntry, setActiveClockEntry] = useState<any>(null);
   const [elapsedTime, setElapsedTime] = useState("");
+
+  // New widgets state
+  const [myTasks, setMyTasks] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [feedPosts, setFeedPosts] = useState<any[]>([]);
+  const [addingFav, setAddingFav] = useState(false);
+  const [favLabel, setFavLabel] = useState("");
+  const [favUrl, setFavUrl] = useState("");
 
   const visibleDepartments = isAdmin
     ? departments
@@ -63,7 +80,8 @@ const Index = () => {
               .slice(0, 3);
         setRecentDocs(filtered);
       }
-      // Check time clock enabled for this user
+
+      // Time clock
       if (user) {
         const { data: p } = await supabase.from("profiles").select("time_clock_enabled").eq("user_id", user.id).single();
         const enabled = p?.time_clock_enabled || false;
@@ -73,6 +91,36 @@ const Index = () => {
           if (entries && entries.length > 0) setActiveClockEntry(entries[0]);
         }
       }
+
+      // My Tasks
+      if (user) {
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("id, title, status, due_date, priority")
+          .eq("assigned_to", user.id)
+          .neq("status", "done")
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .limit(5);
+        if (tasks) setMyTasks(tasks);
+      }
+
+      // Quick Links
+      if (user) {
+        const { data: favs } = await supabase
+          .from("user_favorites")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("sort_order", { ascending: true });
+        if (favs) setFavorites(favs);
+      }
+
+      // Feed Preview
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, author_name, content, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (posts) setFeedPosts(posts);
     };
     fetchAll();
   }, [isAdmin, profile, user]);
@@ -130,9 +178,27 @@ const Index = () => {
     if (error) { toast.error(error.message); return; }
     toast.success("Form submitted!");
     setFillOpen(false);
-    // Refresh submissions
     const { data } = await supabase.from("form_submissions").select("*").eq("submitted_by", user.id).order("created_at", { ascending: false }).limit(5);
     if (data) setMySubmissions(data);
+  };
+
+  const addFavorite = async () => {
+    if (!user || !favLabel.trim() || !favUrl.trim()) return;
+    const { error } = await supabase.from("user_favorites").insert({
+      user_id: user.id,
+      label: favLabel.trim(),
+      url: favUrl.trim(),
+      sort_order: favorites.length,
+    });
+    if (error) { toast.error(error.message); return; }
+    setFavLabel(""); setFavUrl(""); setAddingFav(false);
+    const { data } = await supabase.from("user_favorites").select("*").eq("user_id", user.id).order("sort_order", { ascending: true });
+    if (data) setFavorites(data);
+  };
+
+  const removeFavorite = async (id: string) => {
+    await supabase.from("user_favorites").delete().eq("id", id);
+    setFavorites(favorites.filter((f) => f.id !== id));
   };
 
   const statusIcon: Record<string, React.ReactNode> = {
@@ -158,7 +224,7 @@ const Index = () => {
               <Clock className={`h-5 w-5 ${activeClockEntry ? "text-green-500" : "text-amber-500"}`} />
               <div>
                 <p className="font-medium text-sm">
-                  {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Don't forget to clock in"}
+                  {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Time Clock"}
                 </p>
                 {activeClockEntry && (
                   <p className="text-xs text-muted-foreground">
@@ -258,11 +324,115 @@ const Index = () => {
         </section>
       )}
 
+      {/* Row 1: My Tasks + Quick Links */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 className="text-base font-semibold flex items-center gap-2"><ListTodo className="h-4 w-4" /> My Tasks</h2>
+                <Link to="/execution" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
+              </div>
+              <div className="px-4 pb-4 space-y-1">
+                {myTasks.length === 0 && <p className="text-sm text-muted-foreground py-3">No tasks assigned to you.</p>}
+                {myTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => navigate(`/execution/task/${task.id}`)}
+                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                  >
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${statusColors[task.status] || "bg-muted-foreground"}`} />
+                    <span className="text-sm font-medium truncate flex-1">{task.title}</span>
+                    {task.due_date && (
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {format(parseISO(task.due_date), "MMM d")}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-[10px] capitalize shrink-0">{task.priority}</Badge>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="lg:col-span-1">
+          <Card>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 className="text-base font-semibold flex items-center gap-2"><Star className="h-4 w-4" /> Quick Links</h2>
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setAddingFav(true)}>
+                  <Plus className="h-3 w-3" /> Add
+                </Button>
+              </div>
+              <div className="px-4 pb-4 space-y-1">
+                {addingFav && (
+                  <div className="space-y-1.5 pb-2">
+                    <Input placeholder="Label" value={favLabel} onChange={(e) => setFavLabel(e.target.value)} className="h-8 text-sm" />
+                    <Input placeholder="URL (e.g. https://...)" value={favUrl} onChange={(e) => setFavUrl(e.target.value)} className="h-8 text-sm" />
+                    <div className="flex gap-1">
+                      <Button size="sm" className="h-7 text-xs" onClick={addFavorite} disabled={!favLabel.trim() || !favUrl.trim()}>Save</Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingFav(false); setFavLabel(""); setFavUrl(""); }}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+                {favorites.length === 0 && !addingFav && <p className="text-sm text-muted-foreground py-3">No quick links yet.</p>}
+                {favorites.map((fav) => (
+                  <div key={fav.id} className="flex items-center gap-2 group p-1.5 rounded hover:bg-muted/50 transition-colors">
+                    <Star className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <a href={fav.url} target="_blank" rel="noopener noreferrer" className="text-sm truncate flex-1 hover:underline">{fav.label}</a>
+                    <button onClick={() => removeFavorite(fav.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+
+      {/* Row 2: Feed Preview + Reminders */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 className="text-base font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Feed</h2>
+                <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
+              </div>
+              <div className="px-4 pb-4 space-y-2">
+                {feedPosts.length === 0 && <p className="text-sm text-muted-foreground py-3">No posts yet.</p>}
+                {feedPosts.map((post) => (
+                  <div key={post.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <Avatar className="h-7 w-7 shrink-0">
+                      <AvatarFallback className="text-[10px] bg-muted">
+                        {(post.author_name || "U").split(" ").map((n: string) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{post.author_name || "Unknown"}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground/80 truncate">{post.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         <section className="lg:col-span-1">
           <RemindersWidget />
         </section>
+      </div>
 
+      {/* Row 3: Recent Docs + Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="lg:col-span-1">
           <Card>
             <CardContent className="p-0">
@@ -286,7 +456,7 @@ const Index = () => {
           </Card>
         </section>
 
-        <section className="lg:col-span-1">
+        <section className="lg:col-span-2">
           <ActivityFeed limit={8} />
         </section>
       </div>
