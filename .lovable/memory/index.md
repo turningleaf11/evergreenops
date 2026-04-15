@@ -2,9 +2,10 @@
 
 ## Core
 - **Stack**: Supabase (Auth, RLS, public 'files' bucket), Edge Functions for AI/backend.
+- **SaaS**: Multi-tenant with workspaces table. workspace_id on all key tables. Landing page at /landing.
 - **Aesthetic**: Apple/Arc-inspired minimal. Glassmorphism, 0.75rem (12px) radius, bg-muted/50 hover.
 - **UI Patterns**: Minimal chrome. Status/Priority as clickable badges. Assignees as popovers.
-- **Terminology**: Use 'Lists' instead of 'Databases' across the entire UI.
+- **Terminology**: Use 'Lists' instead of 'Databases' across the entire UI. 'Wiki' instead of 'Docs'.
 - **Rich Text**: TipTap borderless editor, inline "true doc" style editing, debounced auto-save.
 - **Record Views**: Flexible 'Peek' view system (Side, Center, Full) persisted in localStorage.
 - **Lists UI**: Card-Enhanced List UI for projects. 56-64px tinted rows, hollow/solid status dots.
@@ -37,7 +38,7 @@
 - [Activity Notifications](mem://features/activity-notifications) — Real-time event tracking via header bell and feed
 - [Leadership AI](mem://ai/leadership-companion-logic) — Supabase Edge Function chat with strategy context
 - [Executive AI](mem://ai/executive-companion-logic) — Global FAB Admin AI, Suggest-then-Confirm proactive briefings
-- [Execution Hub](mem://features/execution-hub) — Goals, Projects, Tasks, Issues across Board/List/Table views
+- [Execution Hub](mem://features/execution-hub) — Goals, Projects, Tasks, Issues, Submissions across Board/List/Table views
 - [Task Workspaces](mem://features/project-task-workspaces) — Card-Enhanced List UI, hover actions, status dots
 - [Threaded Comments](mem://features/threaded-comments-activity) — Merged activity feed of comments and system logs
 - [Saved Views](mem://features/saved-database-views) — Persistent configurations for DB filters/sorts/columns
@@ -58,3 +59,4 @@
 - [Aesthetic](mem://style/aesthetic) — Apple/Arc-inspired, glassmorphism, 0.75rem radius, light/dark modes
 - [Database Engine](mem://features/database-engine) — 'Lists' engine, inline management, multi-criteria controls
 - [Add-On Packs](mem://features/addon-packs) — SaaS-ready gating with addon_packs/workspace_addons tables and useAddonEnabled hook
+- [Reminders Multi-Delegation](mem://features/reminders-multi-delegation) — Multi-user delegation via junction table
