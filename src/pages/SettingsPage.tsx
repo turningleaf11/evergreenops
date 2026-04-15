@@ -371,6 +371,7 @@ interface DBUser {
   email?: string;
   roles: string[];
   is_primary?: boolean;
+  time_clock_enabled: boolean;
 }
 
 function UsersTab() {
