@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -123,6 +123,9 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="forms" className="gap-1.5">
             <FileSpreadsheet className="h-3.5 w-3.5" /> Forms
+          </TabsTrigger>
+          <TabsTrigger value="home_widgets" className="gap-1.5">
+            <LayoutDashboard className="h-3.5 w-3.5" /> Home Widgets
           </TabsTrigger>
         </TabsList>
 
@@ -358,6 +361,10 @@ export default function SettingsPage() {
 
         <TabsContent value="forms" className="mt-4">
           <FormsManagementTab />
+        </TabsContent>
+
+        <TabsContent value="home_widgets" className="mt-4">
+          <HomeWidgetDefaultsTab />
         </TabsContent>
       </Tabs>
     </div>
