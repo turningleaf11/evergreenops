@@ -63,6 +63,7 @@ export type Database = {
           name: string
           price_tier: string
           slug: string
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
@@ -74,6 +75,7 @@ export type Database = {
           name: string
           price_tier?: string
           slug: string
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -85,6 +87,7 @@ export type Database = {
           name?: string
           price_tier?: string
           slug?: string
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -570,6 +573,94 @@ export type Database = {
         }
         Relationships: []
       }
+      form_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          review_notes: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_by: string
+          template_id: string
+          updated_at: string
+          values: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by: string
+          template_id: string
+          updated_at?: string
+          values?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string
+          template_id?: string
+          updated_at?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          fields: Json
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_templates_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           alignment_notes: string | null
@@ -703,6 +794,104 @@ export type Database = {
           },
         ]
       }
+      kudos: {
+        Row: {
+          category: string
+          created_at: string
+          from_user_id: string
+          id: string
+          message: string
+          to_user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          from_user_id: string
+          id?: string
+          message?: string
+          to_user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          message?: string
+          to_user_id?: string
+        }
+        Relationships: []
+      }
+      market_research: {
+        Row: {
+          ai_analysis: Json | null
+          created_at: string
+          created_by: string | null
+          id: string
+          market_name: string
+          status: string
+          strategy: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          market_name: string
+          status?: string
+          strategy?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          market_name?: string
+          status?: string
+          strategy?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_research_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string | null
@@ -777,8 +966,88 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_index: number
+          poll_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_index: number
+          poll_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_index?: number
+          poll_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          options: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          options?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          options?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          availability_status: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -788,11 +1057,14 @@ export type Database = {
           id: string
           phone: string | null
           reports_to: string | null
+          skills: string[] | null
+          timezone: string | null
           title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          availability_status?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -802,11 +1074,14 @@ export type Database = {
           id?: string
           phone?: string | null
           reports_to?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          availability_status?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -816,6 +1091,8 @@ export type Database = {
           id?: string
           phone?: string | null
           reports_to?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
@@ -1195,6 +1472,81 @@ export type Database = {
           subject_user_id?: string
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          break_minutes: number | null
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          id: string
+          is_manual: boolean
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          break_minutes?: number | null
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          break_minutes?: number | null
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      time_off_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          end_date: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          start_date: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

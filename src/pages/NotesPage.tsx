@@ -60,12 +60,15 @@ export default function NotesPage() {
     }
   }, [location.state, notes]);
 
-  // Derive folders from notes
-  const folders = useMemo(() => {
-    const folderSet = new Set<string>();
-    notes.forEach(n => { if (n.folder) folderSet.add(n.folder); });
-    return Array.from(folderSet).sort();
-  }, [notes]);
+  // Fetch folders from DB
+  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
+  const fetchFolders = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("note_folders").select("id, name").eq("user_id", user.id).order("sort_order");
+    if (data) setFolders(data as any[]);
+  }, [user]);
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+  const folderNames = folders.map(f => f.name);
 
   const filteredNotes = useMemo(() => {
     if (activeFolder === null) return notes;
@@ -140,12 +143,13 @@ export default function NotesPage() {
     fetchNotes();
   };
 
-  const createFolder = () => {
-    if (!newFolderName.trim()) return;
-    // Just set the active folder — it will exist once a note is moved there
+  const createFolder = async () => {
+    if (!newFolderName.trim() || !user) return;
+    await supabase.from("note_folders").insert({ name: newFolderName.trim(), user_id: user.id });
     setActiveFolder(newFolderName.trim());
     setNewFolderName("");
     setCreatingFolder(false);
+    fetchFolders();
   };
 
   const renameFolder = async (oldName: string, newName: string) => {
@@ -227,7 +231,7 @@ export default function NotesPage() {
             <span className="text-[10px] text-muted-foreground">{notes.length}</span>
           </button>
 
-          {folders.map(f => (
+          {folderNames.map(f => (
             <div key={f} className="group flex items-center">
               {renamingFolder === f ? (
                 <Input
@@ -356,7 +360,7 @@ export default function NotesPage() {
                     >
                       Unfiled
                     </button>
-                    {folders.map(f => (
+                    {folderNames.map(f => (
                       <button
                         key={f}
                         onClick={() => moveToFolder(selectedId, f)}

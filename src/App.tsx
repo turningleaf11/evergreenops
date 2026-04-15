@@ -24,6 +24,12 @@ import ExecutionPage from "./pages/ExecutionPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import NotesPage from "./pages/NotesPage";
+import TimeClockPage from "./pages/TimeClockPage";
+import MarketResearchPage from "./pages/MarketResearchPage";
+import FormsPage from "./pages/FormsPage";
+import AnnouncementsPage from "./pages/AnnouncementsPage";
+import PollsPage from "./pages/PollsPage";
+import KudosPage from "./pages/KudosPage";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -107,6 +113,16 @@ const App = () => (
                 <Route path="/tasks/:id" element={<TaskDetailPage />} />
                 <Route path="/issues" element={<Navigate to="/execution" replace />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
+
+                {/* Intranet */}
+                <Route path="/announcements" element={<AnnouncementsPage />} />
+                <Route path="/polls" element={<PollsPage />} />
+                <Route path="/kudos" element={<KudosPage />} />
+                <Route path="/forms" element={<FormsPage />} />
+
+                {/* Add-Ons */}
+                <Route path="/time-clock" element={<TimeClockPage />} />
+                <Route path="/market-research" element={<MarketResearchPage />} />
               </Route>
             </Route>
 
