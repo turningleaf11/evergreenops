@@ -68,7 +68,7 @@ export default function NotesPage() {
     if (data) setFolders(data as any[]);
   }, [user]);
   useEffect(() => { fetchFolders(); }, [fetchFolders]);
-  const folderNames = folderNames.map(f => f.name);
+  const folderNames = folders.map(f => f.name);
 
   const filteredNotes = useMemo(() => {
     if (activeFolder === null) return notes;
