@@ -19,21 +19,30 @@ import { toast } from "sonner";
 
 const Index = () => {
   const { departments } = useDepartments();
-  const { isAdmin, profile } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
+  const [formTemplates, setFormTemplates] = useState<any[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
+  const [fillOpen, setFillOpen] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<any>(null);
+  const [formValues, setFormValues] = useState<Record<string, any>>({});
 
   const visibleDepartments = isAdmin
     ? departments
     : departments.filter((d) => d.id === profile?.department_id);
 
   useEffect(() => {
-    const fetch = async () => {
-      const [annRes, docRes] = await Promise.all([
+    const fetchAll = async () => {
+      const [annRes, docRes, formRes, subRes] = await Promise.all([
         supabase.from("announcements").select("*").eq("pinned", true).limit(5),
         supabase.from("documents").select("id, title, author_name, updated_at, tags, visibility, shared_with").order("updated_at", { ascending: false }).limit(20),
+        supabase.from("form_templates").select("*").eq("is_active", true).order("name"),
+        user ? supabase.from("form_submissions").select("*").eq("submitted_by", user.id).order("created_at", { ascending: false }).limit(5) : Promise.resolve({ data: [] }),
       ]);
       if (annRes.data) setAnnouncements(annRes.data);
+      if (formRes.data) setFormTemplates(formRes.data);
+      if (subRes.data) setMySubmissions(subRes.data as any[]);
       if (docRes.data) {
         const filtered = isAdmin
           ? docRes.data.slice(0, 3)
@@ -49,8 +58,41 @@ const Index = () => {
         setRecentDocs(filtered);
       }
     };
-    fetch();
-  }, [isAdmin, profile]);
+    fetchAll();
+  }, [isAdmin, profile, user]);
+
+  const openForm = (template: any) => {
+    setActiveTemplate(template);
+    setFormValues({});
+    setFillOpen(true);
+  };
+
+  const submitForm = async () => {
+    if (!user || !activeTemplate) return;
+    for (const field of (activeTemplate.fields || [])) {
+      if (field.required && !formValues[field.name]?.toString().trim()) {
+        toast.error(`${field.name} is required`);
+        return;
+      }
+    }
+    const { error } = await supabase.from("form_submissions").insert({
+      template_id: activeTemplate.id,
+      submitted_by: user.id,
+      values: formValues,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Form submitted!");
+    setFillOpen(false);
+    // Refresh submissions
+    const { data } = await supabase.from("form_submissions").select("*").eq("submitted_by", user.id).order("created_at", { ascending: false }).limit(5);
+    if (data) setMySubmissions(data);
+  };
+
+  const statusIcon: Record<string, React.ReactNode> = {
+    pending: <Clock className="h-3.5 w-3.5 text-amber-500" />,
+    approved: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
+    denied: <XCircle className="h-3.5 w-3.5 text-red-500" />,
+  };
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-10">
