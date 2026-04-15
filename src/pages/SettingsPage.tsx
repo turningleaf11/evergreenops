@@ -980,17 +980,6 @@ function FormsManagementTab() {
     toast({ title: "Template deleted" });
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("form_submissions").update({ status, reviewed_by: user?.id } as any).eq("id", id);
-    fetchData();
-    toast({ title: `Submission ${status}` });
-  };
-
-  const getTemplateName = (id: string) => templates.find(t => t.id === id)?.name || "Unknown";
-
-  const pendingCount = submissions.filter(s => s.status === "pending").length;
-
   return (
     <div className="space-y-4">
       <Card>
@@ -1026,40 +1015,7 @@ function FormsManagementTab() {
         </CardContent>
       </Card>
 
-      {/* Pending Submissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            Review Queue
-            {pendingCount > 0 && <Badge variant="secondary" className="text-[10px]">{pendingCount}</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {submissions.filter(s => s.status === "pending").length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
-          ) : (
-            <div className="space-y-2">
-              {submissions.filter(s => s.status === "pending").map(s => (
-                <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div>
-                    <p className="text-sm font-medium">{getTemplateName(s.template_id)}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {Object.entries(s.values as Record<string, any>).map(([k, v]) => (
-                        <Badge key={k} variant="outline" className="text-[10px]">{k}: {String(v)}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-green-600" onClick={() => updateStatus(s.id, "approved")}>Approve</Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={() => updateStatus(s.id, "denied")}>Deny</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <p className="text-xs text-muted-foreground">Form submissions are reviewed in the Execution Hub → Submissions tab.</p>
 
       {/* Template Editor Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
