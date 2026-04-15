@@ -53,6 +53,42 @@ export type Database = {
         }
         Relationships: []
       }
+      addon_packs: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price_tier: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_tier?: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_tier?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           author_id: string | null
@@ -855,6 +891,38 @@ export type Database = {
           },
         ]
       }
+      reminder_assignees: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          reminder_id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          reminder_id: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          reminder_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_assignees_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminders: {
         Row: {
           assigned_to: string | null
@@ -1219,6 +1287,45 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      workspace_addons: {
+        Row: {
+          addon_id: string
+          enabled_at: string
+          enabled_by: string | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          addon_id: string
+          enabled_at?: string
+          enabled_by?: string | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          addon_id?: string
+          enabled_at?: string
+          enabled_by?: string | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "addon_packs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_addons_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workspaces: {
         Row: {
