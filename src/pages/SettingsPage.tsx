@@ -348,6 +348,10 @@ export default function SettingsPage() {
         <TabsContent value="users" className="mt-4 space-y-4">
           <UsersTab />
         </TabsContent>
+
+        <TabsContent value="addons" className="mt-4">
+          <AddOnsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
