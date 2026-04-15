@@ -68,7 +68,7 @@ export default function NotesPage() {
     if (data) setFolders(data as any[]);
   }, [user]);
   useEffect(() => { fetchFolders(); }, [fetchFolders]);
-  const folderNames = folders.map(f => f.name);
+  const folderNames = folderNames.map(f => f.name);
 
   const filteredNotes = useMemo(() => {
     if (activeFolder === null) return notes;
@@ -230,7 +230,7 @@ export default function NotesPage() {
             <span className="text-[10px] text-muted-foreground">{notes.length}</span>
           </button>
 
-          {folders.map(f => (
+          {folderNames.map(f => (
             <div key={f} className="group flex items-center">
               {renamingFolder === f ? (
                 <Input
@@ -359,7 +359,7 @@ export default function NotesPage() {
                     >
                       Unfiled
                     </button>
-                    {folders.map(f => (
+                    {folderNames.map(f => (
                       <button
                         key={f}
                         onClick={() => moveToFolder(selectedId, f)}
