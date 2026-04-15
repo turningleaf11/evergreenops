@@ -2,7 +2,7 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, FileSpreadsheet,
-  Megaphone, Heart, BarChart3,
+  Megaphone,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
