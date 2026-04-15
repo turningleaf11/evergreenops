@@ -439,6 +439,12 @@ function UsersTab() {
     toast({ title: "Department updated" });
   };
 
+  const handleTimeClockToggle = async (userId: string, enabled: boolean) => {
+    await supabase.from("profiles").update({ time_clock_enabled: enabled }).eq("user_id", userId);
+    fetchUsers();
+    toast({ title: enabled ? "Time clock enabled" : "Time clock disabled" });
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
     setInviting(true);
