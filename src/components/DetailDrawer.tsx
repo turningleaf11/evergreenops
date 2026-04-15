@@ -218,15 +218,22 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   if (peekMode === "center") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6">
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6"
+          data-peek-surface="center"
+        >
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold pr-8">{item.title}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold pr-8" data-peek-title="true">
+              {item.title}
+            </DialogTitle>
           </DialogHeader>
-          <DetailContent
-            type={type} item={item} onStatusChange={onStatusChange}
-            getName={getName} onFullPage={goFullPage}
-            peekMode={peekMode} setPeekMode={setPeekMode}
-          />
+          <div data-peek-body="true">
+            <DetailContent
+              type={type} item={item} onStatusChange={onStatusChange}
+              getName={getName} onFullPage={goFullPage}
+              peekMode={peekMode} setPeekMode={setPeekMode}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -234,11 +241,16 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
+      <SheetContent
+        className="w-full sm:max-w-xl overflow-y-auto p-6"
+        data-peek-surface="side"
+      >
         <SheetHeader className="space-y-3">
-          <SheetTitle className="text-xl font-semibold pr-8">{item.title}</SheetTitle>
+          <SheetTitle className="text-xl font-semibold pr-8" data-peek-title="true">
+            {item.title}
+          </SheetTitle>
         </SheetHeader>
-        <div className="mt-6">
+        <div className="mt-6" data-peek-body="true">
           <DetailContent
             type={type} item={item} onStatusChange={onStatusChange}
             getName={getName} onFullPage={goFullPage}

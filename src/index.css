@@ -233,31 +233,89 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
-/* Popovers & Dialogs */
-.style-crystal [data-radix-popper-content-wrapper] > *,
-.style-crystal [role="dialog"] > div {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
+/* Popovers */
 .style-crystal [data-radix-popper-content-wrapper] > * {
-  background: rgba(255, 255, 255, 0.65) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  background: hsl(var(--popover) / 0.78) !important;
+  border: 1px solid hsl(var(--border) / 0.65) !important;
 }
 .dark.style-crystal [data-radix-popper-content-wrapper] > * {
-  background: rgba(30, 30, 45, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: hsl(var(--popover) / 0.84) !important;
+  border: 1px solid hsl(var(--border) / 0.85) !important;
 }
 
 /* Sheet / Drawer */
 .style-crystal [data-state="open"][role="dialog"] {
-  background: rgba(255, 255, 255, 0.60) !important;
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: hsl(var(--background) / 0.82) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid hsl(var(--border) / 0.7) !important;
 }
 .dark.style-crystal [data-state="open"][role="dialog"] {
-  background: rgba(20, 20, 35, 0.80) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: hsl(var(--background) / 0.9) !important;
+  border: 1px solid hsl(var(--border) / 0.9) !important;
+}
+
+/* Peek surfaces */
+.style-crystal [data-peek-surface] {
+  isolation: isolate;
+  background: hsl(var(--background) / 0.9) !important;
+  border: 1px solid hsl(var(--border) / 0.82) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow:
+    0 32px 80px -32px hsl(var(--foreground) / 0.22),
+    inset 0 1px 0 hsl(var(--background) / 0.45);
+}
+.dark.style-crystal [data-peek-surface] {
+  background: hsl(var(--background) / 0.94) !important;
+  border-color: hsl(var(--border) / 0.92) !important;
+  box-shadow:
+    0 32px 80px -32px hsl(var(--foreground) / 0.45),
+    inset 0 1px 0 hsl(var(--foreground) / 0.04);
+}
+
+.style-crystal [data-peek-title="true"] {
+  text-shadow: 0 1px 1px hsl(var(--background) / 0.8);
+}
+
+.style-crystal [data-peek-body] [data-slot="card"],
+.style-crystal [data-peek-body] .card-glass,
+.style-crystal [data-peek-body] [class*="bg-muted/20"],
+.style-crystal [data-peek-body] [class*="bg-muted\\/20"],
+.style-crystal [data-peek-body] [class*="bg-muted/30"],
+.style-crystal [data-peek-body] [class*="bg-muted\\/30"],
+.style-crystal [data-peek-body] [class*="bg-muted/50"],
+.style-crystal [data-peek-body] [class*="bg-muted\\/50"] {
+  background: hsl(var(--card) / 0.94) !important;
+  border: 1px solid hsl(var(--border) / 0.7) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 8px 24px -20px hsl(var(--foreground) / 0.15) !important;
+}
+.dark.style-crystal [data-peek-body] [data-slot="card"],
+.dark.style-crystal [data-peek-body] .card-glass,
+.dark.style-crystal [data-peek-body] [class*="bg-muted/20"],
+.dark.style-crystal [data-peek-body] [class*="bg-muted\\/20"],
+.dark.style-crystal [data-peek-body] [class*="bg-muted/30"],
+.dark.style-crystal [data-peek-body] [class*="bg-muted\\/30"],
+.dark.style-crystal [data-peek-body] [class*="bg-muted/50"],
+.dark.style-crystal [data-peek-body] [class*="bg-muted\\/50"] {
+  background: hsl(var(--card) / 0.92) !important;
+  border-color: hsl(var(--border) / 0.88) !important;
+  box-shadow: 0 12px 28px -24px hsl(var(--foreground) / 0.4) !important;
+}
+
+.style-crystal [data-peek-body] [role="combobox"] {
+  background: hsl(var(--muted) / 0.94) !important;
+  border-color: hsl(var(--border) / 0.8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.dark.style-crystal [data-peek-body] [role="combobox"] {
+  background: hsl(var(--muted) / 0.88) !important;
+  border-color: hsl(var(--border) / 0.88) !important;
 }
 
 /* Inputs */
