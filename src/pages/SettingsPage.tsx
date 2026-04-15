@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor,
+  Pencil, X, Sun, Moon, Monitor, Package,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -27,6 +27,8 @@ import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
 import { DEPARTMENT_ICONS, getDeptIcon } from "@/lib/icon-map";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAllAddons } from "@/hooks/useAddonEnabled";
+import { Switch } from "@/components/ui/switch";
 
 const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "video", "link"];
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
@@ -115,6 +117,9 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-1.5">
             <Users className="h-3.5 w-3.5" /> Users & Roles
+          </TabsTrigger>
+          <TabsTrigger value="addons" className="gap-1.5">
+            <Package className="h-3.5 w-3.5" /> Add-Ons
           </TabsTrigger>
         </TabsList>
 
