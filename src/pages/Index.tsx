@@ -63,9 +63,50 @@ const Index = () => {
               .slice(0, 3);
         setRecentDocs(filtered);
       }
+      // Check time clock enabled for this user
+      if (user) {
+        const { data: p } = await supabase.from("profiles").select("time_clock_enabled").eq("user_id", user.id).single();
+        const enabled = p?.time_clock_enabled || false;
+        setTimeClockEnabled(enabled);
+        if (enabled) {
+          const { data: entries } = await supabase.from("time_entries").select("*").eq("user_id", user.id).is("clock_out", null).limit(1);
+          if (entries && entries.length > 0) setActiveClockEntry(entries[0]);
+        }
+      }
     };
     fetchAll();
   }, [isAdmin, profile, user]);
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (!activeClockEntry) { setElapsedTime(""); return; }
+    const tick = () => {
+      const mins = differenceInMinutes(new Date(), parseISO(activeClockEntry.clock_in));
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      setElapsedTime(`${h}h ${m}m`);
+    };
+    tick();
+    const interval = setInterval(tick, 60000);
+    return () => clearInterval(interval);
+  }, [activeClockEntry]);
+
+  const punchIn = async () => {
+    if (!user) return;
+    const { error } = await supabase.from("time_entries").insert({ user_id: user.id, clock_in: new Date().toISOString() });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Clocked in!");
+    const { data } = await supabase.from("time_entries").select("*").eq("user_id", user.id).is("clock_out", null).limit(1);
+    if (data && data.length > 0) setActiveClockEntry(data[0]);
+  };
+
+  const punchOut = async () => {
+    if (!activeClockEntry) return;
+    const { error } = await supabase.from("time_entries").update({ clock_out: new Date().toISOString() }).eq("id", activeClockEntry.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Clocked out!");
+    setActiveClockEntry(null);
+  };
 
   const openForm = (template: any) => {
     setActiveTemplate(template);
