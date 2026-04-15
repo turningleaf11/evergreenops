@@ -11,6 +11,7 @@ interface WorkspaceState {
   accentColor: string | null;
   ceoPageName: string;
   deptLabel: string;
+  appStyle: string;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
