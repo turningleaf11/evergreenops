@@ -355,6 +355,10 @@ export default function SettingsPage() {
         <TabsContent value="addons" className="mt-4">
           <AddOnsTab />
         </TabsContent>
+
+        <TabsContent value="forms" className="mt-4">
+          <FormsManagementTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
