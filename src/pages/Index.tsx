@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square, ListTodo, Star, X, Plus, Loader2, MessageSquare } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square, ListTodo, Star, X, Plus, MessageSquare, Settings2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -15,9 +15,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { format, parseISO, differenceInMinutes, formatDistanceToNow } from "date-fns";
+import { format, parseISO, differenceInMinutes } from "date-fns";
+import { WidgetCustomizer } from "@/components/home/WidgetCustomizer";
+import { FeedCarousel } from "@/components/home/FeedCarousel";
+import { useWidgetPreferences } from "@/hooks/useWidgetPreferences";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   todo: "bg-muted-foreground",
@@ -26,10 +46,36 @@ const statusColors: Record<string, string> = {
   blocked: "bg-red-500",
 };
 
+// Sortable widget wrapper
+function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing bg-card border rounded-md p-0.5 shadow-sm"
+      >
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+      </button>
+      {children}
+    </div>
+  );
+}
+
 const Index = () => {
   const { departments } = useDepartments();
   const { user, isAdmin, profile } = useAuth();
   const navigate = useNavigate();
+  const { widgets, savePreferences, resetToDefaults } = useWidgetPreferences();
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
   const [formTemplates, setFormTemplates] = useState<any[]>([]);
@@ -37,7 +83,7 @@ const Index = () => {
   const [fillOpen, setFillOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
-  
+
   // Time clock state
   const [timeClockEnabled, setTimeClockEnabled] = useState(false);
   const [activeClockEntry, setActiveClockEntry] = useState<any>(null);
@@ -46,7 +92,6 @@ const Index = () => {
   // New widgets state
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [feedPosts, setFeedPosts] = useState<any[]>([]);
   const [addingFav, setAddingFav] = useState(false);
   const [favLabel, setFavLabel] = useState("");
   const [favUrl, setFavUrl] = useState("");
@@ -113,14 +158,6 @@ const Index = () => {
           .order("sort_order", { ascending: true });
         if (favs) setFavorites(favs);
       }
-
-      // Feed Preview
-      const { data: posts } = await supabase
-        .from("posts")
-        .select("id, author_name, content, created_at")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (posts) setFeedPosts(posts);
     };
     fetchAll();
   }, [isAdmin, profile, user]);
@@ -207,126 +244,141 @@ const Index = () => {
     denied: <XCircle className="h-3.5 w-3.5 text-red-500" />,
   };
 
-  return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-10">
-      <div className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
-        </h1>
-        <p className="text-base text-muted-foreground">Here's what's happening in your workspace.</p>
-      </div>
+  // DnD sensors for main layout
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
-      {/* Time Clock Widget */}
-      {timeClockEnabled && (
-        <Card className={`border-l-4 ${activeClockEntry ? "border-l-green-500" : "border-l-amber-500"}`}>
-          <CardContent className="py-3 px-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Clock className={`h-5 w-5 ${activeClockEntry ? "text-green-500" : "text-amber-500"}`} />
-              <div>
-                <p className="font-medium text-sm">
-                  {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Time Clock"}
-                </p>
-                {activeClockEntry && (
-                  <p className="text-xs text-muted-foreground">
-                    Since {format(parseISO(activeClockEntry.clock_in), "h:mm a")}
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = widgets.findIndex((w) => w.id === active.id);
+    const newIdx = widgets.findIndex((w) => w.id === over.id);
+    const reordered = arrayMove(widgets, oldIdx, newIdx).map((w, i) => ({ ...w, sort_order: i }));
+    savePreferences(reordered);
+  };
+
+  const visibleWidgets = widgets.filter((w) => w.visible);
+
+  // Widget renderers
+  const renderWidget = (widgetId: string) => {
+    switch (widgetId) {
+      case "time_clock":
+        if (!timeClockEnabled) return null;
+        return (
+          <Card className={`border-l-4 ${activeClockEntry ? "border-l-green-500" : "border-l-amber-500"}`}>
+            <CardContent className="py-3 px-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className={`h-5 w-5 ${activeClockEntry ? "text-green-500" : "text-amber-500"}`} />
+                <div>
+                  <p className="font-medium text-sm">
+                    {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Time Clock"}
                   </p>
-                )}
+                  {activeClockEntry && (
+                    <p className="text-xs text-muted-foreground">
+                      Since {format(parseISO(activeClockEntry.clock_in), "h:mm a")}
+                    </p>
+                  )}
+                </div>
               </div>
+              {activeClockEntry ? (
+                <Button size="sm" variant="destructive" onClick={punchOut} className="gap-1.5">
+                  <Square className="h-3 w-3" /> Clock Out
+                </Button>
+              ) : (
+                <Button size="sm" onClick={punchIn} className="gap-1.5">
+                  <Play className="h-3 w-3" /> Clock In
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case "announcements":
+        if (announcements.length === 0) return null;
+        return (
+          <section className="space-y-2">
+            <h2 className="text-lg font-semibold">Pinned Announcements</h2>
+            {announcements.map((a) => (
+              <Card key={a.id}>
+                <CardContent className="py-3 px-4 flex items-start gap-2">
+                  <Pin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div><p className="font-medium text-sm">{a.title}</p><p className="text-xs text-muted-foreground mt-0.5">{a.content}</p></div>
+                </CardContent>
+              </Card>
+            ))}
+          </section>
+        );
+
+      case "departments":
+        return (
+          <section>
+            <h2 className="text-lg font-semibold mb-3">Departments</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {visibleDepartments.map((dept) => {
+                const Icon = getDeptIcon(dept.icon);
+                return (
+                  <Link key={dept.id} to={`/department/${dept.id}`}>
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: `hsl(${dept.color} / 0.1)`, color: `hsl(${dept.color})` }}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm">{dept.name}</p>
+                            <p className="text-xs text-muted-foreground">{dept.description || "Department"}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
-            {activeClockEntry ? (
-              <Button size="sm" variant="destructive" onClick={punchOut} className="gap-1.5">
-                <Square className="h-3 w-3" /> Clock Out
-              </Button>
-            ) : (
-              <Button size="sm" onClick={punchIn} className="gap-1.5">
-                <Play className="h-3 w-3" /> Clock In
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          </section>
+        );
 
-      <OnboardingBanner />
-
-      {announcements.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Pinned Announcements</h2>
-          {announcements.map((a) => (
-            <Card key={a.id}>
-              <CardContent className="py-3 px-4 flex items-start gap-2">
-                <Pin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <div><p className="font-medium text-sm">{a.title}</p><p className="text-xs text-muted-foreground mt-0.5">{a.content}</p></div>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-      )}
-
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Departments</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {visibleDepartments.map((dept) => {
-            const Icon = getDeptIcon(dept.icon);
-            return (
-              <Link key={dept.id} to={`/department/${dept.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: `hsl(${dept.color} / 0.1)`, color: `hsl(${dept.color})` }}>
-                        <Icon className="h-4 w-4" />
-                      </div>
+      case "forms":
+        if (formTemplates.length === 0) return null;
+        return (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" /> Forms & Requests
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {formTemplates.map((t) => (
+                <Card key={t.id} className="hover:border-primary/40 transition-colors cursor-pointer" onClick={() => openForm(t)}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0">
-                        <p className="font-medium text-sm">{dept.name}</p>
-                        <p className="text-xs text-muted-foreground">{dept.description || "Department"}</p>
+                        <p className="font-medium text-sm truncate">{t.name}</p>
+                        {t.description && <p className="text-[10px] text-muted-foreground truncate">{t.description}</p>}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Forms & Requests */}
-      {formTemplates.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" /> Forms & Requests
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {formTemplates.map((t) => (
-              <Card key={t.id} className="hover:border-primary/40 transition-colors cursor-pointer" onClick={() => openForm(t)}>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{t.name}</p>
-                      {t.description && <p className="text-[10px] text-muted-foreground truncate">{t.description}</p>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          {mySubmissions.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">Recent Submissions</p>
-              {mySubmissions.map((s) => (
-                <div key={s.id} className="flex items-center gap-2 text-xs py-1">
-                  {statusIcon[s.status]}
-                  <span>{formTemplates.find((t: any) => t.id === s.template_id)?.name || "Form"}</span>
-                  <Badge variant="secondary" className="text-[10px] capitalize ml-auto">{s.status}</Badge>
-                </div>
               ))}
             </div>
-          )}
-        </section>
-      )}
+            {mySubmissions.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium">Recent Submissions</p>
+                {mySubmissions.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 text-xs py-1">
+                    {statusIcon[s.status]}
+                    <span>{formTemplates.find((t: any) => t.id === s.template_id)?.name || "Form"}</span>
+                    <Badge variant="secondary" className="text-[10px] capitalize ml-auto">{s.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
 
-      {/* Row 1: My Tasks + Quick Links */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2">
+      case "my_tasks":
+        return (
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -354,9 +406,10 @@ const Index = () => {
               </div>
             </CardContent>
           </Card>
-        </section>
+        );
 
-        <section className="lg:col-span-1">
+      case "quick_links":
+        return (
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -389,51 +442,16 @@ const Index = () => {
               </div>
             </CardContent>
           </Card>
-        </section>
-      </div>
+        );
 
-      {/* Row 2: Feed Preview + Reminders */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2">
-          <Card>
-            <CardContent className="p-0">
-              <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                <h2 className="text-base font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Feed</h2>
-                <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
-              </div>
-              <div className="px-4 pb-4 space-y-2">
-                {feedPosts.length === 0 && <p className="text-sm text-muted-foreground py-3">No posts yet.</p>}
-                {feedPosts.map((post) => (
-                  <div key={post.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarFallback className="text-[10px] bg-muted">
-                        {(post.author_name || "U").split(" ").map((n: string) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium">{post.author_name || "Unknown"}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground/80 truncate">{post.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+      case "feed_preview":
+        return <FeedCarousel />;
 
-        <section className="lg:col-span-1">
-          <RemindersWidget />
-        </section>
-      </div>
+      case "reminders":
+        return <RemindersWidget />;
 
-      {/* Row 3: Recent Docs + Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-1">
+      case "recent_docs":
+        return (
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -454,12 +472,52 @@ const Index = () => {
               </div>
             </CardContent>
           </Card>
-        </section>
+        );
 
-        <section className="lg:col-span-2">
-          <ActivityFeed limit={8} />
-        </section>
+      case "activity_feed":
+        return <ActivityFeed limit={8} />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1.5">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-base text-muted-foreground">Here's what's happening in your workspace.</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground"
+          onClick={() => setCustomizerOpen(true)}
+        >
+          <Settings2 className="h-4 w-4" /> Customize
+        </Button>
       </div>
+
+      <OnboardingBanner />
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={visibleWidgets.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-6">
+            {visibleWidgets.map((w) => {
+              const content = renderWidget(w.id);
+              if (!content) return null;
+              return (
+                <SortableWidget key={w.id} id={w.id}>
+                  {content}
+                </SortableWidget>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Form Fill Dialog */}
       <Dialog open={fillOpen} onOpenChange={setFillOpen}>
@@ -508,6 +566,14 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WidgetCustomizer
+        open={customizerOpen}
+        onOpenChange={setCustomizerOpen}
+        widgets={widgets}
+        onSave={savePreferences}
+        onReset={resetToDefaults}
+      />
     </div>
   );
 };
