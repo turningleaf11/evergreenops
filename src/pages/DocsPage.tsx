@@ -149,13 +149,62 @@ export default function DocsPage() {
     createdAt: d.createdAt, updatedAt: d.updatedAt, tags: d.tags,
   }));
 
+  // Build breadcrumb path
+  const buildBreadcrumb = (docId: string): Doc[] => {
+    const trail: Doc[] = [];
+    let current = docs.find(d => d.id === docId);
+    while (current) {
+      trail.unshift(current);
+      current = current.parentId ? docs.find(d => d.id === current!.parentId) : undefined;
+    }
+    return trail;
+  };
+
+  const breadcrumb = selectedDoc ? buildBreadcrumb(selectedDoc) : [];
+
+  // Recursive tree component
+  const DocTreeItem = ({ doc, depth = 0 }: { doc: Doc; depth?: number }) => {
+    const children = docs.filter(d => d.parentId === doc.id);
+    const isSelected = selectedDoc === doc.id;
+    const [expanded, setExpanded] = useState(isSelected || children.some(c => c.id === selectedDoc));
+
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedDoc(doc.id)}
+          className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-muted transition-colors ${isSelected ? "bg-muted font-medium" : ""}`}
+          style={{ paddingLeft: `${8 + depth * 16}px` }}
+        >
+          {children.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+              className="p-0.5 hover:bg-accent rounded"
+            >
+              <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? "rotate-90" : ""}`} />
+            </button>
+          )}
+          {children.length === 0 && <span className="w-4" />}
+          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="truncate">{doc.title}</span>
+        </button>
+        {expanded && children.length > 0 && (
+          <div>
+            {children.map(child => (
+              <DocTreeItem key={child.id} doc={child} depth={depth + 1} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full">
       <div className="w-72 border-r bg-muted/30 p-4 space-y-3 shrink-0 overflow-auto">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search docs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder="Search wiki..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {isAdmin && (
             <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setNewDocOpen(true)} title="New Page">
@@ -198,32 +247,31 @@ export default function DocsPage() {
         )}
 
         <div className="space-y-0.5">
-          {rootDocs.map((doc) => {
-            const children = docs.filter((d) => d.parentId === doc.id);
-            const isSelected = selectedDoc === doc.id;
-            return (
-              <div key={doc.id}>
-                <button onClick={() => setSelectedDoc(doc.id)} className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm flex items-center gap-2 hover:bg-muted transition-colors ${isSelected ? "bg-muted font-medium" : ""}`}>
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">{doc.title}</span>
-                </button>
-                {children.length > 0 && isSelected && (
-                  <div className="ml-5 mt-0.5 space-y-0.5">
-                    {children.map((child) => (
-                      <button key={child.id} onClick={() => setSelectedDoc(child.id)} className={`w-full text-left px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 hover:bg-muted transition-colors ${selectedDoc === child.id ? "bg-muted font-medium" : "text-muted-foreground"}`}>
-                        <ChevronRight className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{child.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {rootDocs.map((doc) => (
+            <DocTreeItem key={doc.id} doc={doc} />
+          ))}
         </div>
       </div>
 
       <div className="flex-1 p-6 overflow-auto">
+        {/* Breadcrumb */}
+        {breadcrumb.length > 0 && (
+          <nav className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
+            <button onClick={() => setSelectedDoc(null)} className="hover:text-foreground transition-colors">Wiki</button>
+            {breadcrumb.map((crumb, i) => (
+              <span key={crumb.id} className="flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" />
+                <button
+                  onClick={() => setSelectedDoc(crumb.id)}
+                  className={`hover:text-foreground transition-colors ${i === breadcrumb.length - 1 ? "text-foreground font-medium" : ""}`}
+                >
+                  {crumb.title}
+                </button>
+              </span>
+            ))}
+          </nav>
+        )}
+
         {selected ? (
           <InlineDocEditor
             key={selected.id}
@@ -238,7 +286,7 @@ export default function DocsPage() {
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <div className="text-center">
               <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">Select a document to view</p>
+              <p className="text-sm">Select a page or create a new one</p>
               {isAdmin && (
                 <Button variant="outline" size="sm" className="mt-3" onClick={() => setNewDocOpen(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Create New Page

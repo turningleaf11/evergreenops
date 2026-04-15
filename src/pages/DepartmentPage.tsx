@@ -10,10 +10,11 @@ import {
   AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
   Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
   LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
-  MoreHorizontal,
+  MoreHorizontal, ChevronDown,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
 import { StrategyFeed } from "@/components/StrategyFeed";
 import { TranslationBlockComponent } from "@/components/TranslationBlock";
@@ -518,42 +519,60 @@ export default function DepartmentPage() {
             </div>
           </section>
 
-          {/* RESOURCES & PLAYBOOKS */}
+          {/* RESOURCES & PLAYBOOKS — Organized */}
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <BookOpen className="h-4 w-4" /> Resources & Playbooks
             </h2>
-            {docs.length > 0 || dbs.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {docs.slice(0, 6).map(d => (
-                  <div key={d.id} className="cursor-pointer" onClick={() => openDocPreview(d.id)}>
-                    <Card className="hover:border-primary/40 transition-colors h-full">
-                      <CardContent className="p-3 flex items-start gap-2.5">
-                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{d.title}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{d.author_name}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-                {dbs.slice(0, 6).map(d => (
-                  <Link key={d.id} to={`/databases?db=${d.id}`}>
-                    <Card className="hover:border-primary/40 transition-colors h-full">
-                      <CardContent className="p-3 flex items-start gap-2.5">
-                        <Database className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{d.title}</p>
-                          {d.description && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{d.description}</p>}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            ) : (
+
+            {docs.length === 0 && dbs.length === 0 && pinboardItems.length === 0 ? (
               <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No shared resources yet</CardContent></Card>
+            ) : (
+              <div className="space-y-2">
+                {/* Documents Category */}
+                {docs.length > 0 && (
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:rotate-[-90deg]" />
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Documents ({docs.length})</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-6 mt-1 space-y-0.5">
+                        {docs.map(d => (
+                          <button key={d.id} onClick={() => openDocPreview(d.id)} className="w-full text-left flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors group">
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-sm truncate flex-1">{d.title}</span>
+                            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">{d.author_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
+                {/* Lists Category */}
+                {dbs.length > 0 && (
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:rotate-[-90deg]" />
+                      <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lists ({dbs.length})</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-6 mt-1 space-y-0.5">
+                        {dbs.map(d => (
+                          <Link key={d.id} to={`/databases/${d.id}`} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors">
+                            <Database className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-sm truncate flex-1">{d.title}</span>
+                            {d.description && <span className="text-[10px] text-muted-foreground truncate max-w-32">{d.description}</span>}
+                          </Link>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </div>
             )}
           </section>
 

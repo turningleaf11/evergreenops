@@ -12,6 +12,7 @@ import { TrainingProgressProvider } from "@/lib/training-progress";
 import { TrainingProvider } from "@/contexts/TrainingContext";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
 import CeoDashboard from "./pages/CeoDashboard";
 import LeadershipDashboard from "./pages/LeadershipDashboard";
 import DepartmentPage from "./pages/DepartmentPage";
@@ -47,7 +48,7 @@ function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   return <Outlet />;
@@ -87,6 +88,7 @@ const App = () => (
           <Routes>
             {/* Public auth routes */}
             <Route element={<PublicRoute />}>
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
             </Route>

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, Play, Square } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 
 const Index = () => {
   const { departments } = useDepartments();
@@ -27,6 +28,11 @@ const Index = () => {
   const [fillOpen, setFillOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+  
+  // Time clock state
+  const [timeClockEnabled, setTimeClockEnabled] = useState(false);
+  const [activeClockEntry, setActiveClockEntry] = useState<any>(null);
+  const [elapsedTime, setElapsedTime] = useState("");
 
   const visibleDepartments = isAdmin
     ? departments
@@ -57,9 +63,50 @@ const Index = () => {
               .slice(0, 3);
         setRecentDocs(filtered);
       }
+      // Check time clock enabled for this user
+      if (user) {
+        const { data: p } = await supabase.from("profiles").select("time_clock_enabled").eq("user_id", user.id).single();
+        const enabled = p?.time_clock_enabled || false;
+        setTimeClockEnabled(enabled);
+        if (enabled) {
+          const { data: entries } = await supabase.from("time_entries").select("*").eq("user_id", user.id).is("clock_out", null).limit(1);
+          if (entries && entries.length > 0) setActiveClockEntry(entries[0]);
+        }
+      }
     };
     fetchAll();
   }, [isAdmin, profile, user]);
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (!activeClockEntry) { setElapsedTime(""); return; }
+    const tick = () => {
+      const mins = differenceInMinutes(new Date(), parseISO(activeClockEntry.clock_in));
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      setElapsedTime(`${h}h ${m}m`);
+    };
+    tick();
+    const interval = setInterval(tick, 60000);
+    return () => clearInterval(interval);
+  }, [activeClockEntry]);
+
+  const punchIn = async () => {
+    if (!user) return;
+    const { error } = await supabase.from("time_entries").insert({ user_id: user.id, clock_in: new Date().toISOString() });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Clocked in!");
+    const { data } = await supabase.from("time_entries").select("*").eq("user_id", user.id).is("clock_out", null).limit(1);
+    if (data && data.length > 0) setActiveClockEntry(data[0]);
+  };
+
+  const punchOut = async () => {
+    if (!activeClockEntry) return;
+    const { error } = await supabase.from("time_entries").update({ clock_out: new Date().toISOString() }).eq("id", activeClockEntry.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Clocked out!");
+    setActiveClockEntry(null);
+  };
 
   const openForm = (template: any) => {
     setActiveTemplate(template);
@@ -102,6 +149,36 @@ const Index = () => {
         </h1>
         <p className="text-base text-muted-foreground">Here's what's happening in your workspace.</p>
       </div>
+
+      {/* Time Clock Widget */}
+      {timeClockEnabled && (
+        <Card className={`border-l-4 ${activeClockEntry ? "border-l-green-500" : "border-l-amber-500"}`}>
+          <CardContent className="py-3 px-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className={`h-5 w-5 ${activeClockEntry ? "text-green-500" : "text-amber-500"}`} />
+              <div>
+                <p className="font-medium text-sm">
+                  {activeClockEntry ? `Clocked In — ${elapsedTime}` : "Don't forget to clock in"}
+                </p>
+                {activeClockEntry && (
+                  <p className="text-xs text-muted-foreground">
+                    Since {format(parseISO(activeClockEntry.clock_in), "h:mm a")}
+                  </p>
+                )}
+              </div>
+            </div>
+            {activeClockEntry ? (
+              <Button size="sm" variant="destructive" onClick={punchOut} className="gap-1.5">
+                <Square className="h-3 w-3" /> Clock Out
+              </Button>
+            ) : (
+              <Button size="sm" onClick={punchIn} className="gap-1.5">
+                <Play className="h-3 w-3" /> Clock In
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <OnboardingBanner />
 

@@ -31,6 +31,7 @@ export function AppSidebar() {
 
   const timeClockEnabled = useAddonEnabled("time-clock");
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
+  const userTimeClockEnabled = profile?.time_clock_enabled || false;
 
   // Admins see all departments; users see only their assigned department
   const departments = isAdmin
@@ -42,7 +43,7 @@ export function AppSidebar() {
     { title: "Feed", url: "/feed", icon: Megaphone },
     ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
-    { title: "Docs", url: "/docs", icon: FileText },
+    { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
@@ -50,7 +51,7 @@ export function AppSidebar() {
   ];
 
   const addonNav = [
-    ...(timeClockEnabled ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
+    ...(timeClockEnabled && (isAdmin || userTimeClockEnabled) ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
     ...(marketResearchEnabled ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
   ];
 

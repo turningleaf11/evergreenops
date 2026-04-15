@@ -12,6 +12,7 @@ import { Building2 } from "lucide-react";
 export default function SignupPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, workspace_name: workspaceName },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -86,6 +87,17 @@ export default function SignupPage() {
           </div>
 
           <form onSubmit={handleSignup} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="workspaceName">Workspace Name</Label>
+              <Input
+                id="workspaceName"
+                type="text"
+                placeholder="Acme Corp"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
