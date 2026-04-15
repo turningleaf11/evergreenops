@@ -130,7 +130,7 @@ export function AppSidebar() {
         {/* Add-Ons */}
         {addonNav.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px]">Add-Ons</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px]">Apps</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {addonNav.map((item) => (
