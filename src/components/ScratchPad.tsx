@@ -84,16 +84,16 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
   const isEmpty = plainText.trim().length < 10;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Scratch Pad</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Scratch Pad</h2>
           {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving...</span>}
         </div>
         <div className="flex items-center gap-2">
           {!isEmpty && (
             <Button variant="ghost" size="sm" onClick={handleClear} className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           )}
           <Button
@@ -104,13 +104,13 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             className="h-8 w-8"
             title="Process This"
           >
-            {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
       {loaded && (
-        <div className="min-h-[200px]">
+        <div className="min-h-[200px] rounded-xl bg-card border border-border/50 p-4">
           <RichTextEditor
             content={content}
             onChange={handleChange}
