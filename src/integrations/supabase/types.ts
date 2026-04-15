@@ -1166,31 +1166,37 @@ export type Database = {
       }
       post_replies: {
         Row: {
+          audio_url: string | null
           author_name: string | null
           content: string
           created_at: string
           entity_id: string
           entity_type: string
+          gif_url: string | null
           id: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          audio_url?: string | null
           author_name?: string | null
           content?: string
           created_at?: string
           entity_id: string
           entity_type: string
+          gif_url?: string | null
           id?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          audio_url?: string | null
           author_name?: string | null
           content?: string
           created_at?: string
           entity_id?: string
           entity_type?: string
+          gif_url?: string | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -1830,6 +1836,36 @@ export type Database = {
           title?: string
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_favorites: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          label: string
+          sort_order: number
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          url?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          url?: string
+          user_id?: string
         }
         Relationships: []
       }
