@@ -218,16 +218,13 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   if (peekMode === "center") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6"
-          data-peek-surface="center"
-        >
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold pr-8" data-peek-title="true">
+            <DialogTitle className="text-xl font-semibold pr-8">
               {item.title}
             </DialogTitle>
           </DialogHeader>
-          <div data-peek-body="true">
+          <div>
             <DetailContent
               type={type} item={item} onStatusChange={onStatusChange}
               getName={getName} onFullPage={goFullPage}
@@ -241,16 +238,13 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        className="w-full sm:max-w-xl overflow-y-auto p-6"
-        data-peek-surface="side"
-      >
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
         <SheetHeader className="space-y-3">
-          <SheetTitle className="text-xl font-semibold pr-8" data-peek-title="true">
+          <SheetTitle className="text-xl font-semibold pr-8">
             {item.title}
           </SheetTitle>
         </SheetHeader>
-        <div className="mt-6" data-peek-body="true">
+        <div className="mt-6">
           <DetailContent
             type={type} item={item} onStatusChange={onStatusChange}
             getName={getName} onFullPage={goFullPage}

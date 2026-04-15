@@ -22,7 +22,7 @@ export function Layout() {
                 <NotificationBell />
               </div>
             </header>
-            <main className="flex-1 overflow-auto" data-content="main">
+            <main className="flex-1 overflow-auto">
               <Outlet />
             </main>
           </div>
