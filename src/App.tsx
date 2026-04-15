@@ -27,9 +27,7 @@ import NotesPage from "./pages/NotesPage";
 import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
 import FormsPage from "./pages/FormsPage";
-import AnnouncementsPage from "./pages/AnnouncementsPage";
-import PollsPage from "./pages/PollsPage";
-import KudosPage from "./pages/KudosPage";
+import CompanyFeedPage from "./pages/CompanyFeedPage";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -115,9 +113,7 @@ const App = () => (
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
 
                 {/* Intranet */}
-                <Route path="/announcements" element={<AnnouncementsPage />} />
-                <Route path="/polls" element={<PollsPage />} />
-                <Route path="/kudos" element={<KudosPage />} />
+                <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms" element={<FormsPage />} />
 
                 {/* Add-Ons */}

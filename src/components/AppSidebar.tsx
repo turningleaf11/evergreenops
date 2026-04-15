@@ -50,9 +50,7 @@ export function AppSidebar() {
   ];
 
   const intranetNav = [
-    { title: "Announcements", url: "/announcements", icon: Megaphone },
-    { title: "Polls", url: "/polls", icon: BarChart3 },
-    { title: "Kudos", url: "/kudos", icon: Heart },
+    { title: "Feed", url: "/feed", icon: Megaphone },
     { title: "Forms", url: "/forms", icon: FileSpreadsheet },
   ];
 
