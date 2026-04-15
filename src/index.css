@@ -158,22 +158,32 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 60% at 10% 20%, hsl(var(--primary) / 0.28) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 70% at 85% 75%, hsl(var(--primary) / 0.22) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.18) 0%, transparent 45%),
-    radial-gradient(ellipse 40% 40% at 30% 80%, hsl(var(--primary) / 0.15) 0%, transparent 40%);
+    radial-gradient(ellipse 70% 60% at 10% 20%, hsl(var(--primary) / 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 70% at 85% 75%, hsl(var(--primary) / 0.14) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.10) 0%, transparent 45%),
+    radial-gradient(ellipse 40% 40% at 30% 80%, hsl(var(--primary) / 0.08) 0%, transparent 40%);
   background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%;
   animation: mesh-drift 20s ease-in-out infinite;
 }
 
 .dark.style-crystal body::before {
   background:
-    radial-gradient(ellipse 70% 60% at 10% 20%, hsl(var(--primary) / 0.20) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 70% at 85% 75%, hsl(250 60% 55% / 0.18) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.14) 0%, transparent 45%),
-    radial-gradient(ellipse 40% 40% at 30% 80%, hsl(280 50% 50% / 0.12) 0%, transparent 40%);
+    radial-gradient(ellipse 70% 60% at 10% 20%, hsl(var(--primary) / 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 70% at 85% 75%, hsl(250 60% 55% / 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 10%, hsl(var(--primary) / 0.08) 0%, transparent 45%),
+    radial-gradient(ellipse 40% 40% at 30% 80%, hsl(280 50% 50% / 0.06) 0%, transparent 40%);
   background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%;
   animation: mesh-drift 20s ease-in-out infinite;
+}
+
+/* Main content frosted pane */
+.style-crystal [data-content="main"] {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+}
+.dark.style-crystal [data-content="main"] {
+  background: rgba(10, 10, 20, 0.6) !important;
 }
 
 /* Cards */
@@ -264,4 +274,26 @@
 .dark.style-crystal [role="combobox"] {
   background: rgba(255, 255, 255, 0.04) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Row / group glass overrides */
+.style-crystal [class*="bg-muted/20"],
+.style-crystal [class*="bg-muted\\/20"] {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.dark.style-crystal [class*="bg-muted/20"],
+.dark.style-crystal [class*="bg-muted\\/20"] {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.style-crystal [class*="bg-muted/30"],
+.style-crystal [class*="bg-muted\\/30"] {
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.dark.style-crystal [class*="bg-muted/30"],
+.dark.style-crystal [class*="bg-muted\\/30"] {
+  background: rgba(255, 255, 255, 0.05) !important;
 }
