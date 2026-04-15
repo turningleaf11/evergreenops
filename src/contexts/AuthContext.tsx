@@ -10,6 +10,7 @@ interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   department_id: string | null;
+  time_clock_enabled: boolean;
 }
 
 interface AuthContextType {
