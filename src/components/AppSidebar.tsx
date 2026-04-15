@@ -42,7 +42,7 @@ export function AppSidebar() {
     { title: "Feed", url: "/feed", icon: Megaphone },
     ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
-    { title: "Docs", url: "/docs", icon: FileText },
+    { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
     { title: "People", url: "/people", icon: Users },
