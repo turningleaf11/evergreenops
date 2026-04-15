@@ -532,9 +532,8 @@ export default function ExecutionPage() {
                               <CardTitle className="text-base">{goal.title}</CardTitle>
                               <p className="text-xs text-muted-foreground mt-1">{getName(goal.owner_id)}</p>
                             </div>
-                            <StatusBadge status={goal.status} />
                             <Select value={goal.status} onValueChange={v => updateStatus("goals", goal.id, v)}>
-                              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className={`w-32 h-8 text-xs rounded-full border-0 ${statusConfig[goal.status]?.color || ''}`}><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {["on_track","behind","at_risk","done","not_done"].map(s => (
                                   <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
