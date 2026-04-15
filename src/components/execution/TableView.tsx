@@ -178,9 +178,9 @@ export default function TableView({
                           </p>
                           {(goalTitle || projectTitle) && (
                             <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                              {goalTitle && `🎯 ${goalTitle}`}
-                              {goalTitle && projectTitle && " · "}
-                              {projectTitle && `📁 ${projectTitle}`}
+                              {goalTitle}
+                              {goalTitle && projectTitle && <span className="mx-1 opacity-50">›</span>}
+                              {projectTitle}
                             </p>
                           )}
                         </div>

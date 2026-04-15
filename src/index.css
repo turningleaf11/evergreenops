@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 40 20% 98%;
+    --background: 36 25% 97%;
     --foreground: 220 20% 10%;
 
     --card: 0 0% 100%;
@@ -34,7 +34,7 @@
     --input: 220 10% 93%;
     --ring: 220 65% 48%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
     --sidebar-background: 220 14% 96%;
     --sidebar-foreground: 220 15% 25%;
@@ -122,5 +122,9 @@
 @layer utilities {
   .glass-panel {
     @apply backdrop-blur-xl bg-background/80 border-border/50;
+  }
+
+  .shadow-card {
+    box-shadow: 0 1px 3px 0 hsl(30 10% 40% / 0.06), 0 1px 2px -1px hsl(30 10% 40% / 0.06);
   }
 }

@@ -46,12 +46,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+        <div className="flex items-center gap-3">
           {logoUrl ? (
-            <img src={logoUrl} alt={workspaceName} className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+            <img src={logoUrl} alt={workspaceName} className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm" />
           ) : (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-sm">
               {workspaceName.charAt(0).toUpperCase()}
             </div>
           )}

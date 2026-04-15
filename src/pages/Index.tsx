@@ -48,6 +48,13 @@ const Index = () => {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
+        </h1>
+        <p className="text-sm text-muted-foreground">Here's what's happening in your workspace.</p>
+      </div>
+
       <OnboardingBanner />
 
       {announcements.length > 0 && (
