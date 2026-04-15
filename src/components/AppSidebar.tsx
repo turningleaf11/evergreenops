@@ -71,7 +71,7 @@ export function AppSidebar() {
               {mainNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent rounded-lg transition-colors" activeClassName="bg-sidebar-accent text-primary font-medium nav-active-indicator">
+                    <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
@@ -101,7 +101,7 @@ export function AppSidebar() {
                     return (
                       <SidebarMenuItem key={dept.id}>
                         <SidebarMenuButton asChild>
-                          <NavLink to={`/department/${dept.id}`} className="hover:bg-sidebar-accent rounded-lg transition-colors" activeClassName="bg-sidebar-accent text-primary font-medium nav-active-indicator">
+                          <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
                             <Icon className="h-4 w-4" />
                             {!collapsed && <span>{dept.name}</span>}
                           </NavLink>

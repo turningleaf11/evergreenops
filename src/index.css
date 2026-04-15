@@ -178,20 +178,3 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* ── Active nav indicator ── */
-
-.nav-active-indicator {
-  position: relative;
-}
-
-.nav-active-indicator::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2.5px;
-  height: 50%;
-  border-radius: 0 2px 2px 0;
-  background: hsl(var(--sidebar-primary));
-}
