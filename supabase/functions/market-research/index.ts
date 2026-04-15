@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { market, strategy, recordId } = await req.json();
+    const { market, strategy, customCriteria, recordId } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -18,9 +18,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const prompt = `You are a real estate market analyst. Analyze the following market for a "${strategy.replace(/_/g, " ")}" investment strategy.
+    let prompt = `You are a real estate market analyst. Analyze the following market for a "${strategy.replace(/_/g, " ")}" investment strategy.
 
-Market: ${market}
+Market: ${market}`;
+
+    if (customCriteria) {
+      prompt += `
+
+The investor has provided these specific criteria and strategy details:
+${customCriteria}
+
+Factor these criteria into your analysis and recommendation.`;
+    }
+
+    prompt += `
 
 Provide a comprehensive analysis covering:
 1. Market summary (population, growth trends, economic outlook)
@@ -31,6 +42,7 @@ Provide a comprehensive analysis covering:
 6. Rental demand and investor activity
 7. Your recommendation on whether this market is good for the specified strategy
 8. Risks and considerations
+9. Sources: List the types of data sources and methodology you used (e.g., Census data, BLS employment statistics, local MLS trends, etc.)
 
 Be specific with data points where possible. If you don't have exact current data, provide your best assessment based on known trends.`;
 
@@ -69,8 +81,9 @@ Be specific with data points where possible. If you don't have exact current dat
                 recommendation: { type: "string", description: "Strategy-specific recommendation" },
                 risks: { type: "string", description: "Key risks and considerations" },
                 score: { type: "number", description: "Market score 1-10 for this strategy" },
+                sources_note: { type: "string", description: "List the data sources and methodology used for this analysis (e.g., U.S. Census Bureau, BLS, Zillow/Redfin trends, local MLS data, etc.)" },
               },
-              required: ["summary", "key_metrics", "industries", "recommendation", "risks", "score"],
+              required: ["summary", "key_metrics", "industries", "recommendation", "risks", "score", "sources_note"],
             },
           },
         }],
@@ -106,7 +119,6 @@ Be specific with data points where possible. If you don't have exact current dat
       analysis = { summary: aiResult.choices?.[0]?.message?.content || "Analysis unavailable" };
     }
 
-    // Update the record
     await supabase.from("market_research").update({
       ai_analysis: analysis,
       status: "complete",
