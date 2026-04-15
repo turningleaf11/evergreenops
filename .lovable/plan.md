@@ -1,43 +1,96 @@
 
 
-# Wiki Inline Creation, Larger Uploads, Giphy Search
+# Home Page Widgets + Feed Enhancements + Giphy Fix
 
-## 1. Wiki: Inline Creation (No Popup)
+## Overview
+Add three new home page widgets (My Tasks, Quick Links, Feed Preview), fix Giphy search by switching to Tenor API, and enhance replies with collapsing, reactions, GIFs, and voice recording.
 
-Currently, clicking "New Page" opens a `DocEditor` dialog. Instead:
+---
 
-- Remove the `DocEditor` dialog import and usage from `DocsPage.tsx`
-- When user clicks "+ New Page", instantly create a blank document in the database (title: "Untitled", empty content) and select it
-- The existing `InlineDocEditor` component handles all editing inline — title, content, tags, visibility, parent page
-- Add a parent-page selector as a small dropdown inside `InlineDocEditor` (currently missing — only set via the dialog)
+## 1. Fix GIF Search — Switch to Tenor API
 
-**Files**: `src/pages/DocsPage.tsx` (remove dialog, add instant-create logic, add parent picker to InlineDocEditor)
+The Giphy public beta key is deprecated. Replace with Tenor's free API (no key required for limited use, or use Google's default Tenor key `AIzaSyAkxEIFw...` which is publicly documented).
 
-## 2. Feed: Increase Image Upload Limit
+**File**: `src/components/feed/GiphyPicker.tsx`
+- Replace Giphy API calls with Tenor v2 endpoints (`https://tenor.googleapis.com/v2/search` and `/featured`)
+- Use the publicly available Tenor API key
+- Update response mapping (Tenor uses `results[].media_formats.tinygif.url` and `results[].media_formats.gif.url`)
+- Rename component display text to "Powered by Tenor"
 
-Current hard limit is 5MB in `FeedComposer.tsx` line 53. The storage bucket itself has no such restriction.
+---
 
-- Raise the client-side limit from 5MB to 50MB in `FeedComposer.tsx`
-- Update the toast message accordingly
+## 2. Collapsible Replies + Reactions + GIFs + Voice on Replies
 
-**File**: `src/components/feed/FeedComposer.tsx`
+**File**: `src/components/feed/ReplyThread.tsx`
+- Replies already collapse (toggle exists). Enhance: show collapsed state as "View N replies" with first reply preview, like social media
+- Add `<ReactionBar>` under each reply (reusing existing component with `entityType="reply"`)
+- Add GIF picker (reusing `GiphyPicker`) to the reply compose area
+- Add voice recording button using `MediaRecorder` API: record → upload to storage bucket → store URL
 
-## 3. Feed: Giphy Search (Replace Paste-URL)
+**Database Migration**: Add `gif_url` and `audio_url` (text, nullable) columns to `post_replies` table.
 
-Replace the current "paste GIF URL" input with a searchable Giphy picker. The Giphy API has a free tier that doesn't require an API key (using the public beta key `dc6zaTOxFJmzC` or we can use Tenor's free API). Approach:
+**File**: `src/components/feed/ReplyThread.tsx`
+- Show GIF and audio player in each reply
+- Audio player: minimal `<audio>` element with controls
+- Voice recorder: mic button → recording indicator → stop → auto-upload → attach to reply
 
-- Add a `GiphyPicker` component: a popover with a search input that queries the Giphy API and displays a grid of results
-- User clicks a GIF → sets `gifUrl` on the post
-- Need a Giphy API key. Will use the Giphy public beta key for development, and add a secret for production use
-- Replace the `LinkIcon + GIF` button with a proper GIF icon button that opens the picker popover
+---
 
-**Files**: New `src/components/feed/GiphyPicker.tsx`, edit `src/components/feed/FeedComposer.tsx`
+## 3. Home Page: My Tasks Widget
+
+**File**: `src/pages/Index.tsx`
+- New widget card: "My Tasks" showing up to 5 tasks assigned to the current user, sorted by due date
+- Each row: status dot, title (truncated), due date badge
+- Click navigates to task detail
+- "View all" link to `/execution`
+- Query: `tasks` where `assigned_to = user.id` and `status != 'done'`, ordered by `due_date asc`, limit 5
+
+---
+
+## 4. Home Page: Quick Links (Favorites)
+
+**Database Migration**: Create `user_favorites` table:
+- `id` (uuid, PK), `user_id` (uuid, not null), `label` (text), `url` (text), `icon` (text, default 'Link'), `sort_order` (int), `created_at`
+- RLS: users can CRUD their own rows only
+
+**File**: `src/pages/Index.tsx`
+- New widget card: "Quick Links" with user's pinned shortcuts
+- Each link: icon + label, clickable
+- Small "+ Add" button to add new link (inline input for label + URL)
+- Delete on hover (X button)
+
+---
+
+## 5. Home Page: Feed Preview
+
+**File**: `src/pages/Index.tsx`
+- New widget card: "Feed" showing the 3 most recent feed items (posts, announcements, kudos)
+- Compact rendering: avatar, name, truncated content, timestamp
+- "View all" link to `/feed`
+- Query: fetch latest 3 posts from `posts` table
+
+---
+
+## 6. Home Page Layout Reorganization
+
+Current bottom grid: Reminders | Recent Docs | Activity Feed (3-col)
+
+New layout:
+```text
+Row 1: [My Tasks (2-col)] [Quick Links (1-col)]
+Row 2: [Feed Preview (2-col)] [Reminders (1-col)]
+Row 3: [Recent Docs (1-col)] [Activity Feed (2-col)]
+```
+
+---
 
 ## Technical Details
 
 | Action | File |
 |--------|------|
-| Edit | `src/pages/DocsPage.tsx` — Remove DocEditor dialog, instant-create, add parent picker inline |
-| Edit | `src/components/feed/FeedComposer.tsx` — 50MB limit, integrate GiphyPicker |
-| New | `src/components/feed/GiphyPicker.tsx` — Searchable Giphy popover |
+| Edit | `src/components/feed/GiphyPicker.tsx` — Switch to Tenor API |
+| Edit | `src/components/feed/ReplyThread.tsx` — Collapsible social-style, reactions, GIF, voice |
+| Edit | `src/pages/Index.tsx` — Add My Tasks, Quick Links, Feed Preview widgets |
+| Migration | Add `gif_url`, `audio_url` to `post_replies` |
+| Migration | Create `user_favorites` table with user-scoped RLS |
 
