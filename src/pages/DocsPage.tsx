@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import DocEditor from "@/components/DocEditor";
 import RichTextEditor from "@/components/RichTextEditor";
 import AccessPicker from "@/components/AccessPicker";
 
@@ -51,7 +50,6 @@ export default function DocsPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
-  const [newDocOpen, setNewDocOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -101,16 +99,16 @@ export default function DocsPage() {
   const selected = docs.find((d) => d.id === selectedDoc);
   const childDocs = selectedDoc ? docs.filter((d) => d.parentId === selectedDoc) : [];
 
-  const handleCreateDoc = async (data: { title: string; content: string; tags: string[]; parentId: string | null; visibility: Visibility; sharedWith: SharedWith }) => {
+  const handleCreateDoc = async () => {
     const { data: newRow } = await supabase
       .from("documents")
       .insert({
-        title: data.title,
-        content: data.content,
-        tags: data.tags,
-        parent_id: data.parentId,
-        visibility: data.visibility,
-        shared_with: data.sharedWith as any,
+        title: "Untitled",
+        content: "",
+        tags: [],
+        parent_id: null,
+        visibility: "workspace",
+        shared_with: { departmentIds: [], memberIds: [] },
         author_id: user?.id || null,
         author_name: profile?.full_name || "Unknown",
       })
@@ -121,7 +119,6 @@ export default function DocsPage() {
       setDocs((prev) => [...prev, mapRow(newRow)]);
       setSelectedDoc(newRow.id);
     }
-    setNewDocOpen(false);
   };
 
   const handleDeleteDoc = async (docId: string) => {
@@ -138,16 +135,11 @@ export default function DocsPage() {
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
     if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
     if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
+    if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
     await supabase.from("documents").update(dbUpdates).eq("id", docId);
   }, []);
 
   if (loading) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading docs...</div>;
-
-  const allDocsForEditor = docs.map((d) => ({
-    id: d.id, title: d.title, content: d.content, parentId: d.parentId,
-    visibility: d.visibility, sharedWith: d.sharedWith, author: d.author,
-    createdAt: d.createdAt, updatedAt: d.updatedAt, tags: d.tags,
-  }));
 
   // Build breadcrumb path
   const buildBreadcrumb = (docId: string): Doc[] => {
@@ -207,7 +199,7 @@ export default function DocsPage() {
             <Input placeholder="Search wiki..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {isAdmin && (
-            <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setNewDocOpen(true)} title="New Page">
+            <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={handleCreateDoc} title="New Page">
               <Plus className="h-4 w-4" />
             </Button>
           )}
@@ -276,6 +268,7 @@ export default function DocsPage() {
           <InlineDocEditor
             key={selected.id}
             doc={selected}
+            allDocs={docs}
             isAdmin={isAdmin}
             onUpdate={(updates) => handleInlineUpdate(selected.id, updates)}
             onDelete={() => handleDeleteDoc(selected.id)}
@@ -288,7 +281,7 @@ export default function DocsPage() {
               <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="text-sm">Select a page or create a new one</p>
               {isAdmin && (
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => setNewDocOpen(true)}>
+                <Button variant="outline" size="sm" className="mt-3" onClick={handleCreateDoc}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Create New Page
                 </Button>
               )}
@@ -297,13 +290,12 @@ export default function DocsPage() {
         )}
       </div>
 
-      <DocEditor open={newDocOpen} onClose={() => setNewDocOpen(false)} onSave={handleCreateDoc} doc={null} allDocs={allDocsForEditor} />
     </div>
   );
 }
 
-function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelectChild }: {
-  doc: Doc; isAdmin: boolean; onUpdate: (updates: Partial<Doc>) => void; onDelete: () => void; childDocs: Doc[]; onSelectChild: (id: string) => void;
+function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs, onSelectChild }: {
+  doc: Doc; allDocs: Doc[]; isAdmin: boolean; onUpdate: (updates: Partial<Doc>) => void; onDelete: () => void; childDocs: Doc[]; onSelectChild: (id: string) => void;
 }) {
   const [title, setTitle] = useState(doc.title);
   const [content, setContent] = useState(doc.content);
@@ -311,10 +303,13 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
   const [tagInput, setTagInput] = useState("");
   const [visibility, setVisibility] = useState<Visibility>(doc.visibility);
   const [sharedWith, setSharedWith] = useState<SharedWith>(doc.sharedWith);
+  const [parentId, setParentId] = useState<string | null>(doc.parentId);
   const [accessOpen, setAccessOpen] = useState(false);
+
+  const possibleParents = allDocs.filter(d => d.id !== doc.id && d.parentId !== doc.id);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTags(doc.tags); setTagInput(""); setVisibility(doc.visibility); setSharedWith(doc.sharedWith); }, [doc.id]);
+  useEffect(() => { setTitle(doc.title); setContent(doc.content); setTags(doc.tags); setTagInput(""); setVisibility(doc.visibility); setSharedWith(doc.sharedWith); setParentId(doc.parentId); }, [doc.id]);
 
   const scheduleAutoSave = useCallback((updates: Partial<Doc>) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -362,7 +357,7 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
           <span>{doc.author}</span><span>·</span><span>Updated {doc.updatedAt}</span>
           <span>·</span>
           {isAdmin ? (
@@ -372,6 +367,22 @@ function InlineDocEditor({ doc, isAdmin, onUpdate, onDelete, childDocs, onSelect
             </button>
           ) : (
             <span className="capitalize">{visibility}</span>
+          )}
+          {isAdmin && (
+            <>
+              <span>·</span>
+              <Select value={parentId || "none"} onValueChange={(v) => { const newParent = v === "none" ? null : v; setParentId(newParent); onUpdate({ parentId: newParent }); }}>
+                <SelectTrigger className="h-6 w-auto gap-1 border-none shadow-none px-1 text-xs text-muted-foreground hover:text-foreground">
+                  <SelectValue placeholder="No parent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No parent (root)</SelectItem>
+                  {possibleParents.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           )}
         </div>
 
