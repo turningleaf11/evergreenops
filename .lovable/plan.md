@@ -1,96 +1,81 @@
 
 
-# Home Page Widgets + Feed Enhancements + Giphy Fix
+# Customizable Home Page Widgets + Rich Feed Preview
 
 ## Overview
-Add three new home page widgets (My Tasks, Quick Links, Feed Preview), fix Giphy search by switching to Tenor API, and enhance replies with collapsing, reactions, GIFs, and voice recording.
+Transform the home page into a fully customizable "launchpad" with drag-and-drop widget arrangement, user preferences, and admin-controlled defaults. Upgrade the feed preview from basic text to a polished card carousel.
 
 ---
 
-## 1. Fix GIF Search — Switch to Tenor API
+## 1. Widget Configuration System
 
-The Giphy public beta key is deprecated. Replace with Tenor's free API (no key required for limited use, or use Google's default Tenor key `AIzaSyAkxEIFw...` which is publicly documented).
+**Database Migration**: Create `widget_preferences` table:
+- `id` (uuid, PK), `user_id` (uuid), `widget_id` (text), `visible` (boolean, default true), `sort_order` (int), `column` (int, 0 or 1), `created_at`
+- RLS: users CRUD their own rows
 
-**File**: `src/components/feed/GiphyPicker.tsx`
-- Replace Giphy API calls with Tenor v2 endpoints (`https://tenor.googleapis.com/v2/search` and `/featured`)
-- Use the publicly available Tenor API key
-- Update response mapping (Tenor uses `results[].media_formats.tinygif.url` and `results[].media_formats.gif.url`)
-- Rename component display text to "Powered by Tenor"
+**Database Migration**: Create `widget_defaults` table (admin-managed):
+- `id` (uuid, PK), `widget_id` (text, unique), `visible` (boolean, default true), `sort_order` (int), `column` (int)
+- RLS: all authenticated can read, only admins can write (via `has_role` or profile role check)
 
----
-
-## 2. Collapsible Replies + Reactions + GIFs + Voice on Replies
-
-**File**: `src/components/feed/ReplyThread.tsx`
-- Replies already collapse (toggle exists). Enhance: show collapsed state as "View N replies" with first reply preview, like social media
-- Add `<ReactionBar>` under each reply (reusing existing component with `entityType="reply"`)
-- Add GIF picker (reusing `GiphyPicker`) to the reply compose area
-- Add voice recording button using `MediaRecorder` API: record → upload to storage bucket → store URL
-
-**Database Migration**: Add `gif_url` and `audio_url` (text, nullable) columns to `post_replies` table.
-
-**File**: `src/components/feed/ReplyThread.tsx`
-- Show GIF and audio player in each reply
-- Audio player: minimal `<audio>` element with controls
-- Voice recorder: mic button → recording indicator → stop → auto-upload → attach to reply
-
----
-
-## 3. Home Page: My Tasks Widget
-
-**File**: `src/pages/Index.tsx`
-- New widget card: "My Tasks" showing up to 5 tasks assigned to the current user, sorted by due date
-- Each row: status dot, title (truncated), due date badge
-- Click navigates to task detail
-- "View all" link to `/execution`
-- Query: `tasks` where `assigned_to = user.id` and `status != 'done'`, ordered by `due_date asc`, limit 5
-
----
-
-## 4. Home Page: Quick Links (Favorites)
-
-**Database Migration**: Create `user_favorites` table:
-- `id` (uuid, PK), `user_id` (uuid, not null), `label` (text), `url` (text), `icon` (text, default 'Link'), `sort_order` (int), `created_at`
-- RLS: users can CRUD their own rows only
-
-**File**: `src/pages/Index.tsx`
-- New widget card: "Quick Links" with user's pinned shortcuts
-- Each link: icon + label, clickable
-- Small "+ Add" button to add new link (inline input for label + URL)
-- Delete on hover (X button)
-
----
-
-## 5. Home Page: Feed Preview
-
-**File**: `src/pages/Index.tsx`
-- New widget card: "Feed" showing the 3 most recent feed items (posts, announcements, kudos)
-- Compact rendering: avatar, name, truncated content, timestamp
-- "View all" link to `/feed`
-- Query: fetch latest 3 posts from `posts` table
-
----
-
-## 6. Home Page Layout Reorganization
-
-Current bottom grid: Reminders | Recent Docs | Activity Feed (3-col)
-
-New layout:
-```text
-Row 1: [My Tasks (2-col)] [Quick Links (1-col)]
-Row 2: [Feed Preview (2-col)] [Reminders (1-col)]
-Row 3: [Recent Docs (1-col)] [Activity Feed (2-col)]
+**Widget registry** (constant in code):
 ```
+time_clock, announcements, departments, forms,
+my_tasks, quick_links, feed_preview, reminders,
+recent_docs, activity_feed
+```
+
+**Logic**: On load, check if user has `widget_preferences` rows. If not, fall back to `widget_defaults`. If no defaults, use hardcoded order. Users can toggle widgets on/off and reorder via drag-and-drop.
+
+---
+
+## 2. Drag-and-Drop Arrangement
+
+Use `@dnd-kit/core` + `@dnd-kit/sortable` for reordering widgets within a single-column sortable list (simpler than 2-column grid DnD, more reliable). Each widget becomes a draggable card with a subtle grip handle visible on hover.
+
+A small "Customize" button (gear icon) in the page header opens a panel/sheet where users can:
+- Toggle widgets on/off with switches
+- Reorder via drag handles
+- "Reset to defaults" button
+
+Changes auto-save to `widget_preferences`.
+
+---
+
+## 3. Admin Default Configuration
+
+In Settings page, add a "Home Page Widgets" section (admin only):
+- Same toggle + reorder UI as the user customization panel
+- Saves to `widget_defaults` table
+- New users (no preferences yet) inherit these defaults
+
+---
+
+## 4. Rich Feed Preview — Card Carousel
+
+Replace the basic text list with a horizontal scrollable card strip:
+- Each card: author avatar, name, timestamp, first ~120 chars of content, image/GIF thumbnail if present
+- Cards are ~280px wide, scroll horizontally with snap points
+- Subtle left/right arrow buttons for navigation
+- Click any card → navigates to `/feed`
+- Fetch more fields: `image_url`, `gif_url`, `type` to show richer previews
+- "View all →" link persists above the carousel
+
+---
+
+## 5. Time Clock Fix
+
+The current code already renders a card widget (not a banner). Will verify it renders correctly and ensure the `OnboardingBanner` component (which may be what you're seeing) is not confused with the time clock. Will also confirm `time_clock_enabled` is `true` on your profile.
 
 ---
 
 ## Technical Details
 
-| Action | File |
-|--------|------|
-| Edit | `src/components/feed/GiphyPicker.tsx` — Switch to Tenor API |
-| Edit | `src/components/feed/ReplyThread.tsx` — Collapsible social-style, reactions, GIF, voice |
-| Edit | `src/pages/Index.tsx` — Add My Tasks, Quick Links, Feed Preview widgets |
-| Migration | Add `gif_url`, `audio_url` to `post_replies` |
-| Migration | Create `user_favorites` table with user-scoped RLS |
+| Action | Detail |
+|--------|--------|
+| Install | `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` |
+| Migration | Create `widget_preferences` + `widget_defaults` tables with RLS |
+| New | `src/components/home/WidgetCustomizer.tsx` — toggle/reorder sheet |
+| New | `src/components/home/FeedCarousel.tsx` — horizontal card carousel |
+| Refactor | `src/pages/Index.tsx` — Extract each section into named widget components, render dynamically based on preferences |
+| Edit | `src/pages/SettingsPage.tsx` — Add admin widget defaults section |
 
