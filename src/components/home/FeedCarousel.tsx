@@ -1,26 +1,56 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
-import { ArrowRight, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, MessageSquare, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { useRef } from "react";
 
 export function FeedCarousel() {
   const [posts, setPosts] = useState<any[]>([]);
+  const [replyCounts, setReplyCounts] = useState<Record<string, number>>({});
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase
-      .from("posts")
-      .select("id, author_name, content, image_url, gif_url, created_at")
-      .order("created_at", { ascending: false })
-      .limit(8)
-      .then(({ data }) => {
-        if (data) setPosts(data);
-      });
+    const load = async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("id, author_name, content, image_url, gif_url, created_at")
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (data) {
+        setPosts(data);
+        // Fetch reply and reaction counts
+        const ids = data.map((p) => p.id);
+        if (ids.length > 0) {
+          const [repliesRes, reactionsRes] = await Promise.all([
+            supabase
+              .from("post_replies")
+              .select("entity_id")
+              .eq("entity_type", "post")
+              .in("entity_id", ids),
+            supabase
+              .from("post_reactions")
+              .select("entity_id")
+              .eq("entity_type", "post")
+              .in("entity_id", ids),
+          ]);
+          const rc: Record<string, number> = {};
+          (repliesRes.data || []).forEach((r: any) => {
+            rc[r.entity_id] = (rc[r.entity_id] || 0) + 1;
+          });
+          setReplyCounts(rc);
+          const rxc: Record<string, number> = {};
+          (reactionsRes.data || []).forEach((r: any) => {
+            rxc[r.entity_id] = (rxc[r.entity_id] || 0) + 1;
+          });
+          setReactionCounts(rxc);
+        }
+      }
+    };
+    load();
   }, []);
 
   const scroll = (direction: "left" | "right") => {
@@ -59,14 +89,16 @@ export function FeedCarousel() {
           {posts.map((post) => {
             const initials = (post.author_name || "U").split(" ").map((n: string) => n[0]).join("");
             const media = post.image_url || post.gif_url;
+            const replies = replyCounts[post.id] || 0;
+            const reactions = reactionCounts[post.id] || 0;
             return (
               <Link
                 to="/feed"
                 key={post.id}
-                className="snap-start shrink-0 w-[260px] rounded-xl border bg-card hover:border-primary/30 transition-colors overflow-hidden group"
+                className="snap-start shrink-0 w-[280px] rounded-xl border bg-card hover:border-primary/30 transition-colors overflow-hidden group"
               >
                 {media && (
-                  <div className="h-28 overflow-hidden">
+                  <div className="h-32 overflow-hidden">
                     <img
                       src={media}
                       alt=""
@@ -86,9 +118,23 @@ export function FeedCarousel() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-foreground/80 line-clamp-3 leading-relaxed">
-                    {post.content || "Shared a post"}
+                  <p className="text-xs text-foreground/80 line-clamp-4 leading-relaxed">
+                    {post.content?.substring(0, 150) || "Shared a post"}
                   </p>
+                  {(replies > 0 || reactions > 0) && (
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                      {reactions > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <Heart className="h-3 w-3" /> {reactions}
+                        </span>
+                      )}
+                      {replies > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <MessageSquare className="h-3 w-3" /> {replies}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Link>
             );
