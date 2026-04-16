@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye } from "lucide-react";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -15,11 +15,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 import { WidgetCustomizer } from "@/components/home/WidgetCustomizer";
-import { FeedCarousel } from "@/components/home/FeedCarousel";
+import { FeedPreview } from "@/components/home/FeedPreview";
+import { FeedComposer } from "@/components/feed/FeedComposer";
 import { useWidgetPreferences } from "@/hooks/useWidgetPreferences";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   closestCenter,
@@ -28,7 +32,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -38,7 +41,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, CalendarIcon } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   todo: "bg-muted-foreground",
@@ -46,6 +49,12 @@ const statusColors: Record<string, string> = {
   done: "bg-green-500",
   blocked: "bg-red-500",
 };
+
+const priorityOptions = [
+  { value: "high", label: "High", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  { value: "medium", label: "Med", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  { value: "low", label: "Low", className: "bg-muted text-muted-foreground border-border" },
+];
 
 function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -62,7 +71,7 @@ function SortableWidget({ id, children }: { id: string; children: React.ReactNod
         {...listeners}
         className="absolute -left-2 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing bg-card border rounded-md p-0.5 shadow-sm"
       >
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/70" />
       </button>
       {children}
     </div>
@@ -77,6 +86,9 @@ const Index = () => {
   const [customizerOpen, setCustomizerOpen] = useState(false);
 
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [ackCounts, setAckCounts] = useState<Record<string, number>>({});
+  const [myAcks, setMyAcks] = useState<Set<string>>(new Set());
+  const [totalMembers, setTotalMembers] = useState(0);
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
   const [formTemplates, setFormTemplates] = useState<any[]>([]);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
@@ -90,21 +102,62 @@ const Index = () => {
   const [favLabel, setFavLabel] = useState("");
   const [favUrl, setFavUrl] = useState("");
 
+  // New Task dialog state
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDesc, setTaskDesc] = useState("");
+  const [taskShowDesc, setTaskShowDesc] = useState(false);
+  const [taskPriority, setTaskPriority] = useState("medium");
+  const [taskAssignee, setTaskAssignee] = useState("");
+  const [taskAssigneeOpen, setTaskAssigneeOpen] = useState(false);
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+
+  // Post dialog state
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
+  const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
+
   const visibleDepartments = isAdmin
     ? departments
     : departments.filter((d) => d.id === profile?.department_id);
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [annRes, docRes, formRes, subRes] = await Promise.all([
-        supabase.from("announcements").select("*").eq("pinned", true).limit(5),
+      const [annRes, docRes, formRes, subRes, profilesRes, memberCountRes] = await Promise.all([
+        supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5),
         supabase.from("documents").select("id, title, author_name, updated_at, tags, visibility, shared_with").order("updated_at", { ascending: false }).limit(20),
         supabase.from("form_templates").select("*").eq("is_active", true).order("name"),
         user ? supabase.from("form_submissions").select("*").eq("submitted_by", user.id).order("created_at", { ascending: false }).limit(5) : Promise.resolve({ data: [] }),
+        supabase.from("profiles").select("user_id, full_name"),
+        supabase.from("profiles").select("user_id", { count: "exact", head: true }),
       ]);
-      if (annRes.data) setAnnouncements(annRes.data);
+      if (annRes.data) {
+        setAnnouncements(annRes.data);
+        // Fetch acknowledgment counts
+        const annIds = annRes.data.map((a: any) => a.id);
+        if (annIds.length > 0) {
+          const { data: acks } = await supabase
+            .from("announcement_acknowledgments")
+            .select("announcement_id, user_id")
+            .in("announcement_id", annIds);
+          if (acks) {
+            const counts: Record<string, number> = {};
+            const mine = new Set<string>();
+            acks.forEach((a: any) => {
+              counts[a.announcement_id] = (counts[a.announcement_id] || 0) + 1;
+              if (a.user_id === user?.id) mine.add(a.announcement_id);
+            });
+            setAckCounts(counts);
+            setMyAcks(mine);
+          }
+        }
+      }
+      if (memberCountRes.count) setTotalMembers(memberCountRes.count);
       if (formRes.data) setFormTemplates(formRes.data);
       if (subRes.data) setMySubmissions(subRes.data as any[]);
+      if (profilesRes.data) {
+        setProfiles(profilesRes.data);
+        setPeople(profilesRes.data.filter((p) => p.user_id !== user?.id));
+      }
       if (docRes.data) {
         const filtered = isAdmin
           ? docRes.data.slice(0, 3)
@@ -142,6 +195,27 @@ const Index = () => {
     };
     fetchAll();
   }, [isAdmin, profile, user]);
+
+  const acknowledgeAnnouncement = async (annId: string) => {
+    if (!user || myAcks.has(annId)) return;
+    await supabase.from("announcement_acknowledgments").insert({
+      announcement_id: annId,
+      user_id: user.id,
+    } as any);
+    setMyAcks((prev) => new Set([...prev, annId]));
+    setAckCounts((prev) => ({ ...prev, [annId]: (prev[annId] || 0) + 1 }));
+  };
+
+  // Auto-acknowledge announcements after 3 seconds of being visible
+  useEffect(() => {
+    if (!user || announcements.length === 0) return;
+    const timers = announcements
+      .filter((a) => !myAcks.has(a.id))
+      .map((a) =>
+        setTimeout(() => acknowledgeAnnouncement(a.id), 3000)
+      );
+    return () => timers.forEach(clearTimeout);
+  }, [announcements, myAcks, user]);
 
   const openForm = (template: any) => {
     setActiveTemplate(template);
@@ -188,6 +262,43 @@ const Index = () => {
     setFavorites(favorites.filter((f) => f.id !== id));
   };
 
+  // Task dialog
+  const resetTaskDialog = () => {
+    setTaskDialogOpen(false);
+    setTaskTitle("");
+    setTaskDesc("");
+    setTaskShowDesc(false);
+    setTaskPriority("medium");
+    setTaskAssignee("");
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskTitle.trim() || !user) return;
+    const { error } = await supabase.from("tasks").insert({
+      title: taskTitle.trim(),
+      description: taskDesc,
+      priority: taskPriority,
+      created_by: user.id,
+      assigned_to: taskAssignee || user.id,
+    });
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Task created");
+      resetTaskDialog();
+      // Refresh tasks
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("id, title, status, due_date, priority")
+        .eq("assigned_to", user.id)
+        .neq("status", "done")
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(8);
+      if (tasks) setMyTasks(tasks);
+    }
+  };
+
+  const taskAssigneeName = profiles.find(p => p.user_id === taskAssignee)?.full_name;
+
   const statusIcon: Record<string, React.ReactNode> = {
     pending: <Clock className="h-3.5 w-3.5 text-amber-500" />,
     approved: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
@@ -205,7 +316,6 @@ const Index = () => {
     const oldIdx = widgets.findIndex((w) => w.id === active.id);
     const newIdx = widgets.findIndex((w) => w.id === over.id);
     if (oldIdx === -1 || newIdx === -1) return;
-    // If dragged to a widget in a different column, update the column too
     const targetWidget = widgets[newIdx];
     const reordered = arrayMove(widgets, oldIdx, newIdx).map((w, i) => ({
       ...w,
@@ -227,7 +337,7 @@ const Index = () => {
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2">
-                  <Megaphone className="h-4 w-4" /> Announcements
+                  <Megaphone className="h-4 w-4 text-muted-foreground/70" /> Announcements
                 </h2>
               </div>
               <div className="px-4 pb-4 space-y-2">
@@ -235,15 +345,39 @@ const Index = () => {
                   <div className="py-6 text-center">
                     <Megaphone className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">No announcements yet</p>
-                    <p className="text-xs text-muted-foreground/60">Pinned announcements will appear here.</p>
                   </div>
                 )}
-                {announcements.map((a) => (
-                  <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <Pin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                    <div><p className="font-medium text-sm">{a.title}</p><p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{a.content}</p></div>
-                  </div>
-                ))}
+                {announcements.map((a) => {
+                  const seen = ackCounts[a.id] || 0;
+                  const isSeen = myAcks.has(a.id);
+                  return (
+                    <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      {a.pinned && <Pin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{a.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{a.content}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
+                            <Eye className="h-3 w-3" /> {seen}/{totalMembers} seen
+                          </span>
+                          {!isSeen && (
+                            <button
+                              onClick={() => acknowledgeAnnouncement(a.id)}
+                              className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                            >
+                              <CheckSquare className="h-3 w-3" /> Mark seen
+                            </button>
+                          )}
+                          {isSeen && (
+                            <span className="text-[10px] text-green-600 flex items-center gap-0.5">
+                              <CheckCircle2 className="h-3 w-3" /> Seen
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -283,7 +417,7 @@ const Index = () => {
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4" /> Forms
+                  <FileSpreadsheet className="h-4 w-4 text-muted-foreground/70" /> Forms
                 </h2>
                 <Link to="/forms" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
               </div>
@@ -317,7 +451,7 @@ const Index = () => {
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <ListTodo className="h-4 w-4" /> My Tasks
+                  <ListTodo className="h-4 w-4 text-muted-foreground/70" /> My Tasks
                 </h2>
                 <Link to="/execution" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
               </div>
@@ -352,7 +486,7 @@ const Index = () => {
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                <h2 className="text-base font-semibold flex items-center gap-2"><Star className="h-4 w-4" /> Quick Links</h2>
+                <h2 className="text-base font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-muted-foreground/70" /> Quick Links</h2>
                 <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setAddingFav(true)}>
                   <Plus className="h-3 w-3" /> Add
                 </Button>
@@ -384,7 +518,7 @@ const Index = () => {
         );
 
       case "feed_preview":
-        return <FeedCarousel />;
+        return <FeedPreview />;
 
       case "reminders":
         return <RemindersWidget />;
@@ -394,13 +528,13 @@ const Index = () => {
           <Card>
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                <h2 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Recent Docs</h2>
+                <h2 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground/70" /> Recent Docs</h2>
                 <Link to="/docs" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
               </div>
               <div className="px-4 pb-4 space-y-1">
                 {recentDocs.map((doc) => (
                   <Link key={doc.id} to="/docs" className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <FileText className="h-4 w-4 text-muted-foreground/70 mt-0.5 shrink-0" />
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{doc.title}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">Updated {doc.updated_at?.split("T")[0]}</p>
@@ -437,10 +571,10 @@ const Index = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate("/execution")}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setTaskDialogOpen(true)}>
             <Plus className="h-3 w-3" /> New Task
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate("/feed")}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setPostDialogOpen(true)}>
             <Plus className="h-3 w-3" /> Post Update
           </Button>
           <Button
@@ -460,29 +594,18 @@ const Index = () => {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={allVisibleIds} strategy={verticalListSortingStrategy}>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Left Column — My Day */}
             <div className="md:col-span-7 space-y-4">
               {leftWidgets.map((w) => {
                 const content = renderWidget(w.id);
                 if (!content) return null;
-                return (
-                  <SortableWidget key={w.id} id={w.id}>
-                    {content}
-                  </SortableWidget>
-                );
+                return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
               })}
             </div>
-
-            {/* Right Column — Company */}
             <div className="md:col-span-5 space-y-4">
               {rightWidgets.map((w) => {
                 const content = renderWidget(w.id);
                 if (!content) return null;
-                return (
-                  <SortableWidget key={w.id} id={w.id}>
-                    {content}
-                  </SortableWidget>
-                );
+                return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
               })}
             </div>
           </div>
@@ -534,6 +657,88 @@ const Index = () => {
             <Button variant="outline" onClick={() => setFillOpen(false)}>Cancel</Button>
             <Button onClick={submitForm} className="gap-1.5"><Send className="h-3.5 w-3.5" /> Submit</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog — same as GlobalCreateMenu */}
+      <Dialog open={taskDialogOpen} onOpenChange={(o) => !o && resetTaskDialog()}>
+        <DialogContent className="max-w-sm gap-0 p-5">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-base">New Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && taskTitle.trim()) { e.preventDefault(); handleCreateTask(); } }}
+              placeholder="Title..."
+              className="border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
+              autoFocus
+            />
+            {taskShowDesc ? (
+              <textarea
+                value={taskDesc}
+                onChange={(e) => setTaskDesc(e.target.value)}
+                placeholder="Add a description..."
+                rows={2}
+                className="w-full resize-none rounded-md bg-muted/50 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none"
+              />
+            ) : (
+              <button onClick={() => setTaskShowDesc(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                + Add description
+              </button>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <div className="flex gap-1">
+                {priorityOptions.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => setTaskPriority(p.value)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
+                      taskPriority === p.value ? p.className : "border-transparent text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Popover open={taskAssigneeOpen} onOpenChange={setTaskAssigneeOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                    <User className="h-3 w-3" />
+                    {taskAssigneeName || "Assign"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  {profiles.map(p => (
+                    <button
+                      key={p.user_id}
+                      onClick={() => { setTaskAssignee(p.user_id); setTaskAssigneeOpen(false); }}
+                      className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                    >
+                      {p.full_name || "Unnamed"}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button onClick={handleCreateTask} disabled={!taskTitle.trim()} size="sm" className="h-8 px-4 text-xs">
+                Create
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post Update Dialog */}
+      <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">Post Update</DialogTitle>
+          </DialogHeader>
+          <FeedComposer onPost={() => setPostDialogOpen(false)} people={people} />
         </DialogContent>
       </Dialog>
 
