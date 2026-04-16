@@ -134,7 +134,7 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
         <SheetHeader>
           <SheetTitle className="sr-only">Profile Details</SheetTitle>
         </SheetHeader>

@@ -168,7 +168,7 @@ export function ReplyThread({ entityType, entityId, onCountChange }: ReplyThread
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Write a reply..."
-            className="min-h-[50px] text-sm resize-none"
+            className="min-h-[50px] text-sm resize-none bg-primary/[0.06] border-primary/15 focus-visible:ring-primary/30"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
             }}

@@ -238,7 +238,7 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6 top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
         <SheetHeader className="space-y-3">
           <SheetTitle className="text-xl font-semibold pr-8">
             {item.title}

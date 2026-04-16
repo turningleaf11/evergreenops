@@ -166,6 +166,15 @@ export default function ExecutionPage() {
   const [drawerItem, setDrawerItem] = useState<any>(null);
   const [drawerType, setDrawerType] = useState<"project" | "task">("project");
 
+  const projectKanbanCols = useMemo(
+    () => projectKanbanColsBase.map(c => ({ ...c, color: stageColors[`project:${c.key}`] || c.color })),
+    [stageColors]
+  );
+  const taskKanbanCols = useMemo(
+    () => taskKanbanColsBase.map(c => ({ ...c, color: stageColors[`task:${c.key}`] || c.color })),
+    [stageColors]
+  );
+
   // Issues state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);

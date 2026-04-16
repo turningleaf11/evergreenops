@@ -164,7 +164,7 @@ export default function DocsPage() {
       <div>
         <button
           onClick={() => setSelectedDoc(doc.id)}
-          className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-muted transition-colors ${isSelected ? "bg-muted font-medium" : ""}`}
+          className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 hover:bg-primary/10 transition-colors ${isSelected ? "bg-primary/15 font-medium" : ""}`}
           style={{ paddingLeft: `${8 + depth * 16}px` }}
         >
           {children.length > 0 && (
@@ -192,14 +192,14 @@ export default function DocsPage() {
 
   return (
     <div className="flex h-full">
-      <div className="w-72 border-r bg-muted/30 p-4 space-y-3 shrink-0 overflow-auto">
+      <div className="w-72 border-r border-border/50 bg-primary/[0.04] p-4 space-y-3 shrink-0 overflow-auto">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search wiki..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {isAdmin && (
-            <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={handleCreateDoc} title="New Page">
+            <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleCreateDoc} title="New Page">
               <Plus className="h-4 w-4" />
             </Button>
           )}

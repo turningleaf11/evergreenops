@@ -93,7 +93,7 @@ export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, 
           </div>
           <div className="flex gap-2 items-center">
             {onAdd && (
-              <Button size="sm" variant="outline" onClick={onAdd} className="h-8 text-xs">
+              <Button size="sm" onClick={onAdd} className="h-8 text-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" /> New Row
               </Button>
             )}
