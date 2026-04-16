@@ -9,7 +9,7 @@ import { useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarFooter, SidebarTrigger, useSidebar,
+  SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -215,15 +215,17 @@ export function AppSidebar() {
           </button>
         )}
         <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1">
-          <SidebarTrigger
+          <button
+            onClick={() => setOpen(!collapsed ? false : true)}
             className={cn(
               "w-full h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
               collapsed ? "justify-center" : "justify-start text-xs",
             )}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <PanelLeft className="h-3.5 w-3.5" />
             {!collapsed && <span>Collapse</span>}
-          </SidebarTrigger>
+          </button>
         </div>
       </SidebarFooter>
       </div>
