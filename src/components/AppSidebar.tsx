@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
@@ -59,11 +60,29 @@ export function AppSidebar() {
   // Click anywhere on the empty space of the collapsed sidebar to expand
   const handleRailClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!collapsed) return;
-    // Only react when the click target is the sidebar background, not a button/link
     const target = e.target as HTMLElement;
     if (target.closest("a,button")) return;
     setOpen(true);
   };
+
+  // Click outside the expanded sidebar → collapse it (overlay behaviour)
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (collapsed) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const root = sidebarRef.current;
+      if (!root) return;
+      const target = e.target as HTMLElement;
+      // Ignore clicks inside the sidebar itself or on the header trigger
+      if (root.contains(target)) return;
+      if (target.closest("[data-sidebar='trigger']")) return;
+      // Ignore clicks inside Radix popovers/dialogs that may be portaled
+      if (target.closest("[data-radix-popper-content-wrapper]")) return;
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [collapsed, setOpen]);
 
   // Wrap nav buttons with a tooltip that shows the title when collapsed
   const NavItem = ({ item }: { item: { title: string; url: string; icon: any } }) => {
@@ -86,7 +105,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <div onClick={handleRailClick} className="contents">
+      <div ref={sidebarRef} onClick={handleRailClick} className="contents">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-3">
           {logoUrl ? (
