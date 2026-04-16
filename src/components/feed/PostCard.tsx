@@ -117,10 +117,10 @@ export function PostCard({ post, onRefresh }: PostCardProps) {
         </div>
         <button
           onClick={() => setRepliesExpanded(!repliesExpanded)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 px-2 py-1 rounded-md transition-colors shrink-0"
         >
           <MessageCircle className="h-3.5 w-3.5" />
-          {replyCount > 0 && <span>{replyCount}</span>}
+          <span>Comment{replyCount > 0 ? ` (${replyCount})` : ""}</span>
           {repliesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
       </div>

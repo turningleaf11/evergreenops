@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye, Columns2, Square, AlertTriangle, PartyPopper, Shield, Zap, Info } from "lucide-react";
+import { HomeAiChat } from "@/components/home/HomeAiChat";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -48,6 +49,15 @@ const statusColors: Record<string, string> = {
   blocked: "bg-red-500",
 };
 
+// Announcement type → visual treatment (border/icon bg/icon)
+const announcementTypeStyles: Record<string, { border: string; iconBg: string; iconColor: string; chip: string; Icon: any }> = {
+  urgent:      { border: "border-l-red-500",    iconBg: "bg-red-500/10",    iconColor: "text-red-600",    chip: "bg-red-500/10 text-red-700 dark:text-red-300",    Icon: AlertTriangle },
+  celebration: { border: "border-l-amber-500",  iconBg: "bg-amber-500/10",  iconColor: "text-amber-600",  chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300", Icon: PartyPopper },
+  policy:      { border: "border-l-indigo-500", iconBg: "bg-indigo-500/10", iconColor: "text-indigo-600", chip: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", Icon: Shield },
+  update:      { border: "border-l-blue-500",   iconBg: "bg-blue-500/10",   iconColor: "text-blue-600",   chip: "bg-blue-500/10 text-blue-700 dark:text-blue-300",     Icon: Zap },
+  general:     { border: "border-l-primary",    iconBg: "bg-primary/10",    iconColor: "text-primary",    chip: "bg-primary/10 text-primary",                           Icon: Info },
+};
+
 function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
@@ -76,6 +86,15 @@ const Index = () => {
   const navigate = useNavigate();
   const { widgets, savePreferences, resetToDefaults } = useWidgetPreferences();
   const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"single" | "double">(() => {
+    if (typeof window === "undefined") return "double";
+    return (localStorage.getItem("home_layout_mode") as "single" | "double") || "double";
+  });
+  const toggleLayoutMode = () => {
+    const next = layoutMode === "double" ? "single" : "double";
+    setLayoutMode(next);
+    localStorage.setItem("home_layout_mode", next);
+  };
 
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [ackCounts, setAckCounts] = useState<Record<string, number>>({});
@@ -281,9 +300,12 @@ const Index = () => {
     savePreferences(reordered);
   };
 
-  const leftWidgets = widgets.filter((w) => w.visible && w.column === "left");
-  const rightWidgets = widgets.filter((w) => w.visible && w.column === "right");
-  const allVisibleIds = [...leftWidgets, ...rightWidgets].map((w) => w.id);
+  // Exclude feed_preview (rendered horizontally above) and quick_links (moved to launcher) from grid
+  const gridFilter = (w: any) => w.visible && w.id !== "feed_preview" && w.id !== "quick_links";
+  const leftWidgets = widgets.filter((w) => gridFilter(w) && w.column === "left");
+  const rightWidgets = widgets.filter((w) => gridFilter(w) && w.column === "right");
+  const singleColWidgets = widgets.filter(gridFilter).sort((a, b) => a.sort_order - b.sort_order);
+  const allVisibleIds = (layoutMode === "single" ? singleColWidgets : [...leftWidgets, ...rightWidgets]).map((w) => w.id);
 
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
@@ -306,25 +328,43 @@ const Index = () => {
                 {announcements.map((a) => {
                   const seen = ackCounts[a.id] || 0;
                   const isSeen = myAcks.has(a.id);
+                  const style = announcementTypeStyles[a.type] || announcementTypeStyles.general;
+                  const TypeIcon = style.Icon;
                   return (
-                    <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                      {a.pinned && <Pin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />}
+                    <div
+                      key={a.id}
+                      className={cn(
+                        "rounded-lg border-l-[3px] bg-card hover:bg-muted/30 transition-colors p-3 flex items-start gap-3",
+                        style.border,
+                        a.pinned && "shadow-sm"
+                      )}
+                    >
+                      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", style.iconBg)}>
+                        <TypeIcon className={cn("h-4 w-4", style.iconColor)} />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{a.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{a.content}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {a.pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
+                          <p className="font-semibold text-sm">{a.title}</p>
+                          <span className={cn("text-[9px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded-full", style.chip)}>
+                            {a.type || "general"}
+                          </span>
+                        </div>
+                        {a.content && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.content}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5">
                           <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
                             <Eye className="h-3 w-3" /> {seen}/{totalMembers} seen
                           </span>
-                          {!isSeen && (
+                          {!isSeen ? (
                             <button
                               onClick={() => acknowledgeAnnouncement(a.id)}
                               className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
                             >
                               <CheckSquare className="h-3 w-3" /> Mark seen
                             </button>
-                          )}
-                          {isSeen && (
+                          ) : (
                             <span className="text-[10px] text-green-600 flex items-center gap-0.5">
                               <CheckCircle2 className="h-3 w-3" /> Seen
                             </span>
@@ -476,6 +516,9 @@ const Index = () => {
       case "feed_preview":
         return <FeedPreview />;
 
+      case "feed_chat":
+        return <HomeAiChat />;
+
       case "reminders":
         return <RemindersWidget />;
 
@@ -526,7 +569,29 @@ const Index = () => {
             <CalendarDays className="h-3.5 w-3.5" /> {dateStr}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
+          <div className="inline-flex items-center rounded-lg border border-border/40 bg-muted/30 p-0.5">
+            <button
+              onClick={() => layoutMode !== "double" && toggleLayoutMode()}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
+                layoutMode === "double" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Two columns"
+            >
+              <Columns2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => layoutMode !== "single" && toggleLayoutMode()}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
+                layoutMode === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Single column"
+            >
+              <Square className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -540,25 +605,40 @@ const Index = () => {
 
       <OnboardingBanner />
 
-      {/* 2-Column Grid */}
+      {/* Horizontal feed at top */}
+      {widgets.find((w) => w.id === "feed_preview" && w.visible) && (
+        <FeedPreview variant="horizontal" />
+      )}
+
+      {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={allVisibleIds} strategy={verticalListSortingStrategy}>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-7 space-y-4">
-              {leftWidgets.map((w) => {
+          {layoutMode === "single" ? (
+            <div className="max-w-3xl mx-auto space-y-4">
+              {singleColWidgets.map((w) => {
                 const content = renderWidget(w.id);
                 if (!content) return null;
                 return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
               })}
             </div>
-            <div className="md:col-span-5 space-y-4">
-              {rightWidgets.map((w) => {
-                const content = renderWidget(w.id);
-                if (!content) return null;
-                return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
-              })}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="md:col-span-7 space-y-4">
+                {leftWidgets.map((w) => {
+                  const content = renderWidget(w.id);
+                  if (!content) return null;
+                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
+                })}
+              </div>
+              <div className="md:col-span-5 space-y-4">
+                {rightWidgets.map((w) => {
+                  const content = renderWidget(w.id);
+                  if (!content) return null;
+                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </SortableContext>
       </DndContext>
 

@@ -724,6 +724,18 @@ export default function ExecutionPage() {
               getName={getName}
               ownerField="assigned_to"
               type="task"
+              onAddCard={(status) => {
+                const title = window.prompt("Task title");
+                if (!title?.trim() || !user) return;
+                supabase.from("tasks").insert({
+                  title: title.trim(),
+                  status,
+                  created_by: user.id,
+                } as any).then(({ error }) => {
+                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                  else fetchAll();
+                });
+              }}
             />
           )}
 

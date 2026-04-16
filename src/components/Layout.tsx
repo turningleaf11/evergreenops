@@ -9,6 +9,7 @@ import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { LauncherMenu } from "@/components/LauncherMenu";
 
 export function Layout() {
   const { name: workspaceName, logoUrl } = useWorkspace();
@@ -41,6 +42,7 @@ export function Layout() {
               {/* Right zone */}
               <div className="flex items-center gap-2 shrink-0">
                 <TimeClockButton />
+                <LauncherMenu />
                 <GlobalCreateMenu />
                 <RemindersBell />
                 <NotificationBell />

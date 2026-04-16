@@ -4,12 +4,24 @@
   min-height: 200px;
   padding: 1rem 1.25rem;
   line-height: 1.7;
+  background: white;
+  color: hsl(var(--foreground));
+  border-radius: 0.5rem;
+}
+
+.dark .rich-editor .tiptap {
+  background: hsl(var(--card));
 }
 
 /* === Borderless / Workspace Mode === */
 .rich-editor-borderless .tiptap {
   min-height: 400px;
   padding: 0.5rem 1.5rem;
+  background: white;
+}
+
+.dark .rich-editor-borderless .tiptap {
+  background: hsl(var(--card));
 }
 
 .rich-editor .tiptap p.is-editor-empty:first-child::before {

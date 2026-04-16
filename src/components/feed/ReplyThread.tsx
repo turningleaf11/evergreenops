@@ -148,7 +148,7 @@ export function ReplyThread({ entityType, entityId, onCountChange }: ReplyThread
       ))}
 
       {/* Compose reply */}
-      <div className="space-y-2">
+      <div className="space-y-2 bg-primary/[0.04] rounded-xl p-3">
         {draftGif && (
           <div className="relative inline-block">
             <img src={draftGif} alt="GIF" className="rounded-md max-h-24" />
