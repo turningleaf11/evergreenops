@@ -10,6 +10,63 @@ import CommentsSection from "@/components/CommentsSection";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
+interface EditableTitleProps {
+  value: string;
+  onSave: (next: string) => void;
+  className?: string;
+}
+
+function EditableTitle({ value, onSave, className }: EditableTitleProps) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { if (draft.trim() && draft !== value) onSave(draft.trim()); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.currentTarget.blur(); }
+        if (e.key === "Escape") { setDraft(value); e.currentTarget.blur(); }
+      }}
+      className={cn(
+        "w-full bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 rounded-md hover:bg-muted/30 focus:bg-muted/30 transition-colors",
+        className,
+      )}
+    />
+  );
+}
+
+interface PeekToggleProps {
+  peekMode: PeekMode;
+  setPeekMode: (m: PeekMode) => void;
+  onFullPage: () => void;
+}
+
+function PeekToggle({ peekMode, setPeekMode, onFullPage }: PeekToggleProps) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
+      {peekModes.map(m => (
+        <button
+          key={m.value}
+          onClick={() => {
+            if (m.value === "full") { onFullPage(); return; }
+            setPeekMode(m.value);
+          }}
+          className={cn(
+            "p-1.5 rounded-md transition-colors",
+            peekMode === m.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title={m.label}
+        >
+          <m.icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 type PeekMode = "side" | "center" | "full";
 
 interface DetailDrawerProps {
