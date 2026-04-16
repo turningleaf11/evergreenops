@@ -300,9 +300,12 @@ const Index = () => {
     savePreferences(reordered);
   };
 
-  const leftWidgets = widgets.filter((w) => w.visible && w.column === "left");
-  const rightWidgets = widgets.filter((w) => w.visible && w.column === "right");
-  const allVisibleIds = [...leftWidgets, ...rightWidgets].map((w) => w.id);
+  // Exclude feed_preview (rendered horizontally above) and quick_links (moved to launcher) from grid
+  const gridFilter = (w: any) => w.visible && w.id !== "feed_preview" && w.id !== "quick_links";
+  const leftWidgets = widgets.filter((w) => gridFilter(w) && w.column === "left");
+  const rightWidgets = widgets.filter((w) => gridFilter(w) && w.column === "right");
+  const singleColWidgets = widgets.filter(gridFilter).sort((a, b) => a.sort_order - b.sort_order);
+  const allVisibleIds = (layoutMode === "single" ? singleColWidgets : [...leftWidgets, ...rightWidgets]).map((w) => w.id);
 
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
@@ -566,7 +569,29 @@ const Index = () => {
             <CalendarDays className="h-3.5 w-3.5" /> {dateStr}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
+          <div className="inline-flex items-center rounded-lg border border-border/40 bg-muted/30 p-0.5">
+            <button
+              onClick={() => layoutMode !== "double" && toggleLayoutMode()}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
+                layoutMode === "double" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Two columns"
+            >
+              <Columns2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => layoutMode !== "single" && toggleLayoutMode()}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
+                layoutMode === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Single column"
+            >
+              <Square className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -580,25 +605,40 @@ const Index = () => {
 
       <OnboardingBanner />
 
-      {/* 2-Column Grid */}
+      {/* Horizontal feed at top */}
+      {widgets.find((w) => w.id === "feed_preview" && w.visible) && (
+        <FeedPreview variant="horizontal" />
+      )}
+
+      {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={allVisibleIds} strategy={verticalListSortingStrategy}>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-7 space-y-4">
-              {leftWidgets.map((w) => {
+          {layoutMode === "single" ? (
+            <div className="max-w-3xl mx-auto space-y-4">
+              {singleColWidgets.map((w) => {
                 const content = renderWidget(w.id);
                 if (!content) return null;
                 return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
               })}
             </div>
-            <div className="md:col-span-5 space-y-4">
-              {rightWidgets.map((w) => {
-                const content = renderWidget(w.id);
-                if (!content) return null;
-                return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
-              })}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="md:col-span-7 space-y-4">
+                {leftWidgets.map((w) => {
+                  const content = renderWidget(w.id);
+                  if (!content) return null;
+                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
+                })}
+              </div>
+              <div className="md:col-span-5 space-y-4">
+                {rightWidgets.map((w) => {
+                  const content = renderWidget(w.id);
+                  if (!content) return null;
+                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </SortableContext>
       </DndContext>
 
