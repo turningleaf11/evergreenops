@@ -297,3 +297,17 @@
   position: relative;
   z-index: 1;
 }
+
+/* ===== Sidebar Pinned Mode =====
+   When the user pins the sidebar, override the default overlay/floating
+   behaviour: the spacer element becomes full sidebar width (so content
+   gets pushed instead of overlapped) and the floating shadow is removed. */
+.sidebar-pinned-mode .group.peer > div:first-child {
+  width: var(--sidebar-width) !important;
+}
+.sidebar-pinned-mode .group.peer[data-state="collapsed"] > div:first-child {
+  width: var(--sidebar-width-icon) !important;
+}
+.sidebar-pinned-mode .group.peer[data-state="expanded"] > div:nth-child(2) {
+  box-shadow: none !important;
+}
