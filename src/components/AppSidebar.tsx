@@ -10,6 +10,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +21,7 @@ import { getDeptIcon } from "@/lib/icon-map";
 import { useAddonEnabled } from "@/hooks/useAddonEnabled";
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
@@ -55,8 +56,37 @@ export function AppSidebar() {
     ...(marketResearchEnabled ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
   ];
 
+  // Click anywhere on the empty space of the collapsed sidebar to expand
+  const handleRailClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!collapsed) return;
+    // Only react when the click target is the sidebar background, not a button/link
+    const target = e.target as HTMLElement;
+    if (target.closest("a,button")) return;
+    setOpen(true);
+  };
+
+  // Wrap nav buttons with a tooltip that shows the title when collapsed
+  const NavItem = ({ item }: { item: { title: string; url: string; icon: any } }) => {
+    const link = (
+      <SidebarMenuButton asChild>
+        <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+          <item.icon className="h-4 w-4" />
+          {!collapsed && <span>{item.title}</span>}
+        </NavLink>
+      </SidebarMenuButton>
+    );
+    if (!collapsed) return link;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">{item.title}</TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <Sidebar collapsible="icon">
+      <div onClick={handleRailClick} className="contents">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-3">
           {logoUrl ? (
@@ -81,12 +111,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {mainNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
+                  <NavItem item={item} />
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -109,14 +134,22 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {departments.map((dept) => {
                     const Icon = getDeptIcon(dept.icon);
+                    const link = (
+                      <SidebarMenuButton asChild>
+                        <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+                          <Icon className="h-4 w-4" />
+                          {!collapsed && <span>{dept.name}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    );
                     return (
                       <SidebarMenuItem key={dept.id}>
-                        <SidebarMenuButton asChild>
-                          <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                            <Icon className="h-4 w-4" />
-                            {!collapsed && <span>{dept.name}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
+                        {collapsed ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>{link}</TooltipTrigger>
+                            <TooltipContent side="right" className="text-xs">{dept.name}</TooltipContent>
+                          </Tooltip>
+                        ) : link}
                       </SidebarMenuItem>
                     );
                   })}
@@ -135,12 +168,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {addonNav.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <NavItem item={item} />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -184,6 +212,7 @@ export function AppSidebar() {
           </button>
         )}
       </SidebarFooter>
+      </div>
     </Sidebar>
   );
 }

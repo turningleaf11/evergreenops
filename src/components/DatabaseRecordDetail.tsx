@@ -42,11 +42,22 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
 
   const setValue = (colId: string, val: any) => setValues(prev => ({ ...prev, [colId]: val }));
 
+  const titleVal = (values.title || row?.values.title || "Record") as string;
+  const setTitle = (next: string) => setValue("title", next);
+
   return (
     <Sheet open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto top-[60px] h-[calc(100vh-60px)] border-l border-border/50 p-6">
         <SheetHeader>
-          <SheetTitle className="text-lg">{values.title || row?.values.title || "Record"}</SheetTitle>
+          <SheetTitle asChild>
+            <input
+              value={titleVal}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => onSave(values)}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+              className="text-lg font-semibold bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 rounded-md hover:bg-muted/30 focus:bg-muted/30 transition-colors w-full pr-8"
+            />
+          </SheetTitle>
         </SheetHeader>
 
         <Tabs defaultValue="fields" className="mt-4">
