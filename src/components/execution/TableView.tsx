@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Calendar, Repeat, Pencil, Archive, MoreHorizontal, Check } from "lucide-react";
+import { ChevronDown, Calendar, Repeat, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableViewProps {
@@ -86,37 +86,7 @@ function StatusCircle({ status, statusOptions, onStatusChange, itemId }: {
   );
 }
 
-function HoverActions({ onEdit, onArchive }: { onEdit?: () => void; onArchive?: () => void }) {
-  return (
-    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-      {onEdit && (
-        <button
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          onClick={e => { e.stopPropagation(); onEdit(); }}
-          title="Edit"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-      )}
-      {onArchive && (
-        <button
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          onClick={e => { e.stopPropagation(); onArchive(); }}
-          title="Archive"
-        >
-          <Archive className="h-3.5 w-3.5" />
-        </button>
-      )}
-      <button
-        className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-        onClick={e => e.stopPropagation()}
-        title="More"
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
+/* HoverActions removed — drop-down/edit/archive icons no longer rendered on row hover */
 
 export default function TableView({
   items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
@@ -219,10 +189,6 @@ export default function TableView({
                           </div>
                         )}
 
-                        {/* Hover actions */}
-                        <HoverActions
-                          onEdit={() => onItemClick(item)}
-                        />
                       </div>
                     );
                   })}
