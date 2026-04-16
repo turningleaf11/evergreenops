@@ -1,53 +1,36 @@
 
-The user dislikes the horizontal scrollbar under the kanban board (visible in the screenshot below the IN PROGRESS / BLOCKED / DONE columns). Let me think through alternatives.
+Looking at the screenshots, the database views (Disposition Board) have three modes — Board (image-88), Table (image-89), and List (image-90) — but they don't match the polished Tasks/Projects styling.
 
-## Current state
-`KanbanBoard.tsx` likely uses fixed-width columns in a horizontal flex container with `overflow-x: auto`, producing a permanent scrollbar at the bottom.
+Issues I can see:
+1. **Board view**: Columns wrap to a second row (Closed, Fell Through drop below) instead of using the unified flex-fit + edge-fade overflow we just built for KanbanBoard. Column headers are bare text with a count, not the rounded card style.
+2. **Table view**: Plain rows with no row chrome, no status dot, no hover affordance. Doesn't match `DataTableView`/`TableView`.
+3. **List view**: Just a flat row of values — no status circle prefix, no card-enhanced row, no hover actions, no priority/assignee styling.
+4. Header chrome (Back / Delete / title block) is fine but the chips below "tag" are stale field-name pills that duplicate the column headers — Tasks/Projects don't show this.
 
-## Options to consider
+## Plan
 
-**Option 1: Auto-fit columns to viewport width**
-Make columns flex/shrink so all status columns fit on screen — no horizontal scroll. Works well with 4-5 statuses. Trade-off: column min-width gets tight on small screens, cards get narrower.
+**1. Unify Board view** (`DatabaseView.tsx` board mode)
+- Replace its own kanban renderer with the same layout pattern from `execution/KanbanBoard.tsx`: flex `1 1 0`, min/max width, hidden scrollbar, edge fades, hover chevrons, shift+wheel scroll.
+- Column header: status dot + label + count badge in a rounded header strip (match KanbanBoard).
+- Cards: same rounded card chrome as task cards (border, hover lift, title, 2-3 key field rows).
 
-**Option 2: Hidden scrollbar + drag/wheel to scroll**
-Hide the scrollbar visually (`scrollbar-width: none`), enable click-drag panning and shift+wheel horizontal scroll. Trade-off: discoverability — users may not realize they can scroll.
+**2. Unify List view** (`DatabaseView.tsx` list mode)
+- Adopt the **Card-Enhanced List** pattern from `execution/TableView.tsx`: 56–64px row, hollow/solid status dot on the left, title prominent, secondary fields as right-aligned pills/badges (status pill, assignee, date), hover bg `bg-muted/50`, click-to-open drawer.
+- No hover chevron buttons (already removed from TableView).
 
-**Option 3: Edge fade + arrow buttons**
-Hidden scrollbar, gradient fade on right edge indicating more content, plus floating left/right arrow buttons that appear on hover. Trello/Linear style. Most polished.
+**3. Polish Table view** (already mostly aligned via earlier work)
+- Verify it uses the same `DataTableView` grid styling, inline cells, resize handles, sticky header. Add status dot prefix in the title cell to match.
+- Add subtle row hover bg, 40px row height parity.
 
-**Option 4: Vertical stack on narrow screens, horizontal otherwise**
-Responsive — stack columns below a breakpoint.
+**4. Header cleanup**
+- Remove the stale field-name pill row under the description (Property / Buyer / Assignment Fee / Status / Close Date / Dispo Manager / tag) — these duplicate the table headers and aren't shown on Tasks/Projects pages.
+- Keep title, description, Back, Delete.
 
-## Recommendation
-Combine **1 + 3**: 
-- Default: columns flex to fill available width (no scroll needed for typical 4-5 statuses)
-- If overflow occurs (many statuses): hidden scrollbar + edge fade + hover arrow buttons + shift-wheel scroll
-- Cards keep a sensible min-width (~260px); columns share remaining space evenly
-
-This gives the cleanest look in the common case and graceful overflow handling.
+**5. Toolbar parity**
+- Search + Filter/Sort/Group + view toggle + New Row already match the style — verify spacing/sizing matches Execution toolbar exactly (same pill buttons, same gap, same icon sizes).
 
 ## Files
-- `src/components/execution/KanbanBoard.tsx` — flex column sizing, hidden scrollbar utility, edge fade gradients, hover scroll buttons, shift+wheel handler
-- `src/index.css` — add `.scrollbar-hide` utility (if not present)
-
-No DB changes.
-
----
-
-# Plan: Cleaner Kanban Overflow
-
-**Default behavior**: Columns auto-fit to fill the board width — no horizontal scrollbar in the typical 4–5 status case.
-
-**When overflow is unavoidable** (many custom statuses):
-- Native scrollbar hidden via CSS
-- Soft gradient fade on the right (and left when scrolled) hints at more content
-- Floating chevron buttons appear on hover at the edges to scroll one column at a time
-- Shift + mouse wheel scrolls horizontally
-
-**Column sizing**: `flex: 1 1 0; min-width: 260px; max-width: 320px` — columns share space evenly, cards stay readable.
-
-**Files**
-- `src/components/execution/KanbanBoard.tsx` — column flex sizing, scroll container, edge fades, hover arrow buttons, wheel handler
-- `src/index.css` — `.scrollbar-hide` utility
+- `src/components/DatabaseView.tsx` — board, list, table mode rewrites; reuse KanbanBoard overflow pattern; reuse TableView row chrome
+- `src/pages/DatabasesPage.tsx` — remove field-name chip row under description
 
 No DB migrations.
