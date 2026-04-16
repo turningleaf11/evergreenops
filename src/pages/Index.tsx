@@ -316,25 +316,43 @@ const Index = () => {
                 {announcements.map((a) => {
                   const seen = ackCounts[a.id] || 0;
                   const isSeen = myAcks.has(a.id);
+                  const style = announcementTypeStyles[a.type] || announcementTypeStyles.general;
+                  const TypeIcon = style.Icon;
                   return (
-                    <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                      {a.pinned && <Pin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />}
+                    <div
+                      key={a.id}
+                      className={cn(
+                        "rounded-lg border-l-[3px] bg-card hover:bg-muted/30 transition-colors p-3 flex items-start gap-3",
+                        style.border,
+                        a.pinned && "shadow-sm"
+                      )}
+                    >
+                      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", style.iconBg)}>
+                        <TypeIcon className={cn("h-4 w-4", style.iconColor)} />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{a.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{a.content}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {a.pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
+                          <p className="font-semibold text-sm">{a.title}</p>
+                          <span className={cn("text-[9px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded-full", style.chip)}>
+                            {a.type || "general"}
+                          </span>
+                        </div>
+                        {a.content && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.content}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5">
                           <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
                             <Eye className="h-3 w-3" /> {seen}/{totalMembers} seen
                           </span>
-                          {!isSeen && (
+                          {!isSeen ? (
                             <button
                               onClick={() => acknowledgeAnnouncement(a.id)}
                               className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
                             >
                               <CheckSquare className="h-3 w-3" /> Mark seen
                             </button>
-                          )}
-                          {isSeen && (
+                          ) : (
                             <span className="text-[10px] text-green-600 flex items-center gap-0.5">
                               <CheckCircle2 className="h-3 w-3" /> Seen
                             </span>
@@ -485,6 +503,9 @@ const Index = () => {
 
       case "feed_preview":
         return <FeedPreview />;
+
+      case "feed_chat":
+        return <HomeAiChat />;
 
       case "reminders":
         return <RemindersWidget />;
