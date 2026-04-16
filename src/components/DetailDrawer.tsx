@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Maximize2, Calendar, User, PanelRight, Square, Expand, Tag, Flag, AlertCircle, Check } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
-import { AccordionField } from "@/components/shared/AccordionField";
+import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
 type PeekMode = "side" | "center" | "full";
