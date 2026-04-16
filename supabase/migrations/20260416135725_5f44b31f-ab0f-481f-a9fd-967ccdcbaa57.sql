@@ -1,0 +1,1 @@
+ALTER TABLE public.widget_preferences ADD COLUMN "column" integer NOT NULL DEFAULT 0;

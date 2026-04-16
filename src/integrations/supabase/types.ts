@@ -1943,6 +1943,7 @@ export type Database = {
       }
       widget_preferences: {
         Row: {
+          column: number
           created_at: string
           id: string
           sort_order: number
@@ -1951,6 +1952,7 @@ export type Database = {
           widget_id: string
         }
         Insert: {
+          column?: number
           created_at?: string
           id?: string
           sort_order?: number
@@ -1959,6 +1961,7 @@ export type Database = {
           widget_id: string
         }
         Update: {
+          column?: number
           created_at?: string
           id?: string
           sort_order?: number
