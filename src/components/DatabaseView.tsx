@@ -130,6 +130,7 @@ export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, 
           rows={processed as DatabaseRow[]}
           onEdit={onEdit}
           onDelete={onDelete}
+          onRowUpdate={onRowUpdate}
           allDatabases={allDatabases}
           allRows={allRows}
           groupBy={groupBy}
