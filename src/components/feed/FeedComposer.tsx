@@ -3,17 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ImageIcon, Send, Megaphone, BarChart3, Heart, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFile } from "@/lib/file-upload";
 import { GiphyPicker } from "@/components/feed/GiphyPicker";
+import { cn } from "@/lib/utils";
 
 interface FeedComposerProps {
   onPost: () => void;
@@ -21,6 +18,13 @@ interface FeedComposerProps {
 }
 
 type PostMode = "post" | "announcement" | "poll" | "kudos";
+
+const modes: { value: PostMode; label: string; icon?: React.ElementType; adminOnly?: boolean }[] = [
+  { value: "post", label: "Post" },
+  { value: "announcement", label: "Announcement", icon: Megaphone, adminOnly: true },
+  { value: "poll", label: "Poll", icon: BarChart3, adminOnly: true },
+  { value: "kudos", label: "Kudos", icon: Heart },
+];
 
 export function FeedComposer({ onPost, people }: FeedComposerProps) {
   const { user, profile, isAdmin } = useAuth();
@@ -121,66 +125,68 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   };
 
   const initials = (profile?.full_name || "U").split(" ").map((n) => n[0]).join("");
+  const visibleModes = modes.filter((m) => !m.adminOnly || isAdmin);
+
+  const placeholders: Record<PostMode, string> = {
+    post: "What's on your mind?",
+    announcement: "Announcement details...",
+    poll: "Add context (optional)...",
+    kudos: "Say something nice...",
+  };
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarFallback className="bg-primary text-primary-foreground text-sm">{initials}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
+    <div className="rounded-2xl bg-card elevation-2 border border-border/40 overflow-hidden">
+      {/* Subtle tinted background wrapper */}
+      <div className="bg-primary/[0.02] p-5 space-y-4">
+        {/* Avatar + collapsed trigger */}
+        <div className="flex gap-3">
+          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/10">
+            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{initials}</AvatarFallback>
+          </Avatar>
           {!expanded ? (
             <button
               onClick={() => setExpanded(true)}
-              className="w-full text-left px-4 py-2.5 rounded-xl bg-muted/50 text-sm text-muted-foreground hover:bg-muted transition-colors"
+              className="w-full text-left px-4 py-2.5 rounded-xl bg-background border border-border/50 text-sm text-muted-foreground hover:border-primary/20 hover:bg-background transition-all duration-200"
             >
               What's on your mind?
             </button>
           ) : (
-            <div className="space-y-3">
-              {/* Mode selector */}
-              <div className="flex gap-1 flex-wrap">
-                <Badge
-                  variant={mode === "post" ? "default" : "outline"}
-                  className="cursor-pointer text-xs"
-                  onClick={() => setMode("post")}
-                >
-                  Post
-                </Badge>
-                {isAdmin && (
-                  <>
-                    <Badge
-                      variant={mode === "announcement" ? "default" : "outline"}
-                      className="cursor-pointer text-xs gap-1"
-                      onClick={() => setMode("announcement")}
+            <div className="flex-1 space-y-4">
+              {/* Mode tabs */}
+              <div className="flex gap-1.5">
+                {visibleModes.map((m) => {
+                  const Icon = m.icon;
+                  const isActive = mode === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      onClick={() => setMode(m.value)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
                     >
-                      <Megaphone className="h-3 w-3" /> Announcement
-                    </Badge>
-                    <Badge
-                      variant={mode === "poll" ? "default" : "outline"}
-                      className="cursor-pointer text-xs gap-1"
-                      onClick={() => setMode("poll")}
-                    >
-                      <BarChart3 className="h-3 w-3" /> Poll
-                    </Badge>
-                  </>
-                )}
-                <Badge
-                  variant={mode === "kudos" ? "default" : "outline"}
-                  className="cursor-pointer text-xs gap-1"
-                  onClick={() => setMode("kudos")}
-                >
-                  <Heart className="h-3 w-3" /> Kudos
-                </Badge>
+                      {Icon && <Icon className="h-3.5 w-3.5" />}
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Announcement-specific fields */}
+              {/* Mode-specific fields */}
               {mode === "announcement" && (
-                <div className="space-y-2">
-                  <Input placeholder="Announcement title" value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} />
+                <div className="space-y-3">
+                  <input
+                    value={annTitle}
+                    onChange={(e) => setAnnTitle(e.target.value)}
+                    placeholder="Announcement title"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-border/50 text-sm font-medium placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+                  />
                   <div className="flex gap-2 items-center">
                     <Select value={annType} onValueChange={setAnnType}>
-                      <SelectTrigger className="w-40 h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-40 h-8 text-xs rounded-lg border-border/50 bg-background"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="general">General</SelectItem>
                         <SelectItem value="urgent">🚨 Urgent</SelectItem>
@@ -197,34 +203,42 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
-              {/* Poll-specific fields */}
               {mode === "poll" && (
                 <div className="space-y-2">
-                  <Input placeholder="Poll question" value={pollTitle} onChange={(e) => setPollTitle(e.target.value)} />
+                  <input
+                    value={pollTitle}
+                    onChange={(e) => setPollTitle(e.target.value)}
+                    placeholder="Poll question"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-border/50 text-sm font-medium placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+                  />
                   {pollOptions.map((opt, i) => (
-                    <div key={i} className="flex gap-1">
-                      <Input
+                    <div key={i} className="flex gap-1.5">
+                      <input
                         placeholder={`Option ${i + 1}`}
                         value={opt}
                         onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }}
-                        className="h-8 text-sm"
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border/50 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
                       />
                       {pollOptions.length > 2 && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
                           <X className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="text-xs" onClick={() => setPollOptions([...pollOptions, ""])}>+ Add option</Button>
+                  <button
+                    onClick={() => setPollOptions([...pollOptions, ""])}
+                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors duration-200"
+                  >
+                    + Add option
+                  </button>
                 </div>
               )}
 
-              {/* Kudos-specific fields */}
               {mode === "kudos" && (
                 <div className="flex gap-2">
                   <Select value={kudosTo} onValueChange={setKudosTo}>
-                    <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Give kudos to..." /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs flex-1 rounded-lg border-border/50 bg-background"><SelectValue placeholder="Give kudos to..." /></SelectTrigger>
                     <SelectContent>
                       {people.map((p) => (
                         <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>
@@ -232,7 +246,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                     </SelectContent>
                   </Select>
                   <Select value={kudosCat} onValueChange={setKudosCat}>
-                    <SelectTrigger className="h-8 text-xs w-36"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs w-36 rounded-lg border-border/50 bg-background"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="great_work">🌟 Great Work</SelectItem>
                       <SelectItem value="team_player">🤝 Team Player</SelectItem>
@@ -243,19 +257,20 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
-              {/* Content textarea */}
-              <Textarea
+              {/* Primary content textarea */}
+              <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={mode === "post" ? "What's on your mind?" : mode === "announcement" ? "Details..." : mode === "poll" ? "Description (optional)" : "Say something nice..."}
-                className="min-h-[80px] resize-none text-sm"
+                placeholder={placeholders[mode]}
+                rows={3}
+                className="w-full px-3 py-2.5 rounded-xl bg-background border border-border/50 text-sm resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200 leading-relaxed"
               />
 
               {/* Image preview */}
               {imageUrl && (
                 <div className="relative">
-                  <img src={imageUrl} alt="Uploaded" className="rounded-lg max-h-48 object-cover" />
-                  <Button size="icon" variant="secondary" className="absolute top-1 right-1 h-6 w-6" onClick={() => setImageUrl(null)}>
+                  <img src={imageUrl} alt="Uploaded" className="rounded-xl max-h-48 object-cover" />
+                  <Button size="icon" variant="secondary" className="absolute top-2 right-2 h-6 w-6 rounded-lg" onClick={() => setImageUrl(null)}>
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
@@ -264,33 +279,40 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
               {/* GIF preview */}
               {gifUrl && (
                 <div className="relative">
-                  <img src={gifUrl} alt="GIF" className="rounded-lg max-h-48 object-cover" />
-                  <Button size="icon" variant="secondary" className="absolute top-1 right-1 h-6 w-6" onClick={() => setGifUrl("")}>
+                  <img src={gifUrl} alt="GIF" className="rounded-xl max-h-48 object-cover" />
+                  <Button size="icon" variant="secondary" className="absolute top-2 right-2 h-6 w-6 rounded-lg" onClick={() => setGifUrl("")}>
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               )}
 
               {/* Action bar */}
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex gap-0.5">
                   {mode === "post" && (
                     <>
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground/70 hover:text-foreground rounded-lg" onClick={() => fileRef.current?.click()} disabled={uploading}>
                         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                        Photo
+                        <span className="text-xs">Photo</span>
                       </Button>
                       <GiphyPicker onSelect={(url) => setGifUrl(url)}>
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground">
-                          GIF
+                        <Button variant="ghost" size="sm" className="h-8 text-muted-foreground/70 hover:text-foreground rounded-lg">
+                          <span className="text-xs">GIF</span>
                         </Button>
                       </GiphyPicker>
                     </>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={reset}>Cancel</Button>
-                  <Button size="sm" className="h-8 gap-1.5" onClick={submit} disabled={submitting}>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground rounded-lg" onClick={reset}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1.5 rounded-lg elevation-1 hover:elevation-2 active:scale-[0.97] transition-all duration-200"
+                    onClick={submit}
+                    disabled={submitting}
+                  >
                     {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Post
                   </Button>
