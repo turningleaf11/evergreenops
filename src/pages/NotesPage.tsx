@@ -210,10 +210,10 @@ export default function NotesPage() {
   return (
     <div className="flex h-[calc(100vh-3rem)]">
       {/* Sidebar */}
-      <div className="w-60 border-r border-border/50 flex flex-col shrink-0 bg-muted/30">
+      <div className="w-60 border-r border-border/50 flex flex-col shrink-0 bg-primary/[0.04]">
         <div className="p-3 border-b border-border/50 flex items-center justify-between">
           <h2 className="font-semibold text-sm">My Notes</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={createNote}>
+          <Button size="icon" className="h-7 w-7" onClick={createNote}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>

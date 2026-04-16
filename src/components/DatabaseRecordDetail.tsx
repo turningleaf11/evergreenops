@@ -42,7 +42,7 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
 
   return (
     <Sheet open={open} onOpenChange={o => { if (!o) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
         <SheetHeader>
           <SheetTitle className="text-lg">{values.title || row?.values.title || "Record"}</SheetTitle>
         </SheetHeader>
