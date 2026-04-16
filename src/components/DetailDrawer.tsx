@@ -84,8 +84,6 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
   peekMode: PeekMode; setPeekMode: (m: PeekMode) => void;
 }) {
   const statuses = type === "project" ? projectStatuses : taskStatuses;
-  const [openField, setOpenField] = useState<string | null>(null);
-  const toggle = (field: string) => setOpenField(openField === field ? null : field);
 
   return (
     <div className="space-y-5">
@@ -131,34 +129,32 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
         </div>
       </div>
 
-      {/* Accordion field rows */}
+      {/* Field rows */}
       <div>
-        <AccordionField
+        <FieldRow
           label="Status"
           icon={AlertCircle}
-          isOpen={openField === "status"}
-          onToggle={() => toggle("status")}
           displayValue={
             <Badge className={cn("text-[10px] rounded-full px-2 py-0.5 border-0 font-medium", statusColors[item.status])}>
               {statusLabels[item.status] || item.status}
             </Badge>
           }
         >
-          <div className="space-y-0.5">
-            {statuses.map(s => (
-              <OptionRow key={s} selected={item.status === s} onClick={() => { onStatusChange(s); setOpenField(null); }}>
-                {statusLabels[s] || s}
-              </OptionRow>
-            ))}
-          </div>
-        </AccordionField>
+          {(close) => (
+            <div className="space-y-0.5">
+              {statuses.map(s => (
+                <OptionRow key={s} selected={item.status === s} onClick={() => { onStatusChange(s); close(); }}>
+                  {statusLabels[s] || s}
+                </OptionRow>
+              ))}
+            </div>
+          )}
+        </FieldRow>
 
         {item.priority !== undefined && (
-          <AccordionField
+          <FieldRow
             label="Priority"
             icon={Flag}
-            isOpen={openField === "priority"}
-            onToggle={() => toggle("priority")}
             displayValue={
               item.priority ? (
                 <Badge className={cn("text-[10px] rounded-full px-2 py-0.5 border-0 font-medium capitalize", priorityColors[item.priority])}>
@@ -167,48 +163,44 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
               ) : null
             }
           >
-            <div className="space-y-0.5">
-              {priorities.map(p => (
-                <OptionRow key={p} selected={item.priority === p} onClick={() => setOpenField(null)}>
-                  <span className="capitalize">{p}</span>
-                </OptionRow>
-              ))}
-            </div>
-          </AccordionField>
+            {(close) => (
+              <div className="space-y-0.5">
+                {priorities.map(p => (
+                  <OptionRow key={p} selected={item.priority === p} onClick={() => close()}>
+                    <span className="capitalize">{p}</span>
+                  </OptionRow>
+                ))}
+              </div>
+            )}
+          </FieldRow>
         )}
 
-        <AccordionField
+        <FieldRow
           label={type === "project" ? "Owner" : "Assignee"}
           icon={User}
-          isOpen={openField === "assignee"}
-          onToggle={() => toggle("assignee")}
           displayValue={getName(type === "project" ? item.owner_id : item.assigned_to)}
         >
-          <p className="text-xs text-muted-foreground py-1">Currently: {getName(type === "project" ? item.owner_id : item.assigned_to)}</p>
-        </AccordionField>
+          <p className="text-xs text-muted-foreground py-1 px-2">Currently: {getName(type === "project" ? item.owner_id : item.assigned_to)}</p>
+        </FieldRow>
 
         {item.due_date && (
-          <AccordionField
+          <FieldRow
             label="Due date"
             icon={Calendar}
-            isOpen={openField === "due_date"}
-            onToggle={() => toggle("due_date")}
             displayValue={item.due_date}
           >
             <input
               type="date"
               defaultValue={item.due_date}
-              className="bg-background border border-border rounded-md px-2 py-1 text-sm"
+              className="bg-background border border-border rounded-md px-2 py-1 text-sm w-full"
             />
-          </AccordionField>
+          </FieldRow>
         )}
 
         {item.tags && item.tags.length > 0 && (
-          <AccordionField
+          <FieldRow
             label="Tags"
             icon={Tag}
-            isOpen={openField === "tags"}
-            onToggle={() => toggle("tags")}
             displayValue={
               <div className="flex flex-wrap gap-1">
                 {item.tags.map((t: string) => (
@@ -217,12 +209,12 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
               </div>
             }
           >
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 p-1">
               {item.tags.map((t: string) => (
                 <Badge key={t} variant="secondary" className="text-[10px] rounded-full">{t}</Badge>
               ))}
             </div>
-          </AccordionField>
+          </FieldRow>
         )}
       </div>
 
