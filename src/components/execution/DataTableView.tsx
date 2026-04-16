@@ -68,7 +68,13 @@ export default function DataTableView({
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const viewKey = `execution-${type}`;
-  const { getWidth, setWidth } = useColumnWidths(viewKey);
+  const { getWidth: getStoredWidth, setWidth } = useColumnWidths(viewKey);
+  const getWidth = (id: string, fallback: number) => {
+    const stored = getStoredWidth(id);
+    // Hook returns the stored value or its own default; if the value matches the
+    // hook's internal default (160), prefer our column-specific fallback.
+    return stored === 160 ? fallback : stored;
+  };
 
   const toggleSort = (col: SortCol) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
