@@ -337,11 +337,11 @@ export default function NotesPage() {
       <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-card">
         {selectedId ? (
           <>
-            <div className="p-3 border-b border-border/50 flex items-center gap-2">
+            <div className="p-3 border-b border-border/50 flex items-center gap-2 bg-white dark:bg-card">
               <Input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                className="border-0 text-lg font-semibold p-0 h-auto focus-visible:ring-0 focus-visible:border-0 shadow-none bg-transparent"
+                className="border-0 text-lg font-semibold p-0 h-auto focus-visible:ring-0 focus-visible:border-0 shadow-none bg-white dark:bg-card"
                 placeholder="Note title..."
               />
               <div className="flex gap-1 shrink-0 items-center">
