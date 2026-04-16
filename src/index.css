@@ -237,3 +237,55 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* ── Scratchpad AI activation magic shell ──
+   - idle  : calm border
+   - hover : conic gradient ring rotates around the edge (humming)
+   - focus : ring locks solid, glow deepens (locked-in / armed)
+*/
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.scratchpad-magic {
+  position: relative;
+  padding: 1.5px;
+  border-radius: 0.75rem;
+  background: hsl(var(--border) / 0.6);
+  transition:
+    transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scratchpad-magic[data-state="hover"],
+.scratchpad-magic[data-state="focus"] {
+  background:
+    conic-gradient(
+      from var(--angle, 0deg),
+      hsl(var(--primary) / 0.95),
+      hsl(var(--ring) / 0.6),
+      hsl(var(--accent-foreground) / 0.25),
+      hsl(var(--primary) / 0.95)
+    );
+  transform: scale(1.005);
+}
+
+.scratchpad-magic[data-state="hover"] {
+  animation: conic-spin 4s linear infinite;
+  box-shadow: 0 0 24px hsl(var(--primary) / 0.18);
+}
+
+.scratchpad-magic[data-state="focus"] {
+  animation: none;
+  --angle: 135deg;
+  box-shadow:
+    0 0 32px hsl(var(--primary) / 0.32),
+    0 0 0 1px hsl(var(--primary) / 0.15);
+}
+
+.scratchpad-inner {
+  position: relative;
+  z-index: 1;
+}
