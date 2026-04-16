@@ -75,18 +75,18 @@ export function TimeClockButton() {
           variant="ghost"
           size="icon"
           className={`relative h-9 w-9 rounded-xl ${
-            !activeEntry
-              ? "animate-pulse ring-2 ring-primary/20"
-              : "ring-2 ring-green-500/30"
+            activeEntry
+              ? "ring-1 ring-green-500/20"
+              : "subtle-glow"
           }`}
         >
           {activeEntry ? (
             <Square className="h-4 w-4 text-green-500" />
           ) : (
-            <Play className="h-4 w-4 text-primary" />
+            <Play className="h-4 w-4 text-muted-foreground/70" />
           )}
           {activeEntry && (
-            <span className="absolute -top-1 -right-1 text-[9px] bg-green-500 text-white rounded-full px-1 font-medium leading-tight">
+            <span className="absolute -top-1 -right-1 text-[8px] bg-green-500/80 text-white rounded-full px-1 font-medium leading-tight">
               {elapsed || "•"}
             </span>
           )}

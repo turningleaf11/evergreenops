@@ -8,7 +8,7 @@ import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Search } from "lucide-react";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 export function Layout() {
   const { name: workspaceName, logoUrl } = useWorkspace();
@@ -35,14 +35,7 @@ export function Layout() {
 
               {/* Center zone — search */}
               <div className="flex-1 flex justify-center px-4">
-                <div className="relative w-full max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="w-full h-8 rounded-full bg-muted/50 pl-9 pr-4 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring/30 transition-colors border-0"
-                  />
-                </div>
+                <GlobalSearch />
               </div>
 
               {/* Right zone */}
