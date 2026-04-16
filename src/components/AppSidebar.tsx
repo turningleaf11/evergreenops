@@ -180,55 +180,98 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-              {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
+      {!collapsed && (
+        <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
             <div className="flex flex-col flex-1">
               <span className="text-xs font-medium text-sidebar-foreground">{profile?.full_name || "User"}</span>
               <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
-          )}
-          {isAdmin && (
-            <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
-              <Settings className="h-3.5 w-3.5" />
-            </NavLink>
-          )}
-          <button
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors"
-            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-        {!collapsed && (
+            {isAdmin && (
+              <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
+                <Settings className="h-3.5 w-3.5" />
+              </NavLink>
+            )}
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors"
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+          </div>
           <button
             onClick={signOut}
             className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1 text-left"
           >
             Sign out
           </button>
-        )}
-        <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1">
-          <button
-            onClick={() => setOpen(!collapsed ? false : true)}
-            className={cn(
-              "w-full h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
-              collapsed ? "justify-center" : "justify-start text-xs",
-            )}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <PanelLeft className="h-3.5 w-3.5" />
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </div>
-      </SidebarFooter>
+          <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1">
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors justify-start text-xs"
+              title="Collapse sidebar"
+            >
+              <PanelLeft className="h-3.5 w-3.5" />
+              <span>Collapse</span>
+            </button>
+          </div>
+        </SidebarFooter>
+      )}
       </div>
+
+      {/* Floating cluster (collapsed state only) — pinned to bottom-left of viewport */}
+      {collapsed && (
+        <div className="fixed bottom-3 left-3 z-50 flex items-center gap-1 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-lg px-1.5 py-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Avatar className="h-7 w-7 cursor-default">
+                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                  {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">{profile?.full_name || "User"}</TooltipContent>
+          </Tooltip>
+          {isAdmin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NavLink to="/settings" className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" activeClassName="text-foreground">
+                  <Settings className="h-3.5 w-3.5" />
+                </NavLink>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Settings</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">{resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setOpen(true)}
+                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <PanelLeft className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Expand sidebar</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </Sidebar>
   );
 }
