@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
@@ -426,40 +426,87 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
 
 function GenericKanban({ database, rows, kanbanColumn, onEdit, allDatabases, allRows }: { database: Database; rows: DatabaseRow[]; kanbanColumn: DatabaseColumn; onEdit?: (r: DatabaseRow) => void; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
   const groups = kanbanColumn?.options || [];
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflowState, setOverflowState] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+
+  const updateOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 1;
+    setOverflowState({
+      left: hasOverflow && el.scrollLeft > 4,
+      right: hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    updateOverflow();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateOverflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateOverflow, groups.length, rows.length]);
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.shiftKey && scrollRef.current) scrollRef.current.scrollLeft += e.deltaY;
+  };
+  const scrollByCol = (dir: -1 | 1) => scrollRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {groups.map(group => {
-        const groupRows = rows.filter(r => r.values[kanbanColumn.id] === group);
-        return (
-          <div key={group} className="space-y-2">
-            <div className="flex items-center gap-2 px-1 pb-2">
-              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(${getColor(group)})` }} />
-              <span className="text-sm font-medium">{group}</span>
-              <span className="text-xs text-muted-foreground ml-auto">{groupRows.length}</span>
-            </div>
-            <div className="space-y-2 min-h-[200px]">
-              {groupRows.map(row => {
-                const otherCols = database.columns.filter(c => c.id !== "title" && c.id !== kanbanColumn.id && c.type !== "relation").slice(0, 3);
-                return (
-                  <Card key={row.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onEdit?.(row)}>
-                    <CardContent className="p-3 space-y-2">
-                      <p className="text-sm font-medium leading-snug">{row.values.title || "Untitled"}</p>
-                      {otherCols.map(col => (
-                        row.values[col.id] !== undefined && (
-                          <div key={col.id} className="flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">{col.name}</span>
-                            <CellValue column={col} value={row.values[col.id]} allDatabases={allDatabases} allRows={allRows} />
-                          </div>
-                        )
-                      ))}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+    <div className="relative group/board">
+      <div ref={scrollRef} onScroll={updateOverflow} onWheel={onWheel} className="overflow-x-auto scrollbar-hide -mx-2 px-2 pb-2">
+        <div className="flex gap-3 w-full">
+          {groups.map(group => {
+            const groupRows = rows.filter(r => r.values[kanbanColumn.id] === group);
+            const color = `hsl(${getColor(group)})`;
+            return (
+              <div key={group} className="flex-1 min-w-[260px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col bg-muted/30">
+                <div className="sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg bg-background/60">
+                  <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-xs font-bold uppercase tracking-wider truncate" style={{ color }}>{group}</span>
+                  <span className="ml-auto text-[10px] font-semibold rounded-full px-1.5 py-0.5 bg-background/60 text-muted-foreground">{groupRows.length}</span>
+                </div>
+                <div className="space-y-2 min-h-[80px] flex-1">
+                  {groupRows.map(row => {
+                    const otherCols = database.columns.filter(c => c.id !== "title" && c.id !== kanbanColumn.id && c.type !== "relation").slice(0, 3);
+                    return (
+                      <Card key={row.id} className="cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all overflow-hidden border-border/40" onClick={() => onEdit?.(row)}>
+                        <div className="h-[3px] w-full" style={{ backgroundColor: color }} />
+                        <CardContent className="p-2.5 space-y-1.5">
+                          <p className="text-sm font-semibold leading-snug line-clamp-2">{row.values.title || "Untitled"}</p>
+                          {otherCols.map(col => (
+                            row.values[col.id] !== undefined && row.values[col.id] !== "" && (
+                              <div key={col.id} className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] text-muted-foreground truncate">{col.name}</span>
+                                <div className="shrink-0"><CellValue column={col} value={row.values[col.id]} allDatabases={allDatabases} allRows={allRows} /></div>
+                              </div>
+                            )
+                          ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {groupRows.length === 0 && <div className="text-[11px] text-muted-foreground/60 text-center py-6">No items</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {overflowState.left && <div className="pointer-events-none absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-background to-transparent" />}
+      {overflowState.right && <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent" />}
+      {overflowState.left && (
+        <button onClick={() => scrollByCol(-1)} className="absolute left-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/board:opacity-100 transition-opacity hover:bg-accent" aria-label="Scroll left">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {overflowState.right && (
+        <button onClick={() => scrollByCol(1)} className="absolute right-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/board:opacity-100 transition-opacity hover:bg-accent" aria-label="Scroll right">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -468,22 +515,49 @@ function GenericList({ database, rows, onEdit, groupBy }: { database: Database; 
   const statusCol = database.columns.find(c => (c.type === "select" || c.type === "status") && c.id !== "title");
   const personCol = database.columns.find(c => c.type === "person");
   const dateCol = database.columns.find(c => c.type === "date");
+  const priorityCol = database.columns.find(c => c.id === "priority" || c.name?.toLowerCase() === "priority");
 
   const groupCol = groupBy ? database.columns.find(c => c.id === groupBy) : null;
 
-  const renderItem = (row: DatabaseRow) => (
-    <div key={row.id} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => onEdit?.(row)}>
-      {statusCol && <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: `hsl(${getColor(row.values[statusCol.id] || "")})` }} />}
-      <span className="text-sm font-medium flex-1 truncate">{row.values.title || "Untitled"}</span>
-      {statusCol && row.values[statusCol.id] && (
-        <Badge variant="outline" className="text-[10px] shrink-0" style={{ borderColor: `hsl(${getColor(row.values[statusCol.id])})`, color: `hsl(${getColor(row.values[statusCol.id])})` }}>
-          {row.values[statusCol.id]}
-        </Badge>
-      )}
-      {personCol && <span className="text-xs text-muted-foreground w-24 text-right truncate hidden sm:block">{row.values[personCol.id] || "—"}</span>}
-      {dateCol && <span className="text-xs text-muted-foreground w-20 text-right hidden md:block">{row.values[dateCol.id] || "—"}</span>}
-    </div>
-  );
+  const renderItem = (row: DatabaseRow) => {
+    const statusVal = statusCol ? row.values[statusCol.id] : null;
+    const isDone = statusVal && ["Completed", "Done", "Closed", "Closing", "Approved", "Published", "Fixed"].includes(statusVal);
+    const ringColor = statusVal ? `hsl(${getColor(statusVal)})` : "hsl(var(--muted-foreground))";
+
+    return (
+      <div
+        key={row.id}
+        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 cursor-pointer transition-colors duration-150 hover:bg-muted/50"
+        style={{ minHeight: 56 }}
+        onClick={() => onEdit?.(row)}
+      >
+        <div
+          className="h-4 w-4 rounded-full shrink-0 border-2 flex items-center justify-center"
+          style={{ borderColor: ringColor, backgroundColor: isDone ? ringColor : "transparent" }}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{row.values.title || "Untitled"}</p>
+        </div>
+        {priorityCol && row.values[priorityCol.id] && (
+          <div className="shrink-0"><CellValue column={priorityCol} value={row.values[priorityCol.id]} /></div>
+        )}
+        {statusCol && statusVal && (
+          <Badge variant="outline" className="text-[10px] shrink-0 gap-1" style={{ borderColor: ringColor, color: ringColor }}>
+            {statusVal}
+          </Badge>
+        )}
+        {dateCol && row.values[dateCol.id] && (
+          <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground whitespace-nowrap">
+            <Calendar className="h-3 w-3" />
+            {row.values[dateCol.id]}
+          </span>
+        )}
+        {personCol && row.values[personCol.id] && (
+          <span className="text-xs text-muted-foreground hidden md:block max-w-[120px] truncate">{row.values[personCol.id]}</span>
+        )}
+      </div>
+    );
+  };
 
   if (groupCol && groupCol.options) {
     return (
@@ -492,13 +566,13 @@ function GenericList({ database, rows, onEdit, groupBy }: { database: Database; 
           const groupRows = rows.filter(r => r.values[groupBy!] === group);
           if (groupRows.length === 0) return null;
           return (
-            <div key={group}>
-              <div className="flex items-center gap-2 px-3 py-1.5 mb-1">
-                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(${getColor(group)})` }} />
-                <span className="text-xs font-medium">{group}</span>
-                <span className="text-[10px] text-muted-foreground">({groupRows.length})</span>
+            <div key={group} className="rounded-xl bg-muted/20 p-3">
+              <div className="flex items-center gap-2 px-1 py-1.5">
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(${getColor(group)})` }} />
+                <span className="text-sm font-semibold">{group}</span>
+                <span className="text-xs text-muted-foreground ml-1">{groupRows.length}</span>
               </div>
-              {groupRows.map(renderItem)}
+              <div className="space-y-1.5 mt-2">{groupRows.map(renderItem)}</div>
             </div>
           );
         })}
@@ -507,9 +581,9 @@ function GenericList({ database, rows, onEdit, groupBy }: { database: Database; 
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {rows.map(renderItem)}
-      {rows.length === 0 && <p className="text-center text-muted-foreground py-8">No rows yet</p>}
+      {rows.length === 0 && <p className="text-center text-muted-foreground py-12 text-sm">No rows yet</p>}
     </div>
   );
 }
