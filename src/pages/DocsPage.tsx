@@ -102,6 +102,39 @@ export default function DocsPage() {
   const selected = docs.find((d) => d.id === selectedDoc);
   const childDocs = selectedDoc ? docs.filter((d) => d.parentId === selectedDoc) : [];
 
+  // Group root docs into Company / Departments / Shared with me
+  const groupedDocs = useMemo(() => {
+    const company: Doc[] = [];
+    const byDept: Record<string, Doc[]> = {};
+    const sharedWithMe: Doc[] = [];
+
+    rootDocs.forEach((d) => {
+      if (d.visibility === "workspace") {
+        company.push(d);
+      } else if (d.visibility === "department" || d.visibility === "departments") {
+        const deptIds = d.sharedWith?.departmentIds || [];
+        if (deptIds.length === 0) {
+          sharedWithMe.push(d);
+        } else {
+          deptIds.forEach((did) => {
+            if (!byDept[did]) byDept[did] = [];
+            byDept[did].push(d);
+          });
+        }
+      } else if (d.visibility === "private") {
+        if (d.authorId === user?.id) sharedWithMe.push(d);
+      } else {
+        // member-shared
+        const memberIds = d.sharedWith?.memberIds || [];
+        if (memberIds.includes(user?.id || "")) sharedWithMe.push(d);
+      }
+    });
+
+    return { company, byDept, sharedWithMe };
+  }, [rootDocs, user?.id]);
+
+  const toggleGroup = (key: string) => setCollapsedGroups((p) => ({ ...p, [key]: !p[key] }));
+
   const handleCreateDoc = async () => {
     const { data: newRow } = await supabase
       .from("documents")
