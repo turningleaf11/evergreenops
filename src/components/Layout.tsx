@@ -1,4 +1,4 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/ActivityFeed";
@@ -21,7 +21,6 @@ export function Layout() {
           {/* Header — full width, sits above the sidebar */}
           <header className="h-[60px] flex items-center border-b border-border/20 px-3 sm:px-5 shrink-0 bg-card/90 backdrop-blur-md sticky top-0 z-40">
             <div className="flex items-center gap-3 min-w-0">
-              <SidebarTrigger />
               {logoUrl ? (
                 <img src={logoUrl} alt={workspaceName} className="h-7 w-7 rounded-lg object-cover shrink-0" />
               ) : (

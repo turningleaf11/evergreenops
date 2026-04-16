@@ -2,14 +2,14 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarHeader, SidebarFooter, useSidebar,
+  SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -20,6 +20,7 @@ import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getDeptIcon } from "@/lib/icon-map";
 import { useAddonEnabled } from "@/hooks/useAddonEnabled";
+import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
   const { state, setOpen } = useSidebar();
@@ -106,25 +107,8 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <div ref={sidebarRef} onClick={handleRailClick} className="contents">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <div className="flex items-center gap-3">
-          {logoUrl ? (
-            <img src={logoUrl} alt={workspaceName} className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm" />
-          ) : (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-              {workspaceName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">{workspaceName}</span>
-              <span className="text-xs text-muted-foreground">Workspace</span>
-            </div>
-          )}
-        </div>
-      </SidebarHeader>
+      <SidebarContent className="pt-2">
 
-      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -230,6 +214,19 @@ export function AppSidebar() {
             Sign out
           </button>
         )}
+        <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1">
+          <button
+            onClick={() => setOpen(!collapsed ? false : true)}
+            className={cn(
+              "w-full h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+              collapsed ? "justify-center" : "justify-start text-xs",
+            )}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <PanelLeft className="h-3.5 w-3.5" />
+            {!collapsed && <span>Collapse</span>}
+          </button>
+        </div>
       </SidebarFooter>
       </div>
     </Sidebar>

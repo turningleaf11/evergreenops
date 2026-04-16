@@ -1,17 +1,19 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUp, ArrowDown, Calendar, Repeat } from "lucide-react";
+import { ArrowUp, ArrowDown, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { InlineText, InlineSelect, InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
 
 interface DataTableViewProps {
   items: any[];
   type: "project" | "task";
   onItemClick: (item: any) => void;
   onStatusChange: (id: string, status: string) => void;
+  onUpdate?: (id: string, patch: Record<string, any>) => void;
   getName: (uid: string | null) => string;
   statusOptions: { value: string; label: string }[];
+  profiles?: { user_id: string; full_name: string | null }[];
   goals?: any[];
   projects?: any[];
 }
@@ -33,6 +35,13 @@ const priorityStyles: Record<string, string> = {
   high: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   urgent: "bg-red-200 text-red-900 dark:bg-red-900/60 dark:text-red-200",
 };
+
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
 
 const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
@@ -57,11 +66,11 @@ const COLUMNS: ColDef[] = [
   { id: "status",   label: "Status",   defaultWidth: 150, minWidth: 110 },
   { id: "priority", label: "Priority", defaultWidth: 120, minWidth: 90 },
   { id: "assignee", label: "Assignee", defaultWidth: 180, minWidth: 130 },
-  { id: "due_date", label: "Due Date", defaultWidth: 140, minWidth: 100 },
+  { id: "due_date", label: "Due Date", defaultWidth: 160, minWidth: 110 },
 ];
 
 export default function DataTableView({
-  items, type, onItemClick, onStatusChange, getName, statusOptions,
+  items, type, onItemClick, onStatusChange, onUpdate, getName, statusOptions, profiles = [],
 }: DataTableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [sortCol, setSortCol] = useState<SortCol>("title");
@@ -71,8 +80,6 @@ export default function DataTableView({
   const { getWidth: getStoredWidth, setWidth } = useColumnWidths(viewKey);
   const getWidth = (id: string, fallback: number) => {
     const stored = getStoredWidth(id);
-    // Hook returns the stored value or its own default; if the value matches the
-    // hook's internal default (160), prefer our column-specific fallback.
     return stored === 160 ? fallback : stored;
   };
 
@@ -100,9 +107,12 @@ export default function DataTableView({
       : <ArrowDown className="h-3 w-3 ml-1 inline" />;
   };
 
-  // Build CSS grid template — explicit user widths or auto-fit minmax
-  const gridTemplate = COLUMNS.map((c) => {
+  // Use 1fr on the last column to absorb extra space; explicit widths elsewhere.
+  const gridTemplate = COLUMNS.map((c, i) => {
     const w = getWidth(c.id, c.defaultWidth);
+    const stored = getStoredWidth(c.id);
+    const userSet = stored !== 160;
+    if (i === COLUMNS.length - 1 && !userSet) return `minmax(${c.minWidth}px, 1fr)`;
     return `minmax(${c.minWidth}px, ${w}px)`;
   }).join(" ");
 
@@ -126,7 +136,7 @@ export default function DataTableView({
   return (
     <div className="rounded-xl border border-border/50 overflow-hidden">
       <div className="overflow-x-auto">
-        <div className="min-w-full" style={{ minWidth: "fit-content" }}>
+        <div className="min-w-full">
           {/* Header */}
           <div
             className="grid bg-muted/30 border-b border-border/50"
@@ -140,7 +150,6 @@ export default function DataTableView({
               >
                 <span className="truncate">{c.label}</span>
                 <SortIcon col={c.id} />
-                {/* Resize handle */}
                 <div
                   onPointerDown={(e) => {
                     e.stopPropagation();
@@ -158,84 +167,109 @@ export default function DataTableView({
           <div className="divide-y divide-border/30">
             {sorted.map((item) => {
               const ownerName = getName(item[ownerField]);
-              const dotColor = statusDotColors[item.status] || statusDotColors.not_started;
-              const statusLabel = statusOptions.find(s => s.value === item.status)?.label || item.status;
               return (
                 <div
                   key={item.id}
-                  className="grid items-center cursor-pointer hover:bg-muted/40 transition-colors"
+                  className="grid items-center cursor-pointer hover:bg-muted/30 transition-colors group"
                   style={{ gridTemplateColumns: gridTemplate }}
                   onClick={() => onItemClick(item)}
                 >
-                  {/* Name */}
-                  <div className="px-3 py-2 min-w-0">
-                    <span className="text-sm font-medium flex items-center gap-1.5 min-w-0">
-                      {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
-                      <span className="truncate">{item.title}</span>
-                    </span>
+                  {/* Name (inline editable) */}
+                  <div className="px-3 py-1.5 min-w-0 flex items-center gap-1.5">
+                    {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <InlineText
+                        value={item.title}
+                        onChange={(v) => onUpdate?.(item.id, { title: v })}
+                        className="font-medium"
+                      />
+                    </div>
                   </div>
 
                   {/* Status */}
-                  <div className="px-3 py-2 min-w-0" onClick={e => e.stopPropagation()}>
-                    <Select value={item.status} onValueChange={v => onStatusChange(item.id, v)}>
-                      <SelectTrigger className="h-7 w-full border-0 shadow-none bg-transparent px-1 text-xs focus:ring-0">
+                  <div className="px-3 py-1.5 min-w-0">
+                    <InlineSelect
+                      value={item.status}
+                      onChange={(v) => onStatusChange(item.id, v)}
+                      options={statusOptions}
+                      renderDisplay={(v, label) => (
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <div className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
-                          <span className="truncate">{statusLabel}</span>
+                          <div className={cn("h-2 w-2 rounded-full shrink-0", statusDotColors[v] || statusDotColors.not_started)} />
+                          <span className="truncate text-xs">{label || v}</span>
                         </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      )}
+                      renderOption={(opt) => (
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-2 w-2 rounded-full", statusDotColors[opt.value] || statusDotColors.not_started)} />
+                          <span>{opt.label}</span>
+                        </div>
+                      )}
+                    />
                   </div>
 
                   {/* Priority */}
-                  <div className="px-3 py-2 min-w-0">
-                    {item.priority && (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
-                          priorityStyles[item.priority] || ""
-                        )}
-                      >
-                        {item.priority}
-                      </Badge>
-                    )}
+                  <div className="px-3 py-1.5 min-w-0">
+                    <InlineSelect
+                      value={item.priority || ""}
+                      onChange={(v) => onUpdate?.(item.id, { priority: v })}
+                      options={priorityOptions}
+                      renderDisplay={(v) =>
+                        v ? (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
+                              priorityStyles[v] || "",
+                            )}
+                          >
+                            {v}
+                          </Badge>
+                        ) : <span className="text-xs text-muted-foreground/60">—</span>
+                      }
+                      renderOption={(opt) => (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
+                            priorityStyles[opt.value] || "",
+                          )}
+                        >
+                          {opt.label}
+                        </Badge>
+                      )}
+                    />
                   </div>
 
                   {/* Assignee */}
-                  <div className="px-3 py-2 min-w-0">
-                    {ownerName && ownerName !== "Unassigned" ? (
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className={cn(
-                            "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
-                            hashColor(ownerName)
-                          )}
-                        >
-                          {getInitials(ownerName)}
-                        </div>
-                        <span className="text-xs text-muted-foreground truncate">{ownerName}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                  <div className="px-3 py-1.5 min-w-0">
+                    <InlineAssignee
+                      value={item[ownerField]}
+                      profiles={profiles}
+                      onChange={(uid) => onUpdate?.(item.id, { [ownerField]: uid })}
+                      renderDisplay={(uid) =>
+                        uid && ownerName !== "Unassigned" ? (
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
+                                hashColor(ownerName),
+                              )}
+                            >
+                              {getInitials(ownerName)}
+                            </div>
+                            <span className="text-xs text-muted-foreground truncate">{ownerName}</span>
+                          </div>
+                        ) : <span className="text-xs text-muted-foreground/60">Unassigned</span>
+                      }
+                    />
                   </div>
 
                   {/* Due Date */}
-                  <div className="px-3 py-2 min-w-0">
-                    {item.due_date ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
-                        <Calendar className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{item.due_date}</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                  <div className="px-3 py-1.5 min-w-0">
+                    <InlineDate
+                      value={item.due_date}
+                      onChange={(v) => onUpdate?.(item.id, { due_date: v })}
+                    />
                   </div>
                 </div>
               );

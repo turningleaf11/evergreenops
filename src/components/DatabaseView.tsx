@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List, TableIcon, Plus, Pencil, Trash2, Link as LinkIcon, DollarSign, Mail, Phone, ExternalLink } from "lucide-react";
+import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { InlineText, InlineSelect, InlineDate } from "@/components/shared/InlineCell";
 
 type ViewMode = "table" | "kanban" | "list";
 
@@ -36,13 +38,14 @@ interface DatabaseViewProps {
   onAdd?: () => void;
   onEdit?: (row: DatabaseRow) => void;
   onDelete?: (rowId: string) => void;
+  onRowUpdate?: (rowId: string, values: Record<string, any>) => void;
   allDatabases?: Database[];
   allRows?: DatabaseRow[];
   onColumnsChange?: (columns: DatabaseColumn[]) => void;
   isAdmin?: boolean;
 }
 
-export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, allDatabases, allRows, onColumnsChange, isAdmin }: DatabaseViewProps) {
+export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, onRowUpdate, allDatabases, allRows, onColumnsChange, isAdmin }: DatabaseViewProps) {
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterDef[]>([]);
@@ -127,6 +130,7 @@ export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, 
           rows={processed as DatabaseRow[]}
           onEdit={onEdit}
           onDelete={onDelete}
+          onRowUpdate={onRowUpdate}
           allDatabases={allDatabases}
           allRows={allRows}
           groupBy={groupBy}
@@ -224,6 +228,7 @@ interface GenericTableProps {
   rows: DatabaseRow[];
   onEdit?: (r: DatabaseRow) => void;
   onDelete?: (id: string) => void;
+  onRowUpdate?: (rowId: string, values: Record<string, any>) => void;
   allDatabases?: Database[];
   allRows?: DatabaseRow[];
   groupBy: string | null;
@@ -235,95 +240,189 @@ interface GenericTableProps {
   onMoveRight: (id: string) => void;
 }
 
-function GenericTable({ database, rows, onEdit, onDelete, allDatabases, allRows, groupBy, isAdmin, onAddColumn, onRenameColumn, onDeleteColumn, onMoveLeft, onMoveRight }: GenericTableProps) {
-  const visibleCols = database.columns.filter(c => c.id !== "title");
+function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDatabases, allRows, groupBy, isAdmin, onAddColumn, onRenameColumn, onDeleteColumn, onMoveLeft, onMoveRight }: GenericTableProps) {
+  const allCols = database.columns;
+  const titleCol = allCols.find(c => c.id === "title");
+  const otherCols = allCols.filter(c => c.id !== "title");
+  const orderedCols = titleCol ? [titleCol, ...otherCols] : otherCols;
 
-  const renderRows = (rowsToRender: DatabaseRow[]) => (
-    <>
-      {rowsToRender.map(row => (
-        <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onEdit?.(row)}>
-          <TableCell className="font-medium">{row.values.title || "Untitled"}</TableCell>
-          {visibleCols.map(col => (
-            <TableCell key={col.id}><CellValue column={col} value={row.values[col.id]} allDatabases={allDatabases} allRows={allRows} /></TableCell>
-          ))}
-          {(onEdit || onDelete) && (
-            <TableCell>
-              <div className="flex gap-1">
-                {onEdit && <button onClick={(e) => { e.stopPropagation(); onEdit(row); }} className="p-1 rounded hover:bg-muted"><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></button>}
-                {onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete(row.id); }} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>}
-              </div>
-            </TableCell>
-          )}
-        </TableRow>
+  const viewKey = `database-${database.id}`;
+  const { getWidth: getStoredWidth, setWidth } = useColumnWidths(viewKey);
+  const getWidth = (id: string, fallback: number) => {
+    const stored = getStoredWidth(id);
+    return stored === 160 ? fallback : stored;
+  };
+
+  const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
+    const onMove = (e: PointerEvent) => setWidth(colId, startWidth + (e.clientX - startX));
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [setWidth]);
+
+  // Default widths by column position
+  const defaultWidthFor = (col: DatabaseColumn, idx: number) => {
+    if (col.id === "title") return 320;
+    if (idx === orderedCols.length - 1) return 160;
+    return 160;
+  };
+
+  const gridTemplate = orderedCols.map((c, i) => {
+    const stored = getStoredWidth(c.id);
+    const userSet = stored !== 160;
+    const w = getWidth(c.id, defaultWidthFor(c, i));
+    if (i === orderedCols.length - 1 && !userSet) return `minmax(120px, 1fr)`;
+    return `minmax(110px, ${w}px)`;
+  }).join(" ") + (isAdmin ? " 40px" : "") + ((onEdit || onDelete) ? " 60px" : "");
+
+  const updateCell = (row: DatabaseRow, colId: string, val: any) => {
+    if (!onRowUpdate) return;
+    onRowUpdate(row.id, { ...row.values, [colId]: val });
+  };
+
+  const renderCell = (col: DatabaseColumn, row: DatabaseRow) => {
+    const v = row.values[col.id];
+    if (col.type === "select" || col.type === "status") {
+      const opts = (col.options || []).map(o => ({ value: o, label: o }));
+      return (
+        <InlineSelect
+          value={v || ""}
+          options={opts}
+          onChange={(nv) => updateCell(row, col.id, nv)}
+          renderDisplay={(val) => val ? (
+            <Badge variant="outline" className="text-[10px] gap-1" style={{ borderColor: `hsl(${getColor(val)})`, color: `hsl(${getColor(val)})` }}>
+              {col.type === "status" && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: `hsl(${getColor(val)})` }} />}
+              {val}
+            </Badge>
+          ) : <span className="text-xs text-muted-foreground/60">—</span>}
+        />
+      );
+    }
+    if (col.type === "date") {
+      return <InlineDate value={v} onChange={(nv) => updateCell(row, col.id, nv)} />;
+    }
+    if (col.type === "text" || col.type === "long_text" || col.type === "number" || col.type === "currency" || col.type === "url" || col.type === "email" || col.type === "phone") {
+      return (
+        <InlineText
+          value={v ?? ""}
+          onChange={(nv) => updateCell(row, col.id, nv)}
+        />
+      );
+    }
+    return <CellValue column={col} value={v} allDatabases={allDatabases} allRows={allRows} />;
+  };
+
+  const renderRows = (rowsToRender: DatabaseRow[]) => rowsToRender.map(row => (
+    <div
+      key={row.id}
+      className="grid items-center cursor-pointer hover:bg-muted/30 transition-colors group"
+      style={{ gridTemplateColumns: gridTemplate }}
+      onClick={() => onEdit?.(row)}
+    >
+      {orderedCols.map((col) => (
+        <div key={col.id} className="px-3 py-1.5 min-w-0">
+          {col.id === "title" ? (
+            <InlineText
+              value={row.values.title || ""}
+              onChange={(nv) => updateCell(row, "title", nv)}
+              className="font-medium"
+              placeholder="Untitled"
+            />
+          ) : renderCell(col, row)}
+        </div>
       ))}
-    </>
-  );
+      {isAdmin && <div />}
+      {(onEdit || onDelete) && (
+        <div className="px-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onDelete && (
+            <button onClick={(e) => { e.stopPropagation(); onDelete(row.id); }} className="p-1 rounded hover:bg-destructive/10">
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  ));
 
-  const groupCol = groupBy ? database.columns.find(c => c.id === groupBy) : null;
+  const groupCol = groupBy ? allCols.find(c => c.id === groupBy) : null;
 
   return (
-    <Card>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Title</TableHead>
-            {visibleCols.map((col, i) => (
-              <TableHead key={col.id} className="group">
-                {isAdmin ? (
-                  <ColumnHeaderMenu
-                    column={col}
-                    index={i}
-                    total={visibleCols.length}
-                    onRename={onRenameColumn}
-                    onDelete={onDeleteColumn}
-                    onMoveLeft={onMoveLeft}
-                    onMoveRight={onMoveRight}
-                  />
-                ) : col.name}
-              </TableHead>
+    <div className="rounded-xl border border-border/50 overflow-hidden">
+      <div className="overflow-x-auto">
+        <div className="min-w-full">
+          {/* Header */}
+          <div className="grid bg-muted/30 border-b border-border/50" style={{ gridTemplateColumns: gridTemplate }}>
+            {orderedCols.map((col, i) => (
+              <div
+                key={col.id}
+                className="relative flex items-center px-3 py-2.5 text-xs font-medium text-muted-foreground select-none"
+              >
+                <span className="truncate flex-1">
+                  {isAdmin && col.id !== "title" ? (
+                    <ColumnHeaderMenu
+                      column={col}
+                      index={i - 1}
+                      total={otherCols.length}
+                      onRename={onRenameColumn}
+                      onDelete={onDeleteColumn}
+                      onMoveLeft={onMoveLeft}
+                      onMoveRight={onMoveRight}
+                    />
+                  ) : col.name || "Title"}
+                </span>
+                <div
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    startResize(col.id, e.clientX, getWidth(col.id, defaultWidthFor(col, i)));
+                  }}
+                  className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+                />
+              </div>
             ))}
             {isAdmin && (
-              <TableHead className="w-10">
+              <div className="flex items-center justify-center">
                 <AddColumnPopover onAdd={onAddColumn} />
-              </TableHead>
+              </div>
             )}
-            {(onEdit || onDelete) && !isAdmin && <TableHead className="w-20" />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groupCol && groupCol.options ? (
-            groupCol.options.map(group => {
-              const groupRows = rows.filter(r => r.values[groupBy!] === group);
-              if (groupRows.length === 0) return null;
-              return (
-                <React.Fragment key={group}>
-                  <TableRow>
-                    <TableCell colSpan={visibleCols.length + 2 + (isAdmin ? 1 : 0)} className="bg-muted/50 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(${getColor(group)})` }} />
-                        <span className="text-xs font-medium">{group}</span>
-                        <span className="text-[10px] text-muted-foreground">({groupRows.length})</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {renderRows(groupRows)}
-                </React.Fragment>
-              );
-            })
-          ) : (
-            renderRows(rows)
-          )}
-          {rows.length === 0 && (
-            <TableRow><TableCell colSpan={visibleCols.length + 2 + (isAdmin ? 1 : 0)} className="text-center text-muted-foreground py-8">No rows yet</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+            {(onEdit || onDelete) && <div />}
+          </div>
+
+          {/* Body */}
+          <div className="divide-y divide-border/30">
+            {groupCol && groupCol.options ? (
+              groupCol.options.map(group => {
+                const groupRows = rows.filter(r => r.values[groupBy!] === group);
+                if (groupRows.length === 0) return null;
+                return (
+                  <React.Fragment key={group}>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(${getColor(group)})` }} />
+                      <span className="text-xs font-medium">{group}</span>
+                      <span className="text-[10px] text-muted-foreground">({groupRows.length})</span>
+                    </div>
+                    {renderRows(groupRows)}
+                  </React.Fragment>
+                );
+              })
+            ) : renderRows(rows)}
+            {rows.length === 0 && (
+              <div className="text-center text-muted-foreground py-8 text-sm">No rows yet</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// Need React import for Fragment
-import React from "react";
 
 function GenericKanban({ database, rows, kanbanColumn, onEdit, allDatabases, allRows }: { database: Database; rows: DatabaseRow[]; kanbanColumn: DatabaseColumn; onEdit?: (r: DatabaseRow) => void; allDatabases?: Database[]; allRows?: DatabaseRow[] }) {
   const groups = kanbanColumn?.options || [];

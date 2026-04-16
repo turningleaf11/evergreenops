@@ -692,8 +692,14 @@ export default function ExecutionPage() {
               type="project"
               onItemClick={openProjectDrawer}
               onStatusChange={(id, status) => updateStatus("projects", id, status)}
+              onUpdate={async (id, patch) => {
+                const { error } = await supabase.from("projects").update(patch as any).eq("id", id);
+                if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                else fetchAll();
+              }}
               getName={getName}
               statusOptions={projectStatusOptions}
+              profiles={profiles}
               goals={goals}
             />
           )}
@@ -755,8 +761,14 @@ export default function ExecutionPage() {
               type="task"
               onItemClick={openTaskDrawer}
               onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+              onUpdate={async (id, patch) => {
+                const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
+                if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                else fetchAll();
+              }}
               getName={getName}
               statusOptions={taskStatusOptions}
+              profiles={profiles}
               projects={projects}
             />
           )}
