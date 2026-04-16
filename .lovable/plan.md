@@ -1,101 +1,94 @@
 
 
-# Multi-feature Polish: Feed, Home, Composer, Kanban, Launcher
+# Flexible Row-Based Home Layout + Unified Kanban with Editable Stage Colors
 
-## 1. Reply UX — light primary tint + collapsed by default
-**File**: `src/components/feed/ReplyThread.tsx`
-- Restructure into two parts via a `mode` prop: `"toggle"` (just shows count + reply button) and `"content"` (the actual replies + composer)
-- Wrap reply composer in `bg-primary/[0.04] rounded-xl p-3` for the soft tint
-- Add a sticky "Comment" + "Reply" buttons beside the reactions (handled in PostCard already — just hide composer until expanded)
+## Part 1: Row-Based Home Layout
 
-**File**: `src/components/feed/PostCard.tsx`
-- Already has `repliesExpanded` state — composer should only render when expanded (it does). Issue is `ReplyThread` always shows composer even when there are 0 replies expanded. Confirm composer appears only inside the expanded block (it does already — but tint the wrapper now).
-- Add a "Comment" button label next to the chevron (icon + "Comment" text)
+Replace the single/double column toggle with a **row-based section model**. Each row holds 1 (full-width) or 2 (split) widgets. Widgets auto-resize based on row occupancy. Drag a widget into any row's slot — the layout adjusts automatically.
 
-## 2. Trello-Style Kanban Board Enhancement
-**File**: `src/components/execution/KanbanBoard.tsx`
-- Add **colored top stripe** to each card (3px) using priority/tag color (matches uploaded mockup)
-- Wrap board in horizontal scroll with `overflow-x-auto` and tinted column backgrounds (`bg-muted/30 rounded-xl p-2`)
-- Sticky column headers with item count badge
-- Add a subtle "+ Add card" button at the bottom of each column (calls a new optional `onAddCard?: (status) => void` prop — wired from ExecutionPage to create a quick task in that status)
-- Card hover: subtle lift (`hover:-translate-y-0.5 hover:shadow-lg transition-all`)
-- Reduce card padding, increase font hierarchy (title bolder, meta smaller)
+### Data model
+Persist per user in `localStorage` (key: `home_layout_rows_v1`):
+```ts
+type Row = { id: string; slots: [string | null, string | null] }; // up to 2 widgets per row
+type Layout = { rows: Row[] };
+```
+- A row with `[widgetId, null]` renders that widget full-width.
+- A row with `[a, b]` renders both at 50/50.
+- Empty rows act as drop zones. An "+ Add row" button at the bottom adds a new empty row.
 
-## 3. Inline AI Chat on Home — "What are you working on?"
-**New widget** `feed_chat` → register in `src/components/home/widgetRegistry.ts`
-**New file**: `src/components/home/HomeAiChat.tsx`
-- Compact chat surface that lives in the home grid as a widget
-- Prompt input "What are you working on?" with a Send button
-- On submit: posts to existing `ceo-chat` edge function (or new lightweight `home-chat` if ceo-chat is admin-restricted — will reuse `ceo-chat` for admins, fall back to `leadership-chat` otherwise)
-- Renders inline conversation thread (last ~5 turns) within the widget card, no modal, no sheet
-- Default visible in left column, sort_order = 0
+### File: `src/hooks/useWidgetPreferences.ts`
+- Add `rowLayout: Row[]` state alongside existing prefs, load/save from localStorage
+- Helper functions: `moveWidget(widgetId, toRowId, toSlot)`, `addRow()`, `removeRow(rowId)`, `clearVisible()` rebuilds rows from visible widgets when no saved layout exists (default = each visible widget in its own full-width row)
 
-## 4. Quick Links → Header "Launcher" button
-**New file**: `src/components/LauncherMenu.tsx`
-- Rocket icon button in header (between TimeClock and GlobalCreateMenu)
-- Opens a `Popover` with the user's `user_favorites` (label + URL)
-- Inline add form (label + URL) and per-row delete
-- Reuses existing `user_favorites` table
+### File: `src/pages/Index.tsx`
+- Remove `layoutMode` toggle (Columns2 / Square buttons)
+- Replace 2-column DnD grid with a vertical stack of `Row` components
+- Each Row renders 1 or 2 droppable slots using `dnd-kit`. Each slot shows either a widget or an empty placeholder ("Drop a widget here")
+- A widget dragged from one slot to another triggers `moveWidget`. If a widget leaves a row's second slot, the remaining widget auto-grows to full-width (because slot 2 = null).
+- Each row has a small "+" button on its right edge that splits a full-width widget into a 2-slot row (places a placeholder in slot 2 that the user can drop into).
+- "+ Add row" button at the bottom of the stack
+- Hidden widgets are listed in the `WidgetCustomizer` and can be dragged back into any slot
+- Horizontal feed at top and tinted announcements styling stay as-is
 
-**File**: `src/components/Layout.tsx`
-- Add `<LauncherMenu />` to right zone
-
-**File**: `src/components/home/widgetRegistry.ts` + `src/pages/Index.tsx`
-- Remove `quick_links` from `WIDGET_REGISTRY` (or set default `visible: false`). Keep render case for backward compat but hide from customizer.
-
-## 5. Announcements Visual Importance
-**File**: `src/pages/Index.tsx` (announcements widget render)
-- Use type-based color stripe + icon background:
-  - `urgent` → red, `celebration` → amber, `policy` → indigo, `update` → blue, `general` → primary
-- Each announcement gets a 3px left border in its type color, type-tinted icon chip, larger title font, type label as a small chip
-- Pinned ones: stronger background tint (`bg-{color}/8`) and Pin icon emphasized
-
-## 6. Feed Page Whitespace Fix
-**File**: `src/pages/CompanyFeedPage.tsx`
-- Container is `max-w-2xl mx-auto` — appears too narrow / left-shifted because sidebar is wide. Change to `max-w-3xl mx-auto px-4 lg:px-8` and center properly. Verify with viewport.
-
-## 7. Home: Horizontal Feed at Top + Column Toggle (1 vs 2 col)
-**File**: `src/components/home/FeedPreview.tsx`
-- Add a `variant` prop: `"vertical"` (current) and `"horizontal"` (new)
-- Horizontal: `flex gap-3 overflow-x-auto snap-x` with each post as a 280px-wide compact card (smaller font, truncated content, single image thumb)
-
-**File**: `src/pages/Index.tsx`
-- Render `feed_preview` widget **above** the 2-column grid as a dedicated full-width row with `variant="horizontal"`
-- Remove `feed_preview` from the column-based render loop
-
-**Layout mode toggle (single vs double column)**:
-- Add layout state `layout: "single" | "double"` to `useWidgetPreferences` (persist as a new `home_layout_preferences` row OR localStorage for simplicity — use **localStorage** to avoid a migration)
-- Toggle in header next to "Customize" button (icons: `Columns` / `Square`)
-- Single mode: render all visible widgets in one column (`max-w-3xl mx-auto`)
-- Double mode: existing 2-column layout
-- DnD already supports cross-column moves — works in double mode; in single mode, all widgets flow vertically and reorder freely
-
-## 8. Docs/Notes — White Input Boxes
-**File**: `src/components/RichTextEditor.tsx`
-- The TipTap content area inherits muted background. In `RichTextEditor.css`, ensure `.ProseMirror` has `background: white` in light mode (and `dark:bg-card` via wrapper)
-
-**File**: `src/pages/DocsPage.tsx` & `src/pages/NotesPage.tsx`
-- Inputs (title fields) — change any `bg-muted` / default `bg-background` to explicit `bg-white dark:bg-card`
-- Tag chips area: ensure white background
+### Visual feel
+- Rows have subtle dividers, no boxes around slots
+- Empty slot placeholder: dashed border, muted "+ Drop widget" hint, only visible when in customize/edit mode (toggle in header)
 
 ---
 
-## Technical Summary
+## Part 2: Unified Kanban Across Tasks, Projects, Lists + Editable Stage Colors
+
+### Goal
+- Use the same `KanbanBoard` styling (Trello cards, stripes, "+ Add card", hover lift) for **all** board views: Tasks, Projects, and Lists/Databases.
+- Replace colored dots in column headers with **soft-tinted full-width header bars** (label in the stage's deep color, no dot).
+- Allow per-board color editing.
+
+### File: `src/components/execution/KanbanBoard.tsx`
+- Update `KanbanColumn` type to `{ key, label, color }` where `color` is now the **base color name** (e.g., `"slate" | "blue" | "red" | "green" | "amber" | "indigo" | "violet" | "rose" | "cyan" | "pink"`) instead of a tailwind bg class
+- Header: replace dot + neutral header with `bg-{color}-500/15 text-{color}-700 dark:text-{color}-300` rounded pill spanning the column header, label uppercase, count badge stays on the right
+- Column body background uses a slightly tinted version (`bg-{color}-500/5`) instead of generic `bg-muted/30`
+- Add optional `onEditColumnColor?: (key: string, newColor: string) => void` prop. When present, render a small pencil/swatch button on hover of the header that opens a color picker popover (10-color palette).
+
+### File: `src/components/DatabaseView.tsx` (`GenericKanban`)
+- Replace the inline kanban with the shared `KanbanBoard` component. Map select/status options to `columns` with their stored `color`. Map rows to items.
+- Wire `onEditColumnColor` to update the corresponding select option's color in `databases_meta.columns` (already supported — colors live in field options).
+- Wire `onAddCard` to create a new row with that group value pre-filled.
+
+### File: `src/pages/ExecutionPage.tsx`
+- Convert `projectKanbanCols` and `taskKanbanCols` to use named colors (`slate`, `blue`, `red`, `green`)
+- Load any custom colors from a new `kanban_stage_colors` table (per board scope) and merge before passing to `KanbanBoard`
+- Wire `onEditColumnColor` to upsert into `kanban_stage_colors`
+
+### Database
+New table for Tasks/Projects board color overrides (per board, since user chose "Per board/list"):
+```sql
+CREATE TABLE public.kanban_stage_colors (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid,
+  board_type text NOT NULL,    -- 'task' | 'project'
+  stage_key text NOT NULL,     -- 'todo', 'in_progress', etc.
+  color text NOT NULL,         -- 'slate' | 'blue' | ...
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (workspace_id, board_type, stage_key)
+);
+```
+RLS: authenticated can SELECT all in workspace; admins manage all; any authenticated can INSERT/UPDATE/DELETE for their workspace (matches existing project/task permissiveness).
+
+For Lists/Databases, no migration needed — colors live in the existing `databases_meta.columns[].options[].color` field config.
+
+---
+
+## Files Summary
 
 | Action | File |
 |--------|------|
-| Edit | `src/components/feed/ReplyThread.tsx` — primary tint composer wrapper |
-| Edit | `src/components/feed/PostCard.tsx` — add "Comment" label to toggle |
-| Edit | `src/components/execution/KanbanBoard.tsx` — Trello styling, +Add card, hover lift |
-| New | `src/components/home/HomeAiChat.tsx` — inline AI chat widget |
-| Edit | `src/components/home/widgetRegistry.ts` — add `feed_chat`, drop `quick_links` |
-| New | `src/components/LauncherMenu.tsx` — header rocket button popover |
-| Edit | `src/components/Layout.tsx` — add LauncherMenu |
-| Edit | `src/pages/Index.tsx` — type-colored announcements, horizontal feed at top, layout toggle |
-| Edit | `src/components/home/FeedPreview.tsx` — horizontal variant |
-| Edit | `src/pages/CompanyFeedPage.tsx` — wider container, proper centering |
-| Edit | `src/components/RichTextEditor.css` — white ProseMirror bg |
-| Edit | `src/pages/DocsPage.tsx`, `src/pages/NotesPage.tsx` — white input bg |
+| Edit | `src/hooks/useWidgetPreferences.ts` — add `rowLayout` + helpers (localStorage) |
+| Edit | `src/pages/Index.tsx` — replace col grid with row-based slot layout |
+| Edit | `src/components/home/WidgetCustomizer.tsx` — minor: drag hidden widgets into slots |
+| Edit | `src/components/execution/KanbanBoard.tsx` — tinted header bars, named-color system, color picker hook |
+| Edit | `src/components/DatabaseView.tsx` — replace `GenericKanban` with shared `KanbanBoard` |
+| Edit | `src/pages/ExecutionPage.tsx` — load/save stage color overrides, named colors |
+| New | Migration: `kanban_stage_colors` table + RLS |
 
-No DB migrations needed. Layout toggle stored in localStorage.
+DB migration required for kanban color overrides on tasks/projects.
 
