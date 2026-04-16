@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
   const { state, setOpen } = useSidebar();
+  const { mode, toggleMode } = useSidebarMode();
+  const isPinned = mode === "pinned";
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
@@ -67,10 +69,10 @@ export function AppSidebar() {
     setOpen(true);
   };
 
-  // Click outside the expanded sidebar → collapse it (overlay behaviour)
+  // Click outside the expanded sidebar → collapse it (overlay behaviour, only when floating)
   const sidebarRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (collapsed) return;
+    if (collapsed || isPinned) return;
     const onPointerDown = (e: PointerEvent) => {
       const root = sidebarRef.current;
       if (!root) return;
@@ -84,7 +86,7 @@ export function AppSidebar() {
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [collapsed, setOpen]);
+  }, [collapsed, isPinned, setOpen]);
 
   // Wrap nav buttons with a tooltip that shows the title when collapsed
   const NavItem = ({ item }: { item: { title: string; url: string; icon: any } }) => {
@@ -212,15 +214,33 @@ export function AppSidebar() {
           >
             Sign out
           </button>
-          <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1">
+          <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1 flex items-center gap-1">
             <button
               onClick={() => setOpen(false)}
-              className="w-full h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors justify-start text-xs"
+              className="flex-1 h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors justify-start text-xs"
               title="Collapse sidebar"
             >
               <PanelLeft className="h-3.5 w-3.5" />
               <span>Collapse</span>
             </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggleMode}
+                  className={cn(
+                    "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
+                    isPinned
+                      ? "text-primary bg-sidebar-accent"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {isPinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar (keep open)"}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </SidebarFooter>
       )}
