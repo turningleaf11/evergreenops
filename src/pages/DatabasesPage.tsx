@@ -191,6 +191,10 @@ export default function DatabasesPage() {
           onAdd={isAdmin ? handleAddRow : undefined}
           onEdit={handleEditRow as any}
           onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined}
+          onRowUpdate={async (rowId, values) => {
+            await supabase.from("database_rows").update({ values: values as any }).eq("id", rowId);
+            setAllRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, values } : r)));
+          }}
           allDatabases={allDatabases as any}
           allRows={allRows as any}
           onColumnsChange={isAdmin ? handleColumnsChange : undefined}
