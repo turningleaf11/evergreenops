@@ -15,15 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
-import { format, parseISO, addDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { WidgetCustomizer } from "@/components/home/WidgetCustomizer";
 import { FeedPreview } from "@/components/home/FeedPreview";
-import { FeedComposer } from "@/components/feed/FeedComposer";
 import { useWidgetPreferences } from "@/hooks/useWidgetPreferences";
 import { cn } from "@/lib/utils";
+import DetailDrawer from "@/components/DetailDrawer";
 import {
   DndContext,
   closestCenter,
@@ -41,7 +39,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, CalendarIcon } from "lucide-react";
+import { GripVertical } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   todo: "bg-muted-foreground",
@@ -49,12 +47,6 @@ const statusColors: Record<string, string> = {
   done: "bg-green-500",
   blocked: "bg-red-500",
 };
-
-const priorityOptions = [
-  { value: "high", label: "High", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  { value: "medium", label: "Med", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  { value: "low", label: "Low", className: "bg-muted text-muted-foreground border-border" },
-];
 
 function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -101,20 +93,11 @@ const Index = () => {
   const [addingFav, setAddingFav] = useState(false);
   const [favLabel, setFavLabel] = useState("");
   const [favUrl, setFavUrl] = useState("");
-
-  // New Task dialog state
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDesc, setTaskDesc] = useState("");
-  const [taskShowDesc, setTaskShowDesc] = useState(false);
-  const [taskPriority, setTaskPriority] = useState("medium");
-  const [taskAssignee, setTaskAssignee] = useState("");
-  const [taskAssigneeOpen, setTaskAssigneeOpen] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
-  // Post dialog state
-  const [postDialogOpen, setPostDialogOpen] = useState(false);
-  const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  // Task peek drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState<any>(null);
 
   const visibleDepartments = isAdmin
     ? departments
@@ -132,7 +115,6 @@ const Index = () => {
       ]);
       if (annRes.data) {
         setAnnouncements(annRes.data);
-        // Fetch acknowledgment counts
         const annIds = annRes.data.map((a: any) => a.id);
         if (annIds.length > 0) {
           const { data: acks } = await supabase
@@ -156,7 +138,6 @@ const Index = () => {
       if (subRes.data) setMySubmissions(subRes.data as any[]);
       if (profilesRes.data) {
         setProfiles(profilesRes.data);
-        setPeople(profilesRes.data.filter((p) => p.user_id !== user?.id));
       }
       if (docRes.data) {
         const filtered = isAdmin
@@ -176,7 +157,7 @@ const Index = () => {
       if (user) {
         const { data: tasks } = await supabase
           .from("tasks")
-          .select("id, title, status, due_date, priority")
+          .select("id, title, status, due_date, priority, description, assigned_to, tags, subtasks")
           .eq("assigned_to", user.id)
           .neq("status", "done")
           .order("due_date", { ascending: true, nullsFirst: false })
@@ -206,7 +187,6 @@ const Index = () => {
     setAckCounts((prev) => ({ ...prev, [annId]: (prev[annId] || 0) + 1 }));
   };
 
-  // Auto-acknowledge announcements after 3 seconds of being visible
   useEffect(() => {
     if (!user || announcements.length === 0) return;
     const timers = announcements
@@ -262,42 +242,18 @@ const Index = () => {
     setFavorites(favorites.filter((f) => f.id !== id));
   };
 
-  // Task dialog
-  const resetTaskDialog = () => {
-    setTaskDialogOpen(false);
-    setTaskTitle("");
-    setTaskDesc("");
-    setTaskShowDesc(false);
-    setTaskPriority("medium");
-    setTaskAssignee("");
+  const getName = (uid: string | null) => {
+    if (!uid) return "Unassigned";
+    return profiles.find(p => p.user_id === uid)?.full_name || "Unknown";
   };
 
-  const handleCreateTask = async () => {
-    if (!taskTitle.trim() || !user) return;
-    const { error } = await supabase.from("tasks").insert({
-      title: taskTitle.trim(),
-      description: taskDesc,
-      priority: taskPriority,
-      created_by: user.id,
-      assigned_to: taskAssignee || user.id,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Task created");
-      resetTaskDialog();
-      // Refresh tasks
-      const { data: tasks } = await supabase
-        .from("tasks")
-        .select("id, title, status, due_date, priority")
-        .eq("assigned_to", user.id)
-        .neq("status", "done")
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .limit(8);
-      if (tasks) setMyTasks(tasks);
-    }
+  const handleTaskStatusChange = async (status: string) => {
+    if (!drawerTask) return;
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", drawerTask.id);
+    if (error) { toast.error(error.message); return; }
+    setDrawerTask({ ...drawerTask, status });
+    setMyTasks(prev => prev.map(t => t.id === drawerTask.id ? { ...t, status } : t));
   };
-
-  const taskAssigneeName = profiles.find(p => p.user_id === taskAssignee)?.full_name;
 
   const statusIcon: Record<string, React.ReactNode> = {
     pending: <Clock className="h-3.5 w-3.5 text-amber-500" />,
@@ -462,7 +418,7 @@ const Index = () => {
                   return (
                     <button
                       key={task.id}
-                      onClick={() => navigate(`/tasks/${task.id}`)}
+                      onClick={() => { setDrawerTask(task); setDrawerOpen(true); }}
                       className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
                     >
                       <span className={`h-2 w-2 rounded-full shrink-0 ${statusColors[task.status] || "bg-muted-foreground"}`} />
@@ -571,12 +527,6 @@ const Index = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setTaskDialogOpen(true)}>
-            <Plus className="h-3 w-3" /> New Task
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setPostDialogOpen(true)}>
-            <Plus className="h-3 w-3" /> Post Update
-          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -660,87 +610,15 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* New Task Dialog — same as GlobalCreateMenu */}
-      <Dialog open={taskDialogOpen} onOpenChange={(o) => !o && resetTaskDialog()}>
-        <DialogContent className="max-w-sm gap-0 p-5">
-          <DialogHeader className="pb-3">
-            <DialogTitle className="text-base">New Task</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              value={taskTitle}
-              onChange={(e) => setTaskTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && taskTitle.trim()) { e.preventDefault(); handleCreateTask(); } }}
-              placeholder="Title..."
-              className="border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
-              autoFocus
-            />
-            {taskShowDesc ? (
-              <textarea
-                value={taskDesc}
-                onChange={(e) => setTaskDesc(e.target.value)}
-                placeholder="Add a description..."
-                rows={2}
-                className="w-full resize-none rounded-md bg-muted/50 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none"
-              />
-            ) : (
-              <button onClick={() => setTaskShowDesc(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                + Add description
-              </button>
-            )}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <div className="flex gap-1">
-                {priorityOptions.map(p => (
-                  <button
-                    key={p.value}
-                    onClick={() => setTaskPriority(p.value)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
-                      taskPriority === p.value ? p.className : "border-transparent text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <Popover open={taskAssigneeOpen} onOpenChange={setTaskAssigneeOpen}>
-                <PopoverTrigger asChild>
-                  <button className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
-                    <User className="h-3 w-3" />
-                    {taskAssigneeName || "Assign"}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-1" align="start">
-                  {profiles.map(p => (
-                    <button
-                      key={p.user_id}
-                      onClick={() => { setTaskAssignee(p.user_id); setTaskAssigneeOpen(false); }}
-                      className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
-                    >
-                      {p.full_name || "Unnamed"}
-                    </button>
-                  ))}
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="flex justify-end pt-2">
-              <Button onClick={handleCreateTask} disabled={!taskTitle.trim()} size="sm" className="h-8 px-4 text-xs">
-                Create
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Post Update Dialog */}
-      <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base">Post Update</DialogTitle>
-          </DialogHeader>
-          <FeedComposer onPost={() => setPostDialogOpen(false)} people={people} />
-        </DialogContent>
-      </Dialog>
+      {/* Task Peek Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        type="task"
+        item={drawerTask}
+        onStatusChange={handleTaskStatusChange}
+        getName={getName}
+      />
 
       <WidgetCustomizer
         open={customizerOpen}
