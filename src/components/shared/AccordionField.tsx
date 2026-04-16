@@ -1,43 +1,67 @@
-import { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ReactNode, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-interface AccordionFieldProps {
+interface FieldRowProps {
   label: string;
   icon?: React.ElementType;
-  isOpen: boolean;
-  onToggle: () => void;
   displayValue: ReactNode;
-  children: ReactNode;
+  /** Render prop receives `close` so option clicks can dismiss the popover. */
+  children?: ReactNode | ((close: () => void) => ReactNode);
+  popoverClassName?: string;
+  align?: "start" | "center" | "end";
 }
 
-export function AccordionField({ label, icon: Icon, isOpen, onToggle, displayValue, children }: AccordionFieldProps) {
-  return (
-    <div className="border-b border-border/30 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 py-2.5 px-1 hover:bg-muted/40 rounded-md transition-colors text-left group"
-      >
-        <div className="flex items-center gap-2 w-32 shrink-0">
-          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
-          <span className="text-xs text-muted-foreground">{label}</span>
-        </div>
-        <div className="flex-1 min-w-0 text-sm text-foreground/90 truncate">
-          {displayValue || <span className="text-muted-foreground/60 italic text-xs">Empty</span>}
-        </div>
-        <ChevronRight
+export function FieldRow({ label, icon: Icon, displayValue, children, popoverClassName, align = "end" }: FieldRowProps) {
+  const [open, setOpen] = useState(false);
+
+  const row = (
+    <div
+      className={cn(
+        "w-full flex items-center gap-3 py-2.5 px-1 rounded-md text-left transition-colors",
+        children && "hover:bg-muted/40 cursor-pointer group"
+      )}
+    >
+      <div className="flex items-center gap-2 w-32 shrink-0">
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <div className="flex-1 min-w-0 text-sm text-foreground/90 truncate">
+        {displayValue || <span className="text-muted-foreground/60 italic text-xs">Empty</span>}
+      </div>
+      {children && (
+        <ChevronDown
           className={cn(
             "h-3.5 w-3.5 text-muted-foreground/60 transition-transform shrink-0",
-            isOpen && "rotate-90"
+            open && "rotate-180"
           )}
         />
-      </button>
-      {isOpen && (
-        <div className="pl-[140px] pr-2 pb-3 pt-1 animate-accordion-down">
-          {children}
-        </div>
       )}
     </div>
   );
+
+  if (!children) {
+    return <div className="border-b border-border/30 last:border-b-0">{row}</div>;
+  }
+
+  return (
+    <div className="border-b border-border/30 last:border-b-0">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className="w-full">{row}</button>
+        </PopoverTrigger>
+        <PopoverContent
+          align={align}
+          sideOffset={4}
+          className={cn("w-64 p-1.5", popoverClassName)}
+        >
+          {typeof children === "function" ? children(() => setOpen(false)) : children}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
+
+// Backwards-compat alias (older imports)
+export const AccordionField = FieldRow;

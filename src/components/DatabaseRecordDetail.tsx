@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Save, Mail, Phone, ExternalLink, DollarSign, Check, Type, Hash, Calendar, ListChecks, User as UserIcon, Tag as TagIcon } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
 import CommentsSection from "@/components/CommentsSection";
-import { AccordionField } from "@/components/shared/AccordionField";
+import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
 interface DatabaseRecordDetailProps {
@@ -35,14 +35,12 @@ const typeIcons: Record<string, React.ElementType> = {
 
 export default function DatabaseRecordDetail({ database, row, open, onClose, onSave, onDelete, allDatabases, allRows }: DatabaseRecordDetailProps) {
   const [values, setValues] = useState<Record<string, any>>(row?.values || {});
-  const [openField, setOpenField] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) { setValues(row?.values || {}); setOpenField(null); }
+    if (open) { setValues(row?.values || {}); }
   }, [open, row]);
 
   const setValue = (colId: string, val: any) => setValues(prev => ({ ...prev, [colId]: val }));
-  const toggle = (id: string) => setOpenField(openField === id ? null : id);
 
   return (
     <Sheet open={open} onOpenChange={o => { if (!o) onClose(); }}>
@@ -61,12 +59,10 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
           <TabsContent value="fields" className="mt-4">
             <div>
               {database.columns.map(col => (
-                <AccordionField
+                <FieldRow
                   key={col.id}
                   label={col.name}
                   icon={typeIcons[col.type] || Type}
-                  isOpen={openField === col.id}
-                  onToggle={() => toggle(col.id)}
                   displayValue={renderDisplayValue(col, values[col.id])}
                 >
                   <FieldEditor
@@ -74,7 +70,7 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
                     value={values[col.id]}
                     onChange={v => setValue(col.id, v)}
                   />
-                </AccordionField>
+                </FieldRow>
               ))}
             </div>
             <div className="flex gap-2 pt-4 mt-4 border-t border-border/30">
