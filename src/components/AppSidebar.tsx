@@ -1,7 +1,7 @@
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Megaphone,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -40,7 +40,7 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
-    { title: "Feed", url: "/feed", icon: Megaphone },
+    { title: "Feed", url: "/feed", icon: Pizza },
     ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
     { title: "Wiki", url: "/docs", icon: FileText },

@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface PostCardProps {
@@ -37,6 +37,8 @@ export function PostCard({ post, onRefresh }: PostCardProps) {
 
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [repliesExpanded, setRepliesExpanded] = useState(false);
+  const [replyCount, setReplyCount] = useState(0);
 
   const handleDelete = async () => {
     if (!confirm("Delete this post?")) return;
@@ -113,8 +115,20 @@ export function PostCard({ post, onRefresh }: PostCardProps) {
         <div className="flex-1">
           <ReactionBar entityType="post" entityId={post.id} />
         </div>
-        <ReplyThread entityType="post" entityId={post.id} />
+        <button
+          onClick={() => setRepliesExpanded(!repliesExpanded)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          {replyCount > 0 && <span>{replyCount}</span>}
+          {repliesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
       </div>
+
+      {/* Expanded reply thread — full width below action row */}
+      {repliesExpanded && (
+        <ReplyThread entityType="post" entityId={post.id} onCountChange={setReplyCount} />
+      )}
     </div>
   );
 }
