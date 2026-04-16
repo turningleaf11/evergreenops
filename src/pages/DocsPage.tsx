@@ -48,11 +48,13 @@ function mapRow(row: any): Doc {
 
 export default function DocsPage() {
   const { isAdmin, profile, user } = useAuth();
+  const { departments } = useDepartments();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchDocs = async () => {
