@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Save, Mail, Phone, ExternalLink, DollarSign, Check, Type, Hash, Calendar, ListChecks, User as UserIcon, Tag as TagIcon } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
 import CommentsSection from "@/components/CommentsSection";
-import { AccordionField } from "@/components/shared/AccordionField";
+import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
 interface DatabaseRecordDetailProps {
