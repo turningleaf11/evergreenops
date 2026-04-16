@@ -169,10 +169,7 @@ export default function DatabasesPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{currentDb.title}</h1>
-          <p className="text-muted-foreground mt-1">{currentDb.description}</p>
-          <div className="flex gap-1.5 mt-2 flex-wrap">
-            {currentDb.columns.map((col) => (<span key={col.id} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{col.name}</span>))}
-          </div>
+          {currentDb.description && <p className="text-muted-foreground mt-1">{currentDb.description}</p>}
         </div>
 
         {dbViews.length > 0 && (
