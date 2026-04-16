@@ -245,7 +245,7 @@ export default function DocsPage() {
         </div>
       </div>
 
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-6 overflow-auto bg-white dark:bg-card">
         {/* Breadcrumb */}
         {breadcrumb.length > 0 && (
           <nav className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
