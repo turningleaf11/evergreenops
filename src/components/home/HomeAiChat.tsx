@@ -3,14 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Send, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
 }
+
+const SUPABASE_URL = "https://tjthjgmqdvmgosbzfrif.supabase.co";
 
 export function HomeAiChat() {
   const { isAdmin } = useAuth();
@@ -31,16 +33,73 @@ export function HomeAiChat() {
     setInput("");
     setLoading(true);
 
+    // Add placeholder assistant message we will stream into
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
     try {
       const fn = isAdmin ? "ceo-chat" : "leadership-chat";
-      const { data, error } = await supabase.functions.invoke(fn, {
-        body: { messages: newMessages },
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ messages: newMessages }),
       });
-      if (error) throw error;
-      const reply = data?.reply || data?.message || data?.content || "I couldn't generate a response.";
-      setMessages([...newMessages, { role: "assistant", content: reply }]);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let acc = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if (payload === "[DONE]") continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json.choices?.[0]?.delta?.content || "";
+            if (delta) {
+              acc += delta;
+              setMessages((prev) => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: "assistant", content: acc };
+                return copy;
+              });
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+
+      if (!acc) {
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { role: "assistant", content: "I couldn't generate a response." };
+          return copy;
+        });
+      }
     } catch (e: any) {
-      setMessages([...newMessages, { role: "assistant", content: `Sorry, I ran into an error: ${e.message || "unknown"}` }]);
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", content: `Sorry, ran into an error: ${e.message || "unknown"}` };
+        return copy;
+      });
     } finally {
       setLoading(false);
     }
@@ -68,22 +127,19 @@ export function HomeAiChat() {
                   }`}
                 >
                   {m.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>*]:my-1">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
-                    </div>
+                    m.content ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*]:my-1">
+                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )
                   ) : (
                     <p className="whitespace-pre-wrap">{m.content}</p>
                   )}
                 </div>
               </div>
             ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-muted/60 rounded-2xl px-3 py-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -108,7 +164,7 @@ export function HomeAiChat() {
               onClick={send}
               disabled={!input.trim() || loading}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>

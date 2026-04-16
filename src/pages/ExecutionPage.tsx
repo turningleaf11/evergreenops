@@ -733,7 +733,7 @@ export default function ExecutionPage() {
                   created_by: user.id,
                 } as any).then(({ error }) => {
                   if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                  else loadAll();
+                  else fetchAll();
                 });
               }}
             />
