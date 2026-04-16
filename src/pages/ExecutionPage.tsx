@@ -158,6 +158,7 @@ export default function ExecutionPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [stageColors, setStageColors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState("goals");
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
