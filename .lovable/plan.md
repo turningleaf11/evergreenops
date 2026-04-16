@@ -1,86 +1,102 @@
 
 
-# CEO Cockpit Premium UI Refinement
+# Home Page Intranet Redesign + Time Clock to Header
 
 ## Overview
-Refine the CEO Cockpit and establish a consistent design system across the app: premium layering, calm surfaces, polished tabs, and subtle interaction feedback.
+Three changes: (1) Move Time Clock from home widget to global header as a play button, (2) fix task navigation, (3) redesign home as a 2-column company intranet with drag-and-drop across columns.
 
 ---
 
-## 1. Brain Dump — Primary Command Surface
+## 1. Time Clock → Global Header Button
 
-**File**: `src/pages/CeoDashboard.tsx`
-- Wrap Brain Dump in an elevated container: `bg-primary/[0.03]` tinted background, `shadow-md` soft shadow, `p-8` generous padding, `rounded-2xl`
-- The inner `RichTextEditor` stays clean (neutral `bg-card` or white)
-- Remove the current `rounded-xl border border-border bg-card p-5` wrapper — replace with the elevated style
-- Brain Dump visually dominates; other cards stay at lower elevation
+**File**: `src/components/Layout.tsx`
+- Add a new `TimeClockButton` component next to GlobalCreateMenu, RemindersBell, NotificationBell
+- Small play/stop icon button with a subtle animated glow ring (`animate-pulse ring-2 ring-primary/20`) when not clocked in to draw attention
+- When clocked in: shows elapsed time badge and switches to a stop icon
+- Clicking opens a tiny popover or directly toggles clock in/out
+- Uses same `time_entries` + `profiles.time_clock_enabled` logic from current Index.tsx
+- Only renders if `time_clock_enabled` is true
 
-## 2. Current Objective — Slim, Above Brain Dump
+**File**: `src/components/home/widgetRegistry.ts`
+- Remove `time_clock` from the registry (no longer a home widget)
 
-**File**: `src/pages/CeoDashboard.tsx`
-- Reduce from `text-xl font-semibold` to `text-base font-medium`
-- Keep muted label (`text-xs uppercase tracking-widest`)
-- Remove heavy `border-b` divider, use `mb-6` spacing instead
-- Should feel like a pinned context line, not a section
+**File**: `src/pages/Index.tsx`
+- Remove the `time_clock` case from `renderWidget` and all time clock state/logic
 
-## 3. Premium Tab Styling
+---
 
-**File**: `src/pages/CeoDashboard.tsx` (TabsList/TabsTrigger overrides via className)
-- Active tab: `bg-primary/10 text-primary font-semibold` with `transition-all duration-200`
-- Inactive tab: `text-muted-foreground hover:text-foreground` with no background
-- TabsList: transparent background, no pill container — just the tab buttons
-- Add `transition-colors duration-200` to all triggers
+## 2. Fix Task Navigation
 
-## 4. Global Layering System
+**File**: `src/pages/Index.tsx`
+- The current `navigate('/execution/task/${task.id}')` path may not match routing. Check App.tsx routes and fix the path to match the actual task detail route.
 
-**File**: `src/index.css`
-- Define utility classes for consistent elevation:
-  - `.elevation-0` — page background (neutral base, no shadow)
-  - `.elevation-1` — standard cards: `shadow-sm` + subtle border
-  - `.elevation-2` — Brain Dump / featured surfaces: `shadow-md`, slightly tinted bg
-  - `.elevation-3` — floating buttons/popovers: `shadow-lg`
-- All shadows use the existing soft multi-layer style, just at different intensities
+---
 
-## 5. Interaction Feedback
+## 3. Home Page → 2-Column Intranet Layout
 
-**File**: `src/index.css` + component overrides
-- Buttons: add `active:scale-[0.97]` (already on primary, extend to all)
-- Inputs: `focus:ring-2 focus:ring-primary/20` subtle glow (no harsh ring)
-- Cards: hover shadow increase already exists via `[data-slot="card"]`, keep consistent
-- Tabs: `transition-all duration-200` for color/background changes
+**File**: `src/components/home/widgetRegistry.ts`
+- Add a `column` field to `WidgetConfig`: `"left" | "right"`
+- Update registry with default column assignments:
+  - **Left (My Day)**: `my_tasks`, `reminders`, `recent_docs`
+  - **Right (Company)**: `feed_preview`, `quick_links`, `announcements`, `departments`, `forms`, `activity_feed`
+- Remove `time_clock` from registry
 
-## 6. Remove Heavy Gray Backgrounds
+**File**: `src/hooks/useWidgetPreferences.ts`
+- Add `column` field to preference loading/saving logic
+- Widget preferences table already has a `column` int field — map 0=left, 1=right
 
-**File**: `src/pages/CeoDashboard.tsx`
-- Replace `bg-card` on Command tab cards with lighter treatment
-- Use `bg-card/80` or `bg-background` for less visual weight
-- Section headers: remove `uppercase tracking-widest` heavy style, use `text-xs font-medium text-muted-foreground`
+**File**: `src/pages/Index.tsx` — Major refactor:
 
-## 7. Icon Consistency
+**Header section**:
+- Left: Welcome message + current date (formatted nicely)
+- Right: Quick action buttons (New Task, Post Update, Create Project) as small outlined buttons + Customize button
 
-**File**: `src/pages/CeoDashboard.tsx`
-- Ensure all Lucide icons use consistent `h-4 w-4` sizing
-- Apply `text-muted-foreground/70` (not pure black) to non-primary icons
-- Sidebar icons already use Lucide — verify consistent stroke width across the page
+**2-Column grid**:
+```
+Left (7/12 or ~60%)          Right (5/12 or ~40%)
+┌──────────────────┐         ┌──────────────────┐
+│ My Tasks (PRIMARY)│         │ Feed Carousel     │
+│ Big, dominant     │         │ Prominent, alive  │
+├──────────────────┤         ├──────────────────┤
+│ Reminders         │         │ Quick Links       │
+├──────────────────┤         ├──────────────────┤
+│ Recent Docs       │         │ Announcements     │
+└──────────────────┘         ├──────────────────┤
+                              │ Departments       │
+                              └──────────────────┘
+```
 
-## 8. Spacing & Radius Standardization
+- Use two `SortableContext` zones (one per column)
+- Enable drag between columns using `DndContext` with custom collision detection
+- On mobile (`< md`), stack left column first then right column in single column
+- My Tasks widget gets enhanced styling: larger card, prominent header, today/overdue grouping
 
-**Files**: `src/pages/CeoDashboard.tsx`, `src/index.css`
-- Cards: `rounded-2xl` consistently (already in aesthetic memory)
-- Inputs/buttons: `rounded-xl` (12px, already set)
-- Internal spacing: 8px scale (`p-4`, `p-6`, `p-8`, `gap-4`, `gap-6`)
-- Page padding: `px-8 pt-10 pb-16`
+**File**: `src/components/home/WidgetCustomizer.tsx`
+- Add column toggle (Left/Right) per widget in the customizer sheet
+- Show widgets grouped by column
+
+---
+
+## 4. Feed Preview Enhancement
+
+**File**: `src/components/home/FeedCarousel.tsx`
+- Keep the horizontal carousel but make cards slightly taller with more content preview (~150 chars)
+- Show reaction count and reply count on each card
+- Fetch `type` field to show post type badge (Post, Announcement, Kudos)
 
 ---
 
 ## Technical Summary
 
-| File | Changes |
-|------|---------|
-| `src/pages/CeoDashboard.tsx` | Brain Dump elevation, slim objective, tab styling, icon consistency, spacing |
-| `src/index.css` | Elevation utility classes, interaction feedback utilities |
-| `src/components/ScratchPad.tsx` | Padding/spacing adjustments for breathing room |
-| `src/components/ui/tabs.tsx` | Update default tab styles for smoother transitions |
+| Action | File |
+|--------|------|
+| New | `src/components/TimeClockButton.tsx` — Header clock in/out button with glow |
+| Edit | `src/components/Layout.tsx` — Add TimeClockButton to header |
+| Edit | `src/components/home/widgetRegistry.ts` — Remove time_clock, add column field |
+| Edit | `src/hooks/useWidgetPreferences.ts` — Support column field |
+| Edit | `src/pages/Index.tsx` — 2-column intranet layout, quick actions, remove time clock |
+| Edit | `src/components/home/WidgetCustomizer.tsx` — Column toggle |
+| Edit | `src/components/home/FeedCarousel.tsx` — Richer cards |
 
-No database changes. No new dependencies. Pure CSS/className refinement.
+No database changes needed — `widget_preferences` already has a `column` int field.
 
