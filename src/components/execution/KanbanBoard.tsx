@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Repeat, Plus } from "lucide-react";
+import { Calendar, Repeat, Plus, Palette, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { KANBAN_CLASSES, KANBAN_COLORS, resolveColor, type KanbanColorName } from "@/lib/kanban-colors";
 
 interface KanbanColumn {
   key: string;
   label: string;
-  color: string;
+  color: string; // named color — falls back to "slate"
 }
 
 interface KanbanBoardProps {
@@ -17,8 +20,9 @@ interface KanbanBoardProps {
   onStatusChange: (id: string, status: string) => void;
   getName: (uid: string | null) => string;
   ownerField: string;
-  type: "project" | "task";
+  type: "project" | "task" | "row";
   onAddCard?: (status: string) => void;
+  onEditColumnColor?: (key: string, newColor: KanbanColorName) => void;
 }
 
 const priorityStyles: Record<string, string> = {
@@ -28,7 +32,6 @@ const priorityStyles: Record<string, string> = {
   urgent: "bg-red-200 text-red-900 dark:bg-red-900/60 dark:text-red-200",
 };
 
-// stripe colors using hsl design tokens via tailwind utilities
 const priorityStripe: Record<string, string> = {
   low: "bg-green-500",
   medium: "bg-yellow-500",
@@ -51,36 +54,97 @@ function hashColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
+function ColorSwatchPicker({ current, onPick }: { current: KanbanColorName; onPick: (c: KanbanColorName) => void }) {
+  return (
+    <div className="grid grid-cols-5 gap-1.5 p-1">
+      {KANBAN_COLORS.map((c) => (
+        <button
+          key={c}
+          onClick={() => onPick(c)}
+          className={cn(
+            "h-6 w-6 rounded-md flex items-center justify-center transition-transform hover:scale-110",
+            KANBAN_CLASSES[c].swatch
+          )}
+          title={c}
+        >
+          {current === c && <Check className="h-3.5 w-3.5 text-white" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function KanbanBoard({
-  columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard,
+  columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor,
 }: KanbanBoardProps) {
+  const [openPicker, setOpenPicker] = useState<string | null>(null);
+
   return (
     <div className="overflow-x-auto -mx-2 px-2 pb-2">
       <div className="flex gap-3 min-w-max">
         {columns.map(col => {
           const colItems = items.filter(item => item[statusField] === col.key);
+          const colorName = resolveColor(col.color);
+          const cls = KANBAN_CLASSES[colorName];
+
           return (
-            <div key={col.key} className="w-[280px] shrink-0 bg-muted/30 rounded-xl p-2 flex flex-col">
-              {/* Sticky header */}
-              <div className="sticky top-0 z-10 bg-muted/30 backdrop-blur-sm flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md">
-                <div className={`h-2.5 w-2.5 rounded-full ${col.color}`} />
-                <span className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{col.label}</span>
-                <span className="ml-auto text-[10px] font-medium bg-background/80 text-muted-foreground rounded-full px-1.5 py-0.5">
+            <div key={col.key} className={cn("w-[280px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
+              {/* Sticky tinted header bar */}
+              <div className={cn(
+                "sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg group",
+                cls.headerBg
+              )}>
+                <span className={cn("text-xs font-bold uppercase tracking-wider truncate", cls.headerText)}>
+                  {col.label}
+                </span>
+                {onEditColumnColor && (
+                  <Popover open={openPicker === col.key} onOpenChange={(o) => setOpenPicker(o ? col.key : null)}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          "opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-background/40",
+                          cls.headerText
+                        )}
+                        title="Change color"
+                      >
+                        <Palette className="h-3 w-3" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-1" align="start">
+                      <ColorSwatchPicker
+                        current={colorName}
+                        onPick={(c) => { onEditColumnColor(col.key, c); setOpenPicker(null); }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <span className={cn(
+                  "ml-auto text-[10px] font-semibold rounded-full px-1.5 py-0.5 bg-background/60",
+                  cls.headerText
+                )}>
                   {colItems.length}
                 </span>
               </div>
 
-              <div className="space-y-2 min-h-[80px] flex-1">
+              <div
+                className="space-y-2 min-h-[80px] flex-1"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  const id = e.dataTransfer.getData("text/plain");
+                  if (id) onStatusChange(id, col.key);
+                }}
+              >
                 {colItems.map(item => {
                   const ownerName = getName(item[ownerField]);
-                  const stripeColor = item.priority ? priorityStripe[item.priority] || "bg-muted-foreground/30" : "bg-muted-foreground/30";
+                  const stripeColor = item.priority ? priorityStripe[item.priority] || cls.stripe : cls.stripe;
                   return (
                     <Card
                       key={item.id}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
                       className="cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all overflow-hidden border-border/40"
                       onClick={() => onItemClick(item)}
                     >
-                      {/* Top color stripe */}
                       <div className={cn("h-[3px] w-full", stripeColor)} />
                       <CardContent className="p-2.5 space-y-1.5">
                         <p className="text-sm font-semibold leading-snug flex items-start gap-1">
@@ -105,7 +169,6 @@ export default function KanbanBoard({
                             </span>
                           )}
                         </div>
-                        {/* Avatar */}
                         {ownerName && ownerName !== "Unassigned" ? (
                           <div className="flex items-center gap-1.5 pt-0.5">
                             <div
