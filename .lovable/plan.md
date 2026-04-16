@@ -1,52 +1,45 @@
 
 
-# Timer Styling, Task Peek, Global Search, Remove Buttons
+# Wiki/Notes White Background + Borderless Social Composer
 
-## 1. Reduce Timer Badge Prominence
+## 1. Wiki & Notes — White Content Area
 
-**File**: `src/components/TimeClockButton.tsx`
-- Remove `animate-pulse` (too fast/aggressive). Replace with a custom subtle glow using a CSS animation or a static `shadow-[0_0_8px_rgba(var(--primary-rgb),0.15)]` soft outer glow
-- Remove `ring-2 ring-primary/20` when not clocked in — replace with a much softer `ring-1 ring-primary/10` or just the shadow glow
-- When clocked in: keep `ring-1 ring-green-500/20` (subtle, not dominant)
-- The elapsed time badge: reduce from `text-[9px]` to `text-[8px]`, use `bg-green-500/80` instead of full `bg-green-500`
-- Add a custom CSS keyframe in `src/index.css` for a slow, subtle glow pulse (~3s duration, very low opacity change)
+**Approach**: Keep the left sidebars tinted (`bg-muted/30`) as they are. Make only the content/editor area use a white background (`bg-white dark:bg-card`). This creates the "paper on desk" effect — no "white, grey, white" sandwich since the sidebar stays tinted.
 
-## 2. Task Peek from Home Page
+**File**: `src/pages/DocsPage.tsx`
+- Line 248: Change `<div className="flex-1 p-6 overflow-auto">` to add `bg-white dark:bg-card`
 
-**File**: `src/pages/Index.tsx`
-- Import `DetailDrawer` component (already used in ExecutionPage and DepartmentPage)
-- Add state: `drawerTask` and `drawerOpen`
-- In the `my_tasks` widget, change the task `onClick` from `navigate('/tasks/${task.id}')` to opening the `DetailDrawer` with the selected task
-- Need to fetch full task data on click (or pre-fetch enough fields) and pass `getName` function using the existing `profiles` state
-- Add `<DetailDrawer>` at the bottom of the component, same pattern as ExecutionPage
+**File**: `src/pages/NotesPage.tsx`
+- Line 337: Change `<div className="flex-1 flex flex-col min-w-0">` to add `bg-white dark:bg-card`
 
-## 3. Global Search — Functional
+Both pages already have tinted sidebars (`bg-muted/30`), so the contrast will feel natural — muted nav on left, clean white paper on right.
 
-**File**: `src/components/Layout.tsx`
-- Replace the plain `<input>` with a search component that has real functionality
-- Create a new `GlobalSearch` component or inline the logic
+---
 
-**New file**: `src/components/GlobalSearch.tsx`
-- Controlled input with debounced search (300ms)
-- On typing, query multiple tables in parallel (respecting user permissions):
-  - `tasks` (title ilike)
-  - `projects` (title ilike)
-  - `documents` (title ilike)
-  - `profiles` (full_name ilike)
-  - `announcements` (title ilike)
-- Results shown in a dropdown/popover below the search bar, grouped by type
-- Each result is a clickable link navigating to the relevant page
-- Show max ~5 results per category
-- Close on click or Escape
-- RLS handles permission filtering automatically
+## 2. Borderless Social-Media Composer
 
-## 4. Remove New Task & Post Update Buttons from Home
+**File**: `src/components/feed/FeedComposer.tsx` — Full rewrite of the UI structure.
 
-**File**: `src/pages/Index.tsx`
-- Remove the "New Task" and "Post Update" buttons from the header action area (lines 574-579)
-- Keep only the "Customize" button
-- Remove the task dialog and post dialog state/JSX (lines 106-117, 264-298, 663-743) since these actions are available in the global header's `GlobalCreateMenu`
-- Clean up unused imports
+**Collapsed state** (current: bordered input pill):
+- Keep avatar + clickable trigger, but make it a naked text prompt — no border, no background. Just `"What's on your mind?"` as muted placeholder text next to the avatar. A thin bottom divider separates it from the feed.
+
+**Expanded state** — strip all form boxes:
+
+- **Main textarea**: Naked — no border, no background, no rounded container. Just a clean `textarea` with `border-0 bg-transparent focus:ring-0 resize-none`. Larger font (`text-base`) to make it feel like the primary surface.
+
+- **Mode tabs**: Keep as-is (already styled well with filled active state). Move them above the textarea as a subtle row.
+
+- **Announcement title**: Replace bordered input with a naked bold input — `border-0 bg-transparent text-lg font-semibold placeholder:text-muted-foreground/40`. Separated from body by a thin `border-b border-border/30` underline only.
+
+- **Poll question**: Same naked bold input. Poll options use a minimal underline style — `border-0 border-b border-border/30 rounded-none bg-transparent` — instead of boxed inputs.
+
+- **Kudos selectors**: Keep Select components but with reduced chrome — `border-border/30 bg-transparent`.
+
+- **Action bar**: A thin `border-t border-border/20` divider, then icons (Photo, GIF) on left as ghost buttons, Post button on right. No extra padding or containers.
+
+- **Overall container**: Keep the outer card with subtle elevation, but remove the inner `bg-primary/[0.02]` tinted wrapper. The card itself is the boundary — everything inside is borderless and open.
+
+The result: Avatar on left, open writing space on right, thin dividers instead of boxes, action icons along the bottom. Like Twitter/LinkedIn compose — not a form.
 
 ---
 
@@ -54,11 +47,9 @@
 
 | Action | File |
 |--------|------|
-| Edit | `src/components/TimeClockButton.tsx` — Subtle glow, remove pulse, reduce badge |
-| Edit | `src/index.css` — Add slow glow keyframe animation |
-| New | `src/components/GlobalSearch.tsx` — Functional search across tables |
-| Edit | `src/components/Layout.tsx` — Use GlobalSearch component |
-| Edit | `src/pages/Index.tsx` — Add DetailDrawer for tasks, remove New Task/Post buttons and dialogs |
+| Edit | `src/pages/DocsPage.tsx` — Add `bg-white dark:bg-card` to content area |
+| Edit | `src/pages/NotesPage.tsx` — Add `bg-white dark:bg-card` to editor area |
+| Edit | `src/components/feed/FeedComposer.tsx` — Borderless social-media style rewrite |
 
 No database changes. No new dependencies.
 
