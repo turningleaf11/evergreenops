@@ -9,7 +9,7 @@ export type FeedItem =
   | { type: "kudos"; data: any; created_at: string }
   | { type: "post"; data: any; created_at: string };
 
-export function FeedCard({ item }: { item: FeedItem }) {
+export function FeedCard({ item, onRefresh }: { item: FeedItem; onRefresh?: () => void }) {
   switch (item.type) {
     case "announcement":
       return <AnnouncementCard announcement={item.data} />;
@@ -18,7 +18,7 @@ export function FeedCard({ item }: { item: FeedItem }) {
     case "kudos":
       return <KudosCard kudo={item.data} />;
     case "post":
-      return <PostCard post={item.data} />;
+      return <PostCard post={item.data} onRefresh={onRefresh} />;
     default:
       return null;
   }
