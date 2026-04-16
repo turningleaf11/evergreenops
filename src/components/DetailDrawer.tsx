@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Maximize2, Calendar, User, PanelRight, Square, Expand, Tag, Flag, AlertCircle } from "lucide-react";
+import { Maximize2, Calendar, User, PanelRight, Square, Expand, Tag, Flag, AlertCircle, Check } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
+import { AccordionField } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
 type PeekMode = "side" | "center" | "full";
@@ -23,6 +23,7 @@ interface DetailDrawerProps {
 
 const projectStatuses = ["not_started", "in_progress", "done", "blocked"];
 const taskStatuses = ["todo", "in_progress", "done"];
+const priorities = ["low", "medium", "high", "urgent"];
 
 const statusLabels: Record<string, string> = {
   not_started: "Not Started", in_progress: "In Progress", done: "Done",
@@ -61,15 +62,19 @@ function usePeekMode(): [PeekMode, (m: PeekMode) => void] {
   return [mode, set];
 }
 
-function PropertyRow({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
+function OptionRow({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="flex items-center gap-2 w-28 shrink-0">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left",
+        selected ? "bg-primary/10 text-foreground" : "hover:bg-muted text-foreground/80"
+      )}
+    >
+      <span>{children}</span>
+      {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+    </button>
   );
 }
 
@@ -79,10 +84,12 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
   peekMode: PeekMode; setPeekMode: (m: PeekMode) => void;
 }) {
   const statuses = type === "project" ? projectStatuses : taskStatuses;
+  const [openField, setOpenField] = useState<string | null>(null);
+  const toggle = (field: string) => setOpenField(openField === field ? null : field);
 
   return (
     <div className="space-y-5">
-      {/* Toolbar: mode switcher + full page */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
           {peekModes.map(m => (
@@ -110,7 +117,7 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
         </Button>
       </div>
 
-      {/* Header zone */}
+      {/* Header status badges */}
       <div className="pb-4 border-b border-border/50">
         <div className="flex items-start gap-2 flex-wrap">
           <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.not_started)}>
@@ -124,43 +131,98 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
         </div>
       </div>
 
-      {/* Property grid */}
-      <div className="divide-y divide-border/30">
-        <PropertyRow icon={AlertCircle} label="Status">
-          <Select value={item.status} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-36 h-7 text-xs border-border/50"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {statuses.map(s => (
-                <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PropertyRow>
+      {/* Accordion field rows */}
+      <div>
+        <AccordionField
+          label="Status"
+          icon={AlertCircle}
+          isOpen={openField === "status"}
+          onToggle={() => toggle("status")}
+          displayValue={
+            <Badge className={cn("text-[10px] rounded-full px-2 py-0.5 border-0 font-medium", statusColors[item.status])}>
+              {statusLabels[item.status] || item.status}
+            </Badge>
+          }
+        >
+          <div className="space-y-0.5">
+            {statuses.map(s => (
+              <OptionRow key={s} selected={item.status === s} onClick={() => { onStatusChange(s); setOpenField(null); }}>
+                {statusLabels[s] || s}
+              </OptionRow>
+            ))}
+          </div>
+        </AccordionField>
 
-        {item.priority && (
-          <PropertyRow icon={Flag} label="Priority">
-            <span className="text-sm capitalize">{item.priority}</span>
-          </PropertyRow>
+        {item.priority !== undefined && (
+          <AccordionField
+            label="Priority"
+            icon={Flag}
+            isOpen={openField === "priority"}
+            onToggle={() => toggle("priority")}
+            displayValue={
+              item.priority ? (
+                <Badge className={cn("text-[10px] rounded-full px-2 py-0.5 border-0 font-medium capitalize", priorityColors[item.priority])}>
+                  {item.priority}
+                </Badge>
+              ) : null
+            }
+          >
+            <div className="space-y-0.5">
+              {priorities.map(p => (
+                <OptionRow key={p} selected={item.priority === p} onClick={() => setOpenField(null)}>
+                  <span className="capitalize">{p}</span>
+                </OptionRow>
+              ))}
+            </div>
+          </AccordionField>
         )}
 
-        <PropertyRow icon={User} label={type === "project" ? "Owner" : "Assignee"}>
-          <span className="text-sm">{getName(type === "project" ? item.owner_id : item.assigned_to)}</span>
-        </PropertyRow>
+        <AccordionField
+          label={type === "project" ? "Owner" : "Assignee"}
+          icon={User}
+          isOpen={openField === "assignee"}
+          onToggle={() => toggle("assignee")}
+          displayValue={getName(type === "project" ? item.owner_id : item.assigned_to)}
+        >
+          <p className="text-xs text-muted-foreground py-1">Currently: {getName(type === "project" ? item.owner_id : item.assigned_to)}</p>
+        </AccordionField>
 
         {item.due_date && (
-          <PropertyRow icon={Calendar} label="Due date">
-            <span className="text-sm">{item.due_date}</span>
-          </PropertyRow>
+          <AccordionField
+            label="Due date"
+            icon={Calendar}
+            isOpen={openField === "due_date"}
+            onToggle={() => toggle("due_date")}
+            displayValue={item.due_date}
+          >
+            <input
+              type="date"
+              defaultValue={item.due_date}
+              className="bg-background border border-border rounded-md px-2 py-1 text-sm"
+            />
+          </AccordionField>
         )}
 
         {item.tags && item.tags.length > 0 && (
-          <PropertyRow icon={Tag} label="Tags">
+          <AccordionField
+            label="Tags"
+            icon={Tag}
+            isOpen={openField === "tags"}
+            onToggle={() => toggle("tags")}
+            displayValue={
+              <div className="flex flex-wrap gap-1">
+                {item.tags.map((t: string) => (
+                  <Badge key={t} variant="secondary" className="text-[10px] rounded-full">{t}</Badge>
+                ))}
+              </div>
+            }
+          >
             <div className="flex flex-wrap gap-1">
               {item.tags.map((t: string) => (
                 <Badge key={t} variant="secondary" className="text-[10px] rounded-full">{t}</Badge>
               ))}
             </div>
-          </PropertyRow>
+          </AccordionField>
         )}
       </div>
 
