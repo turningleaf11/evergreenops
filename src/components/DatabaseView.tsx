@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Database, DatabaseRow, DatabaseColumn } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List, TableIcon, Plus, Pencil, Trash2, Link as LinkIcon, DollarSign, Mail, Phone, ExternalLink } from "lucide-react";
+import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { InlineText, InlineSelect, InlineDate } from "@/components/shared/InlineCell";
 
 type ViewMode = "table" | "kanban" | "list";
 
@@ -36,13 +38,14 @@ interface DatabaseViewProps {
   onAdd?: () => void;
   onEdit?: (row: DatabaseRow) => void;
   onDelete?: (rowId: string) => void;
+  onRowUpdate?: (rowId: string, values: Record<string, any>) => void;
   allDatabases?: Database[];
   allRows?: DatabaseRow[];
   onColumnsChange?: (columns: DatabaseColumn[]) => void;
   isAdmin?: boolean;
 }
 
-export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, allDatabases, allRows, onColumnsChange, isAdmin }: DatabaseViewProps) {
+export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, onRowUpdate, allDatabases, allRows, onColumnsChange, isAdmin }: DatabaseViewProps) {
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterDef[]>([]);
