@@ -1,132 +1,64 @@
 
 
-# 3-Phase Plan: Build Fix + UI Polish + Inline-Editable Tables
+# Revert accordion field rows → use inline dropdowns
 
----
+User wants: clicking a field shows a **small dropdown/popover** with options, NOT an inline expanding accordion that pushes content. The current `AccordionField` pattern needs to be replaced.
 
-## Phase 1 — Build fix + global styling polish (this loop)
+## Approach
 
-### 1.1 Fix build error
-**`src/pages/ExecutionPage.tsx`** — wrap the base columns with `useMemo` that merges `stageColors` overrides:
-```ts
-const projectKanbanCols = useMemo(
-  () => projectKanbanColsBase.map(c => ({ ...c, color: stageColors[`project:${c.key}`] || c.color })),
-  [stageColors]
-);
-const taskKanbanCols = useMemo(
-  () => taskKanbanColsBase.map(c => ({ ...c, color: stageColors[`task:${c.key}`] || c.color })),
-  [stageColors]
-);
+Replace `AccordionField` rows in the drawer with **field rows that open a Popover on click**. Same clean "label-first" look (label + current value as badge/text), but clicking the value opens a compact floating dropdown anchored to the row — nothing pushes, nothing expands inline.
+
+Visual stays the same at rest:
+```
+Status        In Progress  ▾
+Priority      High         ▾
+Assignee      Sarah Chen   ▾
 ```
 
-### 1.2 Warm off-white app background
-**`src/index.css`** — change `--background` from `220 20% 96%` (cool grey) to `38 30% 97%` (warm off-white). Adjust dark mode untouched. `--muted` slightly warmed to match.
+Click "Status" → small popover floats next to it with the option list. Pick one → popover closes, value updates. Click outside → closes.
 
-### 1.3 Reply input — soft accent tint, not grey
-**`src/components/feed/ReplyThread.tsx`** — wrapper already `bg-primary/[0.04]`; tint the `Textarea` itself with `bg-primary/[0.06] border-primary/15 focus-visible:ring-primary/30`. Confirms collapsed-by-default behavior is preserved (it already is — composer only renders when `repliesExpanded` is true in `PostCard`).
+## Files to change
 
-### 1.4 Drawer sits under header
-**`src/components/DetailDrawer.tsx`** — on the `Sheet` `SheetContent` (side peek mode), add `top-[60px] h-[calc(100vh-60px)]` plus `border-l border-border/50`. Same fix wherever else `Sheet` is used as a record drawer (DatabaseRecordDetail, PersonDetail).
+### 1. `src/components/shared/AccordionField.tsx` → repurpose as `FieldRow`
+- Remove the expand/collapse logic and inline child rendering
+- Keep the label + display value layout
+- Wrap the row in a `Popover`. The row itself is the `PopoverTrigger`. Children render inside `PopoverContent` (compact, `w-56`, `p-1`, anchored start).
+- Drop the `isOpen` / `onToggle` props — Popover handles its own open state
+- Keep optional `icon` prop
 
-### 1.5 Wiki/Notes middle column tinted with accent
-**`src/pages/DocsPage.tsx`** + **`src/pages/NotesPage.tsx`** — change the middle list panel from grey to `bg-primary/[0.04]`. Editor stays white. Selected/hover items use `bg-primary/10` / `bg-primary/15`.
-
-### 1.6 Accent "+ New" buttons everywhere
-Audit and update primary create buttons to `variant="default"` (filled accent) on:
-- ExecutionPage (Task/Project/Goal/Issue create buttons)
-- DatabasesPage (Add Row, Create Database)
-- DatabaseView (+ row button)
-- NotesPage (New Note)
-- DocsPage (New Doc)
-- PeoplePage (Add Person)
-
----
-
-## Phase 2 — Field-first record drawer (next loop)
-
-### 2.1 Refactor `DetailDrawer` field rows
-Replace the always-visible Select dropdowns with **collapsible accordion rows**. Each property row shows just the label + current value as a clean text/badge. Click → row expands inline to show the picker. Click another field → previous collapses. State managed via `useState<string | null>(openField)`.
-
-Visual:
-```
-Status        ▸ In Progress
-Assignee      ▸ Sarah Chen
-Tags          ▸ design, urgent
+New signature:
+```tsx
+<FieldRow label="Status" icon={AlertCircle} displayValue={<Badge>In Progress</Badge>}>
+  <OptionRow ...>Not Started</OptionRow>
+  <OptionRow ...>In Progress</OptionRow>
+  ...
+</FieldRow>
 ```
 
-Click "Status" → expands to:
-```
-Status        ▾
-  ○ Not Started
-  ● In Progress
-  ○ Done
-  ○ Blocked
-```
+For read-only fields (no children needed), render without Popover wrapper.
 
-Apply same pattern to:
-- `DetailDrawer.tsx` (tasks/projects)
-- `DatabaseRecordDetail.tsx` (list rows)
-- `PersonDetail.tsx` if applicable
+### 2. `src/components/DetailDrawer.tsx`
+- Remove `openField` state and `toggle` handler
+- Replace each `AccordionField` with `FieldRow` (no `isOpen`/`onToggle` props)
+- Each option's `onClick` no longer needs to call `setOpenField(null)` — Popover closes via its own `onOpenChange`. Use a small wrapper that closes the popover on select.
 
-No more visible Select boxes / Input fields by default. Title remains as the heading at top.
+### 3. `src/components/DatabaseRecordDetail.tsx`
+- Same swap: `AccordionField` → `FieldRow`
+- Remove `openField` state
+- For text/textarea/number/date custom field types, use a small inline editor inside the popover (Input/Textarea + autosave on blur)
 
----
-
-## Phase 3 — Inline-editable, unified table & list views (next loop)
-
-### 3.1 Spreadsheet view (`DataTableView` for tasks/projects + `DatabaseView` table)
-Unify into a shared `<SpreadsheetTable>` component:
-- Soft vertical + horizontal grid lines (`border-border/30`)
-- **Inline cell editing**:
-  - Text/title → click cell → contentEditable input → blur autosaves
-  - Status/select → click cell → dropdown opens → select autosaves
-  - Date → click cell → date picker → autosaves
-  - Multi-select tags → click → multi-select popover → autosaves
-- **Column resize**: drag handle on right edge of header cell. Persist widths in `localStorage` keyed by `spreadsheet:{type}:{columnKey}`.
-- **Hover row title** → reveal expand icon (Maximize2) → opens drawer
-
-### 3.2 List view (`TableView` for tasks/projects + `DatabaseView` list)
-Same inline-editing as spreadsheet, but:
-- Only horizontal dividers between rows (no vertical grid)
-- Card-row aesthetic preserved (status circle, avatar chips)
-- Same hover-to-expand icon on row title
-
-### 3.3 Unify across Execution + Lists
-`DatabaseView`'s table/list rendering swapped to use the same shared components, with column definitions derived from `databases_meta.columns`.
-
----
+### 4. Keep
+- Same chevron icon (rotates when popover open via Popover's data attr, optional)
+- Same row hover, same label width, same badge styling
+- Title remains as the drawer header
 
 ## Files Summary
 
-### Phase 1 (this loop)
 | Action | File |
 |--------|------|
-| Edit | `src/pages/ExecutionPage.tsx` — useMemo merge for kanban cols |
-| Edit | `src/index.css` — warm off-white `--background` |
-| Edit | `src/components/feed/ReplyThread.tsx` — tinted Textarea |
-| Edit | `src/components/DetailDrawer.tsx` — top offset + height |
-| Edit | `src/components/DatabaseRecordDetail.tsx` — same offset |
-| Edit | `src/components/PersonDetail.tsx` — same offset |
-| Edit | `src/pages/DocsPage.tsx` — accent-tinted middle panel |
-| Edit | `src/pages/NotesPage.tsx` — accent-tinted middle panel |
-| Edit | Multiple pages — accent-color "+ New" buttons |
+| Edit | `src/components/shared/AccordionField.tsx` — convert to `FieldRow` with Popover |
+| Edit | `src/components/DetailDrawer.tsx` — remove openField state, swap to FieldRow |
+| Edit | `src/components/DatabaseRecordDetail.tsx` — same swap |
 
-### Phase 2 (next)
-| Action | File |
-|--------|------|
-| Edit | `src/components/DetailDrawer.tsx` — accordion field rows |
-| Edit | `src/components/DatabaseRecordDetail.tsx` — same pattern |
-| Edit | `src/components/PersonDetail.tsx` — same pattern |
-
-### Phase 3 (next)
-| Action | File |
-|--------|------|
-| New  | `src/components/shared/SpreadsheetTable.tsx` — unified inline-edit table |
-| New  | `src/components/shared/ListRows.tsx` — unified inline-edit list |
-| Edit | `src/components/execution/DataTableView.tsx` — use SpreadsheetTable |
-| Edit | `src/components/execution/TableView.tsx` — use ListRows |
-| Edit | `src/components/DatabaseView.tsx` — use shared components |
-| New  | `src/hooks/useColumnWidths.ts` — localStorage persistence |
-
-No DB migrations needed across all 3 phases.
+No DB changes. Pure UI revision.
 
