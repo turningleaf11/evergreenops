@@ -75,6 +75,7 @@ interface DetailDrawerProps {
   type: "project" | "task";
   item: any;
   onStatusChange: (status: string) => void;
+  onTitleChange?: (title: string) => void;
   getName: (uid: string | null) => string;
 }
 
@@ -135,43 +136,14 @@ function OptionRow({ selected, onClick, children }: { selected: boolean; onClick
   );
 }
 
-function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMode, setPeekMode }: {
+function DetailContent({ type, item, onStatusChange, getName }: {
   type: "project" | "task"; item: any; onStatusChange: (s: string) => void;
-  getName: (uid: string | null) => string; onFullPage: () => void;
-  peekMode: PeekMode; setPeekMode: (m: PeekMode) => void;
+  getName: (uid: string | null) => string;
 }) {
   const statuses = type === "project" ? projectStatuses : taskStatuses;
 
   return (
     <div className="space-y-5">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
-          {peekModes.map(m => (
-            <button
-              key={m.value}
-              onClick={() => {
-                if (m.value === "full") { onFullPage(); return; }
-                setPeekMode(m.value);
-              }}
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                peekMode === m.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title={m.label}
-            >
-              <m.icon className="h-3.5 w-3.5" />
-            </button>
-          ))}
-        </div>
-
-        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={onFullPage}>
-          <Maximize2 className="h-3 w-3" /> Open full page
-        </Button>
-      </div>
-
       {/* Header status badges */}
       <div className="pb-4 border-b border-border/50">
         <div className="flex items-start gap-2 flex-wrap">
@@ -310,7 +282,7 @@ function DetailContent({ type, item, onStatusChange, getName, onFullPage, peekMo
   );
 }
 
-export default function DetailDrawer({ open, onOpenChange, type, item, onStatusChange, getName }: DetailDrawerProps) {
+export default function DetailDrawer({ open, onOpenChange, type, item, onStatusChange, onTitleChange, getName }: DetailDrawerProps) {
   const navigate = useNavigate();
   const [peekMode, setPeekMode] = usePeekMode();
 
@@ -326,21 +298,26 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   const detailPath = type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`;
   const goFullPage = () => { onOpenChange(false); navigate(detailPath); };
 
+  const titleNode = onTitleChange ? (
+    <EditableTitle value={item.title} onSave={onTitleChange} className="text-xl font-semibold" />
+  ) : (
+    <span className="text-xl font-semibold">{item.title}</span>
+  );
+
   if (peekMode === "center") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold pr-8">
-              {item.title}
+          <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+            <DialogTitle asChild>
+              <div className="flex-1 min-w-0 pr-2">{titleNode}</div>
             </DialogTitle>
+            <div className="flex items-center gap-2 shrink-0 mr-6">
+              <PeekToggle peekMode={peekMode} setPeekMode={setPeekMode} onFullPage={goFullPage} />
+            </div>
           </DialogHeader>
-          <div>
-            <DetailContent
-              type={type} item={item} onStatusChange={onStatusChange}
-              getName={getName} onFullPage={goFullPage}
-              peekMode={peekMode} setPeekMode={setPeekMode}
-            />
+          <div className="mt-2">
+            <DetailContent type={type} item={item} onStatusChange={onStatusChange} getName={getName} />
           </div>
         </DialogContent>
       </Dialog>
@@ -350,17 +327,18 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6 top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
-        <SheetHeader className="space-y-3">
-          <SheetTitle className="text-xl font-semibold pr-8">
-            {item.title}
-          </SheetTitle>
+        <SheetHeader className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <SheetTitle asChild>
+              <div className="flex-1 min-w-0 pr-2">{titleNode}</div>
+            </SheetTitle>
+            <div className="flex items-center gap-2 shrink-0 mr-6">
+              <PeekToggle peekMode={peekMode} setPeekMode={setPeekMode} onFullPage={goFullPage} />
+            </div>
+          </div>
         </SheetHeader>
         <div className="mt-6">
-          <DetailContent
-            type={type} item={item} onStatusChange={onStatusChange}
-            getName={getName} onFullPage={goFullPage}
-            peekMode={peekMode} setPeekMode={setPeekMode}
-          />
+          <DetailContent type={type} item={item} onStatusChange={onStatusChange} getName={getName} />
         </div>
       </SheetContent>
     </Sheet>
