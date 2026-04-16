@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield } from "lucide-react";
+import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield, Building2, Users, Globe } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import RichTextEditor from "@/components/RichTextEditor";
 import AccessPicker from "@/components/AccessPicker";
 
