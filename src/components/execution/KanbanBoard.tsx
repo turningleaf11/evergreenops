@@ -78,17 +78,55 @@ export default function KanbanBoard({
   columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor,
 }: KanbanBoardProps) {
   const [openPicker, setOpenPicker] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflowState, setOverflowState] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+
+  const updateOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 1;
+    setOverflowState({
+      left: hasOverflow && el.scrollLeft > 4,
+      right: hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    updateOverflow();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateOverflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateOverflow, columns.length, items.length]);
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.shiftKey && scrollRef.current) {
+      scrollRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  const scrollByCol = (dir: -1 | 1) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: dir * 300, behavior: "smooth" });
+  };
 
   return (
-    <div className="overflow-x-auto -mx-2 px-2 pb-2">
-      <div className="flex gap-3 min-w-max">
-        {columns.map(col => {
-          const colItems = items.filter(item => item[statusField] === col.key);
-          const colorName = resolveColor(col.color);
-          const cls = KANBAN_CLASSES[colorName];
+    <div className="relative group/board">
+      <div
+        ref={scrollRef}
+        onScroll={updateOverflow}
+        onWheel={onWheel}
+        className="overflow-x-auto scrollbar-hide -mx-2 px-2 pb-2"
+      >
+        <div className="flex gap-3 w-full">
+          {columns.map(col => {
+            const colItems = items.filter(item => item[statusField] === col.key);
+            const colorName = resolveColor(col.color);
+            const cls = KANBAN_CLASSES[colorName];
 
-          return (
-            <div key={col.key} className={cn("w-[280px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
+            return (
+              <div key={col.key} className={cn("flex-1 min-w-[260px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
               {/* Sticky tinted header bar */}
               <div className={cn(
                 "sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg group",
