@@ -245,7 +245,36 @@ export default function KanbanBoard({
             </div>
           );
         })}
+        </div>
       </div>
+
+      {/* Edge fades */}
+      {overflowState.left && (
+        <div className="pointer-events-none absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-background to-transparent" />
+      )}
+      {overflowState.right && (
+        <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent" />
+      )}
+
+      {/* Hover scroll buttons */}
+      {overflowState.left && (
+        <button
+          onClick={() => scrollByCol(-1)}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/board:opacity-100 transition-opacity hover:bg-accent"
+          aria-label="Scroll left"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {overflowState.right && (
+        <button
+          onClick={() => scrollByCol(1)}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/board:opacity-100 transition-opacity hover:bg-accent"
+          aria-label="Scroll right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
