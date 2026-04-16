@@ -8,7 +8,7 @@ import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Search } from "lucide-react";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 export function Layout() {
   const { name: workspaceName, logoUrl } = useWorkspace();
