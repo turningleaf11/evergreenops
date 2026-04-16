@@ -1,45 +1,82 @@
 
 
-# Wiki/Notes White Background + Borderless Social Composer
+# Multi-feature Polish: Feed, Home, Composer, Kanban, Launcher
 
-## 1. Wiki & Notes — White Content Area
+## 1. Reply UX — light primary tint + collapsed by default
+**File**: `src/components/feed/ReplyThread.tsx`
+- Restructure into two parts via a `mode` prop: `"toggle"` (just shows count + reply button) and `"content"` (the actual replies + composer)
+- Wrap reply composer in `bg-primary/[0.04] rounded-xl p-3` for the soft tint
+- Add a sticky "Comment" + "Reply" buttons beside the reactions (handled in PostCard already — just hide composer until expanded)
 
-**Approach**: Keep the left sidebars tinted (`bg-muted/30`) as they are. Make only the content/editor area use a white background (`bg-white dark:bg-card`). This creates the "paper on desk" effect — no "white, grey, white" sandwich since the sidebar stays tinted.
+**File**: `src/components/feed/PostCard.tsx`
+- Already has `repliesExpanded` state — composer should only render when expanded (it does). Issue is `ReplyThread` always shows composer even when there are 0 replies expanded. Confirm composer appears only inside the expanded block (it does already — but tint the wrapper now).
+- Add a "Comment" button label next to the chevron (icon + "Comment" text)
 
-**File**: `src/pages/DocsPage.tsx`
-- Line 248: Change `<div className="flex-1 p-6 overflow-auto">` to add `bg-white dark:bg-card`
+## 2. Trello-Style Kanban Board Enhancement
+**File**: `src/components/execution/KanbanBoard.tsx`
+- Add **colored top stripe** to each card (3px) using priority/tag color (matches uploaded mockup)
+- Wrap board in horizontal scroll with `overflow-x-auto` and tinted column backgrounds (`bg-muted/30 rounded-xl p-2`)
+- Sticky column headers with item count badge
+- Add a subtle "+ Add card" button at the bottom of each column (calls a new optional `onAddCard?: (status) => void` prop — wired from ExecutionPage to create a quick task in that status)
+- Card hover: subtle lift (`hover:-translate-y-0.5 hover:shadow-lg transition-all`)
+- Reduce card padding, increase font hierarchy (title bolder, meta smaller)
 
-**File**: `src/pages/NotesPage.tsx`
-- Line 337: Change `<div className="flex-1 flex flex-col min-w-0">` to add `bg-white dark:bg-card`
+## 3. Inline AI Chat on Home — "What are you working on?"
+**New widget** `feed_chat` → register in `src/components/home/widgetRegistry.ts`
+**New file**: `src/components/home/HomeAiChat.tsx`
+- Compact chat surface that lives in the home grid as a widget
+- Prompt input "What are you working on?" with a Send button
+- On submit: posts to existing `ceo-chat` edge function (or new lightweight `home-chat` if ceo-chat is admin-restricted — will reuse `ceo-chat` for admins, fall back to `leadership-chat` otherwise)
+- Renders inline conversation thread (last ~5 turns) within the widget card, no modal, no sheet
+- Default visible in left column, sort_order = 0
 
-Both pages already have tinted sidebars (`bg-muted/30`), so the contrast will feel natural — muted nav on left, clean white paper on right.
+## 4. Quick Links → Header "Launcher" button
+**New file**: `src/components/LauncherMenu.tsx`
+- Rocket icon button in header (between TimeClock and GlobalCreateMenu)
+- Opens a `Popover` with the user's `user_favorites` (label + URL)
+- Inline add form (label + URL) and per-row delete
+- Reuses existing `user_favorites` table
 
----
+**File**: `src/components/Layout.tsx`
+- Add `<LauncherMenu />` to right zone
 
-## 2. Borderless Social-Media Composer
+**File**: `src/components/home/widgetRegistry.ts` + `src/pages/Index.tsx`
+- Remove `quick_links` from `WIDGET_REGISTRY` (or set default `visible: false`). Keep render case for backward compat but hide from customizer.
 
-**File**: `src/components/feed/FeedComposer.tsx` — Full rewrite of the UI structure.
+## 5. Announcements Visual Importance
+**File**: `src/pages/Index.tsx` (announcements widget render)
+- Use type-based color stripe + icon background:
+  - `urgent` → red, `celebration` → amber, `policy` → indigo, `update` → blue, `general` → primary
+- Each announcement gets a 3px left border in its type color, type-tinted icon chip, larger title font, type label as a small chip
+- Pinned ones: stronger background tint (`bg-{color}/8`) and Pin icon emphasized
 
-**Collapsed state** (current: bordered input pill):
-- Keep avatar + clickable trigger, but make it a naked text prompt — no border, no background. Just `"What's on your mind?"` as muted placeholder text next to the avatar. A thin bottom divider separates it from the feed.
+## 6. Feed Page Whitespace Fix
+**File**: `src/pages/CompanyFeedPage.tsx`
+- Container is `max-w-2xl mx-auto` — appears too narrow / left-shifted because sidebar is wide. Change to `max-w-3xl mx-auto px-4 lg:px-8` and center properly. Verify with viewport.
 
-**Expanded state** — strip all form boxes:
+## 7. Home: Horizontal Feed at Top + Column Toggle (1 vs 2 col)
+**File**: `src/components/home/FeedPreview.tsx`
+- Add a `variant` prop: `"vertical"` (current) and `"horizontal"` (new)
+- Horizontal: `flex gap-3 overflow-x-auto snap-x` with each post as a 280px-wide compact card (smaller font, truncated content, single image thumb)
 
-- **Main textarea**: Naked — no border, no background, no rounded container. Just a clean `textarea` with `border-0 bg-transparent focus:ring-0 resize-none`. Larger font (`text-base`) to make it feel like the primary surface.
+**File**: `src/pages/Index.tsx`
+- Render `feed_preview` widget **above** the 2-column grid as a dedicated full-width row with `variant="horizontal"`
+- Remove `feed_preview` from the column-based render loop
 
-- **Mode tabs**: Keep as-is (already styled well with filled active state). Move them above the textarea as a subtle row.
+**Layout mode toggle (single vs double column)**:
+- Add layout state `layout: "single" | "double"` to `useWidgetPreferences` (persist as a new `home_layout_preferences` row OR localStorage for simplicity — use **localStorage** to avoid a migration)
+- Toggle in header next to "Customize" button (icons: `Columns` / `Square`)
+- Single mode: render all visible widgets in one column (`max-w-3xl mx-auto`)
+- Double mode: existing 2-column layout
+- DnD already supports cross-column moves — works in double mode; in single mode, all widgets flow vertically and reorder freely
 
-- **Announcement title**: Replace bordered input with a naked bold input — `border-0 bg-transparent text-lg font-semibold placeholder:text-muted-foreground/40`. Separated from body by a thin `border-b border-border/30` underline only.
+## 8. Docs/Notes — White Input Boxes
+**File**: `src/components/RichTextEditor.tsx`
+- The TipTap content area inherits muted background. In `RichTextEditor.css`, ensure `.ProseMirror` has `background: white` in light mode (and `dark:bg-card` via wrapper)
 
-- **Poll question**: Same naked bold input. Poll options use a minimal underline style — `border-0 border-b border-border/30 rounded-none bg-transparent` — instead of boxed inputs.
-
-- **Kudos selectors**: Keep Select components but with reduced chrome — `border-border/30 bg-transparent`.
-
-- **Action bar**: A thin `border-t border-border/20` divider, then icons (Photo, GIF) on left as ghost buttons, Post button on right. No extra padding or containers.
-
-- **Overall container**: Keep the outer card with subtle elevation, but remove the inner `bg-primary/[0.02]` tinted wrapper. The card itself is the boundary — everything inside is borderless and open.
-
-The result: Avatar on left, open writing space on right, thin dividers instead of boxes, action icons along the bottom. Like Twitter/LinkedIn compose — not a form.
+**File**: `src/pages/DocsPage.tsx` & `src/pages/NotesPage.tsx`
+- Inputs (title fields) — change any `bg-muted` / default `bg-background` to explicit `bg-white dark:bg-card`
+- Tag chips area: ensure white background
 
 ---
 
@@ -47,9 +84,18 @@ The result: Avatar on left, open writing space on right, thin dividers instead o
 
 | Action | File |
 |--------|------|
-| Edit | `src/pages/DocsPage.tsx` — Add `bg-white dark:bg-card` to content area |
-| Edit | `src/pages/NotesPage.tsx` — Add `bg-white dark:bg-card` to editor area |
-| Edit | `src/components/feed/FeedComposer.tsx` — Borderless social-media style rewrite |
+| Edit | `src/components/feed/ReplyThread.tsx` — primary tint composer wrapper |
+| Edit | `src/components/feed/PostCard.tsx` — add "Comment" label to toggle |
+| Edit | `src/components/execution/KanbanBoard.tsx` — Trello styling, +Add card, hover lift |
+| New | `src/components/home/HomeAiChat.tsx` — inline AI chat widget |
+| Edit | `src/components/home/widgetRegistry.ts` — add `feed_chat`, drop `quick_links` |
+| New | `src/components/LauncherMenu.tsx` — header rocket button popover |
+| Edit | `src/components/Layout.tsx` — add LauncherMenu |
+| Edit | `src/pages/Index.tsx` — type-colored announcements, horizontal feed at top, layout toggle |
+| Edit | `src/components/home/FeedPreview.tsx` — horizontal variant |
+| Edit | `src/pages/CompanyFeedPage.tsx` — wider container, proper centering |
+| Edit | `src/components/RichTextEditor.css` — white ProseMirror bg |
+| Edit | `src/pages/DocsPage.tsx`, `src/pages/NotesPage.tsx` — white input bg |
 
-No database changes. No new dependencies.
+No DB migrations needed. Layout toggle stored in localStorage.
 
