@@ -295,5 +295,6 @@ export function AppSidebar() {
         </div>
       )}
     </Sidebar>
+    </div>
   );
 }
