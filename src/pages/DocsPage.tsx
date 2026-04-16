@@ -111,7 +111,7 @@ export default function DocsPage() {
     rootDocs.forEach((d) => {
       if (d.visibility === "workspace") {
         company.push(d);
-      } else if (d.visibility === "department" || d.visibility === "departments") {
+      } else if (d.visibility === "departments") {
         const deptIds = d.sharedWith?.departmentIds || [];
         if (deptIds.length === 0) {
           sharedWithMe.push(d);
