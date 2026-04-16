@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye, Columns2, Square, AlertTriangle, PartyPopper, Shield, Zap, Info } from "lucide-react";
+import { HomeAiChat } from "@/components/home/HomeAiChat";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RemindersWidget } from "@/components/RemindersWidget";
@@ -46,6 +47,15 @@ const statusColors: Record<string, string> = {
   in_progress: "bg-blue-500",
   done: "bg-green-500",
   blocked: "bg-red-500",
+};
+
+// Announcement type → visual treatment (border/icon bg/icon)
+const announcementTypeStyles: Record<string, { border: string; iconBg: string; iconColor: string; chip: string; Icon: any }> = {
+  urgent:      { border: "border-l-red-500",    iconBg: "bg-red-500/10",    iconColor: "text-red-600",    chip: "bg-red-500/10 text-red-700 dark:text-red-300",    Icon: AlertTriangle },
+  celebration: { border: "border-l-amber-500",  iconBg: "bg-amber-500/10",  iconColor: "text-amber-600",  chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300", Icon: PartyPopper },
+  policy:      { border: "border-l-indigo-500", iconBg: "bg-indigo-500/10", iconColor: "text-indigo-600", chip: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", Icon: Shield },
+  update:      { border: "border-l-blue-500",   iconBg: "bg-blue-500/10",   iconColor: "text-blue-600",   chip: "bg-blue-500/10 text-blue-700 dark:text-blue-300",     Icon: Zap },
+  general:     { border: "border-l-primary",    iconBg: "bg-primary/10",    iconColor: "text-primary",    chip: "bg-primary/10 text-primary",                           Icon: Info },
 };
 
 function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
