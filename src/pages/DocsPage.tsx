@@ -274,10 +274,91 @@ export default function DocsPage() {
           </Popover>
         )}
 
-        <div className="space-y-0.5">
-          {rootDocs.map((doc) => (
-            <DocTreeItem key={doc.id} doc={doc} />
-          ))}
+        <div className="space-y-3">
+          {/* Company group */}
+          {groupedDocs.company.length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("company")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.company ? "rotate-90" : ""}`} />
+                <Globe className="h-3 w-3" />
+                <span>Company</span>
+                <span className="ml-auto text-[10px] opacity-60">{groupedDocs.company.length}</span>
+              </button>
+              {!collapsedGroups.company && (
+                <div className="space-y-0.5 mt-1">
+                  {groupedDocs.company.map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Departments group */}
+          {Object.keys(groupedDocs.byDept).length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("departments")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.departments ? "rotate-90" : ""}`} />
+                <Building2 className="h-3 w-3" />
+                <span>Departments</span>
+              </button>
+              {!collapsedGroups.departments && (
+                <div className="space-y-1 mt-1">
+                  {departments
+                    .filter((d) => groupedDocs.byDept[d.id]?.length)
+                    .map((dept) => {
+                      const key = `dept-${dept.id}`;
+                      return (
+                        <div key={dept.id}>
+                          <button
+                            onClick={() => toggleGroup(key)}
+                            className="flex items-center gap-1.5 w-full px-2 py-1 text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
+                          >
+                            <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups[key] ? "rotate-90" : ""}`} />
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(${dept.color})` }} />
+                            <span className="truncate">{dept.name}</span>
+                            <span className="ml-auto text-[10px] opacity-60">{groupedDocs.byDept[dept.id].length}</span>
+                          </button>
+                          {!collapsedGroups[key] && (
+                            <div className="space-y-0.5 mt-0.5 ml-2">
+                              {groupedDocs.byDept[dept.id].map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Shared with me */}
+          {groupedDocs.sharedWithMe.length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("shared")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.shared ? "rotate-90" : ""}`} />
+                <Users className="h-3 w-3" />
+                <span>Shared with me</span>
+                <span className="ml-auto text-[10px] opacity-60">{groupedDocs.sharedWithMe.length}</span>
+              </button>
+              {!collapsedGroups.shared && (
+                <div className="space-y-0.5 mt-1">
+                  {groupedDocs.sharedWithMe.map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {rootDocs.length === 0 && (
+            <div className="px-2 py-6 text-center text-xs text-muted-foreground">No pages yet</div>
+          )}
         </div>
       </div>
 
