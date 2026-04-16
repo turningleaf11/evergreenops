@@ -1,5 +1,4 @@
 import { ReactNode, useState } from "react";
-import { ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -56,12 +55,6 @@ export function FieldRow({ label, icon: Icon, displayValue, children, popoverCla
               <span className="min-w-0 truncate flex-1">
                 {displayValue || <span className="text-muted-foreground/60 italic text-xs">Empty</span>}
               </span>
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 text-muted-foreground/60 transition-transform shrink-0",
-                  open && "rotate-180",
-                )}
-              />
             </button>
           </PopoverTrigger>
           <PopoverContent
