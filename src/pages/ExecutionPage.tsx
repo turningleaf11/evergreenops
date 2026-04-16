@@ -93,17 +93,17 @@ const priorityOptions = [
   { value: "urgent", label: "Urgent" },
 ];
 
-const projectKanbanCols = [
-  { key: "not_started", label: "Not Started", color: "bg-muted-foreground" },
-  { key: "in_progress", label: "In Progress", color: "bg-blue-500" },
-  { key: "blocked", label: "Blocked", color: "bg-red-500" },
-  { key: "done", label: "Done", color: "bg-green-500" },
+const projectKanbanColsBase = [
+  { key: "not_started", label: "Not Started", color: "slate" },
+  { key: "in_progress", label: "In Progress", color: "blue" },
+  { key: "blocked", label: "Blocked", color: "red" },
+  { key: "done", label: "Done", color: "green" },
 ];
 
-const taskKanbanCols = [
-  { key: "todo", label: "To Do", color: "bg-muted-foreground" },
-  { key: "in_progress", label: "In Progress", color: "bg-blue-500" },
-  { key: "done", label: "Done", color: "bg-green-500" },
+const taskKanbanColsBase = [
+  { key: "todo", label: "To Do", color: "slate" },
+  { key: "in_progress", label: "In Progress", color: "blue" },
+  { key: "done", label: "Done", color: "green" },
 ];
 
 const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -158,6 +158,7 @@ export default function ExecutionPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [stageColors, setStageColors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState("goals");
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);

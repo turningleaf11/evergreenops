@@ -891,6 +891,36 @@ export type Database = {
           },
         ]
       }
+      kanban_stage_colors: {
+        Row: {
+          board_type: string
+          color: string
+          created_at: string
+          id: string
+          stage_key: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          board_type: string
+          color: string
+          created_at?: string
+          id?: string
+          stage_key: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          board_type?: string
+          color?: string
+          created_at?: string
+          id?: string
+          stage_key?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       kudos: {
         Row: {
           category: string

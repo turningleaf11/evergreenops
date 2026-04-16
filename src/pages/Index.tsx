@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, User, Building2, CheckSquare, Eye, Columns2, Square, AlertTriangle, PartyPopper, Shield, Zap, Info } from "lucide-react";
+import { Pin, FileText, ArrowRight, FileSpreadsheet, Send, Clock, CheckCircle2, XCircle, ListTodo, Star, X, Plus, Settings2, CalendarDays, Megaphone, CheckSquare, Eye, AlertTriangle, PartyPopper, Shield, Zap, Info, Trash2, Columns, GripVertical } from "lucide-react";
 import { HomeAiChat } from "@/components/home/HomeAiChat";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -20,27 +20,19 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { WidgetCustomizer } from "@/components/home/WidgetCustomizer";
 import { FeedPreview } from "@/components/home/FeedPreview";
-import { useWidgetPreferences } from "@/hooks/useWidgetPreferences";
+import { useWidgetPreferences, type Row } from "@/hooks/useWidgetPreferences";
 import { cn } from "@/lib/utils";
 import DetailDrawer from "@/components/DetailDrawer";
 import {
   DndContext,
-  closestCenter,
   PointerSensor,
-  KeyboardSensor,
   useSensor,
   useSensors,
+  useDraggable,
+  useDroppable,
   type DragEndEvent,
+  pointerWithin,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   todo: "bg-muted-foreground",
@@ -49,7 +41,6 @@ const statusColors: Record<string, string> = {
   blocked: "bg-red-500",
 };
 
-// Announcement type → visual treatment (border/icon bg/icon)
 const announcementTypeStyles: Record<string, { border: string; iconBg: string; iconColor: string; chip: string; Icon: any }> = {
   urgent:      { border: "border-l-red-500",    iconBg: "bg-red-500/10",    iconColor: "text-red-600",    chip: "bg-red-500/10 text-red-700 dark:text-red-300",    Icon: AlertTriangle },
   celebration: { border: "border-l-amber-500",  iconBg: "bg-amber-500/10",  iconColor: "text-amber-600",  chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300", Icon: PartyPopper },
@@ -58,23 +49,55 @@ const announcementTypeStyles: Record<string, { border: string; iconBg: string; i
   general:     { border: "border-l-primary",    iconBg: "bg-primary/10",    iconColor: "text-primary",    chip: "bg-primary/10 text-primary",                           Icon: Info },
 };
 
-function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+function DraggableWidget({ id, editing, children }: { id: string; editing: boolean; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, opacity: isDragging ? 0.5 : 1 }
+    : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} className="relative group">
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute -left-2 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing bg-card border rounded-md p-0.5 shadow-sm"
+    <div ref={setNodeRef} style={style} className="relative group h-full">
+      {editing && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="absolute -left-2 top-3 z-10 cursor-grab active:cursor-grabbing bg-card border rounded-md p-0.5 shadow-sm opacity-60 hover:opacity-100"
+          title="Drag widget"
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function SlotDropZone({ rowId, slot, editing, children, hasContent }: { rowId: string; slot: 0 | 1; editing: boolean; children?: React.ReactNode; hasContent: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `slot__${rowId}__${slot}` });
+
+  if (!hasContent) {
+    if (!editing) return null;
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex-1 min-h-[120px] rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-muted-foreground transition-colors",
+          isOver ? "border-primary bg-primary/5 text-primary" : "border-border/40"
+        )}
       >
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/70" />
-      </button>
+        + Drop widget here
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex-1 min-w-0 transition-all rounded-xl",
+        editing && isOver && "ring-2 ring-primary ring-offset-2"
+      )}
+    >
       {children}
     </div>
   );
@@ -84,17 +107,9 @@ const Index = () => {
   const { departments } = useDepartments();
   const { user, isAdmin, profile } = useAuth();
   const navigate = useNavigate();
-  const { widgets, savePreferences, resetToDefaults } = useWidgetPreferences();
+  const { widgets, rowLayout, savePreferences, resetToDefaults, moveWidget, addRow, removeRow } = useWidgetPreferences();
   const [customizerOpen, setCustomizerOpen] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<"single" | "double">(() => {
-    if (typeof window === "undefined") return "double";
-    return (localStorage.getItem("home_layout_mode") as "single" | "double") || "double";
-  });
-  const toggleLayoutMode = () => {
-    const next = layoutMode === "double" ? "single" : "double";
-    setLayoutMode(next);
-    localStorage.setItem("home_layout_mode", next);
-  };
+  const [editing, setEditing] = useState(false);
 
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [ackCounts, setAckCounts] = useState<Record<string, number>>({});
@@ -106,15 +121,12 @@ const Index = () => {
   const [fillOpen, setFillOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
-
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [addingFav, setAddingFav] = useState(false);
   const [favLabel, setFavLabel] = useState("");
   const [favUrl, setFavUrl] = useState("");
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
-
-  // Task peek drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTask, setDrawerTask] = useState<any>(null);
 
@@ -155,9 +167,7 @@ const Index = () => {
       if (memberCountRes.count) setTotalMembers(memberCountRes.count);
       if (formRes.data) setFormTemplates(formRes.data);
       if (subRes.data) setMySubmissions(subRes.data as any[]);
-      if (profilesRes.data) {
-        setProfiles(profilesRes.data);
-      }
+      if (profilesRes.data) setProfiles(profilesRes.data);
       if (docRes.data) {
         const filtered = isAdmin
           ? docRes.data.slice(0, 3)
@@ -183,7 +193,6 @@ const Index = () => {
           .limit(8);
         if (tasks) setMyTasks(tasks);
       }
-
       if (user) {
         const { data: favs } = await supabase
           .from("user_favorites")
@@ -210,9 +219,7 @@ const Index = () => {
     if (!user || announcements.length === 0) return;
     const timers = announcements
       .filter((a) => !myAcks.has(a.id))
-      .map((a) =>
-        setTimeout(() => acknowledgeAnnouncement(a.id), 3000)
-      );
+      .map((a) => setTimeout(() => acknowledgeAnnouncement(a.id), 3000));
     return () => timers.forEach(clearTimeout);
   }, [announcements, myAcks, user]);
 
@@ -245,10 +252,7 @@ const Index = () => {
   const addFavorite = async () => {
     if (!user || !favLabel.trim() || !favUrl.trim()) return;
     const { error } = await supabase.from("user_favorites").insert({
-      user_id: user.id,
-      label: favLabel.trim(),
-      url: favUrl.trim(),
-      sort_order: favorites.length,
+      user_id: user.id, label: favLabel.trim(), url: favUrl.trim(), sort_order: favorites.length,
     });
     if (error) { toast.error(error.message); return; }
     setFavLabel(""); setFavUrl(""); setAddingFav(false);
@@ -280,38 +284,23 @@ const Index = () => {
     denied: <XCircle className="h-3.5 w-3.5 text-red-500" />,
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIdx = widgets.findIndex((w) => w.id === active.id);
-    const newIdx = widgets.findIndex((w) => w.id === over.id);
-    if (oldIdx === -1 || newIdx === -1) return;
-    const targetWidget = widgets[newIdx];
-    const reordered = arrayMove(widgets, oldIdx, newIdx).map((w, i) => ({
-      ...w,
-      sort_order: i,
-      column: w.id === String(active.id) ? targetWidget.column : w.column,
-    }));
-    savePreferences(reordered);
+    if (!over) return;
+    const overId = String(over.id);
+    if (!overId.startsWith("slot__")) return;
+    const [, rowId, slotStr] = overId.split("__");
+    const slot = parseInt(slotStr, 10) as 0 | 1;
+    moveWidget(String(active.id), rowId, slot);
   };
-
-  // Exclude feed_preview (rendered horizontally above) and quick_links (moved to launcher) from grid
-  const gridFilter = (w: any) => w.visible && w.id !== "feed_preview" && w.id !== "quick_links";
-  const leftWidgets = widgets.filter((w) => gridFilter(w) && w.column === "left");
-  const rightWidgets = widgets.filter((w) => gridFilter(w) && w.column === "right");
-  const singleColWidgets = widgets.filter(gridFilter).sort((a, b) => a.sort_order - b.sort_order);
-  const allVisibleIds = (layoutMode === "single" ? singleColWidgets : [...leftWidgets, ...rightWidgets]).map((w) => w.id);
 
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case "announcements":
         return (
-          <Card>
+          <Card className="h-full">
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2">
@@ -358,10 +347,7 @@ const Index = () => {
                             <Eye className="h-3 w-3" /> {seen}/{totalMembers} seen
                           </span>
                           {!isSeen ? (
-                            <button
-                              onClick={() => acknowledgeAnnouncement(a.id)}
-                              className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
-                            >
+                            <button onClick={() => acknowledgeAnnouncement(a.id)} className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
                               <CheckSquare className="h-3 w-3" /> Mark seen
                             </button>
                           ) : (
@@ -381,7 +367,7 @@ const Index = () => {
 
       case "departments":
         return (
-          <Card>
+          <Card className="h-full">
             <CardContent className="p-0">
               <div className="px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold">Departments</h2>
@@ -409,7 +395,7 @@ const Index = () => {
       case "forms":
         if (formTemplates.length === 0) return null;
         return (
-          <Card>
+          <Card className="h-full">
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2">
@@ -443,7 +429,7 @@ const Index = () => {
 
       case "my_tasks":
         return (
-          <Card className="elevation-2">
+          <Card className="elevation-2 h-full">
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -479,7 +465,7 @@ const Index = () => {
 
       case "quick_links":
         return (
-          <Card>
+          <Card className="h-full">
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-muted-foreground/70" /> Quick Links</h2>
@@ -515,16 +501,14 @@ const Index = () => {
 
       case "feed_preview":
         return <FeedPreview />;
-
       case "feed_chat":
         return <HomeAiChat />;
-
       case "reminders":
         return <RemindersWidget />;
 
       case "recent_docs":
         return (
-          <Card>
+          <Card className="h-full">
             <CardContent className="p-0">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <h2 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground/70" /> Recent Docs</h2>
@@ -557,9 +541,20 @@ const Index = () => {
   const today = new Date();
   const dateStr = format(today, "EEEE, MMMM d, yyyy");
 
+  // Show horizontal feed at top if widget is visible
+  const feedVisible = widgets.find((w) => w.id === "feed_preview" && w.visible);
+
+  // Filter out feed_preview from rows since it renders horizontally above
+  const visibleRows: Row[] = rowLayout.map((r) => ({
+    id: r.id,
+    slots: [
+      r.slots[0] === "feed_preview" ? null : r.slots[0],
+      r.slots[1] === "feed_preview" ? null : r.slots[1],
+    ] as [string | null, string | null],
+  }));
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -570,34 +565,15 @@ const Index = () => {
           </p>
         </div>
         <div className="flex items-center gap-1 flex-wrap">
-          <div className="inline-flex items-center rounded-lg border border-border/40 bg-muted/30 p-0.5">
-            <button
-              onClick={() => layoutMode !== "double" && toggleLayoutMode()}
-              className={cn(
-                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
-                layoutMode === "double" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Two columns"
-            >
-              <Columns2 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => layoutMode !== "single" && toggleLayoutMode()}
-              className={cn(
-                "px-2 py-1 rounded-md transition-colors flex items-center gap-1 text-xs",
-                layoutMode === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Single column"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </button>
-          </div>
           <Button
-            variant="ghost"
+            variant={editing ? "default" : "ghost"}
             size="sm"
-            className="gap-1.5 text-muted-foreground text-xs"
-            onClick={() => setCustomizerOpen(true)}
+            className="gap-1.5 text-xs"
+            onClick={() => setEditing((v) => !v)}
           >
+            <Columns className="h-3.5 w-3.5" /> {editing ? "Done arranging" : "Arrange"}
+          </Button>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground text-xs" onClick={() => setCustomizerOpen(true)}>
             <Settings2 className="h-3.5 w-3.5" /> Customize
           </Button>
         </div>
@@ -605,44 +581,56 @@ const Index = () => {
 
       <OnboardingBanner />
 
-      {/* Horizontal feed at top */}
-      {widgets.find((w) => w.id === "feed_preview" && w.visible) && (
-        <FeedPreview variant="horizontal" />
-      )}
+      {feedVisible && <FeedPreview variant="horizontal" />}
 
-      {/* Widget Grid */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={allVisibleIds} strategy={verticalListSortingStrategy}>
-          {layoutMode === "single" ? (
-            <div className="max-w-3xl mx-auto space-y-4">
-              {singleColWidgets.map((w) => {
-                const content = renderWidget(w.id);
-                if (!content) return null;
-                return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
-              })}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              <div className="md:col-span-7 space-y-4">
-                {leftWidgets.map((w) => {
-                  const content = renderWidget(w.id);
-                  if (!content) return null;
-                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
-                })}
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+        <div className="space-y-3">
+          {visibleRows.map((row) => {
+            const [a, b] = row.slots;
+            const isSplit = !!b || (editing && !!a);
+            return (
+              <div key={row.id} className="group/row relative">
+                <div className={cn("flex gap-4 items-stretch", !isSplit && "flex-col")}>
+                  <SlotDropZone rowId={row.id} slot={0} editing={editing} hasContent={!!a}>
+                    {a && (
+                      <DraggableWidget id={a} editing={editing}>
+                        {renderWidget(a)}
+                      </DraggableWidget>
+                    )}
+                  </SlotDropZone>
+                  <SlotDropZone rowId={row.id} slot={1} editing={editing} hasContent={!!b}>
+                    {b && (
+                      <DraggableWidget id={b} editing={editing}>
+                        {renderWidget(b)}
+                      </DraggableWidget>
+                    )}
+                  </SlotDropZone>
+                </div>
+
+                {editing && (
+                  <button
+                    onClick={() => removeRow(row.id)}
+                    className="absolute -right-2 top-2 opacity-0 group-hover/row:opacity-100 transition-opacity bg-card border rounded-full p-1 shadow-sm text-muted-foreground hover:text-destructive"
+                    title="Remove row"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
-              <div className="md:col-span-5 space-y-4">
-                {rightWidgets.map((w) => {
-                  const content = renderWidget(w.id);
-                  if (!content) return null;
-                  return <SortableWidget key={w.id} id={w.id}>{content}</SortableWidget>;
-                })}
-              </div>
-            </div>
+            );
+          })}
+
+          {editing && (
+            <button
+              onClick={addRow}
+              className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border/50 rounded-xl py-3 hover:border-border transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add row
+            </button>
           )}
-        </SortableContext>
+        </div>
       </DndContext>
 
-      {/* Form Fill Dialog */}
       <Dialog open={fillOpen} onOpenChange={setFillOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{activeTemplate?.name}</DialogTitle></DialogHeader>
@@ -661,24 +649,11 @@ const Index = () => {
                     </SelectContent>
                   </Select>
                 ) : field.type === "textarea" ? (
-                  <Textarea
-                    value={formValues[field.name] || ""}
-                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    className="mt-1 min-h-[60px]"
-                  />
+                  <Textarea value={formValues[field.name] || ""} onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))} className="mt-1 min-h-[60px]" />
                 ) : field.type === "date" ? (
-                  <Input
-                    type="date"
-                    value={formValues[field.name] || ""}
-                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    className="mt-1"
-                  />
+                  <Input type="date" value={formValues[field.name] || ""} onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))} className="mt-1" />
                 ) : (
-                  <Input
-                    value={formValues[field.name] || ""}
-                    onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    className="mt-1"
-                  />
+                  <Input value={formValues[field.name] || ""} onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))} className="mt-1" />
                 )}
               </div>
             ))}
@@ -690,7 +665,6 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Task Peek Drawer */}
       <DetailDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
