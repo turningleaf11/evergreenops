@@ -170,11 +170,20 @@
   .subtle-glow {
     animation: subtleGlow 3s ease-in-out infinite;
   }
+
+  .timer-glow {
+    animation: timerGlow 2.5s ease-in-out infinite;
+  }
 }
 
 @keyframes subtleGlow {
   0%, 100% { box-shadow: 0 0 4px rgba(0, 0, 0, 0.05); }
   50% { box-shadow: 0 0 8px hsl(var(--primary) / 0.12); }
+}
+
+@keyframes timerGlow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  50% { box-shadow: 0 0 10px 2px hsl(var(--primary) / 0.2); }
 }
 
 .dark .elevation-1 {
