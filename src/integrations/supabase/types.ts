@@ -223,34 +223,64 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_reactions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          emoji: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          emoji: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
+          attachments: Json
           author_id: string
           content: string
           created_at: string
           entity_id: string
           entity_type: string
           id: string
+          mentions: string[]
           parent_id: string | null
           updated_at: string
         }
         Insert: {
+          attachments?: Json
           author_id: string
           content?: string
           created_at?: string
           entity_id: string
           entity_type: string
           id?: string
+          mentions?: string[]
           parent_id?: string | null
           updated_at?: string
         }
         Update: {
+          attachments?: Json
           author_id?: string
           content?: string
           created_at?: string
           entity_id?: string
           entity_type?: string
           id?: string
+          mentions?: string[]
           parent_id?: string | null
           updated_at?: string
         }
@@ -530,6 +560,7 @@ export type Database = {
           parent_id: string | null
           project_id: string | null
           shared_with: Json | null
+          status: string
           tags: string[] | null
           title: string
           updated_at: string
@@ -545,6 +576,7 @@ export type Database = {
           parent_id?: string | null
           project_id?: string | null
           shared_with?: Json | null
+          status?: string
           tags?: string[] | null
           title: string
           updated_at?: string
@@ -560,6 +592,7 @@ export type Database = {
           parent_id?: string | null
           project_id?: string | null
           shared_with?: Json | null
+          status?: string
           tags?: string[] | null
           title?: string
           updated_at?: string
