@@ -334,7 +334,7 @@ export default function NotesPage() {
       </div>
 
       {/* Editor */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-card">
         {selectedId ? (
           <>
             <div className="p-3 border-b border-border/50 flex items-center gap-2">

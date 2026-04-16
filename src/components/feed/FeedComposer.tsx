@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ImageIcon, Send, Megaphone, BarChart3, Heart, X, Loader2 } from "lucide-react";
@@ -36,16 +35,13 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  // Announcement fields
   const [annTitle, setAnnTitle] = useState("");
   const [annType, setAnnType] = useState("general");
   const [annPinned, setAnnPinned] = useState(false);
 
-  // Poll fields
   const [pollTitle, setPollTitle] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
 
-  // Kudos fields
   const [kudosTo, setKudosTo] = useState("");
   const [kudosCat, setKudosCat] = useState("great_work");
 
@@ -129,31 +125,30 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
 
   const placeholders: Record<PostMode, string> = {
     post: "What's on your mind?",
-    announcement: "Announcement details...",
+    announcement: "Add details...",
     poll: "Add context (optional)...",
     kudos: "Say something nice...",
   };
 
   return (
     <div className="rounded-2xl bg-card elevation-2 border border-border/40 overflow-hidden">
-      {/* Subtle tinted background wrapper */}
-      <div className="bg-primary/[0.02] p-5 space-y-4">
-        {/* Avatar + collapsed trigger */}
+      <div className="p-5">
         <div className="flex gap-3">
           <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/10">
             <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{initials}</AvatarFallback>
           </Avatar>
+
           {!expanded ? (
             <button
               onClick={() => setExpanded(true)}
-              className="w-full text-left px-4 py-2.5 rounded-xl bg-background border border-border/50 text-sm text-muted-foreground hover:border-primary/20 hover:bg-background transition-all duration-200"
+              className="w-full text-left py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
             >
               What's on your mind?
             </button>
           ) : (
-            <div className="flex-1 space-y-4">
+            <div className="flex-1 min-w-0">
               {/* Mode tabs */}
-              <div className="flex gap-1.5">
+              <div className="flex gap-1 mb-3">
                 {visibleModes.map((m) => {
                   const Icon = m.icon;
                   const isActive = mode === m.value;
@@ -175,18 +170,18 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 })}
               </div>
 
-              {/* Mode-specific fields */}
+              {/* Announcement fields — naked inputs */}
               {mode === "announcement" && (
-                <div className="space-y-3">
+                <div className="space-y-1 mb-2">
                   <input
                     value={annTitle}
                     onChange={(e) => setAnnTitle(e.target.value)}
                     placeholder="Announcement title"
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border/50 text-sm font-medium placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+                    className="w-full bg-transparent border-0 border-b border-border/30 rounded-none px-0 py-2 text-lg font-semibold placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 transition-colors duration-200"
                   />
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-3 items-center pt-1">
                     <Select value={annType} onValueChange={setAnnType}>
-                      <SelectTrigger className="w-40 h-8 text-xs rounded-lg border-border/50 bg-background"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-36 h-7 text-xs border-border/30 bg-transparent"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="general">General</SelectItem>
                         <SelectItem value="urgent">🚨 Urgent</SelectItem>
@@ -203,42 +198,45 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
+              {/* Poll fields — underline style */}
               {mode === "poll" && (
-                <div className="space-y-2">
+                <div className="space-y-1 mb-2">
                   <input
                     value={pollTitle}
                     onChange={(e) => setPollTitle(e.target.value)}
                     placeholder="Poll question"
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border/50 text-sm font-medium placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+                    className="w-full bg-transparent border-0 border-b border-border/30 rounded-none px-0 py-2 text-lg font-semibold placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 transition-colors duration-200"
                   />
                   {pollOptions.map((opt, i) => (
-                    <div key={i} className="flex gap-1.5">
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground/50 w-4">{i + 1}.</span>
                       <input
                         placeholder={`Option ${i + 1}`}
                         value={opt}
                         onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border/50 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+                        className="flex-1 bg-transparent border-0 border-b border-border/30 rounded-none px-0 py-1.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 transition-colors duration-200"
                       />
                       {pollOptions.length > 2 && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
+                        <button className="text-muted-foreground/40 hover:text-destructive transition-colors" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
                           <X className="h-3 w-3" />
-                        </Button>
+                        </button>
                       )}
                     </div>
                   ))}
                   <button
                     onClick={() => setPollOptions([...pollOptions, ""])}
-                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors duration-200"
+                    className="text-xs text-primary/70 hover:text-primary font-medium transition-colors duration-200 pt-1"
                   >
                     + Add option
                   </button>
                 </div>
               )}
 
+              {/* Kudos selectors — reduced chrome */}
               {mode === "kudos" && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   <Select value={kudosTo} onValueChange={setKudosTo}>
-                    <SelectTrigger className="h-9 text-xs flex-1 rounded-lg border-border/50 bg-background"><SelectValue placeholder="Give kudos to..." /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs flex-1 border-border/30 bg-transparent"><SelectValue placeholder="Give kudos to..." /></SelectTrigger>
                     <SelectContent>
                       {people.map((p) => (
                         <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>
@@ -246,7 +244,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                     </SelectContent>
                   </Select>
                   <Select value={kudosCat} onValueChange={setKudosCat}>
-                    <SelectTrigger className="h-9 text-xs w-36 rounded-lg border-border/50 bg-background"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs w-36 border-border/30 bg-transparent"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="great_work">🌟 Great Work</SelectItem>
                       <SelectItem value="team_player">🤝 Team Player</SelectItem>
@@ -257,47 +255,45 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
-              {/* Primary content textarea */}
+              {/* Main naked textarea */}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={placeholders[mode]}
                 rows={3}
-                className="w-full px-3 py-2.5 rounded-xl bg-background border border-border/50 text-sm resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200 leading-relaxed"
+                className="w-full bg-transparent border-0 px-0 py-2 text-base resize-none placeholder:text-muted-foreground/40 focus:outline-none leading-relaxed"
               />
 
-              {/* Image preview */}
+              {/* Media previews */}
               {imageUrl && (
-                <div className="relative">
+                <div className="relative mb-2">
                   <img src={imageUrl} alt="Uploaded" className="rounded-xl max-h-48 object-cover" />
-                  <Button size="icon" variant="secondary" className="absolute top-2 right-2 h-6 w-6 rounded-lg" onClick={() => setImageUrl(null)}>
+                  <button className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors" onClick={() => setImageUrl(null)}>
                     <X className="h-3 w-3" />
-                  </Button>
+                  </button>
                 </div>
               )}
-
-              {/* GIF preview */}
               {gifUrl && (
-                <div className="relative">
+                <div className="relative mb-2">
                   <img src={gifUrl} alt="GIF" className="rounded-xl max-h-48 object-cover" />
-                  <Button size="icon" variant="secondary" className="absolute top-2 right-2 h-6 w-6 rounded-lg" onClick={() => setGifUrl("")}>
+                  <button className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors" onClick={() => setGifUrl("")}>
                     <X className="h-3 w-3" />
-                  </Button>
+                  </button>
                 </div>
               )}
 
-              {/* Action bar */}
-              <div className="flex items-center justify-between pt-1">
+              {/* Action bar — thin divider */}
+              <div className="flex items-center justify-between pt-3 mt-1 border-t border-border/20">
                 <div className="flex gap-0.5">
                   {mode === "post" && (
                     <>
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground/70 hover:text-foreground rounded-lg" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground/60 hover:text-foreground rounded-lg" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                         <span className="text-xs">Photo</span>
                       </Button>
                       <GiphyPicker onSelect={(url) => setGifUrl(url)}>
-                        <Button variant="ghost" size="sm" className="h-8 text-muted-foreground/70 hover:text-foreground rounded-lg">
-                          <span className="text-xs">GIF</span>
+                        <Button variant="ghost" size="sm" className="h-8 text-muted-foreground/60 hover:text-foreground rounded-lg">
+                          <span className="text-xs font-semibold">GIF</span>
                         </Button>
                       </GiphyPicker>
                     </>
@@ -309,7 +305,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                   </Button>
                   <Button
                     size="sm"
-                    className="h-8 gap-1.5 rounded-lg elevation-1 hover:elevation-2 active:scale-[0.97] transition-all duration-200"
+                    className="h-8 gap-1.5 rounded-lg shadow-sm hover:shadow active:scale-[0.97] transition-all duration-200"
                     onClick={submit}
                     disabled={submitting}
                   >
