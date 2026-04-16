@@ -108,6 +108,7 @@ export function AppSidebar() {
   };
 
   return (
+    <div className={cn("contents", isPinned && "sidebar-pinned-mode")}>
     <Sidebar collapsible="icon">
       <div ref={sidebarRef} onClick={handleRailClick} className="contents">
       <SidebarContent className="pt-2">
