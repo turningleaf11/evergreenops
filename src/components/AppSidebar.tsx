@@ -2,14 +2,14 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarHeader, SidebarFooter, useSidebar,
+  SidebarFooter, SidebarTrigger, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
