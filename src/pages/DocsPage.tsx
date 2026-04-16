@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield } from "lucide-react";
+import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield, Building2, Users, Globe } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import RichTextEditor from "@/components/RichTextEditor";
 import AccessPicker from "@/components/AccessPicker";
 
@@ -47,11 +48,13 @@ function mapRow(row: any): Doc {
 
 export default function DocsPage() {
   const { isAdmin, profile, user } = useAuth();
+  const { departments } = useDepartments();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -98,6 +101,39 @@ export default function DocsPage() {
   const rootDocs = filtered.filter((d) => !d.parentId);
   const selected = docs.find((d) => d.id === selectedDoc);
   const childDocs = selectedDoc ? docs.filter((d) => d.parentId === selectedDoc) : [];
+
+  // Group root docs into Company / Departments / Shared with me
+  const groupedDocs = useMemo(() => {
+    const company: Doc[] = [];
+    const byDept: Record<string, Doc[]> = {};
+    const sharedWithMe: Doc[] = [];
+
+    rootDocs.forEach((d) => {
+      if (d.visibility === "workspace") {
+        company.push(d);
+      } else if (d.visibility === "departments") {
+        const deptIds = d.sharedWith?.departmentIds || [];
+        if (deptIds.length === 0) {
+          sharedWithMe.push(d);
+        } else {
+          deptIds.forEach((did) => {
+            if (!byDept[did]) byDept[did] = [];
+            byDept[did].push(d);
+          });
+        }
+      } else if (d.visibility === "private") {
+        if (d.authorId === user?.id) sharedWithMe.push(d);
+      } else {
+        // member-shared
+        const memberIds = d.sharedWith?.memberIds || [];
+        if (memberIds.includes(user?.id || "")) sharedWithMe.push(d);
+      }
+    });
+
+    return { company, byDept, sharedWithMe };
+  }, [rootDocs, user?.id]);
+
+  const toggleGroup = (key: string) => setCollapsedGroups((p) => ({ ...p, [key]: !p[key] }));
 
   const handleCreateDoc = async () => {
     const { data: newRow } = await supabase
@@ -238,10 +274,91 @@ export default function DocsPage() {
           </Popover>
         )}
 
-        <div className="space-y-0.5">
-          {rootDocs.map((doc) => (
-            <DocTreeItem key={doc.id} doc={doc} />
-          ))}
+        <div className="space-y-3">
+          {/* Company group */}
+          {groupedDocs.company.length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("company")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.company ? "rotate-90" : ""}`} />
+                <Globe className="h-3 w-3" />
+                <span>Company</span>
+                <span className="ml-auto text-[10px] opacity-60">{groupedDocs.company.length}</span>
+              </button>
+              {!collapsedGroups.company && (
+                <div className="space-y-0.5 mt-1">
+                  {groupedDocs.company.map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Departments group */}
+          {Object.keys(groupedDocs.byDept).length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("departments")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.departments ? "rotate-90" : ""}`} />
+                <Building2 className="h-3 w-3" />
+                <span>Departments</span>
+              </button>
+              {!collapsedGroups.departments && (
+                <div className="space-y-1 mt-1">
+                  {departments
+                    .filter((d) => groupedDocs.byDept[d.id]?.length)
+                    .map((dept) => {
+                      const key = `dept-${dept.id}`;
+                      return (
+                        <div key={dept.id}>
+                          <button
+                            onClick={() => toggleGroup(key)}
+                            className="flex items-center gap-1.5 w-full px-2 py-1 text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
+                          >
+                            <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups[key] ? "rotate-90" : ""}`} />
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(${dept.color})` }} />
+                            <span className="truncate">{dept.name}</span>
+                            <span className="ml-auto text-[10px] opacity-60">{groupedDocs.byDept[dept.id].length}</span>
+                          </button>
+                          {!collapsedGroups[key] && (
+                            <div className="space-y-0.5 mt-0.5 ml-2">
+                              {groupedDocs.byDept[dept.id].map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Shared with me */}
+          {groupedDocs.sharedWithMe.length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleGroup("shared")}
+                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight className={`h-3 w-3 transition-transform ${!collapsedGroups.shared ? "rotate-90" : ""}`} />
+                <Users className="h-3 w-3" />
+                <span>Shared with me</span>
+                <span className="ml-auto text-[10px] opacity-60">{groupedDocs.sharedWithMe.length}</span>
+              </button>
+              {!collapsedGroups.shared && (
+                <div className="space-y-0.5 mt-1">
+                  {groupedDocs.sharedWithMe.map((doc) => <DocTreeItem key={doc.id} doc={doc} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {rootDocs.length === 0 && (
+            <div className="px-2 py-6 text-center text-xs text-muted-foreground">No pages yet</div>
+          )}
         </div>
       </div>
 
