@@ -2,8 +2,9 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff,
 } from "lucide-react";
+import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
