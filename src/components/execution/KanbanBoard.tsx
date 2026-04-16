@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Repeat, Plus, Palette, Check } from "lucide-react";
+import { Calendar, Repeat, Plus, Palette, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { KANBAN_CLASSES, KANBAN_COLORS, resolveColor, type KanbanColorName } from "@/lib/kanban-colors";
