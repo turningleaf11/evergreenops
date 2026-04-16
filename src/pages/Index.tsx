@@ -86,6 +86,15 @@ const Index = () => {
   const navigate = useNavigate();
   const { widgets, savePreferences, resetToDefaults } = useWidgetPreferences();
   const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"single" | "double">(() => {
+    if (typeof window === "undefined") return "double";
+    return (localStorage.getItem("home_layout_mode") as "single" | "double") || "double";
+  });
+  const toggleLayoutMode = () => {
+    const next = layoutMode === "double" ? "single" : "double";
+    setLayoutMode(next);
+    localStorage.setItem("home_layout_mode", next);
+  };
 
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [ackCounts, setAckCounts] = useState<Record<string, number>>({});
