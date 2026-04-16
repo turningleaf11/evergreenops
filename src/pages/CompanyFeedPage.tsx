@@ -69,7 +69,7 @@ export default function CompanyFeedPage() {
       ) : (
         <div className="space-y-4">
           {items.map((item) => (
-            <FeedCard key={`${item.type}-${item.data.id}`} item={item} />
+            <FeedCard key={`${item.type}-${item.data.id}`} item={item} onRefresh={fetchFeed} />
           ))}
         </div>
       )}
