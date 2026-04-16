@@ -20,6 +20,7 @@ import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getDeptIcon } from "@/lib/icon-map";
 import { useAddonEnabled } from "@/hooks/useAddonEnabled";
+import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
   const { state, setOpen } = useSidebar();
