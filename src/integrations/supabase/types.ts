@@ -623,6 +623,45 @@ export type Database = {
           },
         ]
       }
+      email_links: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          gmail_message_id: string | null
+          gmail_thread_id: string
+          id: string
+          linked_by: string | null
+          snippet: string | null
+          subject: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          gmail_message_id?: string | null
+          gmail_thread_id: string
+          id?: string
+          linked_by?: string | null
+          snippet?: string | null
+          subject?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          gmail_message_id?: string | null
+          gmail_thread_id?: string
+          id?: string
+          linked_by?: string | null
+          snippet?: string | null
+          subject?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       entity_activity: {
         Row: {
           action: string
@@ -770,6 +809,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gmail_access_rules: {
+        Row: {
+          allow_all_admins: boolean
+          allow_all_members: boolean
+          allowed_roles: string[]
+          allowed_user_ids: string[]
+          created_at: string
+          id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          allow_all_admins?: boolean
+          allow_all_members?: boolean
+          allowed_roles?: string[]
+          allowed_user_ids?: string[]
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          allow_all_admins?: boolean
+          allow_all_members?: boolean
+          allowed_roles?: string[]
+          allowed_user_ids?: string[]
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      gmail_workspace_account: {
+        Row: {
+          connected_at: string
+          connected_by: string | null
+          email: string
+          id: string
+          refresh_token_secret_id: string
+          revoked_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connected_at?: string
+          connected_by?: string | null
+          email: string
+          id?: string
+          refresh_token_secret_id: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          connected_at?: string
+          connected_by?: string | null
+          email?: string
+          id?: string
+          refresh_token_secret_id?: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
       }
       goals: {
         Row: {
@@ -2146,6 +2251,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_use_gmail: { Args: { _user_id: string }; Returns: boolean }
       get_user_workspace_id: { Args: never; Returns: string }
       has_role: {
         Args: {

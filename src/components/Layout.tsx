@@ -10,12 +10,15 @@ import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LauncherMenu } from "@/components/LauncherMenu";
+import { SidebarModeProvider, useSidebarMode } from "@/contexts/SidebarModeContext";
 
-export function Layout() {
+function LayoutInner() {
   const { name: workspaceName, logoUrl } = useWorkspace();
+  const { mode } = useSidebarMode();
+  const isPinned = mode === "pinned";
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={isPinned}>
       <CompanionProvider>
         <div className="min-h-screen flex flex-col w-full">
           {/* Header — full width, sits above the sidebar */}
@@ -44,8 +47,8 @@ export function Layout() {
             </div>
           </header>
 
-          {/* Body row — sidebar slides under the header, main fills the rest */}
-          <div className="flex-1 flex min-h-0 relative">
+          {/* Body row — sidebar slides under the header (floating) or pushes content (pinned) */}
+          <div className={isPinned ? "flex-1 flex min-h-0" : "flex-1 flex min-h-0 relative"}>
             <AppSidebar />
             <main className="flex-1 overflow-auto min-w-0">
               <Outlet />
@@ -55,5 +58,13 @@ export function Layout() {
         </div>
       </CompanionProvider>
     </SidebarProvider>
+  );
+}
+
+export function Layout() {
+  return (
+    <SidebarModeProvider>
+      <LayoutInner />
+    </SidebarModeProvider>
   );
 }
