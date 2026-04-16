@@ -712,6 +712,12 @@ export default function DepartmentPage() {
         type={drawerType}
         item={drawerItem}
         onStatusChange={handleDrawerStatusChange}
+        onTitleChange={async (newTitle) => {
+          if (!drawerItem) return;
+          const table = drawerType === "project" ? "projects" : "tasks";
+          await supabase.from(table).update({ title: newTitle }).eq("id", drawerItem.id);
+          setDrawerItem((prev: any) => prev ? { ...prev, title: newTitle } : null);
+        }}
         getName={(uid) => getName(uid) || "Unassigned"}
       />
 

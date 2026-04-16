@@ -960,6 +960,15 @@ export default function ExecutionPage() {
           updateStatus(drawerType === "project" ? "projects" : "tasks", drawerItem.id, v);
           setDrawerItem((prev: any) => prev ? { ...prev, status: v } : null);
         }}
+        onTitleChange={async (newTitle) => {
+          if (!drawerItem) return;
+          const table = drawerType === "project" ? "projects" : "tasks";
+          const { error } = await supabase.from(table).update({ title: newTitle }).eq("id", drawerItem.id);
+          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+          setDrawerItem((prev: any) => prev ? { ...prev, title: newTitle } : null);
+          if (drawerType === "project") setProjects(prev => prev.map(p => p.id === drawerItem.id ? { ...p, title: newTitle } : p));
+          else setTasks(prev => prev.map(t => t.id === drawerItem.id ? { ...t, title: newTitle } : t));
+        }}
         getName={getName}
       />
     </div>
