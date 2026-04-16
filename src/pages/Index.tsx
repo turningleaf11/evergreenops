@@ -671,6 +671,11 @@ const Index = () => {
         type="task"
         item={drawerTask}
         onStatusChange={handleTaskStatusChange}
+        onTitleChange={async (newTitle) => {
+          if (!drawerTask) return;
+          await supabase.from("tasks").update({ title: newTitle }).eq("id", drawerTask.id);
+          setDrawerTask((prev: any) => prev ? { ...prev, title: newTitle } : null);
+        }}
         getName={getName}
       />
 
