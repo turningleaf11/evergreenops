@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowUp, ArrowDown, Calendar, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
 
 interface DataTableViewProps {
   items: any[];
@@ -51,12 +51,24 @@ function hashColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
+type ColDef = { id: SortCol; label: string; defaultWidth: number; minWidth: number };
+const COLUMNS: ColDef[] = [
+  { id: "title",    label: "Name",     defaultWidth: 360, minWidth: 160 },
+  { id: "status",   label: "Status",   defaultWidth: 150, minWidth: 110 },
+  { id: "priority", label: "Priority", defaultWidth: 120, minWidth: 90 },
+  { id: "assignee", label: "Assignee", defaultWidth: 180, minWidth: 130 },
+  { id: "due_date", label: "Due Date", defaultWidth: 140, minWidth: 100 },
+];
+
 export default function DataTableView({
-  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
+  items, type, onItemClick, onStatusChange, getName, statusOptions,
 }: DataTableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [sortCol, setSortCol] = useState<SortCol>("title");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const viewKey = `execution-${type}`;
+  const { getWidth, setWidth } = useColumnWidths(viewKey);
 
   const toggleSort = (col: SortCol) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -82,124 +94,154 @@ export default function DataTableView({
       : <ArrowDown className="h-3 w-3 ml-1 inline" />;
   };
 
-  const colHeaderClass = "cursor-pointer select-none hover:text-foreground transition-colors text-xs font-medium";
+  // Build CSS grid template — explicit user widths or auto-fit minmax
+  const gridTemplate = COLUMNS.map((c) => {
+    const w = getWidth(c.id, c.defaultWidth);
+    return `minmax(${c.minWidth}px, ${w}px)`;
+  }).join(" ");
+
+  const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
+    const onMove = (e: PointerEvent) => {
+      const next = startWidth + (e.clientX - startX);
+      setWidth(colId, next);
+    };
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [setWidth]);
 
   return (
     <div className="rounded-xl border border-border/50 overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className={colHeaderClass} onClick={() => toggleSort("title")}>
-              Name <SortIcon col="title" />
-            </TableHead>
-            <TableHead className={cn(colHeaderClass, "w-[130px]")} onClick={() => toggleSort("status")}>
-              Status <SortIcon col="status" />
-            </TableHead>
-            <TableHead className={cn(colHeaderClass, "w-[100px]")} onClick={() => toggleSort("priority")}>
-              Priority <SortIcon col="priority" />
-            </TableHead>
-            <TableHead className={cn(colHeaderClass, "w-[140px]")} onClick={() => toggleSort("assignee")}>
-              Assignee <SortIcon col="assignee" />
-            </TableHead>
-            <TableHead className={cn(colHeaderClass, "w-[120px]")} onClick={() => toggleSort("due_date")}>
-              Due Date <SortIcon col="due_date" />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sorted.map(item => {
-            const ownerName = getName(item[ownerField]);
-            const dotColor = statusDotColors[item.status] || statusDotColors.not_started;
-            const statusLabel = statusOptions.find(s => s.value === item.status)?.label || item.status;
-
-            return (
-              <TableRow
-                key={item.id}
-                className="cursor-pointer hover:bg-muted/40 transition-colors h-10"
-                onClick={() => onItemClick(item)}
+      <div className="overflow-x-auto">
+        <div className="min-w-full" style={{ minWidth: "fit-content" }}>
+          {/* Header */}
+          <div
+            className="grid bg-muted/30 border-b border-border/50"
+            style={{ gridTemplateColumns: gridTemplate }}
+          >
+            {COLUMNS.map((c) => (
+              <div
+                key={c.id}
+                className="relative flex items-center px-3 py-2.5 text-xs font-medium text-muted-foreground select-none cursor-pointer hover:text-foreground transition-colors"
+                onClick={() => toggleSort(c.id)}
               >
-                {/* Name */}
-                <TableCell className="py-2">
-                  <span className="text-sm font-medium flex items-center gap-1.5">
-                    {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
-                    <span className="truncate">{item.title}</span>
-                  </span>
-                </TableCell>
+                <span className="truncate">{c.label}</span>
+                <SortIcon col={c.id} />
+                {/* Resize handle */}
+                <div
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    startResize(c.id, e.clientX, getWidth(c.id, c.defaultWidth));
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+                />
+              </div>
+            ))}
+          </div>
 
-                {/* Status */}
-                <TableCell className="py-2" onClick={e => e.stopPropagation()}>
-                  <Select value={item.status} onValueChange={v => onStatusChange(item.id, v)}>
-                    <SelectTrigger className="h-7 w-auto min-w-[90px] border-0 shadow-none bg-transparent px-1 text-xs focus:ring-0">
-                      <div className="flex items-center gap-1.5">
-                        <div className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
-                        <span>{statusLabel}</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
+          {/* Body */}
+          <div className="divide-y divide-border/30">
+            {sorted.map((item) => {
+              const ownerName = getName(item[ownerField]);
+              const dotColor = statusDotColors[item.status] || statusDotColors.not_started;
+              const statusLabel = statusOptions.find(s => s.value === item.status)?.label || item.status;
+              return (
+                <div
+                  key={item.id}
+                  className="grid items-center cursor-pointer hover:bg-muted/40 transition-colors"
+                  style={{ gridTemplateColumns: gridTemplate }}
+                  onClick={() => onItemClick(item)}
+                >
+                  {/* Name */}
+                  <div className="px-3 py-2 min-w-0">
+                    <span className="text-sm font-medium flex items-center gap-1.5 min-w-0">
+                      {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      <span className="truncate">{item.title}</span>
+                    </span>
+                  </div>
 
-                {/* Priority */}
-                <TableCell className="py-2">
-                  {item.priority && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
-                        priorityStyles[item.priority] || ""
-                      )}
-                    >
-                      {item.priority}
-                    </Badge>
-                  )}
-                </TableCell>
+                  {/* Status */}
+                  <div className="px-3 py-2 min-w-0" onClick={e => e.stopPropagation()}>
+                    <Select value={item.status} onValueChange={v => onStatusChange(item.id, v)}>
+                      <SelectTrigger className="h-7 w-full border-0 shadow-none bg-transparent px-1 text-xs focus:ring-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
+                          <span className="truncate">{statusLabel}</span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Assignee */}
-                <TableCell className="py-2">
-                  {ownerName && ownerName !== "Unassigned" ? (
-                    <div className="flex items-center gap-2">
-                      <div
+                  {/* Priority */}
+                  <div className="px-3 py-2 min-w-0">
+                    {item.priority && (
+                      <Badge
+                        variant="outline"
                         className={cn(
-                          "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
-                          hashColor(ownerName)
+                          "text-[10px] capitalize border-0 rounded-full px-2 py-0.5",
+                          priorityStyles[item.priority] || ""
                         )}
                       >
-                        {getInitials(ownerName)}
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate">{ownerName}</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
+                        {item.priority}
+                      </Badge>
+                    )}
+                  </div>
 
-                {/* Due Date */}
-                <TableCell className="py-2">
-                  {item.due_date ? (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      {item.due_date}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-          {items.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-12 text-sm">
+                  {/* Assignee */}
+                  <div className="px-3 py-2 min-w-0">
+                    {ownerName && ownerName !== "Unassigned" ? (
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={cn(
+                            "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
+                            hashColor(ownerName)
+                          )}
+                        >
+                          {getInitials(ownerName)}
+                        </div>
+                        <span className="text-xs text-muted-foreground truncate">{ownerName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="px-3 py-2 min-w-0">
+                    {item.due_date ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{item.due_date}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {items.length === 0 && (
+              <div className="text-center text-muted-foreground py-12 text-sm">
                 No items match your filters.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
