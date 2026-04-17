@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
-import ActivitySidebar from "@/components/ActivitySidebar";
 import CommentsSection from "@/components/CommentsSection";
+import ProjectInfoSidebar from "@/components/execution/ProjectInfoSidebar";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
@@ -52,9 +52,7 @@ export default function ProjectDetailPage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(true);
-  const [docsOpen, setDocsOpen] = useState(true);
   const [discussionOpen, setDiscussionOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
