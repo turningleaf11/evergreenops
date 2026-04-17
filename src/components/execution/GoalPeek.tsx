@@ -73,7 +73,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
     : goal.progress || 0;
 
   const update = async (patch: Record<string, any>) => {
-    const { error } = await supabase.from("goals").update(patch).eq("id", goalId);
+    const { error } = await supabase.from("goals").update(patch as any).eq("id", goalId);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { setGoal((g: any) => ({ ...g, ...patch })); onChanged(); }
   };
