@@ -23,9 +23,10 @@ interface Comment {
 interface CommentsSectionProps {
   entityType: string;
   entityId: string;
+  hideHeader?: boolean;
 }
 
-export default function CommentsSection({ entityType, entityId }: CommentsSectionProps) {
+export default function CommentsSection({ entityType, entityId, hideHeader = false }: CommentsSectionProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
@@ -54,14 +55,18 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
           .in("user_id", ids);
         if (profs) {
           const map: Record<string, string> = {};
-          profs.forEach((p) => { map[p.user_id] = p.full_name || "Unknown"; });
+          profs.forEach((p) => {
+            map[p.user_id] = p.full_name || "Unknown";
+          });
           setProfiles(map);
         }
       }
     }
   }, [entityType, entityId]);
 
-  useEffect(() => { fetchComments(); }, [fetchComments]);
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
 
   const submitComment = async (
     payload: { content: string; attachments: CommentAttachment[]; mentions: string[] },
@@ -78,8 +83,9 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
       attachments: payload.attachments as any,
       mentions: payload.mentions as any,
     } as any);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else {
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
       if (parentId) setReplyTo(null);
       fetchComments();
     }
@@ -95,9 +101,16 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
   const topLevel = comments.filter((c) => !c.parent_id);
   const replies = (parentId: string) => comments.filter((c) => c.parent_id === parentId);
 
-  const initials = (name: string) => name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-  const timeAgo = (d: string) => {
-    const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  const initials = (name: string) =>
+    name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+
+  const timeAgo = (date: string) => {
+    const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
     if (mins < 1) return "just now";
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
@@ -108,25 +121,24 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
   const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => {
     const name = profiles[comment.author_id] || "Unknown";
     const isAuthor = user?.id === comment.author_id;
+
     return (
       <div className={`flex gap-3 ${isReply ? "ml-10" : ""}`}>
         <Avatar className="h-7 w-7 shrink-0">
-          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{initials(name)}</AvatarFallback>
+          <AvatarFallback className="bg-primary/10 text-[10px] text-primary">{initials(name)}</AvatarFallback>
         </Avatar>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{name}</span>
             <span className="text-xs text-muted-foreground">{timeAgo(comment.created_at)}</span>
           </div>
-          {comment.content && (
-            <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
-          )}
+          {comment.content && <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/90">{comment.content}</p>}
           <AttachmentChips attachments={comment.attachments || []} />
-          <div className="flex items-center gap-3 mt-1.5">
+          <div className="mt-1.5 flex items-center gap-3">
             <CommentReactions commentId={comment.id} />
             {!isReply && (
               <button
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
               >
                 <Reply className="h-3 w-3" /> Reply
@@ -134,7 +146,7 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
             )}
             {isAuthor && (
               <button
-                className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
                 onClick={() => deleteComment(comment.id)}
               >
                 <Trash2 className="h-3 w-3" /> Delete
@@ -148,13 +160,13 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
                 compact
                 autoFocus
                 submitting={submitting}
-                onSubmit={(p) => submitComment(p, comment.id)}
+                onSubmit={(payload) => submitComment(payload, comment.id)}
               />
             </div>
           )}
-          {replies(comment.id).map((r) => (
-            <div key={r.id} className="mt-3">
-              <CommentItem comment={r} isReply />
+          {replies(comment.id).map((reply) => (
+            <div key={reply.id} className="mt-3">
+              <CommentItem comment={reply} isReply />
             </div>
           ))}
         </div>
@@ -164,22 +176,25 @@ export default function CommentsSection({ entityType, entityId }: CommentsSectio
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">Comments ({comments.length})</h3>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-medium">Comments ({comments.length})</h3>
+        </div>
+      )}
 
       <div className="space-y-4">
-        {topLevel.map((c) => (
-          <CommentItem key={c.id} comment={c} />
+        {topLevel.map((comment) => (
+          <CommentItem key={comment.id} comment={comment} />
         ))}
+        {topLevel.length === 0 && <p className="text-sm text-muted-foreground">No discussion yet.</p>}
       </div>
 
-      <div className="pt-2 border-t">
+      <div className="border-t pt-3">
         <RichCommentInput
           placeholder="Write a comment..."
           submitting={submitting}
-          onSubmit={(p) => submitComment(p)}
+          onSubmit={(payload) => submitComment(payload)}
         />
       </div>
     </div>
