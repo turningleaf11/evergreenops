@@ -965,6 +965,11 @@ export default function ExecutionPage() {
           if (p) { setPeekGoalId(null); openProjectDrawer(p); }
         }}
       />
+    </div>
+  );
+}
+
+// Submissions review tab for form submissions
 function SubmissionsReviewTab() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
