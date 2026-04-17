@@ -25,7 +25,7 @@ export default function ProjectInfoSidebar({
   linkedDocs,
   profiles,
   onOpenGoal,
-}: ProjectInfoSidebarProps) {
+
   const ownerName = profiles.find((p) => p.user_id === project.owner_id)?.full_name || "Unassigned";
   const teamIds = [project.owner_id, ...(project.assignees || [])].filter(
     (value, index, all) => value && all.indexOf(value) === index,
