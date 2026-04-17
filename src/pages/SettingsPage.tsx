@@ -127,7 +127,28 @@ export default function SettingsPage() {
           <TabsTrigger value="home_widgets" className="gap-1.5">
             <LayoutDashboard className="h-3.5 w-3.5" /> Home Widgets
           </TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-1.5">
+            <Mail className="h-3.5 w-3.5" /> Integrations
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="integrations" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Mail className="h-4 w-4" /> Gmail
+              </CardTitle>
+              <CardDescription>
+                Connect a workspace Gmail account and control which roles or members can use the team inbox.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild size="sm">
+                <a href="/settings/integrations/gmail">Manage Gmail integration</a>
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Workspace Tab */}
         <TabsContent value="workspace" className="mt-4 space-y-4">
