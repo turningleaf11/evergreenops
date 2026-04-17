@@ -60,9 +60,9 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
 
   if (!goalId || !goal) {
     return (
-      <Sheet open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0 top-[60px] h-[calc(100vh-60px)] border-l border-border/50" />
-      </Sheet>
+      <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto p-0 rounded-2xl" />
+      </Dialog>
     );
   }
 
@@ -101,15 +101,15 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   const currentStatus = statusOptions.find(s => s.value === goal.status);
 
   return (
-    <Sheet open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0 top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
+    <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto p-0 rounded-2xl">
         {/* Header */}
-        <SheetHeader className="px-6 pt-6 pb-4 space-y-3 border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur z-10">
+        <DialogHeader className="px-6 pt-6 pb-4 space-y-3 border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Target className="h-3.5 w-3.5 text-primary/70" />
             <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
           </div>
-          <SheetTitle asChild>
+          <DialogTitle asChild>
             {editingTitle ? (
               <Input
                 value={titleDraft}
@@ -122,12 +122,12 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
             ) : (
               <h2
                 onClick={() => setEditingTitle(true)}
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded-md px-2 -mx-2 py-1 transition-colors"
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded-md px-2 -mx-2 py-1 transition-colors text-left"
               >
                 {goal.title}
               </h2>
             )}
-          </SheetTitle>
+          </DialogTitle>
           {goal.description !== null && (
             <Input
               value={goal.description || ""}
@@ -159,7 +159,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
             </div>
             <Progress value={progress} className="h-1.5" />
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         {/* Body */}
         <div className="px-6 py-6 space-y-6">
@@ -268,7 +268,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
             </CollapsibleContent>
           </Collapsible>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
