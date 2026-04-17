@@ -523,136 +523,98 @@ export default function ExecutionPage() {
           </div>
         </div>
 
-        {/* Goals tab */}
-        <TabsContent value="goals" className="space-y-6">
-          {Object.entries(goalsByQuarter).sort(([a], [b]) => b.localeCompare(a)).map(([qKey, qGoals]) => (
-            <div key={qKey} className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4" /> {qKey}
-              </h2>
-              {qGoals.map(goal => {
-                const gProjects = projectsForGoal(goal.id);
-                const gTasks = tasksForGoal(goal.id);
-                const allTasks = [...gTasks, ...gProjects.flatMap(p => tasksForProject(p.id))];
-                const doneTasks = allTasks.filter(t => t.status === "done").length;
-                const progress = allTasks.length > 0 ? Math.round((doneTasks / allTasks.length) * 100) : goal.progress;
-
-                return (
-                  <Collapsible key={goal.id}>
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <CollapsibleTrigger className="hover:bg-accent p-1 rounded">
-                              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-                            </CollapsibleTrigger>
-                            <div className="flex-1">
-                              <CardTitle className="text-base">{goal.title}</CardTitle>
-                              <p className="text-xs text-muted-foreground mt-1">{getName(goal.owner_id)}</p>
-                            </div>
-                            <Select value={goal.status} onValueChange={v => updateStatus("goals", goal.id, v)}>
-                              <SelectTrigger className={`w-32 h-8 text-xs rounded-full border-0 ${statusConfig[goal.status]?.color || ''}`}><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {["on_track","behind","at_risk","done","not_done"].map(s => (
-                                  <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-3">
-                          <Progress value={progress} className="flex-1 h-2" />
-                          <span className="text-xs text-muted-foreground w-10 text-right">{progress}%</span>
-                        </div>
-                      </CardHeader>
-                      <CollapsibleContent>
-                        <CardContent className="pt-0 space-y-3">
-                          {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
-                          {goal.measurable_target && (
-                            <div className="text-xs"><span className="font-medium">Target:</span> <span className="text-muted-foreground">{goal.measurable_target}</span></div>
-                          )}
-                          {goal.deadline && (
-                            <div className="text-xs"><span className="font-medium">Deadline:</span> <span className="text-muted-foreground">{goal.deadline}</span></div>
-                          )}
-                          {goal.alignment_notes && (
-                            <div className="text-xs"><span className="font-medium">Alignment:</span> <span className="text-muted-foreground">{goal.alignment_notes}</span></div>
-                          )}
-                          {Array.isArray(goal.key_results) && goal.key_results.length > 0 && (
-                            <div className="space-y-1">
-                              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Key Results</h4>
-                              {goal.key_results.map((kr: any, i: number) => (
-                                <div key={i} className="flex items-center gap-2 text-sm">
-                                  <Checkbox
-                                    checked={!!kr.done}
-                                    onCheckedChange={async (checked) => {
-                                      const updated = [...goal.key_results];
-                                      updated[i] = { ...kr, done: !!checked };
-                                      await supabase.from("goals").update({ key_results: updated } as any).eq("id", goal.id);
-                                      fetchAll();
-                                    }}
-                                    className="h-3.5 w-3.5"
-                                  />
-                                  <span className={kr.done ? "line-through text-muted-foreground" : ""}>{kr.title || kr}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {gProjects.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Projects</h4>
-                              {gProjects.map(p => (
-                                <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-accent/30 cursor-pointer hover:bg-accent/50" onClick={() => openProjectDrawer(p)}>
-                                  <div>
-                                    <span className="text-sm font-medium">{p.title}</span>
-                                    <span className="text-xs text-muted-foreground ml-2">{getName(p.owner_id)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">{tasksForProject(p.id).filter(t=>t.status==="done").length}/{tasksForProject(p.id).length} tasks</span>
-                                    <Select value={p.status} onValueChange={v => updateStatus("projects", p.id, v)}>
-                                      <SelectTrigger className="w-28 h-7 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
-                                      <SelectContent>
-                                        {["not_started","in_progress","done","blocked"].map(s => (
-                                          <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {gTasks.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct Tasks</h4>
-                              {gTasks.map(t => (
-                                <div key={t.id} className="flex items-center justify-between p-2 rounded-md bg-accent/20 cursor-pointer hover:bg-accent/40" onClick={() => openTaskDrawer(t)}>
-                                  <div>
-                                    <span className="text-sm">{t.title}</span>
-                                    <span className="text-xs text-muted-foreground ml-2">{getName(t.assigned_to)}</span>
-                                  </div>
-                                  <Select value={t.status} onValueChange={v => updateStatus("tasks", t.id, v)}>
-                                    <SelectTrigger className="w-24 h-7 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      {["todo","in_progress","done"].map(s => (
-                                        <SelectItem key={s} value={s}>{statusConfig[s]?.label || s}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-                );
-              })}
+        {/* Goals tab — strategic dashboard */}
+        <TabsContent value="goals" className="space-y-5">
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={goalQuarter} onValueChange={setGoalQuarter}>
+              <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Quarter" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All quarters</SelectItem>
+                {["Q1","Q2","Q3","Q4"].map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={goalYear} onValueChange={setGoalYear}>
+              <SelectTrigger className="h-8 w-28 text-xs"><SelectValue placeholder="Year" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All years</SelectItem>
+                {[currentYear(), currentYear() - 1, currentYear() + 1].map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={goalDept} onValueChange={setGoalDept}>
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All departments</SelectItem>
+                {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Group by</span>
+              <Select value={goalGroupBy} onValueChange={(v: any) => setGoalGroupBy(v)}>
+                <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quarter">Quarter</SelectItem>
+                  <SelectItem value="department">Department</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ))}
-          {goals.length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No goals yet. Create your first quarterly goal to get started.</CardContent></Card>
-          )}
+          </div>
+
+          {/* Filtered + grouped grid */}
+          {(() => {
+            const filtered = goals.filter(g => {
+              if (goalQuarter !== "all" && g.quarter !== goalQuarter) return false;
+              if (goalYear !== "all" && String(g.year) !== goalYear) return false;
+              if (goalDept !== "all" && g.department_id !== goalDept) return false;
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
+                  No goals match these filters. Create your first goal to set direction.
+                </CardContent></Card>
+              );
+            }
+
+            const groups: Record<string, typeof filtered> = {};
+            filtered.forEach(g => {
+              let key = "All goals";
+              if (goalGroupBy === "quarter") key = `${g.year} ${g.quarter}`;
+              else if (goalGroupBy === "department") {
+                key = g.department_id ? (departments.find(d => d.id === g.department_id)?.name || "Department") : "Unassigned";
+              }
+              (groups[key] = groups[key] || []).push(g);
+            });
+
+            const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+            return sortedKeys.map(key => (
+              <div key={key} className="space-y-3">
+                {goalGroupBy !== "none" && (
+                  <div className="flex items-center gap-2 px-1">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{key}</h2>
+                    <span className="text-[10px] text-muted-foreground/70">· {groups[key].length}</span>
+                    <div className="flex-1 h-px bg-border/50" />
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {groups[key].map(goal => (
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      projects={projectsForGoal(goal.id)}
+                      ownerName={getName(goal.owner_id)}
+                      onClick={() => setPeekGoalId(goal.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
         </TabsContent>
 
         {/* Projects tab */}
