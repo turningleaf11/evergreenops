@@ -125,6 +125,61 @@ export default function TableView({
                     const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
                     const projectTitle = projects?.find((p: any) => p.id === item.project_id)?.title;
 
+                    const isTask = type === "task";
+                    const priorityDot: Record<string, string> = {
+                      low: "bg-emerald-500",
+                      medium: "bg-amber-500",
+                      high: "bg-red-500",
+                      urgent: "bg-red-600",
+                    };
+
+                    if (isTask) {
+                      // Ultra-minimal task row — speed-focused execution
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 px-3 py-1.5 rounded-md cursor-pointer transition-colors duration-100 hover:bg-muted/40"
+                          onClick={() => onItemClick(item)}
+                        >
+                          <StatusCircle
+                            status={item.status}
+                            statusOptions={statusOptions}
+                            onStatusChange={onStatusChange}
+                            itemId={item.id}
+                          />
+                          <span className={cn(
+                            "flex-1 min-w-0 truncate text-sm",
+                            item.status === "done" && "line-through text-muted-foreground"
+                          )}>
+                            {item.title}
+                          </span>
+                          {item.priority && (
+                            <span
+                              className={cn("h-1.5 w-1.5 rounded-full shrink-0", priorityDot[item.priority] || "bg-muted-foreground/40")}
+                              title={item.priority}
+                            />
+                          )}
+                          {item.due_date && (
+                            <span className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums">
+                              {item.due_date.slice(5)}
+                            </span>
+                          )}
+                          {ownerName && ownerName !== "Unassigned" && (
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
+                                hashColor(ownerName)
+                              )}
+                              title={ownerName}
+                            >
+                              {getInitials(ownerName)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Project row — keep richer card-enhanced look
                     return (
                       <div
                         key={item.id}
@@ -132,15 +187,12 @@ export default function TableView({
                         style={{ minHeight: 56 }}
                         onClick={() => onItemClick(item)}
                       >
-                        {/* Status circle */}
                         <StatusCircle
                           status={item.status}
                           statusOptions={statusOptions}
                           onStatusChange={onStatusChange}
                           itemId={item.id}
                         />
-
-                        {/* Title + context */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate flex items-center gap-1.5">
                             {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
@@ -154,8 +206,6 @@ export default function TableView({
                             </p>
                           )}
                         </div>
-
-                        {/* Priority pill */}
                         {item.priority && (
                           <Badge
                             variant="outline"
@@ -167,16 +217,12 @@ export default function TableView({
                             {item.priority}
                           </Badge>
                         )}
-
-                        {/* Due date */}
                         {item.due_date && (
                           <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground whitespace-nowrap">
                             <Calendar className="h-3 w-3" />
                             {item.due_date}
                           </span>
                         )}
-
-                        {/* Avatar */}
                         {ownerName && ownerName !== "Unassigned" && (
                           <div
                             className={cn(
@@ -188,7 +234,6 @@ export default function TableView({
                             {getInitials(ownerName)}
                           </div>
                         )}
-
                       </div>
                     );
                   })}
