@@ -394,6 +394,18 @@ export default function ProjectDetailPage() {
               )}
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Discussion — collaborative heart */}
+          <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${discussionOpen ? "" : "-rotate-90"}`} />
+              <MessageSquare className="h-3.5 w-3.5" />
+              Discussion
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <CommentsSection entityType="project" entityId={project.id} />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Activity sidebar */}
