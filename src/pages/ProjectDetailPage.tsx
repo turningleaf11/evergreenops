@@ -141,6 +141,16 @@ export default function ProjectDetailPage() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/execution")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Execution Hub
         </Button>
+        {goalTitle && (
+          <button
+            onClick={() => navigate("/execution")}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-full bg-muted/40 hover:bg-muted/70 px-2.5 py-1 transition-colors"
+            title="Open linked goal"
+          >
+            <Target className="h-3 w-3 text-primary/70" />
+            <span className="font-medium">Goal:</span> {goalTitle}
+          </button>
+        )}
       </div>
 
       {/* Two-column layout */}
