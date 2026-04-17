@@ -15,11 +15,12 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, FolderOpen, Plus, CheckCircle2, Circle, Clock,
-  Tag, X, ChevronDown, Target, Zap, AlertTriangle, FileText,
+  Tag, X, ChevronDown, Target, Zap, AlertTriangle, FileText, MessageSquare,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import ActivitySidebar from "@/components/ActivitySidebar";
+import CommentsSection from "@/components/CommentsSection";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
@@ -54,6 +55,7 @@ export default function ProjectDetailPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(true);
   const [docsOpen, setDocsOpen] = useState(true);
+  const [discussionOpen, setDiscussionOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
