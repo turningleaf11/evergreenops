@@ -1,91 +1,79 @@
 
 
-Looking at the screenshot, the project page currently shows:
-- Header with title, status, assignee, due date, linked goal ✓
-- A notes/document area (good — workspace feel)
-- Tasks section ✓
-- Documents section ✓
-- **TWO comment surfaces**: a "Discussion" section at bottom AND an Activity sidebar (right) that includes Comments/Activity tabs with replies
+# Project Workspace 2.0 — Overview + Tabs + Built-in Whiteboards
 
-The user wants:
-1. **Project = workspace folder feel** (not just a long page)
-2. **One unified communication surface** (currently duplicated: Discussion section + sidebar Comments)
-3. Tasks tab to become ultra-minimal (separate concern)
-
-Let me check the current ProjectDetailPage and ActivitySidebar to confirm the duplication.
-
-# Plan — Projects as Workspace + Tasks as Speed Layer
-
-## 1. Project Detail = Workspace
-
-Reframe the project page so it visually reads as "a folder you opened," not a long doc.
-
-**Layout (single scroll, sectioned with clear cards):**
+## Layout
 
 ```text
-┌─────────────────────────────────────────────────┐
-│  Workspace breadcrumb · Linked Goal chip        │
-│  PROJECT TITLE (large, editable)                │
-│  Status · Owner · Due · Team avatars            │
-└─────────────────────────────────────────────────┘
-┌──────────────────────┬──────────────────────────┐
-│ MAIN COLUMN          │ SIDE PANEL (sticky)      │
-│                      │                          │
-│ ▸ Context (the why)  │ Team (avatars + roles)   │
-│   short rich text    │ Key dates                │
-│                      │ Linked Goal              │
-│ ▸ Planning Notes     │ Files (compact list)     │
-│   TipTap workspace   │                          │
-│                      │                          │
-│ ▸ Tasks              │                          │
-│   embedded checklist │                          │
-│                      │                          │
-│ ▸ Discussion         │                          │
-│   ONE thread only    │                          │
-└──────────────────────┴──────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Title · Status · Owner · Due · Linked Goal   [💬 Chat ▸] │  ← header w/ chat toggle
+├──────────────────────────────────────────────────────────┤
+│ [Overview] Notes  Tasks  Whiteboards  Files              │  ← tabs (no Discussion tab)
+├──────────────────────────────────────────┬───────────────┤
+│                                          │ DISCUSSION    │
+│   TAB CONTENT                            │ (right rail,  │
+│                                          │  collapsible) │
+└──────────────────────────────────────────┴───────────────┘
 ```
 
-**Key changes:**
-- **Remove duplicate communication.** Drop the right-side ActivitySidebar's Comments tab on project pages. Keep ONE "Discussion" section in the main column (uses `CommentsSection` for `entity_type=project`). Activity log moves to a small "Recent activity" collapsed footer or a discreet timeline icon in the header that opens a slim popover.
-- **Add a Context section** at the top (separate from Planning Notes) — a short "why this project exists" rich text field. Reuses `notes_content` split or adds a lightweight `context` use of existing description field.
-- **Right sidebar becomes Workspace Info** — team members, key dates, linked goal, files summary. No comments here.
-- **Section cards** with subtle borders / bg-muted/30 backgrounds to give the "rooms in a workspace" feel rather than one flat doc.
+- **No Discussion tab.** Discussion lives as a **collapsible right rail**, toggled by a chat button in the project header. Default = collapsed; opens as a 360px panel that overlays gracefully.
+- Same chat toggle works on every tab (including fullscreen whiteboard) so chat is always one click away.
+- Tab state persists per-project in localStorage.
 
-## 2. Tasks Tab = Ultra-Minimal
+## Tab Contents
 
-Strip the task list to bare execution mode.
+**Overview (default)** — dashboard cards:
+- Recent activity feed
+- Notes preview (first paragraph + "Open notes")
+- Open tasks count + next 3 due
+- Whiteboards thumbnails (up to 3)
+- Files (recent 5)
+- Team avatars + linked goal chip
 
-**Row anatomy (single line, ~40px tall):**
-```text
-○  Task title here................  AA  •  Mar 12
-```
-- Status bubble (hollow/solid dot — click to cycle)
-- Title (click → opens TaskPeekPanel side drawer, already wired)
-- Assignee avatar (small, right side)
-- Priority dot (tiny colored dot, no label)
-- Due date (muted, short format)
-- **Removed**: project chip, tag chips, description preview, status badge text
+**Notes** — full TipTap editor, full width, distraction-free.
 
-Tighter spacing (`py-2` instead of `py-3`), no card backgrounds, just hover bg.
+**Tasks** — embedded minimal task list (reuses ultra-minimal row style from execution Tasks tab).
 
-## 3. Files to Touch
+**Whiteboards** — grid of board cards. Two creation options:
+- **+ New whiteboard** → built-in canvas (using **tldraw** — open-source, embeddable, mature)
+- **+ Embed external** → paste Miro / Figma / FigJam URL, renders as an iframe card
 
-**Modified:**
-- `src/pages/ProjectDetailPage.tsx` — restructure into Context + Notes + Tasks + Discussion sections with card framing; drop duplicated comment surface; introduce right-side Workspace Info panel (replacing/trimming ActivitySidebar on this page)
-- `src/components/ActivitySidebar.tsx` — accept a prop to hide Comments tab on project pages (or render a slim version), OR replace with a new `ProjectInfoSidebar.tsx`
-- `src/components/execution/TableView.tsx` (and `DataTableView.tsx` if used for tasks) — strip task rows to minimal anatomy when viewing the Tasks tab
+Click a board → opens fullscreen editor. Right-rail chat still accessible.
 
-**New:**
-- `src/components/execution/ProjectInfoSidebar.tsx` — clean side panel: team, dates, linked goal, files (no comments/activity feed)
+**Files** — clean list/grid of attachments, drag-drop upload to Supabase `files` bucket.
 
-**Reused, no changes:**
-- `CommentsSection` (single instance, project entity)
-- `TaskPeekPanel` / `DetailDrawer` for task clicks
-- `GoalPeek`, `GoalCard`
+## Database Changes
 
-## 4. What Stays Off
-- No new routes
-- No DB changes
-- Goals tab unchanged (already approved)
-- TaskDetailPage route stays dormant for deep links
+New table `whiteboards`:
+- `id, project_id, workspace_id, title, type ('native' | 'embed'), tldraw_data jsonb, embed_url text, created_by, created_at, updated_at`
+- RLS: workspace members read, owner/admin write
+
+New column on `projects`: `last_active_tab text` (optional, for restore — or use localStorage)
+
+Files use existing `files` bucket + a new `project_files` table or `entity_links` polymorphic.
+
+## Files to Touch
+
+**New**:
+- `src/pages/ProjectDetailPage.tsx` — full restructure into header + tabs + collapsible right rail
+- `src/components/execution/ProjectOverviewTab.tsx` — dashboard cards
+- `src/components/execution/ProjectNotesTab.tsx` — TipTap full-bleed
+- `src/components/execution/ProjectTasksTab.tsx` — minimal list (reuses TableView in compact mode)
+- `src/components/execution/ProjectWhiteboardsTab.tsx` — grid + create modal
+- `src/components/execution/ProjectFilesTab.tsx` — file grid
+- `src/components/execution/WhiteboardEditor.tsx` — tldraw canvas wrapper, autosaves to `tldraw_data`
+- `src/components/execution/WhiteboardEmbedCard.tsx` — iframe wrapper
+- `src/components/execution/ProjectChatRail.tsx` — collapsible right rail wrapping `CommentsSection`
+
+**Modified**:
+- `src/components/execution/ProjectInfoSidebar.tsx` — repurposed into Overview tab cards (deprecated as sidebar)
+
+**Dependency**: add `@tldraw/tldraw` (~1MB gzipped, lazy-loaded only when Whiteboards tab opens)
+
+## Phasing
+
+1. **Phase 1** — Tabs + chat rail + Overview/Notes/Tasks/Files (no whiteboards). Ships the new shape.
+2. **Phase 2** — Whiteboards tab with tldraw native + embed support.
+
+Approve Phase 1 first, then we tackle whiteboards as a focused follow-up.
 
