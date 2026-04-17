@@ -53,7 +53,6 @@ export default function ProjectDetailPage() {
   const [newTagInput, setNewTagInput] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [tasksOpen, setTasksOpen] = useState(true);
-  const [discussionOpen, setDiscussionOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
