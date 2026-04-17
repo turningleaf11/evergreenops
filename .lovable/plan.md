@@ -1,102 +1,91 @@
 
 
-# Execution Hub Redesign — Goals, Projects, Tasks
+Looking at the screenshot, the project page currently shows:
+- Header with title, status, assignee, due date, linked goal ✓
+- A notes/document area (good — workspace feel)
+- Tasks section ✓
+- Documents section ✓
+- **TWO comment surfaces**: a "Discussion" section at bottom AND an Activity sidebar (right) that includes Comments/Activity tabs with replies
 
-All work stays inside `/execution`. No new top-level routes.
+The user wants:
+1. **Project = workspace folder feel** (not just a long page)
+2. **One unified communication surface** (currently duplicated: Discussion section + sidebar Comments)
+3. Tasks tab to become ultra-minimal (separate concern)
 
-## Mental Model
+Let me check the current ProjectDetailPage and ActivitySidebar to confirm the duplication.
 
-| Layer | Feel | Click opens |
-|---|---|---|
-| **Goals** | Strategic dashboard | Goal Peek (side drawer) |
-| **Projects** | Collaborative workspace | Project Peek (full-width drawer / center modal) |
-| **Tasks** | Fast checklist | Task Peek (compact side panel) |
+# Plan — Projects as Workspace + Tasks as Speed Layer
 
----
+## 1. Project Detail = Workspace
 
-## 1. Goals — Strategic Overview
+Reframe the project page so it visually reads as "a folder you opened," not a long doc.
 
-**Page** (`/execution`, Goals tab):
-- Header: "Goals" + filters (Quarter dropdown, Year dropdown, Department dropdown, "Group by: Department / Quarter / None")
-- Card grid (2–3 cols), grouped by selected dimension with subtle section headers
-- **Goal Card**: title • muted 1-line description • slim progress bar • 2–3 metric chips • "X projects" pill • owner avatar
+**Layout (single scroll, sectioned with clear cards):**
 
-**Metrics logic (hybrid)**:
-- If `key_results` array has entries → show top 2–3 (label + current/target)
-- Else → auto rollups: `% projects done`, `# active projects`, `next due date`
+```text
+┌─────────────────────────────────────────────────┐
+│  Workspace breadcrumb · Linked Goal chip        │
+│  PROJECT TITLE (large, editable)                │
+│  Status · Owner · Due · Team avatars            │
+└─────────────────────────────────────────────────┘
+┌──────────────────────┬──────────────────────────┐
+│ MAIN COLUMN          │ SIDE PANEL (sticky)      │
+│                      │                          │
+│ ▸ Context (the why)  │ Team (avatars + roles)   │
+│   short rich text    │ Key dates                │
+│                      │ Linked Goal              │
+│ ▸ Planning Notes     │ Files (compact list)     │
+│   TipTap workspace   │                          │
+│                      │                          │
+│ ▸ Tasks              │                          │
+│   embedded checklist │                          │
+│                      │                          │
+│ ▸ Discussion         │                          │
+│   ONE thread only    │                          │
+└──────────────────────┴──────────────────────────┘
+```
 
-**Goal Peek (side drawer, ~640px)**:
-- Header: title (inline editable), description, big progress bar, owner, qtr/year, status
-- **Section: Key Results** — list of `{label, target, current}` rows, inline editable, "+ Add key result"
-- **Section: Key Projects** — linked project cards (status dot, title, owner, progress) + "Link project" picker (search existing or "Create new project linked to this goal")
-- **Section: Strategy / Notes** — full TipTap editor (`alignment_notes` field)
-- **Section: Comments & Activity** — reuse `CommentsSection` + `EntityActivity` (entity_type=`goal`)
+**Key changes:**
+- **Remove duplicate communication.** Drop the right-side ActivitySidebar's Comments tab on project pages. Keep ONE "Discussion" section in the main column (uses `CommentsSection` for `entity_type=project`). Activity log moves to a small "Recent activity" collapsed footer or a discreet timeline icon in the header that opens a slim popover.
+- **Add a Context section** at the top (separate from Planning Notes) — a short "why this project exists" rich text field. Reuses `notes_content` split or adds a lightweight `context` use of existing description field.
+- **Right sidebar becomes Workspace Info** — team members, key dates, linked goal, files summary. No comments here.
+- **Section cards** with subtle borders / bg-muted/30 backgrounds to give the "rooms in a workspace" feel rather than one flat doc.
 
----
+## 2. Tasks Tab = Ultra-Minimal
 
-## 2. Projects — Collaborative Workspace
+Strip the task list to bare execution mode.
 
-Keep existing `ProjectDetailPage` structure but elevate it. It already opens at `/execution/projects/:id` (or peek per `mem://ui/peek-view-modes`).
+**Row anatomy (single line, ~40px tall):**
+```text
+○  Task title here................  AA  •  Mar 12
+```
+- Status bubble (hollow/solid dot — click to cycle)
+- Title (click → opens TaskPeekPanel side drawer, already wired)
+- Assignee avatar (small, right side)
+- Priority dot (tiny colored dot, no label)
+- Due date (muted, short format)
+- **Removed**: project chip, tag chips, description preview, status badge text
 
-**Enhancements**:
-- Header chip showing **linked Goal** (clickable → opens Goal Peek)
-- Stacked workspace layout (no tabs — keeps "long doc" feel):
-  1. **Metadata strip** (already exists — keep clean)
-  2. **Notes / Workspace** — TipTap, primary area (already exists)
-  3. **Tasks** — collapsible (already exists)
-  4. **Documents** — collapsible (already exists)
-  5. **NEW: Discussion** — `CommentsSection` for `entity_type=project` (threaded, reactions, mentions). This is the collaboration heart.
-- ActivitySidebar stays on right (already exists)
+Tighter spacing (`py-2` instead of `py-3`), no card backgrounds, just hover bg.
 
-This makes projects feel like a Notion page + comment thread + task list in one room.
+## 3. Files to Touch
 
----
+**Modified:**
+- `src/pages/ProjectDetailPage.tsx` — restructure into Context + Notes + Tasks + Discussion sections with card framing; drop duplicated comment surface; introduce right-side Workspace Info panel (replacing/trimming ActivitySidebar on this page)
+- `src/components/ActivitySidebar.tsx` — accept a prop to hide Comments tab on project pages (or render a slim version), OR replace with a new `ProjectInfoSidebar.tsx`
+- `src/components/execution/TableView.tsx` (and `DataTableView.tsx` if used for tasks) — strip task rows to minimal anatomy when viewing the Tasks tab
 
-## 3. Tasks — Minimal Execution
+**New:**
+- `src/components/execution/ProjectInfoSidebar.tsx` — clean side panel: team, dates, linked goal, files (no comments/activity feed)
 
-**List view**: untouched (per memory, already polished Card-Enhanced List).
+**Reused, no changes:**
+- `CommentsSection` (single instance, project entity)
+- `TaskPeekPanel` / `DetailDrawer` for task clicks
+- `GoalPeek`, `GoalCard`
 
-**NEW: TaskPeekPanel** (side drawer ~480px, replaces full-page navigate):
-- Title (inline editable)
-- Status + Priority badges (clickable)
-- Assignee + Due date (popovers)
-- Description (expandable textarea)
-- Checklist / subtasks (existing schema)
-- Attachments
-- Small muted "Project: X" chip (clickable → opens Project Peek)
-- Compact comment thread at bottom (collapsed by default)
-- **Keep `TaskDetailPage` route** intact for deep-linking; just don't navigate to it from the list. Add a "↗ Open full page" link in the panel header.
-
-**Wiring**: Replace `navigate('/tasks/:id')` calls in execution list with `setPeekTaskId(id)` opening the panel. Existing route stays alive.
-
----
-
-## Files to Touch
-
-**New**:
-- `src/components/execution/GoalPeek.tsx` — drawer with all sections
-- `src/components/execution/GoalCard.tsx` — strategic card
-- `src/components/execution/TaskPeekPanel.tsx` — lightweight task drawer
-- `src/components/execution/LinkProjectPicker.tsx` — search + create-linked
-
-**Modified**:
-- `src/pages/ExecutionPage.tsx` — Goals tab → card grid + grouping; wire peeks
-- `src/pages/ProjectDetailPage.tsx` — add Goal chip in header + Discussion section
-- `src/components/execution/KanbanBoard.tsx` / `TableView.tsx` / `DataTableView.tsx` — task clicks open TaskPeekPanel instead of navigating
-
-**Reused (no changes)**:
-- `CommentsSection`, `EntityActivity`, `ActivitySidebar`, `RichTextEditor`, `TaskDetailPage` (kept dormant)
-
-## DB
-
-No schema changes. Everything fits existing fields:
-- `goals.key_results` (jsonb), `alignment_notes` (text), `quarter`, `year`, `department_id`
-- `projects.goal_id` (FK link)
-- `comments` table already polymorphic (`entity_type`/`entity_id`)
-
-## Out of Scope
-
-- Whiteboards (still pending separate decision)
-- Gmail (separate workstream)
-- Tasks list redesign (intentionally untouched)
+## 4. What Stays Off
+- No new routes
+- No DB changes
+- Goals tab unchanged (already approved)
+- TaskDetailPage route stays dormant for deep links
 
