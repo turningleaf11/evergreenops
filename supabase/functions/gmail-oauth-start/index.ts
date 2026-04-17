@@ -9,6 +9,14 @@ const SCOPES = [
   'openid',
 ].join(' ');
 
+interface OAuthStatePayload {
+  u: string;
+  w: string;
+  o: string;
+  n: string;
+  t: number;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -18,9 +26,16 @@ Deno.serve(async (req) => {
       return json({ error: 'Unauthorized' }, 401);
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const clientId = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID');
+    if (!supabaseUrl || !anonKey || !clientId) {
+      return json({ error: 'OAuth not configured' }, 500);
+    }
+
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
+      supabaseUrl,
+      anonKey,
       { global: { headers: { Authorization: authHeader } } },
     );
 
@@ -29,7 +44,6 @@ Deno.serve(async (req) => {
     if (claimsErr || !claims?.claims) return json({ error: 'Unauthorized' }, 401);
     const userId = claims.claims.sub;
 
-    // Verify admin
     const { data: roleRow } = await supabase
       .from('user_roles')
       .select('role')
@@ -38,28 +52,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!roleRow) return json({ error: 'Admin only' }, 403);
 
-    // Look up workspace
     const { data: profile } = await supabase
       .from('profiles')
       .select('workspace_id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (!profile?.workspace_id) return json({ error: 'No workspace' }, 400);
 
-    const clientId = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID');
-    const redirectUri = Deno.env.get('GOOGLE_OAUTH_REDIRECT_URI');
-    if (!clientId || !redirectUri) return json({ error: 'OAuth not configured' }, 500);
+    const returnOrigin = resolveReturnOrigin(req);
+    if (!returnOrigin) return json({ error: 'Missing request origin' }, 400);
 
-    // State payload (base64url-encoded JSON, signed by inclusion of user/workspace which we re-verify on callback via JWT)
-    const statePayload = {
+    const state = await signState({
       u: userId,
       w: profile.workspace_id,
+      o: returnOrigin,
       n: crypto.randomUUID(),
       t: Date.now(),
-    };
-    const state = btoa(JSON.stringify(statePayload))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    });
 
+    const redirectUri = `${supabaseUrl}/functions/v1/gmail-oauth-callback`;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -77,6 +88,52 @@ Deno.serve(async (req) => {
     return json({ error: String(e) }, 500);
   }
 });
+
+function resolveReturnOrigin(req: Request): string | null {
+  return normalizeOrigin(req.headers.get('origin'))
+    ?? normalizeOrigin(req.headers.get('referer'))
+    ?? normalizeOrigin(Deno.env.get('GOOGLE_OAUTH_REDIRECT_URI'));
+}
+
+function normalizeOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function signState(payload: OAuthStatePayload): Promise<string> {
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = await createSignature(encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+async function createSignature(value: string): Promise<string> {
+  const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET');
+  if (!secret) throw new Error('Missing OAuth signing secret');
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  return bytesToBase64Url(new Uint8Array(signature));
+}
+
+function base64UrlEncode(value: string): string {
+  return bytesToBase64Url(new TextEncoder().encode(value));
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

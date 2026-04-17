@@ -4,13 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+type CallbackState = "loading" | "success" | "error";
+
 export default function GmailCallbackPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [state, setState] = useState<"loading" | "success" | "error">("loading");
+  const [state, setState] = useState<CallbackState>("loading");
   const [message, setMessage] = useState("Connecting Gmail…");
 
   useEffect(() => {
+    const statusParam = params.get("status");
+    const emailParam = params.get("email");
+    const messageParam = params.get("message");
+
+    if (statusParam === "success") {
+      setState("success");
+      setMessage(emailParam ? `Connected as ${emailParam}` : "Gmail connected.");
+      setTimeout(() => navigate("/settings/integrations/gmail"), 1500);
+      return;
+    }
+
+    if (statusParam === "error") {
+      setState("error");
+      setMessage(messageParam || "Failed to complete Gmail connection");
+      return;
+    }
+
     const code = params.get("code");
     const stateParam = params.get("state");
     const errParam = params.get("error");
@@ -20,9 +39,10 @@ export default function GmailCallbackPage() {
       setMessage(`Google returned: ${errParam}`);
       return;
     }
+
     if (!code || !stateParam) {
       setState("error");
-      setMessage("Missing OAuth code");
+      setMessage("Missing Gmail callback details");
       return;
     }
 
@@ -30,11 +50,13 @@ export default function GmailCallbackPage() {
       const { data, error } = await supabase.functions.invoke("gmail-oauth-callback", {
         body: { code, state: stateParam },
       });
+
       if (error || data?.error) {
         setState("error");
         setMessage(error?.message || data?.error || "Failed to complete connection");
         return;
       }
+
       setState("success");
       setMessage(`Connected as ${data.email}`);
       setTimeout(() => navigate("/settings/integrations/gmail"), 1500);
