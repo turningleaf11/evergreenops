@@ -952,11 +952,19 @@ export default function ExecutionPage() {
         }}
         getName={getName}
       />
-    </div>
-  );
-}
 
-// Submissions review tab for form submissions
+      {/* Goal Peek */}
+      <GoalPeek
+        goalId={peekGoalId}
+        onClose={() => setPeekGoalId(null)}
+        allProjects={projects as any}
+        getName={getName}
+        onChanged={fetchAll}
+        onOpenProject={(pid) => {
+          const p = projects.find(x => x.id === pid);
+          if (p) { setPeekGoalId(null); openProjectDrawer(p); }
+        }}
+      />
 function SubmissionsReviewTab() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
