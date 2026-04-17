@@ -167,6 +167,11 @@ export default function ExecutionPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<any>(null);
   const [drawerType, setDrawerType] = useState<"project" | "task">("project");
+  const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
+  const [goalQuarter, setGoalQuarter] = useState<string>("all");
+  const [goalYear, setGoalYear] = useState<string>("all");
+  const [goalDept, setGoalDept] = useState<string>("all");
+  const [goalGroupBy, setGoalGroupBy] = useState<"quarter" | "department" | "none">("quarter");
 
   const projectKanbanCols = useMemo(
     () => projectKanbanColsBase.map(c => ({ ...c, color: stageColors[`project:${c.key}`] || c.color })),
