@@ -843,6 +843,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          refresh_token: string
+          scopes: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          refresh_token: string
+          scopes?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          refresh_token?: string
+          scopes?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       gmail_workspace_account: {
         Row: {
           connected_at: string

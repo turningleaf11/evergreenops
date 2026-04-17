@@ -29,6 +29,9 @@ import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
+import InboxPage from "./pages/InboxPage";
+import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
+import GmailCallbackPage from "./pages/GmailCallbackPage";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -117,11 +120,14 @@ const App = () => (
                 {/* Intranet */}
                 <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms" element={<FormsPage />} />
+                <Route path="/inbox" element={<InboxPage />} />
+                <Route path="/settings/integrations/gmail" element={<IntegrationsGmailPage />} />
 
                 {/* Add-Ons */}
                 <Route path="/time-clock" element={<TimeClockPage />} />
                 <Route path="/market-research" element={<MarketResearchPage />} />
               </Route>
+              <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

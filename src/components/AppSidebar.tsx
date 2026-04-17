@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail,
 } from "lucide-react";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
+import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -38,6 +39,7 @@ export function AppSidebar() {
   const timeClockEnabled = useAddonEnabled("time-clock");
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
+  const { hasAccess: gmailAccess } = useGmailAccess();
 
   // Admins see all departments; users see only their assigned department
   const departments = isAdmin
@@ -49,6 +51,7 @@ export function AppSidebar() {
     { title: "Feed", url: "/feed", icon: Pizza },
     ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
+    ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
