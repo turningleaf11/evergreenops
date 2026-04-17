@@ -15,11 +15,12 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, FolderOpen, Plus, CheckCircle2, Circle, Clock,
-  Tag, X, ChevronDown, Target, Zap, AlertTriangle, FileText,
+  Tag, X, ChevronDown, Target, Zap, AlertTriangle, FileText, MessageSquare,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import ActivitySidebar from "@/components/ActivitySidebar";
+import CommentsSection from "@/components/CommentsSection";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
@@ -54,6 +55,7 @@ export default function ProjectDetailPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(true);
   const [docsOpen, setDocsOpen] = useState(true);
+  const [discussionOpen, setDiscussionOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -139,6 +141,16 @@ export default function ProjectDetailPage() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/execution")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Execution Hub
         </Button>
+        {goalTitle && (
+          <button
+            onClick={() => navigate("/execution")}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-full bg-muted/40 hover:bg-muted/70 px-2.5 py-1 transition-colors"
+            title="Open linked goal"
+          >
+            <Target className="h-3 w-3 text-primary/70" />
+            <span className="font-medium">Goal:</span> {goalTitle}
+          </button>
+        )}
       </div>
 
       {/* Two-column layout */}
@@ -380,6 +392,18 @@ export default function ProjectDetailPage() {
               {linkedDocs.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-2">No documents linked yet.</p>
               )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Discussion — collaborative heart */}
+          <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${discussionOpen ? "" : "-rotate-90"}`} />
+              <MessageSquare className="h-3.5 w-3.5" />
+              Discussion
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <CommentsSection entityType="project" entityId={project.id} />
             </CollapsibleContent>
           </Collapsible>
         </div>
