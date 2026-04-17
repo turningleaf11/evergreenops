@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import DetailDrawer from "@/components/DetailDrawer";
+import GoalCard from "@/components/execution/GoalCard";
+import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
