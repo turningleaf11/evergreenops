@@ -284,134 +284,93 @@ export default function ProjectDetailPage() {
             </div>
           )}
 
-          {/* Notes / Workspace — THE primary area */}
-          <div className="mb-6">
+          {/* WORKSPACE SECTIONS — each one a "room" in the folder */}
+
+          {/* Planning Notes */}
+          <section className="rounded-xl border border-border/50 bg-card/40 p-5 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning Notes</h2>
+            </div>
             <RichTextEditor
               content={project.notes_content || ""}
               onChange={html => updateProject({ notes_content: html })}
-              placeholder="Write project notes, plans, meeting notes..."
+              placeholder="Capture the why, plans, decisions, meeting notes…"
               borderless
             />
-          </div>
+          </section>
 
-          {/* Tasks — collapsible, below notes */}
-          <Collapsible open={tasksOpen} onOpenChange={setTasksOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2">
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${tasksOpen ? "" : "-rotate-90"}`} />
-              <FolderOpen className="h-3.5 w-3.5" />
-              Tasks {tasks.length > 0 && <span className="text-xs font-normal">({doneTasks}/{tasks.length})</span>}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-1.5 pt-2">
-              {tasks.map(t => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer group"
-                  onClick={() => navigate(`/tasks/${t.id}`)}
-                >
-                  <div className="flex items-center gap-2.5">
+          {/* Tasks */}
+          <section className="rounded-xl border border-border/50 bg-card/40 p-5 mb-4">
+            <Collapsible open={tasksOpen} onOpenChange={setTasksOpen}>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full">
+                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${tasksOpen ? "" : "-rotate-90"}`} />
+                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Tasks {tasks.length > 0 && <span className="font-normal normal-case ml-1">({doneTasks}/{tasks.length})</span>}
+                </h2>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-1 pt-3">
+                {tasks.map(t => (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-muted/40 cursor-pointer group"
+                    onClick={() => navigate(`/tasks/${t.id}`)}
+                  >
                     {t.status === "done" ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                     ) : t.status === "in_progress" ? (
-                      <Clock className="h-4 w-4 text-blue-600" />
+                      <Clock className="h-4 w-4 text-blue-500 shrink-0" />
                     ) : (
-                      <Circle className="h-4 w-4 text-muted-foreground" />
+                      <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
-                    <span className={`text-sm ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
+                    <span className={`flex-1 min-w-0 truncate text-sm ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+                      {t.title}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{getName(t.assigned_to)}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{getName(t.assigned_to)}</span>
-                    <Select value={t.status} onValueChange={v => updateTaskStatus(t.id, v)}>
-                      <SelectTrigger className="w-24 h-7 text-xs" onClick={e => e.stopPropagation()}><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["todo", "in_progress", "done"].map(s => (
-                          <SelectItem key={s} value={s}>{s === "todo" ? "To Do" : s === "in_progress" ? "In Progress" : "Done"}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                ))}
+                <div className="flex gap-2 pt-2">
+                  <Input
+                    value={newTaskTitle}
+                    onChange={e => setNewTaskTitle(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && createTask()}
+                    placeholder="Add a task…"
+                    className="text-sm h-8 border-dashed bg-transparent"
+                  />
+                  <Button size="sm" variant="ghost" onClick={createTask} disabled={!newTaskTitle.trim()}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
-              ))}
-              <div className="flex gap-2 pt-1">
-                <Input
-                  value={newTaskTitle}
-                  onChange={e => setNewTaskTitle(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && createTask()}
-                  placeholder="Add a task..."
-                  className="text-sm h-8 border-dashed"
-                />
-                <Button size="sm" variant="ghost" onClick={createTask} disabled={!newTaskTitle.trim()}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              {tasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No tasks yet.</p>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
+                {tasks.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-3">No tasks yet.</p>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </section>
 
-          {/* Linked Docs */}
-          <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${docsOpen ? "" : "-rotate-90"}`} />
-              <FileText className="h-3.5 w-3.5" />
-              Documents {linkedDocs.length > 0 && <span className="text-xs font-normal">({linkedDocs.length})</span>}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-1.5 pt-2">
-              {linkedDocs.map(d => (
-                <div
-                  key={d.id}
-                  className="flex items-center gap-2.5 py-2 px-2 rounded-md hover:bg-accent/30 cursor-pointer"
-                  onClick={() => navigate("/docs")}
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{d.title}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">{new Date(d.updated_at).toLocaleDateString()}</span>
-                </div>
-              ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground"
-                onClick={async () => {
-                  if (!user || !id) return;
-                  const { error } = await supabase.from("documents").insert({
-                    title: `${project.title} — Doc`,
-                    content: "",
-                    author_id: user.id,
-                    project_id: id,
-                    visibility: "workspace",
-                  });
-                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                  else { toast({ title: "Document created" }); fetchData(); }
-                }}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add document
-              </Button>
-              {linkedDocs.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-2">No documents linked yet.</p>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Discussion — collaborative heart */}
-          <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2 mt-4">
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${discussionOpen ? "" : "-rotate-90"}`} />
-              <MessageSquare className="h-3.5 w-3.5" />
-              Discussion
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
-              <CommentsSection entityType="project" entityId={project.id} />
-            </CollapsibleContent>
-          </Collapsible>
+          {/* Discussion — single source of truth */}
+          <section className="rounded-xl border border-border/50 bg-card/40 p-5 mb-4">
+            <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full mb-2">
+                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${discussionOpen ? "" : "-rotate-90"}`} />
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Discussion</h2>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <CommentsSection entityType="project" entityId={project.id} />
+              </CollapsibleContent>
+            </Collapsible>
+          </section>
         </div>
 
-        {/* Activity sidebar */}
-        <ActivitySidebar
-          entityType="project"
-          entityId={project.id}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(c => !c)}
+        {/* Workspace info sidebar — team, dates, files, recent activity */}
+        <ProjectInfoSidebar
+          project={project}
+          goalTitle={goalTitle}
+          linkedDocs={linkedDocs}
+          profiles={profiles}
+          onOpenGoal={() => navigate("/execution")}
         />
       </div>
     </div>
