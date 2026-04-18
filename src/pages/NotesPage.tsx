@@ -375,6 +375,27 @@ export default function NotesPage() {
                         <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: `hsl(${nb.color})` }} />
                         <span className="text-[13px] font-medium truncate flex-1 text-left">{nb.name}</span>
                       </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!user) return;
+                          const { data } = await supabase
+                            .from("notes")
+                            .insert({ user_id: user.id, title: "Untitled Note", content: "", notebook_id: nb.id })
+                            .select()
+                            .single();
+                          if (data) {
+                            setExpandedNotebooks(prev => new Set(prev).add(nb.id));
+                            setActiveView(nb.id);
+                            await fetchNotes();
+                            selectNote(data as any as Note);
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                        title="New note in notebook"
+                      >
+                        <Plus className="h-3 w-3 text-muted-foreground" />
+                      </button>
                       <Popover>
                         <PopoverTrigger asChild>
                           <button className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded hover:bg-accent transition-opacity">
