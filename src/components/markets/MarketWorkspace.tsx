@@ -61,11 +61,33 @@ export function MarketWorkspace({ marketId, open, onOpenChange, onChanged }: Pro
 
   const saveField = async (patch: Partial<Market>) => {
     if (!market) return;
-    const next = { ...market, ...patch };
-    setMarket(next);
-    await supabase.from("markets").update(patch as any).eq("id", market.id);
+    setMarket((m) => (m ? { ...m, ...patch } : m));
+    const { error } = await supabase.from("markets").update(patch as any).eq("id", market.id);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
     onChanged();
   };
+
+  // Debounced auto-save for free-text fields (notes/criteria/strategy/location/name)
+  // so changes persist even if the sheet closes before blur fires.
+  useEffect(() => {
+    if (!market) return;
+    const t = setTimeout(() => {
+      supabase.from("markets").update({
+        name: market.name,
+        location: market.location,
+        strategy: market.strategy,
+        criteria: market.criteria,
+        notes_html: market.notes_html,
+      } as any).eq("id", market.id).then(({ error }) => {
+        if (error) toast.error(`Auto-save failed: ${error.message}`);
+      });
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market?.name, market?.location, market?.strategy, market?.criteria, market?.notes_html]);
 
   const addLink = async () => {
     if (!market || !linkUrl.trim()) return;
