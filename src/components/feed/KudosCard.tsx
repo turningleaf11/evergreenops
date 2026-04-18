@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
+import { FeedItemMenu } from "./FeedItemMenu";
 
 const CATEGORY_LABELS: Record<string, string> = {
   great_work: "🌟 Great Work",
@@ -22,9 +23,10 @@ interface KudosCardProps {
     category: string;
     created_at: string;
   };
+  onRefresh?: () => void;
 }
 
-export function KudosCard({ kudo }: KudosCardProps) {
+export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
   const [fromName, setFromName] = useState("");
   const [toName, setToName] = useState("");
 
@@ -49,9 +51,12 @@ export function KudosCard({ kudo }: KudosCardProps) {
           <Heart className="h-3 w-3" />
           Kudos
         </Badge>
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          {formatDistanceToNow(new Date(kudo.created_at), { addSuffix: true })}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] text-muted-foreground">
+            {formatDistanceToNow(new Date(kudo.created_at), { addSuffix: true })}
+          </span>
+          <FeedItemMenu table="kudos" id={kudo.id} authorId={kudo.from_user_id} label="kudos" onDeleted={onRefresh} />
+        </div>
       </div>
 
       <div>
