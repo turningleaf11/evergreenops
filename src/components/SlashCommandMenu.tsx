@@ -100,6 +100,33 @@ interface CommandItem {
 
 const getSuggestionItems = (): CommandItem[] => [
   {
+    title: "AI: Plan",
+    description: "Turn these notes into a phased plan",
+    icon: <Sparkles className="h-4 w-4 text-primary" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "plan");
+    },
+  },
+  {
+    title: "AI: Extract tasks",
+    description: "Pull a checklist of action items from notes",
+    icon: <ListChecksIcon className="h-4 w-4 text-primary" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "tasks");
+    },
+  },
+  {
+    title: "AI: Summarize",
+    description: "Tight summary of these notes",
+    icon: <FileTextIcon className="h-4 w-4 text-primary" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "summarize");
+    },
+  },
+  {
     title: "Text",
     description: "Plain paragraph",
     icon: <Type className="h-4 w-4" />,
