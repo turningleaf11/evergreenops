@@ -3,21 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const STRATEGIES = [
-  { value: "buy_and_hold", label: "Buy & Hold" },
-  { value: "brrrr", label: "BRRRR" },
-  { value: "fix_and_flip", label: "Fix & Flip" },
-  { value: "wholesale", label: "Wholesale" },
-  { value: "multifamily", label: "Multifamily" },
-  { value: "commercial", label: "Commercial" },
-  { value: "short_term_rental", label: "Short-Term Rental" },
-  { value: "land", label: "Land Development" },
-];
 
 interface Props {
   open: boolean;
@@ -29,11 +17,10 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
   const { user, profile } = useAuth();
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-  const [strategy, setStrategy] = useState("buy_and_hold");
-  const [criteria, setCriteria] = useState("");
+  const [strategy, setStrategy] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setName(""); setLocation(""); setStrategy("buy_and_hold"); setCriteria(""); };
+  const reset = () => { setName(""); setLocation(""); setStrategy(""); };
 
   const submit = async () => {
     if (!user || !name.trim()) { toast.error("Name is required"); return; }
@@ -41,8 +28,8 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
     const { error } = await supabase.from("markets").insert({
       name: name.trim(),
       location: location.trim(),
-      strategy,
-      criteria: criteria.trim(),
+      strategy: strategy.trim(),
+      criteria: strategy.trim(),
       created_by: user.id,
       workspace_id: profile?.workspace_id,
     } as any);
@@ -69,16 +56,13 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Investment strategy</label>
-            <Select value={strategy} onValueChange={setStrategy}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STRATEGIES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Criteria (optional)</label>
-            <Textarea value={criteria} onChange={(e) => setCriteria(e.target.value)} placeholder="Budget, target returns, property types…" className="min-h-[70px]" />
+            <Textarea
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value)}
+              placeholder="Describe your investment strategy for this market — e.g. buy & hold single-family rentals under $300K, target 8%+ cap rate, focus on B-class neighborhoods near job growth…"
+              className="min-h-[120px]"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">The AI will use this to analyze the market.</p>
           </div>
         </div>
         <DialogFooter>
