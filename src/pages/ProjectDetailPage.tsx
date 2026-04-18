@@ -51,6 +51,7 @@ export default function ProjectDetailPage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+  const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
 
   const tabKey = id ? `project-tab-${id}` : "project-tab";
   const [activeTab, setActiveTab] = useState<string>(() => {
