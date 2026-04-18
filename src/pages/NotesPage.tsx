@@ -58,7 +58,8 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<{ id: string; updates: Partial<Note> } | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
