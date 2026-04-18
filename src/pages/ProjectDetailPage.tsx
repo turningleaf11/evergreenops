@@ -275,6 +275,44 @@ export default function ProjectDetailPage() {
               </>
             )}
 
+            <span className="text-muted-foreground/30">·</span>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
+                  <Users className="h-3 w-3" />
+                  {(project.assignees || []).length > 0
+                    ? `${(project.assignees || []).length} team`
+                    : "Add team"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-60 p-1" align="start">
+                <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Team members</div>
+                <div className="max-h-64 overflow-y-auto">
+                  {profiles
+                    .filter((p) => p.user_id !== project.owner_id)
+                    .map((p) => {
+                      const isMember = (project.assignees || []).includes(p.user_id);
+                      return (
+                        <button
+                          key={p.user_id}
+                          onClick={() => {
+                            const current: string[] = project.assignees || [];
+                            const next = isMember
+                              ? current.filter((x) => x !== p.user_id)
+                              : [...current, p.user_id];
+                            updateProject({ assignees: next });
+                          }}
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left"
+                        >
+                          <span className="truncate">{p.full_name || "Unknown"}</span>
+                          {isMember && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                </div>
+              </PopoverContent>
+            </Popover>
             {(project.tags || []).map((t: string) => (
               <Badge key={t} variant="secondary" className="text-[11px] gap-1">
                 {t}
