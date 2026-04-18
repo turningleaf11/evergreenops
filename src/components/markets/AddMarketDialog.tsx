@@ -56,16 +56,13 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Investment strategy</label>
-            <Select value={strategy} onValueChange={setStrategy}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STRATEGIES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Criteria (optional)</label>
-            <Textarea value={criteria} onChange={(e) => setCriteria(e.target.value)} placeholder="Budget, target returns, property types…" className="min-h-[70px]" />
+            <Textarea
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value)}
+              placeholder="Describe your investment strategy for this market — e.g. buy & hold single-family rentals under $300K, target 8%+ cap rate, focus on B-class neighborhoods near job growth…"
+              className="min-h-[120px]"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">The AI will use this to analyze the market.</p>
           </div>
         </div>
         <DialogFooter>
