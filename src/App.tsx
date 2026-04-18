@@ -32,6 +32,7 @@ import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
+import PublicNotePage from "./pages/PublicNotePage";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -89,6 +90,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public shared note (no auth required) */}
+            <Route path="/n/:token" element={<PublicNotePage />} />
+
             {/* Public auth routes */}
             <Route element={<PublicRoute />}>
               <Route path="/landing" element={<LandingPage />} />

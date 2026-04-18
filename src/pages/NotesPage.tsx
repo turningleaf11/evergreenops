@@ -21,7 +21,7 @@ interface Note {
   updated_at: string;
   is_public?: boolean;
   share_token?: string | null;
-  shared_with?: { memberIds: string[] };
+  shared_with?: any;
 }
 
 export default function NotesPage() {
@@ -34,6 +34,7 @@ export default function NotesPage() {
   const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Folder state
   const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All Notes
