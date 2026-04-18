@@ -82,33 +82,82 @@ export default function ProjectInfoSidebar({
         </div>
 
         <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-3">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            Team
+          <div className="mb-3 flex items-center justify-between gap-2 text-sm font-medium text-foreground">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Team
+            </div>
+            {onUpdate && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-1" align="end">
+                  <div className="max-h-60 overflow-y-auto">
+                    {profiles
+                      .filter((p) => p.user_id !== project.owner_id)
+                      .map((p) => {
+                        const isMember = (project.assignees || []).includes(p.user_id);
+                        return (
+                          <button
+                            key={p.user_id}
+                            onClick={() => {
+                              const current: string[] = project.assignees || [];
+                              const next = isMember
+                                ? current.filter((x) => x !== p.user_id)
+                                : [...current, p.user_id];
+                              onUpdate({ assignees: next });
+                            }}
+                            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left"
+                          >
+                            <span className="truncate">{p.full_name || "Unknown"}</span>
+                            {isMember && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
           {teamMembers.length === 0 ? (
             <p className="text-sm text-muted-foreground">No team members yet.</p>
           ) : (
             <div className="space-y-2">
-              {teamMembers.slice(0, 4).map((member) => {
+              {teamMembers.map((member) => {
                 const name = member.full_name || "Unknown";
+                const isOwner = member.user_id === project.owner_id;
                 return (
-                  <div key={member.user_id} className="flex items-center gap-2.5">
+                  <div key={member.user_id} className="group flex items-center gap-2.5">
                     <Avatar className="h-7 w-7">
                       <AvatarFallback className="bg-muted text-[10px] text-foreground">
                         {initials(name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="min-w-0 truncate text-sm text-foreground">{name}</span>
-                    {member.user_id === project.owner_id && (
-                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">Owner</span>
+                    {isOwner ? (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">Lead</span>
+                    ) : (
+                      onUpdate && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                          onClick={() =>
+                            onUpdate({
+                              assignees: (project.assignees || []).filter((x: string) => x !== member.user_id),
+                            })
+                          }
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )
                     )}
                   </div>
                 );
               })}
-              {teamMembers.length > 4 && (
-                <p className="text-xs text-muted-foreground">+{teamMembers.length - 4} more</p>
-              )}
             </div>
           )}
         </div>
