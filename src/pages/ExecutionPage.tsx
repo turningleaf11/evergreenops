@@ -7,6 +7,7 @@ import DetailDrawer from "@/components/DetailDrawer";
 import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
+import { useViewPreference } from "@/hooks/useViewPreference";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
 import DataTableView from "@/components/execution/DataTableView";
@@ -199,8 +200,8 @@ export default function ExecutionPage() {
   const [issueCategoryFilter, setIssueCategoryFilter] = useState("all");
 
   // View states for projects and tasks tabs
-  const pv = useViewState();
-  const tv = useViewState();
+  const pv = useViewState("projects");
+  const tv = useViewState("tasks");
 
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i] = await Promise.all([
