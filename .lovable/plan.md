@@ -1,79 +1,84 @@
 
 
-# Project Workspace 2.0 — Overview + Tabs + Built-in Whiteboards
+# Plan: Notes Sharing, Universal @mentions, App Density, AI Email, and Polish
 
-## Layout
+Seven distinct improvements. Phasing in two waves so we ship value fast.
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Title · Status · Owner · Due · Linked Goal   [💬 Chat ▸] │  ← header w/ chat toggle
-├──────────────────────────────────────────────────────────┤
-│ [Overview] Notes  Tasks  Whiteboards  Files              │  ← tabs (no Discussion tab)
-├──────────────────────────────────────────┬───────────────┤
-│                                          │ DISCUSSION    │
-│   TAB CONTENT                            │ (right rail,  │
-│                                          │  collapsible) │
-└──────────────────────────────────────────┴───────────────┘
-```
+## 1. Notes — Public URL + Team Sharing
 
-- **No Discussion tab.** Discussion lives as a **collapsible right rail**, toggled by a chat button in the project header. Default = collapsed; opens as a 360px panel that overlays gracefully.
-- Same chat toggle works on every tab (including fullscreen whiteboard) so chat is always one click away.
-- Tab state persists per-project in localStorage.
+Add sharing to the existing Notes page.
 
-## Tab Contents
+**Schema:**
+- Add columns to `notes`: `share_token text unique`, `is_public boolean default false`, `shared_with jsonb default '{"memberIds":[]}'`
+- New public route `/n/:token` rendering note read-only (no auth required, RLS policy permits select where `is_public = true`)
 
-**Overview (default)** — dashboard cards:
-- Recent activity feed
-- Notes preview (first paragraph + "Open notes")
-- Open tasks count + next 3 due
-- Whiteboards thumbnails (up to 3)
-- Files (recent 5)
-- Team avatars + linked goal chip
+**UI:**
+- "Share" button in note editor header → popover with:
+  - Toggle: "Anyone with the link can view" → generates/reveals `https://app/n/{token}`, copy button
+  - Member multi-select (reuses existing AccessPicker pattern) → grants read access to specific teammates
+- Shared notes appear in recipient's sidebar under a new "Shared with me" section
 
-**Notes** — full TipTap editor, full width, distraction-free.
+## 2. Universal @mention System
 
-**Tasks** — embedded minimal task list (reuses ultra-minimal row style from execution Tasks tab).
+A reusable mention popover triggered by `@` in any rich text / textarea surface (chats, comments, notes, discussions).
 
-**Whiteboards** — grid of board cards. Two creation options:
-- **+ New whiteboard** → built-in canvas (using **tldraw** — open-source, embeddable, mature)
-- **+ Embed external** → paste Miro / Figma / FigJam URL, renders as an iframe card
+**Component:** `src/components/shared/MentionPicker.tsx`
+- On `@` keystroke, open positioned popover
+- Searches across: docs (wikis), notes, database records, tasks, projects, goals, people
+- Single unified search edge function `universal-search` returning `{ id, type, title, url, icon }`
+- Insert renders as a styled chip with link to the entity (opens in appropriate peek)
 
-Click a board → opens fullscreen editor. Right-rail chat still accessible.
+**Surfaces wired:**
+- TipTap RichTextEditor (TipTap Mention extension)
+- CommentsSection / RichCommentInput
+- ProjectChatRail
+- AI chat inputs (HomeAiChat, GlobalCompanion) — uses mentions as context for the AI
 
-**Files** — clean list/grid of attachments, drag-drop upload to Supabase `files` bucket.
+## 3. App Density — Fix "Too Small" on Desktop
 
-## Database Changes
+Root cause: pages cap at `max-w-7xl` (1280px) with default 14px font on screens up to 1920px+. On a 1423px viewport (current), 80%+ of pixels are empty.
 
-New table `whiteboards`:
-- `id, project_id, workspace_id, title, type ('native' | 'embed'), tldraw_data jsonb, embed_url text, created_by, created_at, updated_at`
-- RLS: workspace members read, owner/admin write
+**Fixes:**
+- Bump base font: `html { font-size: 15px }` (Tailwind scales accordingly)
+- Widen page containers: `max-w-7xl → max-w-[1600px]`, `max-w-6xl → max-w-[1400px]` across `Index.tsx`, `DocsPage`, `DatabasesPage`, `DepartmentPage`, `ExecutionPage`, `PeoplePage`, etc.
+- Slightly larger header (`h-[60px] → h-[64px]`) and sidebar text
+- Mobile untouched (responsive `sm:` breakpoints preserved)
 
-New column on `projects`: `last_active_tab text` (optional, for restore — or use localStorage)
+## 4. Wikis & Notes — More Side Cushion (2.5×)
 
-Files use existing `files` bucket + a new `project_files` table or `entity_links` polymorphic.
+Currently editor area uses ~`px-6`. Bump editor inner padding to `px-16` on `lg:` screens (≈ 2.5× current) for both `DocsPage` and `NotesPage` editor surfaces. Doesn't apply to sidebar lists.
 
-## Files to Touch
+## 5. Onboarding Banner — Auto-Hide on Completion
 
-**New**:
-- `src/pages/ProjectDetailPage.tsx` — full restructure into header + tabs + collapsible right rail
-- `src/components/execution/ProjectOverviewTab.tsx` — dashboard cards
-- `src/components/execution/ProjectNotesTab.tsx` — TipTap full-bleed
-- `src/components/execution/ProjectTasksTab.tsx` — minimal list (reuses TableView in compact mode)
-- `src/components/execution/ProjectWhiteboardsTab.tsx` — grid + create modal
-- `src/components/execution/ProjectFilesTab.tsx` — file grid
-- `src/components/execution/WhiteboardEditor.tsx` — tldraw canvas wrapper, autosaves to `tldraw_data`
-- `src/components/execution/WhiteboardEmbedCard.tsx` — iframe wrapper
-- `src/components/execution/ProjectChatRail.tsx` — collapsible right rail wrapping `CommentsSection`
+Currently the banner only hides if explicitly dismissed. Fix:
+- In `OnboardingBanner.tsx`, when `allDone` is true AND `completedOnboardingSteps.length === onboardingSteps.length`, auto-call `dismissOnboarding()` once (or just `return null` when complete after a 3-second celebration)
+- Add the auto-dismiss inside a `useEffect` so it persists across reloads
 
-**Modified**:
-- `src/components/execution/ProjectInfoSidebar.tsx` — repurposed into Overview tab cards (deprecated as sidebar)
+## 6. AI-Managed Email + Better Composer + Labels
 
-**Dependency**: add `@tldraw/tldraw` (~1MB gzipped, lazy-loaded only when Whiteboards tab opens)
+**AI Triage (new edge function `email-ai-triage`):**
+- "Summarize inbox" button → AI groups threads into: Action needed, FYI, Newsletter, Awaiting reply
+- Per-thread "AI suggest reply" → drafts a response in the composer
+- "Smart labels" — AI auto-tags incoming threads (Customer, Internal, Vendor, etc.) using Gemini 2.5 Flash
 
-## Phasing
+**Labels UI:**
+- New left sidebar section under folders: "Labels" with color dots
+- Click label → filters inbox by `labelIds` containing that label
+- Manage labels modal (create/rename/delete/color)
+- Wire to existing Gmail `labelIds` field + a local `email_labels` table for color/display
 
-1. **Phase 1** — Tabs + chat rail + Overview/Notes/Tasks/Files (no whiteboards). Ships the new shape.
-2. **Phase 2** — Whiteboards tab with tldraw native + embed support.
+**Composer enhancement (replaces ComposeModal):**
+- Convert from form-style modal to **slide-up email draft panel** (Gmail-like bottom-right floater)
+- `RichTextEditor` for body (formatting, lists, links, images)
+- Recipient chips with autocomplete (people directory + recent senders)
+- Attachments via existing `uploadFile`
+- "AI write" / "AI improve tone" buttons
+- Drafts auto-save
 
-Approve Phase 1 first, then we tackle whiteboards as a focused follow-up.
+## 7. Phasing
+
+- **Phase 1 (this run):** #3 density, #4 cushion, #5 onboarding fix, #1 Notes sharing, #6a composer rewrite + labels UI
+- **Phase 2 (follow-up):** #2 universal @mentions (touches many files), #6b AI email triage
+
+Approve and I'll execute Phase 1.
 
