@@ -28,8 +28,68 @@ import {
   XCircle,
   TableIcon,
   ChevronRight,
+  Sparkles,
+  ListChecks as ListChecksIcon,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
+import { toast } from "sonner";
+
+const NOTES_AI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notes-ai`;
+
+async function runNotesAi(editor: any, action: "plan" | "tasks" | "summarize") {
+  // Pull plain text from the editor for grounding
+  const text = (editor?.getText?.() || "").trim();
+  // Insert a header so the user sees something happen immediately
+  const headerByAction: Record<string, string> = {
+    plan: "AI plan",
+    tasks: "AI-generated tasks",
+    summarize: "AI summary",
+  };
+  editor.chain().focus().insertContent(`\n\n**${headerByAction[action]}**\n\n`).run();
+  try {
+    const resp = await fetch(NOTES_AI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ action, text }),
+    });
+    if (!resp.ok) {
+      if (resp.status === 429) toast.error("AI rate limit hit. Try again shortly.");
+      else if (resp.status === 402) toast.error("AI credits exhausted.");
+      else toast.error("AI request failed.");
+      return;
+    }
+    if (!resp.body) return;
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let done = false;
+    while (!done) {
+      const { done: d, value } = await reader.read();
+      if (d) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        let line = buffer.slice(0, nl);
+        buffer = buffer.slice(nl + 1);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (!line.startsWith("data: ")) continue;
+        const json = line.slice(6).trim();
+        if (json === "[DONE]") { done = true; break; }
+        try {
+          const parsed = JSON.parse(json);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) editor.chain().focus().insertContent(delta).run();
+        } catch { /* ignore */ }
+      }
+    }
+  } catch (e: any) {
+    toast.error(e?.message || "AI request failed");
+  }
+}
 
 interface CommandItem {
   title: string;
