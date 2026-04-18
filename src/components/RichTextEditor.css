@@ -314,7 +314,10 @@
 /* === Mention Chip === */
 .rich-editor .mention-chip,
 .prose .mention-chip,
-a.mention-chip {
+.prose-mention .mention-chip,
+a.mention-chip,
+span.mention-chip,
+[data-type="mention"] {
   display: inline-flex;
   align-items: center;
   padding: 0.05rem 0.4rem;
@@ -330,6 +333,9 @@ a.mention-chip {
 }
 .rich-editor .mention-chip:hover,
 .prose .mention-chip:hover,
-a.mention-chip:hover {
+.prose-mention .mention-chip:hover,
+a.mention-chip:hover,
+span.mention-chip:hover,
+[data-type="mention"]:hover {
   background: hsl(var(--primary) / 0.18);
 }

@@ -1,8 +1,15 @@
-// Lists Gmail labels for the connected workspace account so the team
-// inbox can show the user's actual Gmail labels (Important, Promotions,
-// custom labels, etc.) — not just locally-created ones.
+// Lists Gmail labels (with hierarchy + colors) so the inbox sidebar can render
+// the user's actual Gmail label tree (Team Emails/MTorres, Triggers/PushLead, etc.).
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { getGmailContext, gmail } from "../_shared/gmail.ts";
+
+interface GmailLabel {
+  id: string;
+  name: string;
+  type: string;
+  labelListVisibility?: string;
+  color?: { backgroundColor?: string; textColor?: string };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -12,15 +19,26 @@ Deno.serve(async (req) => {
 
   const r = await gmail(ctx!, "/labels");
   if (!r.ok) return json({ error: await r.text() }, r.status);
-  const data: { labels?: { id: string; name: string; type: string; labelListVisibility?: string }[] } = await r.json();
+  const data: { labels?: GmailLabel[] } = await r.json();
 
-  // Filter out "system" labels we already render as folders (INBOX, SENT, etc.),
-  // and labels the user hides from the list.
   const HIDDEN = new Set(["INBOX", "SENT", "DRAFT", "TRASH", "SPAM", "STARRED", "UNREAD", "CHAT"]);
   const labels = (data.labels ?? [])
     .filter((l) => !HIDDEN.has(l.id))
     .filter((l) => l.labelListVisibility !== "labelHide")
-    .map((l) => ({ id: l.id, name: l.name, type: l.type }));
+    .map((l) => {
+      const path = l.name.split("/");
+      return {
+        id: l.id,
+        name: l.name,
+        leaf: path[path.length - 1],
+        path,
+        depth: path.length - 1,
+        type: l.type,
+        color: l.color?.backgroundColor ?? null,
+      };
+    })
+    // Parents first, alphabetical within siblings
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return json({ labels });
 });

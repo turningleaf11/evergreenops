@@ -30,7 +30,7 @@ interface DbKpi {
 }
 
 export function CeoBriefing() {
-  const { user, isAdmin } = useAuth();
+  const { user, isPrimaryAdmin: isAdmin } = useAuth();
   const [configuring, setConfiguring] = useState(false);
   const [config, setConfig] = useState<BriefingConfig>({ ghl_enabled: false, database_ids: [], ghl_kpis: [] });
   const [configId, setConfigId] = useState<string | null>(null);

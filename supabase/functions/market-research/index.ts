@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { market, strategy, customCriteria, recordId } = await req.json();
+    const { market, strategy, customCriteria, recordId, marketId } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -122,6 +122,7 @@ Be specific with data points where possible. If you don't have exact current dat
     await supabase.from("market_research").update({
       ai_analysis: analysis,
       status: "complete",
+      ...(marketId ? { market_id: marketId } : {}),
     }).eq("id", recordId);
 
     return new Response(JSON.stringify({ success: true, analysis }), {

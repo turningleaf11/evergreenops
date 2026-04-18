@@ -34,19 +34,21 @@ export function MentionClickHandler() {
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a.mention-chip,[data-type='mention']") as HTMLAnchorElement | null;
+      const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip") as HTMLElement | null;
       if (!target) return;
-      const url = target.getAttribute("href") || target.getAttribute("data-url");
-      if (!url || url === "#") return;
-      // Only intercept internal links — let externals pass
-      if (url.startsWith("http")) return;
+      const url = target.getAttribute("data-url") || target.getAttribute("href");
       e.preventDefault();
       e.stopPropagation();
+      if (!url || url === "#") return;
+      if (url.startsWith("http")) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
       navigate(url);
     };
 
     const onMouseOver = async (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a.mention-chip,[data-type='mention']") as HTMLElement | null;
+      const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip") as HTMLElement | null;
       if (!target) return;
       const type = target.getAttribute("data-mention-type");
       const id = target.getAttribute("data-mention-id");
@@ -62,7 +64,7 @@ export function MentionClickHandler() {
     };
 
     const onMouseOut = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a.mention-chip,[data-type='mention']");
+      const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip");
       if (!target) return;
       if (hoverTimer) window.clearTimeout(hoverTimer);
       window.setTimeout(() => setHover(null), 150);

@@ -1164,6 +1164,7 @@ export type Database = {
           created_by: string | null
           custom_criteria: string | null
           id: string
+          market_id: string | null
           market_name: string
           status: string
           strategy: string
@@ -1176,6 +1177,7 @@ export type Database = {
           created_by?: string | null
           custom_criteria?: string | null
           id?: string
+          market_id?: string | null
           market_name: string
           status?: string
           strategy?: string
@@ -1188,6 +1190,7 @@ export type Database = {
           created_by?: string | null
           custom_criteria?: string | null
           id?: string
+          market_id?: string | null
           market_name?: string
           status?: string
           strategy?: string
@@ -1196,7 +1199,64 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "market_research_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "market_research_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      markets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          criteria: string | null
+          id: string
+          links: Json
+          location: string | null
+          name: string
+          notes_html: string | null
+          strategy: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          criteria?: string | null
+          id?: string
+          links?: Json
+          location?: string | null
+          name: string
+          notes_html?: string | null
+          strategy?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          criteria?: string | null
+          id?: string
+          links?: Json
+          location?: string | null
+          name?: string
+          notes_html?: string | null
+          strategy?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "markets_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

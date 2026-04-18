@@ -49,7 +49,14 @@ export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
       <div>
         <h3 className="font-semibold text-sm">{announcement.title}</h3>
         {announcement.content && (
-          <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{announcement.content}</p>
+          /<[a-z][\s\S]*>/i.test(announcement.content) ? (
+            <div
+              className="text-sm text-muted-foreground mt-1 prose-mention"
+              dangerouslySetInnerHTML={{ __html: announcement.content }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{announcement.content}</p>
+          )
         )}
       </div>
 
