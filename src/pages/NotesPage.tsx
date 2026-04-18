@@ -457,8 +457,8 @@ export default function NotesPage() {
             )}
           </div>
 
-          {/* Unfiled notes (when viewing All, or as drop target while dragging) */}
-          {activeView === "all" && (unfiledNotes.length > 0 || draggingNoteId) && (
+          {/* Unfiled notes (always shown) */}
+          {(unfiledNotes.length > 0 || draggingNoteId) && (
             <div
               className={`mt-3 pt-2 border-t border-border/40 rounded-md transition-colors ${
                 dropTarget === "unfiled" ? "bg-accent/40 ring-2 ring-primary/40" : ""
