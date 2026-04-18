@@ -71,6 +71,10 @@ export default function NotesPage() {
   const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
+  // Drag-and-drop state
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null); // notebook id, "unfiled", or null
+
   const fetchNotes = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
