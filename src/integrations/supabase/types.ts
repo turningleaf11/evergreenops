@@ -623,6 +623,39 @@ export type Database = {
           },
         ]
       }
+      email_labels: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          gmail_label_id: string | null
+          id: string
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          gmail_label_id?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          gmail_label_id?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       email_links: {
         Row: {
           created_at: string
@@ -1205,6 +1238,9 @@ export type Database = {
           created_at: string
           folder: string | null
           id: string
+          is_public: boolean
+          share_token: string | null
+          shared_with: Json
           title: string
           updated_at: string
           user_id: string
@@ -1215,6 +1251,9 @@ export type Database = {
           created_at?: string
           folder?: string | null
           id?: string
+          is_public?: boolean
+          share_token?: string | null
+          shared_with?: Json
           title?: string
           updated_at?: string
           user_id: string
@@ -1225,6 +1264,9 @@ export type Database = {
           created_at?: string
           folder?: string | null
           id?: string
+          is_public?: boolean
+          share_token?: string | null
+          shared_with?: Json
           title?: string
           updated_at?: string
           user_id?: string
