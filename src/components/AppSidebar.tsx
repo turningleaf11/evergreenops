@@ -31,7 +31,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
-  const { profile, isAdmin, role, signOut } = useAuth();
+  const { profile, isAdmin, isPrimaryAdmin, role, signOut } = useAuth();
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
   const { resolvedTheme, setTheme } = useTheme();
@@ -49,7 +49,8 @@ export function AppSidebar() {
   const mainNav = [
     { title: "Home", url: "/", icon: Home },
     { title: "Feed", url: "/feed", icon: Pizza },
-    ...(isAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
+    // CEO Cockpit is restricted to the workspace primary admin (CEO) only
+    ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
     { title: "Execution Hub", url: "/execution", icon: Target },
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
