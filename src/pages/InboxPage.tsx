@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { supabase } from "@/integrations/supabase/client";
-import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { ComposePanel } from "@/components/inbox/ComposePanel";
 import { ThreadDetail } from "@/components/inbox/ThreadDetail";
+import { LabelManager, type EmailLabel } from "@/components/inbox/LabelManager";
 
 interface ThreadSummary {
   id: string;
@@ -30,11 +31,21 @@ const FOLDERS = [
 export default function InboxPage() {
   const { loading: accessLoading, connected, hasAccess, isAdmin } = useGmailAccess();
   const [folder, setFolder] = useState("inbox");
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [labels, setLabels] = useState<EmailLabel[]>([]);
+  const [labelManagerOpen, setLabelManagerOpen] = useState(false);
+
+  const loadLabels = async () => {
+    const { data } = await supabase.from("email_labels").select("*").order("name");
+    if (data) setLabels(data as EmailLabel[]);
+  };
+
+  useEffect(() => { if (hasAccess) loadLabels(); }, [hasAccess]);
 
   const load = async () => {
     if (!hasAccess) return;
@@ -53,7 +64,17 @@ export default function InboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasAccess, folder]);
 
-  const headerTitle = useMemo(() => FOLDERS.find((f) => f.id === folder)?.label ?? "Inbox", [folder]);
+  const headerTitle = useMemo(() => {
+    if (activeLabel) return labels.find(l => l.id === activeLabel)?.name || "Label";
+    return FOLDERS.find((f) => f.id === folder)?.label ?? "Inbox";
+  }, [folder, activeLabel, labels]);
+
+  const visibleThreads = useMemo(() => {
+    if (!activeLabel) return threads;
+    const lbl = labels.find(l => l.id === activeLabel);
+    if (!lbl?.gmail_label_id) return threads;
+    return threads.filter(t => t.labelIds?.includes(lbl.gmail_label_id!));
+  }, [threads, activeLabel, labels]);
 
   if (accessLoading) {
     return (
@@ -87,7 +108,7 @@ export default function InboxPage() {
   return (
     <div className="h-[calc(100vh-60px)] flex">
       {/* Folder sidebar */}
-      <aside className="w-52 border-r border-border/30 p-3 flex flex-col gap-1 shrink-0 bg-card/30">
+      <aside className="w-56 border-r border-border/30 p-3 flex flex-col gap-1 shrink-0 bg-card/30 overflow-auto">
         <Button onClick={() => setComposeOpen(true)} className="mb-3 justify-start gap-2" size="sm">
           <Pencil className="h-4 w-4" /> Compose
         </Button>
@@ -96,10 +117,10 @@ export default function InboxPage() {
           return (
             <button
               key={f.id}
-              onClick={() => { setFolder(f.id); setSelectedId(null); }}
+              onClick={() => { setFolder(f.id); setActiveLabel(null); setSelectedId(null); }}
               className={cn(
                 "flex items-center gap-2 px-2.5 py-2 rounded-md text-sm transition-colors text-left",
-                folder === f.id
+                !activeLabel && folder === f.id
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -109,6 +130,42 @@ export default function InboxPage() {
             </button>
           );
         })}
+
+        {/* Labels section */}
+        <div className="mt-4 pt-3 border-t border-border/30">
+          <div className="flex items-center justify-between px-2 mb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Labels</span>
+            <button
+              onClick={() => setLabelManagerOpen(true)}
+              className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
+              title="Manage labels"
+            >
+              <Settings2 className="h-3 w-3" />
+            </button>
+          </div>
+          {labels.length === 0 ? (
+            <button
+              onClick={() => setLabelManagerOpen(true)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted w-full text-left"
+            >
+              <Tag className="h-3 w-3" /> Create a label
+            </button>
+          ) : labels.map(l => (
+            <button
+              key={l.id}
+              onClick={() => { setActiveLabel(l.id); setSelectedId(null); }}
+              className={cn(
+                "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full",
+                activeLabel === l.id
+                  ? "bg-primary/10 text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
+              <span className="truncate">{l.name}</span>
+            </button>
+          ))}
+        </div>
       </aside>
 
       {/* Thread list */}
@@ -127,12 +184,12 @@ export default function InboxPage() {
           </Button>
         </div>
         <div className="flex-1 overflow-auto">
-          {loading && threads.length === 0 ? (
+          {loading && visibleThreads.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">Loading…</div>
-          ) : threads.length === 0 ? (
+          ) : visibleThreads.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">No messages</div>
           ) : (
-            threads.map((t) => (
+            visibleThreads.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setSelectedId(t.id)}
@@ -166,7 +223,8 @@ export default function InboxPage() {
         </section>
       )}
 
-      <ComposeModal open={composeOpen} onOpenChange={setComposeOpen} onSent={load} />
+      <ComposePanel open={composeOpen} onOpenChange={setComposeOpen} onSent={load} />
+      <LabelManager open={labelManagerOpen} onOpenChange={setLabelManagerOpen} onChanged={loadLabels} />
     </div>
   );
 }
