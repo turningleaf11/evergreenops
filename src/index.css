@@ -101,6 +101,11 @@
 }
 
 @layer base {
+  html {
+    /* Bump base font so app feels right-sized on large desktop monitors */
+    font-size: 15px;
+  }
+
   * {
     @apply border-border;
   }

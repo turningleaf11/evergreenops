@@ -154,7 +154,7 @@ export default function ProjectDetailPage() {
 
       {/* Scroll container */}
       <div className={`flex-1 overflow-y-auto transition-[padding] duration-200 ${chatOpen ? "xl:pr-[360px]" : ""}`}>
-        <div className="px-6 py-6 max-w-6xl mx-auto">
+        <div className="px-6 py-6 max-w-[1500px] mx-auto">
           {/* Header: title + meta */}
           <div className="mb-2 flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-muted-foreground" />
