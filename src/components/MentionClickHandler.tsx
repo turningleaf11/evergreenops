@@ -48,7 +48,7 @@ export function MentionClickHandler() {
     };
 
     const onMouseOver = async (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a.mention-chip,[data-type='mention']") as HTMLElement | null;
+      const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip") as HTMLElement | null;
       if (!target) return;
       const type = target.getAttribute("data-mention-type");
       const id = target.getAttribute("data-mention-id");
@@ -64,7 +64,7 @@ export function MentionClickHandler() {
     };
 
     const onMouseOut = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.("a.mention-chip,[data-type='mention']");
+      const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip");
       if (!target) return;
       if (hoverTimer) window.clearTimeout(hoverTimer);
       window.setTimeout(() => setHover(null), 150);
