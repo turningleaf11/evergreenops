@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen } from "lucide-react";
+import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface ThreadMessage {
@@ -17,7 +17,7 @@ interface ThreadMessage {
 interface Props {
   threadId: string;
   onClose: () => void;
-  onReply: () => void;
+  onReply: (opts?: { aiBody?: string; to?: string; subject?: string }) => void;
   onMutated: () => void;
 }
 
