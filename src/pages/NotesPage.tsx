@@ -377,6 +377,15 @@ export default function NotesPage() {
                   </PopoverContent>
                 </Popover>
 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-7 text-xs gap-1 ${selectedNote?.is_public ? "border-primary/50 text-primary" : ""}`}
+                  onClick={() => setShareOpen(true)}
+                >
+                  {selectedNote?.is_public ? <Globe className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                  Share
+                </Button>
                 {!selectedNote?.converted_doc_id && (
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openConvertDialog}>
                     <ArrowRight className="h-3 w-3 mr-1" /> Doc
@@ -418,6 +427,21 @@ export default function NotesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share dialog */}
+      {selectedNote && (
+        <NoteShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          noteId={selectedNote.id}
+          initialIsPublic={!!selectedNote.is_public}
+          initialShareToken={selectedNote.share_token || null}
+          initialSharedMemberIds={selectedNote.shared_with?.memberIds || []}
+          onUpdated={(next) => {
+            setNotes(prev => prev.map(n => n.id === selectedNote.id ? { ...n, ...next } : n));
+          }}
+        />
+      )}
     </div>
   );
 }
