@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,7 +58,8 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<{ id: string; updates: Partial<Note> } | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
@@ -121,7 +122,42 @@ export default function NotesPage() {
     return notesByNotebook[activeView] || [];
   }, [activeView, notes, pinnedNotes, notesByNotebook]);
 
-  const selectNote = (note: Note) => {
+  const saveNote = useCallback(async (id: string, updates: Partial<Note>) => {
+    await supabase.from("notes").update(updates as any).eq("id", id);
+  }, []);
+
+  // Flush any pending debounced save immediately
+  const flushPendingSave = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const pending = pendingSaveRef.current;
+    if (pending) {
+      pendingSaveRef.current = null;
+      await saveNote(pending.id, pending.updates);
+    }
+  }, [saveNote]);
+
+  const scheduleSave = useCallback((id: string, updates: Partial<Note>) => {
+    // Merge into pending updates so title+content edits coalesce safely
+    const prev = pendingSaveRef.current && pendingSaveRef.current.id === id
+      ? pendingSaveRef.current.updates
+      : {};
+    pendingSaveRef.current = { id, updates: { ...prev, ...updates } };
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const pending = pendingSaveRef.current;
+      saveTimerRef.current = null;
+      if (pending) {
+        pendingSaveRef.current = null;
+        saveNote(pending.id, pending.updates);
+      }
+    }, 500);
+  }, [saveNote]);
+
+  const selectNote = async (note: Note) => {
+    await flushPendingSave();
     setSelectedId(note.id);
     setTitle(note.title);
     setContent(note.content);
@@ -129,6 +165,7 @@ export default function NotesPage() {
 
   const createNote = async () => {
     if (!user) return;
+    await flushPendingSave();
     const notebookId = (activeView !== "all" && activeView !== "pinned") ? activeView : null;
     const { data, error } = await supabase
       .from("notes")
@@ -144,25 +181,37 @@ export default function NotesPage() {
     }
   };
 
-  const saveNote = useCallback(async (id: string, updates: Partial<Note>) => {
-    await supabase.from("notes").update(updates as any).eq("id", id);
-  }, []);
-
   const handleTitleChange = (val: string) => {
     setTitle(val);
-    if (selectedId) {
-      if (saveTimer) clearTimeout(saveTimer);
-      setSaveTimer(setTimeout(() => saveNote(selectedId, { title: val }), 500));
-    }
+    if (selectedId) scheduleSave(selectedId, { title: val });
   };
 
   const handleContentChange = (html: string) => {
     setContent(html);
-    if (selectedId) {
-      if (saveTimer) clearTimeout(saveTimer);
-      setSaveTimer(setTimeout(() => saveNote(selectedId, { content: html }), 500));
-    }
+    if (selectedId) scheduleSave(selectedId, { content: html });
   };
+
+  // Flush on tab hide / before unload / unmount
+  useEffect(() => {
+    const flushSync = () => {
+      const pending = pendingSaveRef.current;
+      if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+      if (pending) {
+        pendingSaveRef.current = null;
+        // Fire and forget — keepalive not needed via supabase client; we just dispatch
+        saveNote(pending.id, pending.updates);
+      }
+    };
+    const onVis = () => { if (document.visibilityState === "hidden") flushSync(); };
+    window.addEventListener("beforeunload", flushSync);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("beforeunload", flushSync);
+      document.removeEventListener("visibilitychange", onVis);
+      flushSync();
+    };
+  }, [saveNote]);
+
 
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id);
