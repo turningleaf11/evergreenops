@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { SlashCommands } from "@/components/SlashCommandMenu";
+import { UniversalMention } from "@/extensions/MentionExtension";
 import { uploadFile } from "@/lib/file-upload";
 import { Plugin } from "@tiptap/pm/state";
 import {
@@ -116,6 +117,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       TableHeader,
       Callout,
       SlashCommands,
+      UniversalMention,
       Extension.create({
         name: "imageUpload",
         addProseMirrorPlugins() {
