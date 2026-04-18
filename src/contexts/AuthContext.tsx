@@ -20,6 +20,8 @@ interface AuthContextType {
   profile: Profile | null;
   role: AppRole;
   isAdmin: boolean;
+  /** True only for the primary admin (the workspace CEO). Used to gate the CEO Cockpit. */
+  isPrimaryAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole>("user");
+  const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -48,14 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data: roleData } = await supabase
         .from("user_roles")
-        .select("role")
+        .select("role, is_primary")
         .eq("user_id", userId);
 
       if (roleData && roleData.length > 0) {
         const roles = roleData.map((r: any) => r.role);
         setRole(roles.includes("admin") ? "admin" : "user");
+        setIsPrimaryAdmin(roleData.some((r: any) => r.role === "admin" && r.is_primary === true));
       } else {
         setRole("user");
+        setIsPrimaryAdmin(false);
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -81,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setProfile(null);
           setRole("user");
+          setIsPrimaryAdmin(false);
         }
         setLoading(false);
       }
@@ -105,12 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setProfile(null);
     setRole("user");
+    setIsPrimaryAdmin(false);
   }, []);
 
   const isAdmin = role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
