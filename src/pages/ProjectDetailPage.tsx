@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  ArrowLeft, Calendar, User, X, Target, MessageSquare,
+  ArrowLeft, Calendar, User, Users, X, Target, MessageSquare, Check,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
