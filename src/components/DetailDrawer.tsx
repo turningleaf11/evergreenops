@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Maximize2, Calendar, User, PanelRight, Square, Expand, Tag, Flag, AlertCircle, Check } from "lucide-react";
+import { Calendar, User, Tag, Flag, AlertCircle } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
@@ -35,39 +33,6 @@ function EditableTitle({ value, onSave, className }: EditableTitleProps) {
     />
   );
 }
-
-interface PeekToggleProps {
-  peekMode: PeekMode;
-  setPeekMode: (m: PeekMode) => void;
-  onFullPage: () => void;
-}
-
-function PeekToggle({ peekMode, setPeekMode, onFullPage }: PeekToggleProps) {
-  return (
-    <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
-      {peekModes.map(m => (
-        <button
-          key={m.value}
-          onClick={() => {
-            if (m.value === "full") { onFullPage(); return; }
-            setPeekMode(m.value);
-          }}
-          className={cn(
-            "p-1.5 rounded-md transition-colors",
-            peekMode === m.value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title={m.label}
-        >
-          <m.icon className="h-3.5 w-3.5" />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-type PeekMode = "side" | "center" | "full";
 
 interface DetailDrawerProps {
   open: boolean;
@@ -103,23 +68,6 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200",
 };
 
-const peekModes: { value: PeekMode; icon: React.ElementType; label: string }[] = [
-  { value: "side", icon: PanelRight, label: "Side peek" },
-  { value: "center", icon: Square, label: "Center peek" },
-  { value: "full", icon: Expand, label: "Full page" },
-];
-
-function usePeekMode(): [PeekMode, (m: PeekMode) => void] {
-  const [mode, setMode] = useState<PeekMode>(() => {
-    try { return (localStorage.getItem("detail-peek-mode") as PeekMode) || "side"; } catch { return "side"; }
-  });
-  const set = (m: PeekMode) => {
-    setMode(m);
-    try { localStorage.setItem("detail-peek-mode", m); } catch {}
-  };
-  return [mode, set];
-}
-
 function OptionRow({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -131,7 +79,6 @@ function OptionRow({ selected, onClick, children }: { selected: boolean; onClick
       )}
     >
       <span>{children}</span>
-      {selected && <Check className="h-3.5 w-3.5 text-primary" />}
     </button>
   );
 }
@@ -144,7 +91,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
 
   return (
     <div className="space-y-5">
-      {/* Header status badges */}
       <div className="pb-4 border-b border-border/50">
         <div className="flex items-start gap-2 flex-wrap">
           <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.not_started)}>
@@ -158,7 +104,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
         </div>
       </div>
 
-      {/* Field rows */}
       <div>
         <FieldRow
           label="Status"
@@ -247,7 +192,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
         )}
       </div>
 
-      {/* Description */}
       {item.description && (
         <Card className="bg-muted/30 border-border/30">
           <CardContent className="p-4">
@@ -257,7 +201,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
         </Card>
       )}
 
-      {/* Subtasks */}
       {type === "task" && item.subtasks && item.subtasks.length > 0 && (
         <Card className="bg-muted/30 border-border/30">
           <CardContent className="p-4">
@@ -274,7 +217,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
         </Card>
       )}
 
-      {/* Comments */}
       <div className="pt-2 border-t border-border/30">
         <CommentsSection entityType={type} entityId={item.id} />
       </div>
@@ -284,19 +226,16 @@ function DetailContent({ type, item, onStatusChange, getName }: {
 
 export default function DetailDrawer({ open, onOpenChange, type, item, onStatusChange, onTitleChange, getName }: DetailDrawerProps) {
   const navigate = useNavigate();
-  const [peekMode, setPeekMode] = usePeekMode();
 
+  // Projects always open as a full page — never a peek.
   useEffect(() => {
-    if (open && peekMode === "full" && item) {
+    if (open && type === "project" && item) {
       onOpenChange(false);
-      navigate(type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`);
+      navigate(`/projects/${item.id}`);
     }
-  }, [open, peekMode, item]);
+  }, [open, type, item, navigate, onOpenChange]);
 
-  if (!item) return null;
-
-  const detailPath = type === "project" ? `/projects/${item.id}` : `/tasks/${item.id}`;
-  const goFullPage = () => { onOpenChange(false); navigate(detailPath); };
+  if (!item || type === "project") return null;
 
   const titleNode = onTitleChange ? (
     <EditableTitle value={item.title} onSave={onTitleChange} className="text-xl font-semibold" />
@@ -304,26 +243,7 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
     <span className="text-xl font-semibold">{item.title}</span>
   );
 
-  if (peekMode === "center") {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-6">
-          <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-            <DialogTitle asChild>
-              <div className="flex-1 min-w-0 pr-2">{titleNode}</div>
-            </DialogTitle>
-            <div className="flex items-center gap-2 shrink-0 mr-6">
-              <PeekToggle peekMode={peekMode} setPeekMode={setPeekMode} onFullPage={goFullPage} />
-            </div>
-          </DialogHeader>
-          <div className="mt-2">
-            <DetailContent type={type} item={item} onStatusChange={onStatusChange} getName={getName} />
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
+  // Tasks → side peek (Sheet)
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6 top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
@@ -332,9 +252,6 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
             <SheetTitle asChild>
               <div className="flex-1 min-w-0 pr-2">{titleNode}</div>
             </SheetTitle>
-            <div className="flex items-center gap-2 shrink-0 mr-6">
-              <PeekToggle peekMode={peekMode} setPeekMode={setPeekMode} onFullPage={goFullPage} />
-            </div>
           </div>
         </SheetHeader>
         <div className="mt-6">
