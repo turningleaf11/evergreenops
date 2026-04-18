@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2 } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -37,8 +37,26 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
+  const [aiSummary, setAiSummary] = useState<{ summary: string; items: { index: number; category: string; reason: string }[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const summarize = async () => {
+    setAiLoading(true);
+    const { data, error } = await supabase.functions.invoke("email-ai-triage", {
+      body: { mode: "summarize", threads: visibleThreads.slice(0, 30) },
+    });
+    setAiLoading(false);
+    if (error) return;
+    if (data?.items) setAiSummary(data);
+  };
+
+  const openCompose = (defaults: typeof composeDefaults = {}) => {
+    setComposeDefaults(defaults);
+    setComposeOpen(true);
+  };
 
   const loadLabels = async () => {
     const { data } = await supabase.from("email_labels").select("*").order("name");
@@ -109,7 +127,7 @@ export default function InboxPage() {
     <div className="h-[calc(100vh-60px)] flex">
       {/* Folder sidebar */}
       <aside className="w-56 border-r border-border/30 p-3 flex flex-col gap-1 shrink-0 bg-card/30 overflow-auto">
-        <Button onClick={() => setComposeOpen(true)} className="mb-3 justify-start gap-2" size="sm">
+        <Button onClick={() => openCompose()} className="mb-3 justify-start gap-2" size="sm">
           <Pencil className="h-4 w-4" /> Compose
         </Button>
         {FOLDERS.map((f) => {
@@ -179,10 +197,40 @@ export default function InboxPage() {
             placeholder="Search…"
             className="h-7 text-xs flex-1"
           />
+          <Button variant="outline" size="sm" className="h-7 gap-1" onClick={summarize} disabled={aiLoading || visibleThreads.length === 0} title="AI summarize inbox">
+            {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Summarize
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={load}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
         </div>
+        {aiSummary && (
+          <div className="px-3 py-2 border-b border-border/30 bg-primary/5">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <p className="text-xs text-foreground/80">{aiSummary.summary}</p>
+              <button onClick={() => setAiSummary(null)} className="text-muted-foreground hover:text-foreground shrink-0">×</button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {(["action", "awaiting_reply", "fyi", "newsletter"] as const).map(cat => {
+                const count = aiSummary.items.filter(i => i.category === cat).length;
+                if (!count) return null;
+                const labelMap: Record<string, string> = { action: "Action", awaiting_reply: "Awaiting", fyi: "FYI", newsletter: "Newsletter" };
+                const colorMap: Record<string, string> = {
+                  action: "bg-destructive/10 text-destructive",
+                  awaiting_reply: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                  fyi: "bg-primary/10 text-primary",
+                  newsletter: "bg-muted text-muted-foreground",
+                };
+                return (
+                  <span key={cat} className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", colorMap[cat])}>
+                    {labelMap[cat]} · {count}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-auto">
           {loading && visibleThreads.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">Loading…</div>
@@ -217,13 +265,22 @@ export default function InboxPage() {
           <ThreadDetail
             threadId={selectedId}
             onClose={() => setSelectedId(null)}
-            onReply={() => setComposeOpen(true)}
+            onReply={(opts) => openCompose({ threadId: selectedId, inReplyTo: selectedId, to: opts?.to, subject: opts?.subject, body: opts?.aiBody })}
             onMutated={load}
           />
         </section>
       )}
 
-      <ComposePanel open={composeOpen} onOpenChange={setComposeOpen} onSent={load} />
+      <ComposePanel
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        onSent={load}
+        defaultTo={composeDefaults.to}
+        defaultSubject={composeDefaults.subject}
+        defaultBody={composeDefaults.body}
+        threadId={composeDefaults.threadId}
+        inReplyTo={composeDefaults.inReplyTo}
+      />
       <LabelManager open={labelManagerOpen} onOpenChange={setLabelManagerOpen} onChanged={loadLabels} />
     </div>
   );

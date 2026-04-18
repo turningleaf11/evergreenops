@@ -14,14 +14,15 @@ interface Props {
   onSent?: () => void;
   defaultTo?: string;
   defaultSubject?: string;
+  defaultBody?: string;
   threadId?: string;
   inReplyTo?: string;
 }
 
-export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defaultSubject = "", threadId, inReplyTo }: Props) {
+export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defaultSubject = "", defaultBody = "", threadId, inReplyTo }: Props) {
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(defaultBody);
   const [sending, setSending] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -32,8 +33,9 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
     if (open) {
       setTo(defaultTo);
       setSubject(defaultSubject);
+      setBody(defaultBody);
     }
-  }, [open, defaultTo, defaultSubject]);
+  }, [open, defaultTo, defaultSubject, defaultBody]);
 
   if (!open) return null;
 

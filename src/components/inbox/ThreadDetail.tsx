@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen } from "lucide-react";
+import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface ThreadMessage {
@@ -17,13 +17,14 @@ interface ThreadMessage {
 interface Props {
   threadId: string;
   onClose: () => void;
-  onReply: () => void;
+  onReply: (opts?: { aiBody?: string; to?: string; subject?: string }) => void;
   onMutated: () => void;
 }
 
 export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +53,19 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
     }
   };
 
+  const aiSuggest = async () => {
+    setAiLoading(true);
+    const { data, error } = await supabase.functions.invoke("email-ai-triage", {
+      body: { mode: "suggest_reply", threadId },
+    });
+    setAiLoading(false);
+    if (error) { toast.error(error.message); return; }
+    const lastFrom = messages[messages.length - 1]?.headers?.from || "";
+    const subject = messages[0]?.headers?.subject || "";
+    const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+    onReply({ aiBody: data?.html || "", to: lastFrom, subject: replySubject });
+  };
+
   if (loading) {
     return <div className="p-6 text-center text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mx-auto" /></div>;
   }
@@ -74,7 +88,11 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Trash" onClick={() => modify("trash")}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
-        <Button variant="outline" size="sm" className="h-7" onClick={onReply}>
+        <Button variant="outline" size="sm" className="h-7 gap-1" onClick={aiSuggest} disabled={aiLoading} title="AI-drafted reply">
+          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          AI Reply
+        </Button>
+        <Button variant="outline" size="sm" className="h-7" onClick={() => onReply()}>
           <Reply className="h-3.5 w-3.5 mr-1" /> Reply
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
