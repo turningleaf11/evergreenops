@@ -449,11 +449,27 @@ export default function NotesPage() {
             )}
           </div>
 
-          {/* Unfiled notes (when viewing All) */}
-          {activeView === "all" && unfiledNotes.length > 0 && (
-            <div className="mt-3 pt-2 border-t border-border/40">
+          {/* Unfiled notes (when viewing All, or as drop target while dragging) */}
+          {activeView === "all" && (unfiledNotes.length > 0 || draggingNoteId) && (
+            <div
+              className={`mt-3 pt-2 border-t border-border/40 rounded-md transition-colors ${
+                dropTarget === "unfiled" ? "bg-accent/40 ring-2 ring-primary/40" : ""
+              }`}
+              onDragOver={(e) => {
+                if (draggingNoteId) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dropTarget !== "unfiled") setDropTarget("unfiled");
+                }
+              }}
+              onDragLeave={() => { if (dropTarget === "unfiled") setDropTarget(null); }}
+              onDrop={(e) => { e.preventDefault(); handleDropOnNotebook(null); }}
+            >
               <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Unfiled</div>
               {unfiledNotes.map(n => renderNoteRow(n))}
+              {unfiledNotes.length === 0 && draggingNoteId && (
+                <div className="px-3 py-3 text-xs text-muted-foreground/70 italic">Drop here to unfile</div>
+              )}
             </div>
           )}
 
