@@ -12,11 +12,11 @@ export type FeedItem =
 export function FeedCard({ item, onRefresh }: { item: FeedItem; onRefresh?: () => void }) {
   switch (item.type) {
     case "announcement":
-      return <AnnouncementCard announcement={item.data} />;
+      return <AnnouncementCard announcement={item.data} onRefresh={onRefresh} />;
     case "poll":
-      return <PollCard poll={item.data} />;
+      return <PollCard poll={item.data} onRefresh={onRefresh} />;
     case "kudos":
-      return <KudosCard kudo={item.data} />;
+      return <KudosCard kudo={item.data} onRefresh={onRefresh} />;
     case "post":
       return <PostCard post={item.data} onRefresh={onRefresh} />;
     default:
