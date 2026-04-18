@@ -89,7 +89,6 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
 
   // Debounced KR persistence — keystrokes update local state instantly,
   // DB write + parent refresh happen 500ms after typing stops.
-  const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistKrs = (next: KeyResult[]) => {
     if (krSaveTimer.current) clearTimeout(krSaveTimer.current);
     krSaveTimer.current = setTimeout(async () => {
