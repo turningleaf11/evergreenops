@@ -257,11 +257,18 @@ export default function InboxPage() {
               <button onClick={() => setAiSummary(null)} className="text-muted-foreground hover:text-foreground shrink-0">×</button>
             </div>
             <div className="flex flex-wrap gap-1">
-              {(["action", "awaiting_reply", "fyi", "newsletter"] as const).map(cat => {
+              {(["deal", "client", "vendor", "internal", "action", "awaiting_reply", "fyi", "newsletter"] as const).map(cat => {
                 const count = aiSummary.items.filter(i => i.category === cat).length;
                 if (!count) return null;
-                const labelMap: Record<string, string> = { action: "Action", awaiting_reply: "Awaiting", fyi: "FYI", newsletter: "Newsletter" };
+                const labelMap: Record<string, string> = {
+                  deal: "Deals", client: "Clients", vendor: "Vendors", internal: "Internal",
+                  action: "Action", awaiting_reply: "Awaiting", fyi: "FYI", newsletter: "Newsletter",
+                };
                 const colorMap: Record<string, string> = {
+                  deal: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                  client: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                  vendor: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+                  internal: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
                   action: "bg-destructive/10 text-destructive",
                   awaiting_reply: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
                   fyi: "bg-primary/10 text-primary",

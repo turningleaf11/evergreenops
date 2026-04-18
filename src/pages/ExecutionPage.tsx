@@ -113,9 +113,9 @@ const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, l
 const currentQuarter = () => { const m = new Date().getMonth(); return `Q${Math.floor(m / 3) + 1}`; };
 const currentYear = () => new Date().getFullYear();
 
-function useViewState() {
+function useViewState(viewKey: string) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<ViewMode>("list");
+  const [view, setView] = useViewPreference<ViewMode>(`execution:${viewKey}:view`, "list");
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterStatus, setFilterStatus] = useState("all");
