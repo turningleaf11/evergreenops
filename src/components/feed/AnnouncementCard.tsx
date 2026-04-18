@@ -3,6 +3,7 @@ import { Pin, AlertTriangle, PartyPopper, RefreshCw, Shield, Megaphone } from "l
 import { Badge } from "@/components/ui/badge";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
+import { FeedItemMenu } from "./FeedItemMenu";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: any; className: string; border: string }> = {
   urgent: { label: "Urgent", icon: AlertTriangle, className: "bg-red-500/10 text-red-600 dark:text-red-400", border: "border-l-red-500" },
@@ -17,15 +18,17 @@ interface AnnouncementCardProps {
     id: string;
     title: string;
     content: string | null;
+    author_id: string | null;
     author_name: string | null;
     pinned: boolean | null;
     type: string;
     banner_color: string | null;
     created_at: string;
   };
+  onRefresh?: () => void;
 }
 
-export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
+export function AnnouncementCard({ announcement, onRefresh }: AnnouncementCardProps) {
   const config = TYPE_CONFIG[announcement.type] || TYPE_CONFIG.general;
   const Icon = config.icon;
 
@@ -41,9 +44,12 @@ export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
             <Pin className="h-3 w-3 text-muted-foreground" />
           )}
         </div>
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] text-muted-foreground">
+            {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
+          </span>
+          <FeedItemMenu table="announcements" id={announcement.id} authorId={announcement.author_id} label="announcement" onDeleted={onRefresh} />
+        </div>
       </div>
 
       <div>

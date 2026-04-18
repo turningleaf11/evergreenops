@@ -6,6 +6,7 @@ import { BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
+import { FeedItemMenu } from "./FeedItemMenu";
 
 interface PollCardProps {
   poll: {
@@ -15,10 +16,12 @@ interface PollCardProps {
     options: any;
     created_at: string;
     is_active: boolean;
+    created_by?: string | null;
   };
+  onRefresh?: () => void;
 }
 
-export function PollCard({ poll }: PollCardProps) {
+export function PollCard({ poll, onRefresh }: PollCardProps) {
   const { user } = useAuth();
   const [votes, setVotes] = useState<{ option_index: number; user_id: string }[]>([]);
   const [myVote, setMyVote] = useState<number | null>(null);
@@ -66,9 +69,12 @@ export function PollCard({ poll }: PollCardProps) {
           <BarChart3 className="h-3 w-3" />
           Poll
         </Badge>
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          {formatDistanceToNow(new Date(poll.created_at), { addSuffix: true })}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] text-muted-foreground">
+            {formatDistanceToNow(new Date(poll.created_at), { addSuffix: true })}
+          </span>
+          <FeedItemMenu table="polls" id={poll.id} authorId={poll.created_by} label="poll" onDeleted={onRefresh} />
+        </div>
       </div>
 
       <h3 className="font-semibold text-sm">{poll.title}</h3>
