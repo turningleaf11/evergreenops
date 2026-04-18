@@ -1,6 +1,8 @@
 import { format } from "date-fns";
-import { Calendar, FileText, Target, User, Users } from "lucide-react";
+import { Calendar, FileText, Target, User, Users, Plus, X, Check } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 interface ProjectInfoSidebarProps {
   project: any;
@@ -8,6 +10,7 @@ interface ProjectInfoSidebarProps {
   linkedDocs: any[];
   profiles: { user_id: string; full_name: string | null }[];
   onOpenGoal?: () => void;
+  onUpdate?: (updates: Record<string, any>) => void;
 }
 
 function initials(name: string) {
