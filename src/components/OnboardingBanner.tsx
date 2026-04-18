@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useTraining } from "@/contexts/TrainingContext";
 import { useTrainingProgress } from "@/lib/training-progress";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +20,19 @@ export function OnboardingBanner() {
   const { onboardingSteps } = useTraining();
 
   const onboardingProgress = getOnboardingProgress(onboardingSteps.length);
+  const allDone =
+    onboardingSteps.length > 0 &&
+    completedOnboardingSteps.length >= onboardingSteps.length;
+
+  // Auto-dismiss when all steps are complete (persists across reloads)
+  useEffect(() => {
+    if (allDone && !onboardingDismissed) {
+      const t = setTimeout(() => dismissOnboarding(), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [allDone, onboardingDismissed, dismissOnboarding]);
 
   if (onboardingDismissed) return null;
-
-  const allDone = completedOnboardingSteps.length >= onboardingSteps.length;
 
   return (
     <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
