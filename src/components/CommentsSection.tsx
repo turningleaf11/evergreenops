@@ -175,22 +175,26 @@ export default function CommentsSection({ entityType, entityId, hideHeader = fal
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col">
       {!hideHeader && (
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 pb-3">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium">Comments ({comments.length})</h3>
         </div>
       )}
 
-      <div className="space-y-4">
-        {topLevel.map((comment) => (
-          <CommentItem key={comment.id} comment={comment} />
-        ))}
-        {topLevel.length === 0 && <p className="text-sm text-muted-foreground">No discussion yet.</p>}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        <div className="space-y-4 pb-2">
+          {topLevel.map((comment) => (
+            <CommentItem key={comment.id} comment={comment} />
+          ))}
+          {topLevel.length === 0 && (
+            <p className="text-sm text-muted-foreground">No comments yet.</p>
+          )}
+        </div>
       </div>
 
-      <div className="border-t pt-3">
+      <div className="shrink-0 border-t pt-3 mt-3 bg-background">
         <RichCommentInput
           placeholder="Write a comment..."
           submitting={submitting}
