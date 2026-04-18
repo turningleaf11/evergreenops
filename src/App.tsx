@@ -33,6 +33,7 @@ import InboxPage from "./pages/InboxPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
+import { MentionClickHandler } from "./components/MentionClickHandler";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -55,6 +56,14 @@ function ProtectedRoute() {
     return <Navigate to="/landing" replace />;
   }
 
+  return <Outlet />;
+}
+
+/** Restricts a route to the workspace primary admin (CEO). */
+function PrimaryAdminRoute() {
+  const { isPrimaryAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isPrimaryAdmin) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -89,6 +98,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <MentionClickHandler />
           <Routes>
             {/* Public shared note (no auth required) */}
             <Route path="/n/:token" element={<PublicNotePage />} />
@@ -104,7 +114,9 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/ceo" element={<CeoDashboard />} />
+                <Route element={<PrimaryAdminRoute />}>
+                  <Route path="/ceo" element={<CeoDashboard />} />
+                </Route>
                 <Route path="/leadership/:deptId" element={<LeadershipDashboard />} />
                 <Route path="/department/:id" element={<DepartmentPage />} />
                 <Route path="/docs" element={<DocsPage />} />

@@ -9,6 +9,7 @@ import { ImageIcon, Send, Megaphone, BarChart3, Heart, X, Loader2 } from "lucide
 import { toast } from "sonner";
 import { uploadFile } from "@/lib/file-upload";
 import { GiphyPicker } from "@/components/feed/GiphyPicker";
+import RichTextEditor from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 
 interface FeedComposerProps {
@@ -255,14 +256,15 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
                 </div>
               )}
 
-              {/* Main naked textarea */}
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={placeholders[mode]}
-                rows={3}
-                className="w-full bg-transparent border-0 px-0 py-2 text-base resize-none placeholder:text-muted-foreground/40 focus:outline-none leading-relaxed"
-              />
+              {/* Main editor — supports @mentions across people, docs, notes, tasks, projects, goals, lists */}
+              <div className="rich-editor-borderless -ml-1.5">
+                <RichTextEditor
+                  content={content}
+                  onChange={setContent}
+                  placeholder={placeholders[mode]}
+                  borderless
+                />
+              </div>
 
               {/* Media previews */}
               {imageUrl && (

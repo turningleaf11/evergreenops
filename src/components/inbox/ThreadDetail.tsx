@@ -111,8 +111,11 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
             </div>
             {m.bodyHtml ? (
               <div
-                className="prose prose-sm max-w-none dark:prose-invert text-sm"
-                dangerouslySetInnerHTML={{ __html: m.bodyHtml }}
+                className="prose prose-sm max-w-none dark:prose-invert text-sm email-body"
+                // Strip embedded <style> / <link> blocks — Gmail messages frequently
+                // include site-wide CSS that leaks into our app (e.g. underlining
+                // every <a> in the sidebar).
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(m.bodyHtml) }}
               />
             ) : (
               <pre className="text-sm whitespace-pre-wrap font-sans">{m.bodyText || m.snippet}</pre>
@@ -122,4 +125,11 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
       </div>
     </div>
   );
+}
+
+function sanitizeEmailHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<link[^>]*>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "");
 }

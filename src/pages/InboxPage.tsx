@@ -39,6 +39,7 @@ export default function InboxPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);
+  const [gmailLabels, setGmailLabels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string; items: { index: number; category: string; reason: string }[] } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -63,7 +64,12 @@ export default function InboxPage() {
     if (data) setLabels(data as EmailLabel[]);
   };
 
-  useEffect(() => { if (hasAccess) loadLabels(); }, [hasAccess]);
+  const loadGmailLabels = async () => {
+    const { data } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
+    if (data?.labels) setGmailLabels(data.labels);
+  };
+
+  useEffect(() => { if (hasAccess) { loadLabels(); loadGmailLabels(); } }, [hasAccess]);
 
   const load = async () => {
     if (!hasAccess) return;
@@ -83,15 +89,29 @@ export default function InboxPage() {
   }, [hasAccess, folder]);
 
   const headerTitle = useMemo(() => {
-    if (activeLabel) return labels.find(l => l.id === activeLabel)?.name || "Label";
+    if (activeLabel?.startsWith("db:")) {
+      const id = activeLabel.slice(3);
+      return labels.find(l => l.id === id)?.name || "Label";
+    }
+    if (activeLabel?.startsWith("gmail:")) {
+      const id = activeLabel.slice(6);
+      return gmailLabels.find(l => l.id === id)?.name || "Label";
+    }
     return FOLDERS.find((f) => f.id === folder)?.label ?? "Inbox";
-  }, [folder, activeLabel, labels]);
+  }, [folder, activeLabel, labels, gmailLabels]);
 
   const visibleThreads = useMemo(() => {
     if (!activeLabel) return threads;
-    const lbl = labels.find(l => l.id === activeLabel);
-    if (!lbl?.gmail_label_id) return threads;
-    return threads.filter(t => t.labelIds?.includes(lbl.gmail_label_id!));
+    if (activeLabel.startsWith("db:")) {
+      const lbl = labels.find(l => l.id === activeLabel.slice(3));
+      if (!lbl?.gmail_label_id) return threads;
+      return threads.filter(t => t.labelIds?.includes(lbl.gmail_label_id!));
+    }
+    if (activeLabel.startsWith("gmail:")) {
+      const id = activeLabel.slice(6);
+      return threads.filter(t => t.labelIds?.includes(id));
+    }
+    return threads;
   }, [threads, activeLabel, labels]);
 
   if (accessLoading) {
@@ -161,20 +181,13 @@ export default function InboxPage() {
               <Settings2 className="h-3 w-3" />
             </button>
           </div>
-          {labels.length === 0 ? (
-            <button
-              onClick={() => setLabelManagerOpen(true)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted w-full text-left"
-            >
-              <Tag className="h-3 w-3" /> Create a label
-            </button>
-          ) : labels.map(l => (
+          {labels.map(l => (
             <button
               key={l.id}
-              onClick={() => { setActiveLabel(l.id); setSelectedId(null); }}
+              onClick={() => { setActiveLabel(`db:${l.id}`); setSelectedId(null); }}
               className={cn(
-                "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full",
-                activeLabel === l.id
+                "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full no-underline",
+                activeLabel === `db:${l.id}`
                   ? "bg-primary/10 text-foreground font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -183,7 +196,39 @@ export default function InboxPage() {
               <span className="truncate">{l.name}</span>
             </button>
           ))}
+          {labels.length === 0 && (
+            <button
+              onClick={() => setLabelManagerOpen(true)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted w-full text-left no-underline"
+            >
+              <Tag className="h-3 w-3" /> Create a label
+            </button>
+          )}
         </div>
+
+        {/* Gmail labels (synced from connected account) */}
+        {gmailLabels.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <div className="px-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Gmail labels</span>
+            </div>
+            {gmailLabels.map(l => (
+              <button
+                key={l.id}
+                onClick={() => { setActiveLabel(`gmail:${l.id}`); setSelectedId(null); }}
+                className={cn(
+                  "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full no-underline",
+                  activeLabel === `gmail:${l.id}`
+                    ? "bg-primary/10 text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Tag className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{l.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </aside>
 
       {/* Thread list */}
@@ -212,11 +257,18 @@ export default function InboxPage() {
               <button onClick={() => setAiSummary(null)} className="text-muted-foreground hover:text-foreground shrink-0">×</button>
             </div>
             <div className="flex flex-wrap gap-1">
-              {(["action", "awaiting_reply", "fyi", "newsletter"] as const).map(cat => {
+              {(["deal", "client", "vendor", "internal", "action", "awaiting_reply", "fyi", "newsletter"] as const).map(cat => {
                 const count = aiSummary.items.filter(i => i.category === cat).length;
                 if (!count) return null;
-                const labelMap: Record<string, string> = { action: "Action", awaiting_reply: "Awaiting", fyi: "FYI", newsletter: "Newsletter" };
+                const labelMap: Record<string, string> = {
+                  deal: "Deals", client: "Clients", vendor: "Vendors", internal: "Internal",
+                  action: "Action", awaiting_reply: "Awaiting", fyi: "FYI", newsletter: "Newsletter",
+                };
                 const colorMap: Record<string, string> = {
+                  deal: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                  client: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                  vendor: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+                  internal: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
                   action: "bg-destructive/10 text-destructive",
                   awaiting_reply: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
                   fyi: "bg-primary/10 text-primary",

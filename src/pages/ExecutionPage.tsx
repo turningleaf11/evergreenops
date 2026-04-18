@@ -7,6 +7,7 @@ import DetailDrawer from "@/components/DetailDrawer";
 import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
+import { useViewPreference } from "@/hooks/useViewPreference";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
 import DataTableView from "@/components/execution/DataTableView";
@@ -113,9 +114,9 @@ const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, l
 const currentQuarter = () => { const m = new Date().getMonth(); return `Q${Math.floor(m / 3) + 1}`; };
 const currentYear = () => new Date().getFullYear();
 
-function useViewState() {
+function useViewState(viewKey: string) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<ViewMode>("list");
+  const [view, setView] = useViewPreference<ViewMode>(`execution:${viewKey}:view`, "list");
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -199,8 +200,8 @@ export default function ExecutionPage() {
   const [issueCategoryFilter, setIssueCategoryFilter] = useState("all");
 
   // View states for projects and tasks tabs
-  const pv = useViewState();
-  const tv = useViewState();
+  const pv = useViewState("projects");
+  const tv = useViewState("tasks");
 
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i] = await Promise.all([

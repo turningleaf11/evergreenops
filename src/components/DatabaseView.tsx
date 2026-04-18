@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { useViewPreference } from "@/hooks/useViewPreference";
 import { InlineText, InlineSelect, InlineDate } from "@/components/shared/InlineCell";
 
 type ViewMode = "table" | "kanban" | "list";
@@ -46,7 +47,7 @@ interface DatabaseViewProps {
 }
 
 export default function DatabaseView({ database, rows, onAdd, onEdit, onDelete, onRowUpdate, allDatabases, allRows, onColumnsChange, isAdmin }: DatabaseViewProps) {
-  const [view, setView] = useState<ViewMode>("table");
+  const [view, setView] = useViewPreference<ViewMode>(`db:${database.id}:view`, "table");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterDef[]>([]);
   const [sorts, setSorts] = useState<SortDef[]>([]);
