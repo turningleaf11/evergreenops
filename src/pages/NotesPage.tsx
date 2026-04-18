@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X } from "lucide-react";
+import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X, Share2, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
+import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
 
 interface Note {
   id: string;
@@ -18,6 +19,9 @@ interface Note {
   converted_doc_id: string | null;
   created_at: string;
   updated_at: string;
+  is_public?: boolean;
+  share_token?: string | null;
+  shared_with?: { memberIds: string[] };
 }
 
 export default function NotesPage() {
