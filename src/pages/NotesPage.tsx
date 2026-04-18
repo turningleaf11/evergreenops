@@ -246,13 +246,29 @@ export default function NotesPage() {
   const selectedNote = notes.find((n) => n.id === selectedId);
   const selectedNotebook = selectedNote?.notebook_id ? notebooks.find(nb => nb.id === selectedNote.notebook_id) : null;
 
+  // Drag handlers
+  const handleDropOnNotebook = async (notebookId: string | null) => {
+    if (draggingNoteId) {
+      await moveToNotebook(draggingNoteId, notebookId);
+      toast({ title: notebookId ? "Moved to notebook" : "Moved to Unfiled" });
+    }
+    setDraggingNoteId(null);
+    setDropTarget(null);
+  };
+
   // Render a single note row in the sidebar
   const renderNoteRow = (note: Note, indent = false) => (
     <div
       key={note.id}
+      draggable
+      onDragStart={(e) => {
+        setDraggingNoteId(note.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={() => { setDraggingNoteId(null); setDropTarget(null); }}
       className={`group relative px-2.5 py-1.5 cursor-pointer transition-colors rounded-md mx-1 ${
         selectedId === note.id ? "bg-accent" : "hover:bg-accent/40"
-      } ${indent ? "ml-5" : ""}`}
+      } ${indent ? "ml-5" : ""} ${draggingNoteId === note.id ? "opacity-40" : ""}`}
       onClick={() => selectNote(note)}
     >
       <div className="flex items-center gap-2 min-w-0">
