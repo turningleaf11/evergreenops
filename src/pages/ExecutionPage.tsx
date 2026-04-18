@@ -161,7 +161,11 @@ export default function ExecutionPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [stageColors, setStageColors] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState("goals");
+  const [tab, setTab] = useState(() => {
+    if (typeof window === "undefined") return "goals";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") || "goals";
+  });
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);

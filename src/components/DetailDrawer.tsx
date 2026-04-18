@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, User, Tag, Flag, AlertCircle, Check } from "lucide-react";
+import { Calendar, User, Tag, Flag, AlertCircle } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
@@ -79,19 +79,21 @@ function OptionRow({ selected, onClick, children }: { selected: boolean; onClick
       )}
     >
       <span>{children}</span>
-      {selected && <Check className="h-3.5 w-3.5 text-primary" />}
     </button>
   );
 }
 
-function TaskDetailContent({ item, onStatusChange, getName }: {
-  item: any; onStatusChange: (s: string) => void; getName: (uid: string | null) => string;
+function DetailContent({ type, item, onStatusChange, getName }: {
+  type: "project" | "task"; item: any; onStatusChange: (s: string) => void;
+  getName: (uid: string | null) => string;
 }) {
+  const statuses = type === "project" ? projectStatuses : taskStatuses;
+
   return (
     <div className="space-y-5">
       <div className="pb-4 border-b border-border/50">
         <div className="flex items-start gap-2 flex-wrap">
-          <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.todo)}>
+          <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.not_started)}>
             {statusLabels[item.status] || item.status}
           </Badge>
           {item.priority && (
@@ -114,7 +116,7 @@ function TaskDetailContent({ item, onStatusChange, getName }: {
         >
           {(close) => (
             <div className="space-y-0.5">
-              {taskStatuses.map(s => (
+              {statuses.map(s => (
                 <OptionRow key={s} selected={item.status === s} onClick={() => { onStatusChange(s); close(); }}>
                   {statusLabels[s] || s}
                 </OptionRow>
@@ -147,13 +149,25 @@ function TaskDetailContent({ item, onStatusChange, getName }: {
           </FieldRow>
         )}
 
-        <FieldRow label="Assignee" icon={User} displayValue={getName(item.assigned_to)}>
-          <p className="text-xs text-muted-foreground py-1 px-2">Currently: {getName(item.assigned_to)}</p>
+        <FieldRow
+          label={type === "project" ? "Owner" : "Assignee"}
+          icon={User}
+          displayValue={getName(type === "project" ? item.owner_id : item.assigned_to)}
+        >
+          <p className="text-xs text-muted-foreground py-1 px-2">Currently: {getName(type === "project" ? item.owner_id : item.assigned_to)}</p>
         </FieldRow>
 
         {item.due_date && (
-          <FieldRow label="Due date" icon={Calendar} displayValue={item.due_date}>
-            <input type="date" defaultValue={item.due_date} className="bg-background border border-border rounded-md px-2 py-1 text-sm w-full" />
+          <FieldRow
+            label="Due date"
+            icon={Calendar}
+            displayValue={item.due_date}
+          >
+            <input
+              type="date"
+              defaultValue={item.due_date}
+              className="bg-background border border-border rounded-md px-2 py-1 text-sm w-full"
+            />
           </FieldRow>
         )}
 
@@ -187,7 +201,7 @@ function TaskDetailContent({ item, onStatusChange, getName }: {
         </Card>
       )}
 
-      {item.subtasks && item.subtasks.length > 0 && (
+      {type === "task" && item.subtasks && item.subtasks.length > 0 && (
         <Card className="bg-muted/30 border-border/30">
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-3">Subtasks</p>
@@ -204,7 +218,7 @@ function TaskDetailContent({ item, onStatusChange, getName }: {
       )}
 
       <div className="pt-2 border-t border-border/30">
-        <CommentsSection entityType="task" entityId={item.id} />
+        <CommentsSection entityType={type} entityId={item.id} />
       </div>
     </div>
   );
@@ -213,7 +227,7 @@ function TaskDetailContent({ item, onStatusChange, getName }: {
 export default function DetailDrawer({ open, onOpenChange, type, item, onStatusChange, onTitleChange, getName }: DetailDrawerProps) {
   const navigate = useNavigate();
 
-  // Projects always open as full page — never as a drawer.
+  // Projects always open as a full page — never a peek.
   useEffect(() => {
     if (open && type === "project" && item) {
       onOpenChange(false);
@@ -229,6 +243,7 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
     <span className="text-xl font-semibold">{item.title}</span>
   );
 
+  // Tasks → side peek (Sheet)
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6 top-[60px] h-[calc(100vh-60px)] border-l border-border/50">
@@ -240,7 +255,7 @@ export default function DetailDrawer({ open, onOpenChange, type, item, onStatusC
           </div>
         </SheetHeader>
         <div className="mt-6">
-          <TaskDetailContent item={item} onStatusChange={onStatusChange} getName={getName} />
+          <DetailContent type={type} item={item} onStatusChange={onStatusChange} getName={getName} />
         </div>
       </SheetContent>
     </Sheet>

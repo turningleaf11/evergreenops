@@ -61,7 +61,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   if (!goalId || !goal) {
     return (
       <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto p-0 rounded-2xl" />
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-0" />
       </Dialog>
     );
   }
@@ -102,7 +102,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
 
   return (
     <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto p-0 rounded-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-0">
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 space-y-3 border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur z-10">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -122,7 +122,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
             ) : (
               <h2
                 onClick={() => setEditingTitle(true)}
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded-md px-2 -mx-2 py-1 transition-colors text-left"
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded-md px-2 -mx-2 py-1 transition-colors"
               >
                 {goal.title}
               </h2>
