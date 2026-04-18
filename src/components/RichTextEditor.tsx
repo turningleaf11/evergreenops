@@ -117,6 +117,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       TableCell,
       TableHeader,
       Callout,
+      Badge,
       SlashCommands,
       UniversalMention,
       Extension.create({
