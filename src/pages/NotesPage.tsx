@@ -311,18 +311,6 @@ export default function NotesPage() {
             </div>
           )}
 
-          {/* All Notes */}
-          <button
-            onClick={() => setActiveView("all")}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
-              activeView === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BookOpen className="h-3 w-3" />
-            <span className="flex-1 text-left">All Notes</span>
-            <span className="text-[10px] font-normal opacity-60">{notes.length}</span>
-          </button>
-
           {/* Notebooks */}
           <div className="mt-1">
             {notebooks.map(nb => {
