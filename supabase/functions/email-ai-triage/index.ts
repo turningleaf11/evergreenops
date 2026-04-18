@@ -42,13 +42,27 @@ Deno.serve(async (req) => {
       const list = (threads ?? []).slice(0, 30).map((t: any, i: number) =>
         `${i + 1}. From: ${t.from} | Subject: ${t.subject} | Snippet: ${t.snippet}`
       ).join("\n");
-      const prompt = `Classify each email thread into exactly ONE of: "action", "fyi", "newsletter", "awaiting_reply".
-Return strict JSON: { "items": [{ "index": 1, "category": "action", "reason": "short reason" }, ...], "summary": "1-2 sentence inbox overview" }.
+      const prompt = `You triage emails for a real estate acquisitions company.
+Classify each email thread into exactly ONE of:
+  - "deal"            (incoming property/deal/offering: wholesale offers, broker pitches, off-market opportunities, property listings, ARV/comps, dispo)
+  - "client"          (existing client / seller / buyer correspondence, contract negotiations)
+  - "vendor"          (title companies, lenders, contractors, inspectors, insurance, attorneys)
+  - "internal"        (teammates / coworkers / company-internal threads)
+  - "action"          (anything that needs YOU to do something not covered above)
+  - "awaiting_reply"  (you sent the last message and are waiting on them)
+  - "fyi"             (informational, no action)
+  - "newsletter"      (newsletters, marketing, automated digests, unsubscribe footers)
+
+Return strict JSON:
+{
+  "items": [{ "index": 1, "category": "deal", "reason": "short reason", "suggested_label": "Deals" }, ...],
+  "summary": "2-3 sentence inbox overview emphasising deals and items needing action"
+}
 
 Threads:
 ${list}`;
       const content = await callAI([
-        { role: "system", content: "You are an email triage assistant. Always reply with valid JSON only." },
+        { role: "system", content: "You are an email triage assistant for a real estate acquisitions company. Always reply with valid JSON only." },
         { role: "user", content: prompt },
       ], { json: true });
       let parsed: any = {};
