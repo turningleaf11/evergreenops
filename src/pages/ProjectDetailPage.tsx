@@ -204,9 +204,26 @@ export default function ProjectDetailPage() {
 
             <span className="text-muted-foreground/30">·</span>
 
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="h-3 w-3" /> {getName(project.owner_id)}
-            </span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
+                  <User className="h-3 w-3" /> {getName(project.owner_id)}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-1" align="start">
+                <div className="max-h-60 overflow-y-auto">
+                  {profiles.map((p) => (
+                    <button
+                      key={p.user_id}
+                      onClick={() => { updateProject({ owner_id: p.user_id }); logActivity("owner_changed", { new_owner: p.user_id }); }}
+                      className={`w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${project.owner_id === p.user_id ? "bg-accent/40 font-medium" : ""}`}
+                    >
+                      {p.full_name || "Unknown"}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <span className="text-muted-foreground/30">·</span>
 
