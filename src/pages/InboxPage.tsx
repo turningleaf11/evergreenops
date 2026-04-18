@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2 } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -37,8 +37,26 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
+  const [aiSummary, setAiSummary] = useState<{ summary: string; items: { index: number; category: string; reason: string }[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const summarize = async () => {
+    setAiLoading(true);
+    const { data, error } = await supabase.functions.invoke("email-ai-triage", {
+      body: { mode: "summarize", threads: visibleThreads.slice(0, 30) },
+    });
+    setAiLoading(false);
+    if (error) return;
+    if (data?.items) setAiSummary(data);
+  };
+
+  const openCompose = (defaults: typeof composeDefaults = {}) => {
+    setComposeDefaults(defaults);
+    setComposeOpen(true);
+  };
 
   const loadLabels = async () => {
     const { data } = await supabase.from("email_labels").select("*").order("name");
