@@ -346,8 +346,23 @@ export default function NotesPage() {
                     <div
                       className={`group relative flex items-center mx-1 rounded-md transition-colors ${
                         isActive ? "bg-accent/60" : "hover:bg-accent/30"
-                      }`}
-                      style={isActive ? { background: `hsl(${nb.color} / 0.1)` } : undefined}
+                      } ${dropTarget === nb.id ? "ring-2 ring-primary/60" : ""}`}
+                      style={
+                        dropTarget === nb.id
+                          ? { background: `hsl(${nb.color} / 0.18)` }
+                          : isActive
+                          ? { background: `hsl(${nb.color} / 0.1)` }
+                          : undefined
+                      }
+                      onDragOver={(e) => {
+                        if (draggingNoteId) {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dropTarget !== nb.id) setDropTarget(nb.id);
+                        }
+                      }}
+                      onDragLeave={() => { if (dropTarget === nb.id) setDropTarget(null); }}
+                      onDrop={(e) => { e.preventDefault(); handleDropOnNotebook(nb.id); }}
                     >
                       {/* Color accent bar when active */}
                       {isActive && (
