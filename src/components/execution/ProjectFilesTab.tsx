@@ -116,7 +116,8 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
                 </p>
               )}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
