@@ -85,12 +85,32 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
 
   const krs: KeyResult[] = Array.isArray(goal.key_results) ? goal.key_results : [];
 
+  // Debounced KR persistence — keystrokes update local state instantly,
+  // DB write + parent refresh happen 500ms after typing stops.
+  const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistKrs = (next: KeyResult[]) => {
+    if (krSaveTimer.current) clearTimeout(krSaveTimer.current);
+    krSaveTimer.current = setTimeout(async () => {
+      const { error } = await supabase.from("goals").update({ key_results: next as any }).eq("id", goalId);
+      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+      else onChanged();
+    }, 500);
+  };
   const updateKr = (idx: number, patch: Partial<KeyResult>) => {
     const next = krs.map((k, i) => i === idx ? { ...k, ...patch } : k);
-    update({ key_results: next });
+    setGoal((g: any) => ({ ...g, key_results: next }));
+    persistKrs(next);
   };
-  const addKr = () => update({ key_results: [...krs, { label: "", target: "", current: "" }] });
-  const removeKr = (idx: number) => update({ key_results: krs.filter((_, i) => i !== idx) });
+  const addKr = () => {
+    const next = [...krs, { label: "", target: "", current: "" }];
+    setGoal((g: any) => ({ ...g, key_results: next }));
+    persistKrs(next);
+  };
+  const removeKr = (idx: number) => {
+    const next = krs.filter((_, i) => i !== idx);
+    setGoal((g: any) => ({ ...g, key_results: next }));
+    persistKrs(next);
+  };
 
   const unlinkProject = async (projectId: string) => {
     const { error } = await supabase.from("projects").update({ goal_id: null }).eq("id", projectId);
