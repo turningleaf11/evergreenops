@@ -1266,6 +1266,7 @@ export type Database = {
       }
       note_folders: {
         Row: {
+          color: string
           created_at: string
           id: string
           name: string
@@ -1274,6 +1275,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color?: string
           created_at?: string
           id?: string
           name: string
@@ -1282,6 +1284,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string
           created_at?: string
           id?: string
           name?: string
@@ -1299,6 +1302,8 @@ export type Database = {
           folder: string | null
           id: string
           is_public: boolean
+          notebook_id: string | null
+          pinned: boolean
           share_token: string | null
           shared_with: Json
           title: string
@@ -1312,6 +1317,8 @@ export type Database = {
           folder?: string | null
           id?: string
           is_public?: boolean
+          notebook_id?: string | null
+          pinned?: boolean
           share_token?: string | null
           shared_with?: Json
           title?: string
@@ -1325,6 +1332,8 @@ export type Database = {
           folder?: string | null
           id?: string
           is_public?: boolean
+          notebook_id?: string | null
+          pinned?: boolean
           share_token?: string | null
           shared_with?: Json
           title?: string
@@ -1337,6 +1346,13 @@ export type Database = {
             columns: ["converted_doc_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "note_folders"
             referencedColumns: ["id"]
           },
         ]
