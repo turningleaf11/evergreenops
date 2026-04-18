@@ -39,6 +39,7 @@ export default function InboxPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);
+  const [gmailLabels, setGmailLabels] = useState<{ id: string; name: string; type: string }[]>([]);
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string; items: { index: number; category: string; reason: string }[] } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -63,7 +64,12 @@ export default function InboxPage() {
     if (data) setLabels(data as EmailLabel[]);
   };
 
-  useEffect(() => { if (hasAccess) loadLabels(); }, [hasAccess]);
+  const loadGmailLabels = async () => {
+    const { data } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
+    if (data?.labels) setGmailLabels(data.labels);
+  };
+
+  useEffect(() => { if (hasAccess) { loadLabels(); loadGmailLabels(); } }, [hasAccess]);
 
   const load = async () => {
     if (!hasAccess) return;
