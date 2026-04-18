@@ -179,7 +179,7 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
             </div>
             <h3 className="text-lg font-semibold">Project AI Partner</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Grounded in this project's tasks, notes, files, and discussion.
+              Grounded in this project's tasks, notes, files, and comments.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">

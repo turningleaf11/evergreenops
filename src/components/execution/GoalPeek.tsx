@@ -279,7 +279,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
           <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !discussionOpen && "-rotate-90")} />
-              <MessageSquare className="h-3.5 w-3.5" /> Discussion & Activity
+              <MessageSquare className="h-3.5 w-3.5" /> Comments & Activity
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 space-y-4">
               <CommentsSection entityType="goal" entityId={goalId} />
