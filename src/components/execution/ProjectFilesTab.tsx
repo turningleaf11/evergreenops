@@ -1,9 +1,8 @@
-import { FileText, Upload, Image as ImageIcon, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { FileText, Upload, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { uploadFile } from "@/lib/file-upload";
+import { openStoredFile, uploadFileWithPath } from "@/lib/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -18,7 +17,6 @@ interface Props {
 const isImage = (name: string) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
 
 export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Props) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -28,15 +26,16 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const url = await uploadFile(file);
-        if (!url) {
+        const uploaded = await uploadFileWithPath(file);
+        if (!uploaded) {
           toast({ title: "Upload failed", description: file.name, variant: "destructive" });
           continue;
         }
-        // Store URL inside content as a simple anchor so the doc preview works.
-        const content = `<p><a href="${url}" target="_blank" rel="noopener noreferrer">${file.name}</a></p>${
-          isImage(file.name) ? `<p><img src="${url}" alt="${file.name}" /></p>` : ""
+
+        const content = `<p><a href="${uploaded.publicUrl}" data-file-path="${uploaded.path}" target="_blank" rel="noopener noreferrer">${file.name}</a></p>${
+          isImage(file.name) ? `<p><img src="${uploaded.publicUrl}" alt="${file.name}" /></p>` : ""
         }`;
+
         const { error } = await supabase.from("documents").insert({
           title: file.name,
           content,
@@ -45,8 +44,10 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
           author_name: user.user_metadata?.full_name || user.email || null,
           visibility: "workspace",
         });
+
         if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
       }
+
       onChanged();
       toast({ title: "Uploaded" });
     } finally {
@@ -79,8 +80,8 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
           dragOver ? "border-primary bg-primary/5" : "border-border/60",
         )}
       >
-        <Upload className="h-6 w-6 text-muted-foreground/60 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground mb-3">
+        <Upload className="mx-auto mb-2 h-6 w-6 text-muted-foreground/60" />
+        <p className="mb-3 text-sm text-muted-foreground">
           Drag & drop files here, or
         </p>
         <Button size="sm" variant="outline" onClick={pickFiles} disabled={uploading}>
@@ -89,33 +90,46 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
       </div>
 
       {linkedDocs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">No files yet.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">No files yet.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {linkedDocs.map((doc) => {
             const match = typeof doc.content === "string" ? doc.content.match(/href="([^"]+)"/) : null;
             const fileUrl = match?.[1];
+
             return (
-            <button
-              key={doc.id}
-              onClick={() => {
-                if (fileUrl) window.open(fileUrl, "_blank", "noopener,noreferrer");
-                else toast({ title: "File unavailable", variant: "destructive" });
-              }}
-              className="text-left rounded-xl border border-border/50 bg-card/40 p-4 hover:bg-card/70 transition-colors"
-            >
-              {isImage(doc.title) ? (
-                <ImageIcon className="h-5 w-5 text-muted-foreground mb-2" />
-              ) : (
-                <FileText className="h-5 w-5 text-muted-foreground mb-2" />
-              )}
-              <p className="text-sm font-medium truncate">{doc.title}</p>
-              {doc.updated_at && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(doc.updated_at), "MMM d, yyyy")}
-                </p>
-              )}
-            </button>
+              <button
+                key={doc.id}
+                onClick={async () => {
+                  if (!fileUrl) {
+                    toast({ title: "File unavailable", variant: "destructive" });
+                    return;
+                  }
+
+                  try {
+                    await openStoredFile(fileUrl, { fileName: doc.title });
+                  } catch (error) {
+                    toast({
+                      title: "Could not open file",
+                      description: error instanceof Error ? error.message : "Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="rounded-xl border border-border/50 bg-card/40 p-4 text-left transition-colors hover:bg-card/70"
+              >
+                {isImage(doc.title) ? (
+                  <ImageIcon className="mb-2 h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <FileText className="mb-2 h-5 w-5 text-muted-foreground" />
+                )}
+                <p className="truncate text-sm font-medium">{doc.title}</p>
+                {doc.updated_at && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {format(new Date(doc.updated_at), "MMM d, yyyy")}
+                  </p>
+                )}
+              </button>
             );
           })}
         </div>
