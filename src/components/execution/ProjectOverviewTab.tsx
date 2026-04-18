@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/RichTextEditor";
-import { uploadFile } from "@/lib/file-upload";
+import { uploadFileWithPath } from "@/lib/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -46,10 +46,10 @@ export default function ProjectOverviewTab({
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const url = await uploadFile(file);
-        if (!url) continue;
-        const content = `<p><a href="${url}" target="_blank" rel="noopener noreferrer">${file.name}</a></p>${
-          isImage(file.name) ? `<p><img src="${url}" alt="${file.name}" /></p>` : ""
+        const uploaded = await uploadFileWithPath(file);
+        if (!uploaded) continue;
+        const content = `<p><a href="${uploaded.publicUrl}" data-file-path="${uploaded.path}" target="_blank" rel="noopener noreferrer">${file.name}</a></p>${
+          isImage(file.name) ? `<p><img src="${uploaded.publicUrl}" alt="${file.name}" /></p>` : ""
         }`;
         await supabase.from("documents").insert({
           title: file.name,
