@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X, Share2, Globe } from "lucide-react";
+import { Plus, FileText, ArrowRight, Trash2, BookOpen, MoreHorizontal, Pencil, X, Share2, Globe, Pin, PinOff, Palette } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
@@ -16,6 +16,8 @@ interface Note {
   title: string;
   content: string;
   folder: string | null;
+  notebook_id: string | null;
+  pinned: boolean;
   converted_doc_id: string | null;
   created_at: string;
   updated_at: string;
@@ -24,10 +26,35 @@ interface Note {
   shared_with?: any;
 }
 
+interface Notebook {
+  id: string;
+  name: string;
+  color: string;
+}
+
+const NOTEBOOK_COLORS = [
+  "220 65% 55%", // blue
+  "142 71% 45%", // green
+  "20 90% 55%",  // orange
+  "350 89% 60%", // pink
+  "262 83% 58%", // purple
+  "180 70% 45%", // teal
+  "48 96% 53%",  // yellow
+  "220 15% 45%", // slate
+];
+
+function fmtDate(d: string) {
+  const date = new Date(d);
+  const now = new Date();
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString(undefined, sameYear ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "2-digit" });
+}
+
 export default function NotesPage() {
   const { user, profile } = useAuth();
   const location = useLocation();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -36,11 +63,12 @@ export default function NotesPage() {
   const [convertTitle, setConvertTitle] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
 
-  // Folder state
-  const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All Notes
-  const [newFolderName, setNewFolderName] = useState("");
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  // Sidebar state
+  const [activeView, setActiveView] = useState<"all" | "pinned" | string>("all"); // string = notebook id
+  const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(new Set());
+  const [creatingNotebook, setCreatingNotebook] = useState(false);
+  const [newNotebookName, setNewNotebookName] = useState("");
+  const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
   const fetchNotes = useCallback(async () => {
@@ -50,10 +78,16 @@ export default function NotesPage() {
       .select("*")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
-    if (data) setNotes(data as Note[]);
+    if (data) setNotes(data as any[] as Note[]);
   }, [user]);
 
-  useEffect(() => { fetchNotes(); }, [fetchNotes]);
+  const fetchNotebooks = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("note_folders").select("id, name, color").eq("user_id", user.id).order("sort_order");
+    if (data) setNotebooks(data as Notebook[]);
+  }, [user]);
+
+  useEffect(() => { fetchNotes(); fetchNotebooks(); }, [fetchNotes, fetchNotebooks]);
 
   // Handle instant-create from GlobalCreateMenu
   useEffect(() => {
@@ -65,29 +99,23 @@ export default function NotesPage() {
     }
   }, [location.state, notes]);
 
-  // Fetch folders from DB
-  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
-  const fetchFolders = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase.from("note_folders").select("id, name").eq("user_id", user.id).order("sort_order");
-    if (data) setFolders(data as any[]);
-  }, [user]);
-  useEffect(() => { fetchFolders(); }, [fetchFolders]);
-  const folderNames = folders.map(f => f.name);
-
-  const filteredNotes = useMemo(() => {
-    if (activeFolder === null) return notes;
-    return notes.filter(n => n.folder === activeFolder);
-  }, [notes, activeFolder]);
-
-  const folderCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+  const pinnedNotes = useMemo(() => notes.filter(n => n.pinned), [notes]);
+  const unfiledNotes = useMemo(() => notes.filter(n => !n.notebook_id), [notes]);
+  const notesByNotebook = useMemo(() => {
+    const map: Record<string, Note[]> = {};
     notes.forEach(n => {
-      const f = n.folder || "__unfiled";
-      counts[f] = (counts[f] || 0) + 1;
+      if (n.notebook_id) {
+        (map[n.notebook_id] ||= []).push(n);
+      }
     });
-    return counts;
+    return map;
   }, [notes]);
+
+  const visibleNotes = useMemo(() => {
+    if (activeView === "all") return notes;
+    if (activeView === "pinned") return pinnedNotes;
+    return notesByNotebook[activeView] || [];
+  }, [activeView, notes, pinnedNotes, notesByNotebook]);
 
   const selectNote = (note: Note) => {
     setSelectedId(note.id);
@@ -97,23 +125,23 @@ export default function NotesPage() {
 
   const createNote = async () => {
     if (!user) return;
+    const notebookId = (activeView !== "all" && activeView !== "pinned") ? activeView : null;
     const { data, error } = await supabase
       .from("notes")
-      .insert({ user_id: user.id, title: "Untitled Note", content: "", folder: activeFolder })
+      .insert({ user_id: user.id, title: "Untitled Note", content: "", notebook_id: notebookId })
       .select()
       .single();
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     if (data) {
+      // Auto-expand the notebook we created in
+      if (notebookId) setExpandedNotebooks(prev => new Set(prev).add(notebookId));
       await fetchNotes();
-      selectNote(data as Note);
+      selectNote(data as any as Note);
     }
   };
 
   const saveNote = useCallback(async (id: string, updates: Partial<Note>) => {
-    await supabase.from("notes").update(updates).eq("id", id);
+    await supabase.from("notes").update(updates as any).eq("id", id);
   }, []);
 
   const handleTitleChange = (val: string) => {
@@ -134,74 +162,75 @@ export default function NotesPage() {
 
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id);
-    if (selectedId === id) {
-      setSelectedId(null);
-      setTitle("");
-      setContent("");
-    }
+    if (selectedId === id) { setSelectedId(null); setTitle(""); setContent(""); }
     fetchNotes();
     toast({ title: "Note deleted" });
   };
 
-  const moveToFolder = async (noteId: string, folder: string | null) => {
-    await supabase.from("notes").update({ folder }).eq("id", noteId);
+  const togglePin = async (note: Note) => {
+    await supabase.from("notes").update({ pinned: !note.pinned } as any).eq("id", note.id);
     fetchNotes();
   };
 
-  const createFolder = async () => {
-    if (!newFolderName.trim() || !user) return;
-    await supabase.from("note_folders").insert({ name: newFolderName.trim(), user_id: user.id });
-    setActiveFolder(newFolderName.trim());
-    setNewFolderName("");
-    setCreatingFolder(false);
-    fetchFolders();
+  const moveToNotebook = async (noteId: string, notebookId: string | null) => {
+    await supabase.from("notes").update({ notebook_id: notebookId } as any).eq("id", noteId);
+    if (notebookId) setExpandedNotebooks(prev => new Set(prev).add(notebookId));
+    fetchNotes();
   };
 
-  const renameFolder = async (oldName: string, newName: string) => {
-    if (!newName.trim() || newName === oldName) { setRenamingFolder(null); return; }
-    // Update all notes in this folder
-    const notesInFolder = notes.filter(n => n.folder === oldName);
-    for (const n of notesInFolder) {
-      await supabase.from("notes").update({ folder: newName.trim() }).eq("id", n.id);
+  const createNotebook = async () => {
+    if (!newNotebookName.trim() || !user) return;
+    const color = NOTEBOOK_COLORS[notebooks.length % NOTEBOOK_COLORS.length];
+    const { data } = await supabase.from("note_folders").insert({ name: newNotebookName.trim(), user_id: user.id, color } as any).select().single();
+    if (data) {
+      setActiveView((data as any).id);
+      setExpandedNotebooks(prev => new Set(prev).add((data as any).id));
     }
-    if (activeFolder === oldName) setActiveFolder(newName.trim());
-    setRenamingFolder(null);
-    fetchNotes();
+    setNewNotebookName("");
+    setCreatingNotebook(false);
+    fetchNotebooks();
   };
 
-  const deleteFolder = async (folderName: string) => {
-    // Move all notes in this folder to unfiled
-    const notesInFolder = notes.filter(n => n.folder === folderName);
-    for (const n of notesInFolder) {
-      await supabase.from("notes").update({ folder: null }).eq("id", n.id);
-    }
-    if (activeFolder === folderName) setActiveFolder(null);
-    fetchNotes();
-    toast({ title: "Folder removed", description: "Notes moved to All Notes" });
+  const renameNotebook = async (id: string, newName: string) => {
+    if (!newName.trim()) { setRenamingNotebook(null); return; }
+    await supabase.from("note_folders").update({ name: newName.trim() } as any).eq("id", id);
+    setRenamingNotebook(null);
+    fetchNotebooks();
   };
 
-  const openConvertDialog = () => {
-    setConvertTitle(title || "Untitled");
-    setConvertOpen(true);
+  const setNotebookColor = async (id: string, color: string) => {
+    await supabase.from("note_folders").update({ color } as any).eq("id", id);
+    fetchNotebooks();
   };
+
+  const deleteNotebook = async (id: string) => {
+    // Notes auto-unlinked via FK ON DELETE SET NULL
+    await supabase.from("note_folders").delete().eq("id", id);
+    if (activeView === id) setActiveView("all");
+    fetchNotebooks();
+    fetchNotes();
+    toast({ title: "Notebook removed", description: "Notes moved to All Notes" });
+  };
+
+  const toggleNotebook = (id: string) => {
+    setActiveView(id);
+    setExpandedNotebooks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const openConvertDialog = () => { setConvertTitle(title || "Untitled"); setConvertOpen(true); };
 
   const convertToDoc = async () => {
     if (!selectedId || !user) return;
-    const { data, error } = await supabase
-      .from("documents")
-      .insert({
-        title: convertTitle.trim() || title,
-        content,
-        author_id: user.id,
-        author_name: profile?.full_name || "Unknown",
-        visibility: "workspace",
-      })
-      .select("id")
-      .single();
-    if (error) {
-      toast({ title: "Error converting note", description: error.message, variant: "destructive" });
-      return;
-    }
+    const { data, error } = await supabase.from("documents").insert({
+      title: convertTitle.trim() || title, content,
+      author_id: user.id, author_name: profile?.full_name || "Unknown",
+      visibility: "workspace",
+    }).select("id").single();
+    if (error) { toast({ title: "Error converting note", description: error.message, variant: "destructive" }); return; }
     if (data) {
       await supabase.from("notes").update({ converted_doc_id: data.id }).eq("id", selectedId);
       toast({ title: "Converted to document", description: `"${convertTitle}" is now in Docs.` });
@@ -211,11 +240,30 @@ export default function NotesPage() {
   };
 
   const selectedNote = notes.find((n) => n.id === selectedId);
+  const selectedNotebook = selectedNote?.notebook_id ? notebooks.find(nb => nb.id === selectedNote.notebook_id) : null;
+
+  // Render a single note row in the sidebar
+  const renderNoteRow = (note: Note, indent = false) => (
+    <div
+      key={note.id}
+      className={`group relative px-2.5 py-1.5 cursor-pointer transition-colors rounded-md mx-1 ${
+        selectedId === note.id ? "bg-accent" : "hover:bg-accent/40"
+      } ${indent ? "ml-5" : ""}`}
+      onClick={() => selectNote(note)}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-[13px] font-medium truncate flex-1 min-w-0">{note.title}</span>
+        {note.pinned && <Pin className="h-2.5 w-2.5 text-muted-foreground/60 fill-current shrink-0" />}
+        {note.converted_doc_id && <FileText className="h-3 w-3 text-muted-foreground shrink-0" />}
+        <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0">{fmtDate(note.updated_at)}</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex h-[calc(100vh-3rem)]">
       {/* Sidebar */}
-      <div className="w-60 border-r border-border/50 flex flex-col shrink-0 bg-primary/[0.04]">
+      <div className="w-64 border-r border-border/50 flex flex-col shrink-0 bg-primary/[0.04]">
         <div className="p-3 border-b border-border/50 flex items-center justify-between">
           <h2 className="font-semibold text-sm">My Notes</h2>
           <Button size="icon" className="h-7 w-7" onClick={createNote}>
@@ -223,116 +271,160 @@ export default function NotesPage() {
           </Button>
         </div>
 
-        {/* Folder navigation */}
-        <div className="px-2 pt-2 pb-1 space-y-0.5">
+        <div className="flex-1 overflow-auto py-2 space-y-0.5">
+          {/* Pinned section */}
+          {pinnedNotes.length > 0 && (
+            <div className="mb-2">
+              <button
+                onClick={() => setActiveView("pinned")}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                  activeView === "pinned" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Pin className="h-3 w-3 fill-current" />
+                <span className="flex-1 text-left">Pinned</span>
+                <span className="text-[10px] font-normal opacity-60">{pinnedNotes.length}</span>
+              </button>
+              <div className="mt-0.5">
+                {pinnedNotes.map(n => renderNoteRow(n))}
+              </div>
+            </div>
+          )}
+
+          {/* All Notes */}
           <button
-            onClick={() => setActiveFolder(null)}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              activeFolder === null ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50"
+            onClick={() => setActiveView("all")}
+            className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+              activeView === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <FolderOpen className="h-3.5 w-3.5" />
+            <BookOpen className="h-3 w-3" />
             <span className="flex-1 text-left">All Notes</span>
-            <span className="text-[10px] text-muted-foreground">{notes.length}</span>
+            <span className="text-[10px] font-normal opacity-60">{notes.length}</span>
           </button>
 
-          {folderNames.map(f => (
-            <div key={f} className="group flex items-center">
-              {renamingFolder === f ? (
+          {/* Notebooks */}
+          <div className="mt-1">
+            {notebooks.map(nb => {
+              const isActive = activeView === nb.id;
+              const isExpanded = expandedNotebooks.has(nb.id);
+              const nbNotes = notesByNotebook[nb.id] || [];
+              return (
+                <div key={nb.id}>
+                  {renamingNotebook === nb.id ? (
+                    <div className="px-2 py-1">
+                      <Input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onBlur={() => renameNotebook(nb.id, renameValue)}
+                        onKeyDown={e => { if (e.key === "Enter") renameNotebook(nb.id, renameValue); if (e.key === "Escape") setRenamingNotebook(null); }}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={`group relative flex items-center mx-1 rounded-md transition-colors ${
+                        isActive ? "bg-accent/60" : "hover:bg-accent/30"
+                      }`}
+                      style={isActive ? { background: `hsl(${nb.color} / 0.1)` } : undefined}
+                    >
+                      {/* Color accent bar when active */}
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full" style={{ background: `hsl(${nb.color})` }} />
+                      )}
+                      <button
+                        onClick={() => toggleNotebook(nb.id)}
+                        className="flex-1 flex items-center gap-2 pl-3 pr-2 py-1.5 min-w-0"
+                      >
+                        <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: `hsl(${nb.color})` }} />
+                        <span className="text-[13px] font-medium truncate flex-1 text-left">{nb.name}</span>
+                        <span className="text-[10px] text-muted-foreground/70">{nbNotes.length}</span>
+                      </button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded hover:bg-accent transition-opacity">
+                            <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-1.5" align="end">
+                          <div className="px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                              <Palette className="h-3 w-3" /> Color
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {NOTEBOOK_COLORS.map(c => (
+                                <button
+                                  key={c}
+                                  onClick={() => setNotebookColor(nb.id, c)}
+                                  className={`h-4 w-4 rounded-full border-2 transition ${nb.color === c ? "border-foreground" : "border-transparent"}`}
+                                  style={{ background: `hsl(${c})` }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="h-px bg-border my-1" />
+                          <button
+                            onClick={() => { setRenamingNotebook(nb.id); setRenameValue(nb.name); }}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-accent"
+                          >
+                            <Pencil className="h-3 w-3" /> Rename
+                          </button>
+                          <button
+                            onClick={() => deleteNotebook(nb.id)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-destructive/10 text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" /> Delete
+                          </button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                  {isExpanded && nbNotes.length > 0 && (
+                    <div className="mt-0.5 mb-1 relative">
+                      <span className="absolute left-[18px] top-0 bottom-0 w-px bg-border/60" />
+                      {nbNotes.map(n => renderNoteRow(n, true))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {creatingNotebook ? (
+              <div className="flex items-center gap-1 px-2 mt-1">
                 <Input
                   autoFocus
-                  value={renameValue}
-                  onChange={e => setRenameValue(e.target.value)}
-                  onBlur={() => renameFolder(f, renameValue)}
-                  onKeyDown={e => { if (e.key === "Enter") renameFolder(f, renameValue); if (e.key === "Escape") setRenamingFolder(null); }}
-                  className="h-7 text-xs px-2 mx-1"
+                  value={newNotebookName}
+                  onChange={e => setNewNotebookName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") createNotebook(); if (e.key === "Escape") setCreatingNotebook(false); }}
+                  placeholder="Notebook name"
+                  className="h-7 text-xs flex-1"
                 />
-              ) : (
-                <button
-                  onClick={() => setActiveFolder(f)}
-                  className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    activeFolder === f ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50"
-                  }`}
-                >
-                  <Folder className="h-3.5 w-3.5" />
-                  <span className="flex-1 text-left truncate">{f}</span>
-                  <span className="text-[10px] text-muted-foreground">{folderCounts[f] || 0}</span>
+                <button onClick={() => setCreatingNotebook(false)} className="p-1 text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" />
                 </button>
-              )}
-              {renamingFolder !== f && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity">
-                      <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-32 p-1" align="end">
-                    <button
-                      onClick={() => { setRenamingFolder(f); setRenameValue(f); }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg hover:bg-accent"
-                    >
-                      <Pencil className="h-3 w-3" /> Rename
-                    </button>
-                    <button
-                      onClick={() => deleteFolder(f)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg hover:bg-destructive/10 text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-          ))}
-
-          {creatingFolder ? (
-            <div className="flex items-center gap-1 px-1">
-              <Input
-                autoFocus
-                value={newFolderName}
-                onChange={e => setNewFolderName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") setCreatingFolder(false); }}
-                placeholder="Folder name"
-                className="h-7 text-xs flex-1"
-              />
-              <button onClick={() => setCreatingFolder(false)} className="p-1 text-muted-foreground hover:text-foreground">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setCreatingFolder(true)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Plus className="h-3 w-3" /> New Folder
-            </button>
-          )}
-        </div>
-
-        {/* Notes list — clean: title + date only */}
-        <div className="flex-1 overflow-auto border-t border-border/50 mt-1">
-          {filteredNotes.map((note) => (
-            <div
-              key={note.id}
-              className={`px-3 py-2 cursor-pointer transition-colors border-b border-border/30 ${
-                selectedId === note.id ? "bg-accent" : "hover:bg-accent/30"
-              }`}
-              onClick={() => selectNote(note)}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium truncate flex-1">{note.title}</span>
-                {note.converted_doc_id && (
-                  <FileText className="h-3 w-3 text-muted-foreground shrink-0 ml-1" />
-                )}
               </div>
-              <span className="text-[10px] text-muted-foreground">
-                {new Date(note.updated_at).toLocaleDateString()}
-              </span>
+            ) : (
+              <button
+                onClick={() => setCreatingNotebook(true)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Plus className="h-3 w-3" /> New Notebook
+              </button>
+            )}
+          </div>
+
+          {/* Unfiled notes (when viewing All) */}
+          {activeView === "all" && unfiledNotes.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-border/40">
+              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Unfiled</div>
+              {unfiledNotes.map(n => renderNoteRow(n))}
             </div>
-          ))}
-          {filteredNotes.length === 0 && (
+          )}
+
+          {notes.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
-              {activeFolder ? "No notes in this folder." : "No notes yet. Create one to get started."}
+              No notes yet. Create one to get started.
             </div>
           )}
         </div>
@@ -350,32 +442,44 @@ export default function NotesPage() {
                 placeholder="Note title..."
               />
               <div className="flex gap-1 shrink-0 items-center">
-                {/* Folder picker */}
+                {/* Notebook picker */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground gap-1">
-                      <Folder className="h-3 w-3" />
-                      {selectedNote?.folder || "Unfiled"}
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground gap-1.5">
+                      <BookOpen className="h-3 w-3" style={selectedNotebook ? { color: `hsl(${selectedNotebook.color})` } : undefined} />
+                      {selectedNotebook?.name || "Unfiled"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-40 p-1" align="end">
+                  <PopoverContent className="w-48 p-1" align="end">
                     <button
-                      onClick={() => moveToFolder(selectedId, null)}
-                      className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-accent ${!selectedNote?.folder ? "font-medium" : ""}`}
+                      onClick={() => moveToNotebook(selectedId, null)}
+                      className={`w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-accent flex items-center gap-2 ${!selectedNote?.notebook_id ? "font-medium" : ""}`}
                     >
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
                       Unfiled
                     </button>
-                    {folderNames.map(f => (
+                    {notebooks.map(nb => (
                       <button
-                        key={f}
-                        onClick={() => moveToFolder(selectedId, f)}
-                        className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-accent ${selectedNote?.folder === f ? "font-medium" : ""}`}
+                        key={nb.id}
+                        onClick={() => moveToNotebook(selectedId, nb.id)}
+                        className={`w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-accent flex items-center gap-2 ${selectedNote?.notebook_id === nb.id ? "font-medium" : ""}`}
                       >
-                        {f}
+                        <span className="h-2 w-2 rounded-full" style={{ background: `hsl(${nb.color})` }} />
+                        {nb.name}
                       </button>
                     ))}
                   </PopoverContent>
                 </Popover>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-7 w-7 ${selectedNote?.pinned ? "text-primary" : "text-muted-foreground"}`}
+                  onClick={() => selectedNote && togglePin(selectedNote)}
+                  title={selectedNote?.pinned ? "Unpin" : "Pin"}
+                >
+                  {selectedNote?.pinned ? <Pin className="h-3.5 w-3.5 fill-current" /> : <PinOff className="h-3.5 w-3.5" />}
+                </Button>
 
                 <Button
                   variant="outline"
@@ -392,9 +496,7 @@ export default function NotesPage() {
                   </Button>
                 )}
                 {selectedNote?.converted_doc_id && (
-                  <span className="text-[10px] text-muted-foreground px-2 py-1 bg-muted rounded-full">
-                    Converted
-                  </span>
+                  <span className="text-[10px] text-muted-foreground px-2 py-1 bg-muted rounded-full">Converted</span>
                 )}
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => deleteNote(selectedId)}>
                   <Trash2 className="h-3.5 w-3.5" />
