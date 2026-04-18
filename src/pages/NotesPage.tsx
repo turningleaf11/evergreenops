@@ -71,6 +71,10 @@ export default function NotesPage() {
   const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
+  // Drag-and-drop state
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null); // notebook id, "unfiled", or null
+
   const fetchNotes = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -242,13 +246,29 @@ export default function NotesPage() {
   const selectedNote = notes.find((n) => n.id === selectedId);
   const selectedNotebook = selectedNote?.notebook_id ? notebooks.find(nb => nb.id === selectedNote.notebook_id) : null;
 
+  // Drag handlers
+  const handleDropOnNotebook = async (notebookId: string | null) => {
+    if (draggingNoteId) {
+      await moveToNotebook(draggingNoteId, notebookId);
+      toast({ title: notebookId ? "Moved to notebook" : "Moved to Unfiled" });
+    }
+    setDraggingNoteId(null);
+    setDropTarget(null);
+  };
+
   // Render a single note row in the sidebar
   const renderNoteRow = (note: Note, indent = false) => (
     <div
       key={note.id}
+      draggable
+      onDragStart={(e) => {
+        setDraggingNoteId(note.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={() => { setDraggingNoteId(null); setDropTarget(null); }}
       className={`group relative px-2.5 py-1.5 cursor-pointer transition-colors rounded-md mx-1 ${
         selectedId === note.id ? "bg-accent" : "hover:bg-accent/40"
-      } ${indent ? "ml-5" : ""}`}
+      } ${indent ? "ml-5" : ""} ${draggingNoteId === note.id ? "opacity-40" : ""}`}
       onClick={() => selectNote(note)}
     >
       <div className="flex items-center gap-2 min-w-0">
@@ -326,8 +346,23 @@ export default function NotesPage() {
                     <div
                       className={`group relative flex items-center mx-1 rounded-md transition-colors ${
                         isActive ? "bg-accent/60" : "hover:bg-accent/30"
-                      }`}
-                      style={isActive ? { background: `hsl(${nb.color} / 0.1)` } : undefined}
+                      } ${dropTarget === nb.id ? "ring-2 ring-primary/60" : ""}`}
+                      style={
+                        dropTarget === nb.id
+                          ? { background: `hsl(${nb.color} / 0.18)` }
+                          : isActive
+                          ? { background: `hsl(${nb.color} / 0.1)` }
+                          : undefined
+                      }
+                      onDragOver={(e) => {
+                        if (draggingNoteId) {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dropTarget !== nb.id) setDropTarget(nb.id);
+                        }
+                      }}
+                      onDragLeave={() => { if (dropTarget === nb.id) setDropTarget(null); }}
+                      onDrop={(e) => { e.preventDefault(); handleDropOnNotebook(nb.id); }}
                     >
                       {/* Color accent bar when active */}
                       {isActive && (
@@ -414,11 +449,27 @@ export default function NotesPage() {
             )}
           </div>
 
-          {/* Unfiled notes (when viewing All) */}
-          {activeView === "all" && unfiledNotes.length > 0 && (
-            <div className="mt-3 pt-2 border-t border-border/40">
+          {/* Unfiled notes (when viewing All, or as drop target while dragging) */}
+          {activeView === "all" && (unfiledNotes.length > 0 || draggingNoteId) && (
+            <div
+              className={`mt-3 pt-2 border-t border-border/40 rounded-md transition-colors ${
+                dropTarget === "unfiled" ? "bg-accent/40 ring-2 ring-primary/40" : ""
+              }`}
+              onDragOver={(e) => {
+                if (draggingNoteId) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dropTarget !== "unfiled") setDropTarget("unfiled");
+                }
+              }}
+              onDragLeave={() => { if (dropTarget === "unfiled") setDropTarget(null); }}
+              onDrop={(e) => { e.preventDefault(); handleDropOnNotebook(null); }}
+            >
               <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Unfiled</div>
               {unfiledNotes.map(n => renderNoteRow(n))}
+              {unfiledNotes.length === 0 && draggingNoteId && (
+                <div className="px-3 py-3 text-xs text-muted-foreground/70 italic">Drop here to unfile</div>
+              )}
             </div>
           )}
 
