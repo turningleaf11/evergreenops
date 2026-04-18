@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  ArrowLeft, Calendar, User, X, Target, MessageSquare,
+  ArrowLeft, Calendar, User, Users, X, Target, MessageSquare, Check,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -204,9 +204,26 @@ export default function ProjectDetailPage() {
 
             <span className="text-muted-foreground/30">·</span>
 
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="h-3 w-3" /> {getName(project.owner_id)}
-            </span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
+                  <User className="h-3 w-3" /> {getName(project.owner_id)}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-1" align="start">
+                <div className="max-h-60 overflow-y-auto">
+                  {profiles.map((p) => (
+                    <button
+                      key={p.user_id}
+                      onClick={() => { updateProject({ owner_id: p.user_id }); logActivity("owner_changed", { new_owner: p.user_id }); }}
+                      className={`w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${project.owner_id === p.user_id ? "bg-accent/40 font-medium" : ""}`}
+                    >
+                      {p.full_name || "Unknown"}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <span className="text-muted-foreground/30">·</span>
 
@@ -258,6 +275,44 @@ export default function ProjectDetailPage() {
               </>
             )}
 
+            <span className="text-muted-foreground/30">·</span>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
+                  <Users className="h-3 w-3" />
+                  {(project.assignees || []).length > 0
+                    ? `${(project.assignees || []).length} team`
+                    : "Add team"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-60 p-1" align="start">
+                <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Team members</div>
+                <div className="max-h-64 overflow-y-auto">
+                  {profiles
+                    .filter((p) => p.user_id !== project.owner_id)
+                    .map((p) => {
+                      const isMember = (project.assignees || []).includes(p.user_id);
+                      return (
+                        <button
+                          key={p.user_id}
+                          onClick={() => {
+                            const current: string[] = project.assignees || [];
+                            const next = isMember
+                              ? current.filter((x) => x !== p.user_id)
+                              : [...current, p.user_id];
+                            updateProject({ assignees: next });
+                          }}
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left"
+                        >
+                          <span className="truncate">{p.full_name || "Unknown"}</span>
+                          {isMember && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                </div>
+              </PopoverContent>
+            </Popover>
             {(project.tags || []).map((t: string) => (
               <Badge key={t} variant="secondary" className="text-[11px] gap-1">
                 {t}
