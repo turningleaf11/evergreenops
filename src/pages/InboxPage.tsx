@@ -96,7 +96,8 @@ export default function InboxPage() {
     }
     if (activeLabel?.startsWith("gmail:")) {
       const id = activeLabel.slice(6);
-      return gmailLabels.find(l => l.id === id)?.name || "Label";
+      const found = gmailLabels.find(l => l.id === id);
+      return found?.leaf || found?.name || "Label";
     }
     return FOLDERS.find((f) => f.id === folder)?.label ?? "Inbox";
   }, [folder, activeLabel, labels, gmailLabels]);
