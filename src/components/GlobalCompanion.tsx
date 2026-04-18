@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 
 export function GlobalCompanion() {
   const companionCtx = useContext(CompanionContext);
-  const { isAdmin } = useAuth();
+  const { isPrimaryAdmin } = useAuth();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const messages = companionCtx?.messages ?? [];
@@ -22,7 +22,8 @@ export function GlobalCompanion() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  if (!companionCtx || !isAdmin) return null;
+  // The executive companion is reserved for the workspace primary admin (CEO).
+  if (!companionCtx || !isPrimaryAdmin) return null;
 
   return (
     <>
