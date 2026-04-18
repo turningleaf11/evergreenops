@@ -12,7 +12,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, User, X, Target, MessageSquare,
-  LayoutDashboard, FileText, CheckSquare, PenLine, FolderOpen,
+  LayoutDashboard, CheckSquare, PenLine, FolderOpen,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
@@ -279,9 +279,6 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <LayoutDashboard className="h-3.5 w-3.5" /> Overview
               </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <FileText className="h-3.5 w-3.5" /> Notes
-              </TabsTrigger>
               <TabsTrigger value="tasks" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <CheckSquare className="h-3.5 w-3.5" /> Tasks
                 {tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
@@ -304,12 +301,6 @@ export default function ProjectDetailPage() {
                 onOpenTab={setActiveTab}
                 onNotesChange={(html) => updateProject({ notes_content: html })}
                 onFilesChanged={fetchData}
-              />
-            </TabsContent>
-            <TabsContent value="notes" className="mt-0">
-              <ProjectNotesTab
-                content={project.notes_content || ""}
-                onChange={(html) => updateProject({ notes_content: html })}
               />
             </TabsContent>
             <TabsContent value="tasks" className="mt-0">
