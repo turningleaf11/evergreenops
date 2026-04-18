@@ -3,21 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const STRATEGIES = [
-  { value: "buy_and_hold", label: "Buy & Hold" },
-  { value: "brrrr", label: "BRRRR" },
-  { value: "fix_and_flip", label: "Fix & Flip" },
-  { value: "wholesale", label: "Wholesale" },
-  { value: "multifamily", label: "Multifamily" },
-  { value: "commercial", label: "Commercial" },
-  { value: "short_term_rental", label: "Short-Term Rental" },
-  { value: "land", label: "Land Development" },
-];
 
 interface Props {
   open: boolean;
@@ -29,11 +17,10 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
   const { user, profile } = useAuth();
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-  const [strategy, setStrategy] = useState("buy_and_hold");
-  const [criteria, setCriteria] = useState("");
+  const [strategy, setStrategy] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setName(""); setLocation(""); setStrategy("buy_and_hold"); setCriteria(""); };
+  const reset = () => { setName(""); setLocation(""); setStrategy(""); };
 
   const submit = async () => {
     if (!user || !name.trim()) { toast.error("Name is required"); return; }
@@ -41,8 +28,8 @@ export function AddMarketDialog({ open, onOpenChange, onCreated }: Props) {
     const { error } = await supabase.from("markets").insert({
       name: name.trim(),
       location: location.trim(),
-      strategy,
-      criteria: criteria.trim(),
+      strategy: strategy.trim(),
+      criteria: strategy.trim(),
       created_by: user.id,
       workspace_id: profile?.workspace_id,
     } as any);
