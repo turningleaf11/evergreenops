@@ -1,79 +1,25 @@
 
 
-# Project Workspace 2.0 — Overview + Tabs + Built-in Whiteboards
+You're asking about due date — confirming where it lives after the Overview restructure.
 
-## Layout
+## Due Date Placement
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Title · Status · Owner · Due · Linked Goal   [💬 Chat ▸] │  ← header w/ chat toggle
-├──────────────────────────────────────────────────────────┤
-│ [Overview] Notes  Tasks  Whiteboards  Files              │  ← tabs (no Discussion tab)
-├──────────────────────────────────────────┬───────────────┤
-│                                          │ DISCUSSION    │
-│   TAB CONTENT                            │ (right rail,  │
-│                                          │  collapsible) │
-└──────────────────────────────────────────┴───────────────┘
-```
+Currently the project header already shows the due date inline (next to status/owner). In the new Overview layout, I'll **keep due date in the header only** (same treatment as Linked Goal) — no duplicate card on Overview.
 
-- **No Discussion tab.** Discussion lives as a **collapsible right rail**, toggled by a chat button in the project header. Default = collapsed; opens as a 360px panel that overlays gracefully.
-- Same chat toggle works on every tab (including fullscreen whiteboard) so chat is always one click away.
-- Tab state persists per-project in localStorage.
+Updated right column on Overview becomes:
+1. **Team** (top right)
+2. **Tasks summary** (open count + next 3 due)
+3. **Files** (with upload)
 
-## Tab Contents
+Header keeps: Title · Status · Owner · **Due Date** · Linked Goal (clickable) · Discussion toggle
 
-**Overview (default)** — dashboard cards:
-- Recent activity feed
-- Notes preview (first paragraph + "Open notes")
-- Open tasks count + next 3 due
-- Whiteboards thumbnails (up to 3)
-- Files (recent 5)
-- Team avatars + linked goal chip
+If due date is missing from the current header, I'll add it there as part of this work so it stays one-glance visible without taking Overview real estate.
 
-**Notes** — full TipTap editor, full width, distraction-free.
-
-**Tasks** — embedded minimal task list (reuses ultra-minimal row style from execution Tasks tab).
-
-**Whiteboards** — grid of board cards. Two creation options:
-- **+ New whiteboard** → built-in canvas (using **tldraw** — open-source, embeddable, mature)
-- **+ Embed external** → paste Miro / Figma / FigJam URL, renders as an iframe card
-
-Click a board → opens fullscreen editor. Right-rail chat still accessible.
-
-**Files** — clean list/grid of attachments, drag-drop upload to Supabase `files` bucket.
-
-## Database Changes
-
-New table `whiteboards`:
-- `id, project_id, workspace_id, title, type ('native' | 'embed'), tldraw_data jsonb, embed_url text, created_by, created_at, updated_at`
-- RLS: workspace members read, owner/admin write
-
-New column on `projects`: `last_active_tab text` (optional, for restore — or use localStorage)
-
-Files use existing `files` bucket + a new `project_files` table or `entity_links` polymorphic.
-
-## Files to Touch
-
-**New**:
-- `src/pages/ProjectDetailPage.tsx` — full restructure into header + tabs + collapsible right rail
-- `src/components/execution/ProjectOverviewTab.tsx` — dashboard cards
-- `src/components/execution/ProjectNotesTab.tsx` — TipTap full-bleed
-- `src/components/execution/ProjectTasksTab.tsx` — minimal list (reuses TableView in compact mode)
-- `src/components/execution/ProjectWhiteboardsTab.tsx` — grid + create modal
-- `src/components/execution/ProjectFilesTab.tsx` — file grid
-- `src/components/execution/WhiteboardEditor.tsx` — tldraw canvas wrapper, autosaves to `tldraw_data`
-- `src/components/execution/WhiteboardEmbedCard.tsx` — iframe wrapper
-- `src/components/execution/ProjectChatRail.tsx` — collapsible right rail wrapping `CommentsSection`
-
-**Modified**:
-- `src/components/execution/ProjectInfoSidebar.tsx` — repurposed into Overview tab cards (deprecated as sidebar)
-
-**Dependency**: add `@tldraw/tldraw` (~1MB gzipped, lazy-loaded only when Whiteboards tab opens)
-
-## Phasing
-
-1. **Phase 1** — Tabs + chat rail + Overview/Notes/Tasks/Files (no whiteboards). Ships the new shape.
-2. **Phase 2** — Whiteboards tab with tldraw native + embed support.
-
-Approve Phase 1 first, then we tackle whiteboards as a focused follow-up.
+Everything else from the prior plan stands:
+1. Task click → side-peek DetailDrawer (no full page nav)
+2. Back button → "Back to Projects" → `/execution?tab=projects`
+3. Overview = inline Notes editor (left) + Team / Tasks / Files (right). No Linked Goal card, no Due Date card.
+4. Header Linked Goal chip → opens GoalPeek
+5. File upload on Files card + Files tab (Supabase `files` bucket, creates `documents` row with `project_id`)
+6. App background `--background` → `#FAFAFA` (light theme)
 
