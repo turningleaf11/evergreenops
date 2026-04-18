@@ -21,6 +21,7 @@ import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectChatRail from "@/components/execution/ProjectChatRail";
+import GoalPeek from "@/components/execution/GoalPeek";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
@@ -138,8 +139,8 @@ export default function ProjectDetailPage() {
     <div className="h-full flex flex-col">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/execution")}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Execution Hub
+        <Button variant="ghost" size="sm" onClick={() => navigate("/execution?tab=projects")}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
         </Button>
         <Button
           variant={chatOpen ? "secondary" : "ghost"}
@@ -249,9 +250,12 @@ export default function ProjectDetailPage() {
             {goalTitle && (
               <>
                 <span className="text-muted-foreground/30">·</span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <button
+                  onClick={() => setPeekGoalId(project.goal_id)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50 transition-colors"
+                >
                   <Target className="h-3 w-3" /> {goalTitle}
-                </span>
+                </button>
               </>
             )}
 
@@ -296,10 +300,11 @@ export default function ProjectDetailPage() {
               <ProjectOverviewTab
                 project={project}
                 tasks={tasks}
-                goalTitle={goalTitle}
                 linkedDocs={linkedDocs}
                 profiles={profiles}
                 onOpenTab={setActiveTab}
+                onNotesChange={(html) => updateProject({ notes_content: html })}
+                onFilesChanged={fetchData}
               />
             </TabsContent>
             <TabsContent value="notes" className="mt-0">
@@ -314,19 +319,29 @@ export default function ProjectDetailPage() {
                 profiles={profiles}
                 onCreate={createTask}
                 onStatusChange={updateTaskStatus}
+                onChanged={fetchData}
               />
             </TabsContent>
             <TabsContent value="whiteboards" className="mt-0">
               <ProjectWhiteboardsTab />
             </TabsContent>
             <TabsContent value="files" className="mt-0">
-              <ProjectFilesTab linkedDocs={linkedDocs} />
+              <ProjectFilesTab linkedDocs={linkedDocs} projectId={project.id} onChanged={fetchData} />
             </TabsContent>
           </Tabs>
         </div>
       </div>
 
       <ProjectChatRail open={chatOpen} onClose={() => setChatOpen(false)} projectId={project.id} />
+
+      <GoalPeek
+        goalId={peekGoalId}
+        onClose={() => setPeekGoalId(null)}
+        allProjects={[]}
+        getName={getName}
+        onChanged={fetchData}
+        onOpenProject={(pid) => { setPeekGoalId(null); navigate(`/projects/${pid}`); }}
+      />
     </div>
   );
 }
