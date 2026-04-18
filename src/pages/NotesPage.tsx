@@ -546,7 +546,7 @@ export default function NotesPage() {
               onDragLeave={() => { if (dropTarget === "unfiled") setDropTarget(null); }}
               onDrop={(e) => { e.preventDefault(); handleDropOnNotebook(null); }}
             >
-              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Unfiled</div>
+              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Notes</div>
               {unfiledNotes.map(n => renderNoteRow(n))}
               {unfiledNotes.length === 0 && draggingNoteId && (
                 <div className="px-3 py-3 text-xs text-muted-foreground/70 italic">Drop here to unfile</div>
