@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,8 @@ export default function InboxPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);
-  const [gmailLabels, setGmailLabels] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [gmailLabels, setGmailLabels] = useState<{ id: string; name: string; leaf: string; path: string[]; depth: number; type: string; color: string | null }[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string; items: { index: number; category: string; reason: string }[] } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -206,27 +207,91 @@ export default function InboxPage() {
           )}
         </div>
 
-        {/* Gmail labels (synced from connected account) */}
+        {/* Gmail labels (synced from connected account, grouped by `/` hierarchy) */}
         {gmailLabels.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border/30">
             <div className="px-2 mb-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Gmail labels</span>
             </div>
-            {gmailLabels.map(l => (
-              <button
-                key={l.id}
-                onClick={() => { setActiveLabel(`gmail:${l.id}`); setSelectedId(null); }}
-                className={cn(
-                  "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full no-underline",
-                  activeLabel === `gmail:${l.id}`
-                    ? "bg-primary/10 text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Tag className="h-3 w-3 shrink-0 text-muted-foreground" />
-                <span className="truncate">{l.name}</span>
-              </button>
-            ))}
+            {(() => {
+              // Build groups: top-level prefix → its labels (and its own row if standalone)
+              const groups = new Map<string, typeof gmailLabels>();
+              for (const l of gmailLabels) {
+                const key = l.path[0];
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(l);
+              }
+              return Array.from(groups.entries()).map(([prefix, items]) => {
+                // Standalone label (no children): single row
+                if (items.length === 1 && items[0].depth === 0) {
+                  const l = items[0];
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => { setActiveLabel(`gmail:${l.id}`); setSelectedId(null); }}
+                      className={cn(
+                        "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-left w-full no-underline",
+                        activeLabel === `gmail:${l.id}` ? "bg-primary/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: l.color || "hsl(var(--muted-foreground))" }} />
+                      <span className="truncate">{l.leaf}</span>
+                    </button>
+                  );
+                }
+                const isCollapsed = collapsedGroups.has(prefix);
+                const parentLabel = items.find((l) => l.depth === 0);
+                const children = items.filter((l) => l.depth > 0).sort((a, b) => a.name.localeCompare(b.name));
+                return (
+                  <div key={prefix}>
+                    <button
+                      onClick={() => {
+                        setCollapsedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full text-left no-underline"
+                    >
+                      <ChevronRight className={cn("h-3 w-3 transition-transform shrink-0", !isCollapsed && "rotate-90")} />
+                      <span className="truncate">{prefix}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{children.length || ""}</span>
+                    </button>
+                    {!isCollapsed && (
+                      <div className="ml-2">
+                        {parentLabel && (
+                          <button
+                            onClick={() => { setActiveLabel(`gmail:${parentLabel.id}`); setSelectedId(null); }}
+                            className={cn(
+                              "flex items-center gap-2 px-2.5 py-1 rounded-md text-sm transition-colors text-left w-full no-underline",
+                              activeLabel === `gmail:${parentLabel.id}` ? "bg-primary/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: parentLabel.color || "hsl(var(--muted-foreground))" }} />
+                            <span className="truncate text-xs italic">All</span>
+                          </button>
+                        )}
+                        {children.map((l) => (
+                          <button
+                            key={l.id}
+                            onClick={() => { setActiveLabel(`gmail:${l.id}`); setSelectedId(null); }}
+                            className={cn(
+                              "flex items-center gap-2 px-2.5 py-1 rounded-md text-sm transition-colors text-left w-full no-underline",
+                              activeLabel === `gmail:${l.id}` ? "bg-primary/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                            style={{ paddingLeft: `${0.625 + (l.depth - 1) * 0.75}rem` }}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: l.color || "hsl(var(--muted-foreground))" }} />
+                            <span className="truncate text-xs">{l.path.slice(1).join(" / ")}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </aside>
