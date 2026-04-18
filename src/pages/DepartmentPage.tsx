@@ -314,7 +314,7 @@ export default function DepartmentPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-[1500px] mx-auto space-y-6">
       {/* Department Header with accent */}
       <div className="relative">
         <div className="absolute inset-x-0 top-0 h-1 rounded-t-lg" style={{ backgroundColor: `hsl(${deptColor})` }} />

@@ -162,7 +162,7 @@ export default function DatabasesPage() {
     const dbViews = savedViews.filter(v => v.database_id === currentDb.id);
 
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-[1600px] mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
           {isAdmin && (<Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete Database</Button>)}
@@ -213,7 +213,7 @@ export default function DatabasesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold tracking-tight">Lists</h1><p className="text-muted-foreground mt-1">Create and manage your team's lists.</p></div>
         {isAdmin && (<Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New List</Button>)}

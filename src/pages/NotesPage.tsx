@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X } from "lucide-react";
+import { Plus, FileText, ArrowRight, Trash2, FolderOpen, Folder, MoreHorizontal, Pencil, X, Share2, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
+import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
 
 interface Note {
   id: string;
@@ -18,6 +19,9 @@ interface Note {
   converted_doc_id: string | null;
   created_at: string;
   updated_at: string;
+  is_public?: boolean;
+  share_token?: string | null;
+  shared_with?: any;
 }
 
 export default function NotesPage() {
@@ -30,6 +34,7 @@ export default function NotesPage() {
   const [saveTimer, setSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Folder state
   const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = All Notes
@@ -372,6 +377,15 @@ export default function NotesPage() {
                   </PopoverContent>
                 </Popover>
 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-7 text-xs gap-1 ${selectedNote?.is_public ? "border-primary/50 text-primary" : ""}`}
+                  onClick={() => setShareOpen(true)}
+                >
+                  {selectedNote?.is_public ? <Globe className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                  Share
+                </Button>
                 {!selectedNote?.converted_doc_id && (
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openConvertDialog}>
                     <ArrowRight className="h-3 w-3 mr-1" /> Doc
@@ -388,7 +402,9 @@ export default function NotesPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto">
-              <RichTextEditor key={selectedId} content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
+              <div className="max-w-4xl mx-auto px-4 lg:px-16 py-4">
+                <RichTextEditor key={selectedId} content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
+              </div>
             </div>
           </>
         ) : (
@@ -413,6 +429,21 @@ export default function NotesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share dialog */}
+      {selectedNote && (
+        <NoteShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          noteId={selectedNote.id}
+          initialIsPublic={!!selectedNote.is_public}
+          initialShareToken={selectedNote.share_token || null}
+          initialSharedMemberIds={selectedNote.shared_with?.memberIds || []}
+          onUpdated={(next) => {
+            setNotes(prev => prev.map(n => n.id === selectedNote.id ? { ...n, ...next } : n));
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -81,7 +81,7 @@ export default function MarketResearchPage() {
   const analysis = selected?.ai_analysis;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6">
+    <div className="max-w-[1400px] mx-auto p-4 sm:p-8 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Market Research</h1>
         <p className="text-sm text-muted-foreground">AI-powered real estate market analysis</p>
