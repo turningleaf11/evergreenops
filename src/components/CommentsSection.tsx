@@ -174,20 +174,45 @@ export default function CommentsSection({ entityType, entityId, hideHeader = fal
     );
   };
 
+  // When `hideHeader` is set, we're embedded in a height-constrained surface
+  // (rail, peek, drawer) — anchor the composer to the bottom and scroll the feed.
+  // Otherwise lay out naturally so inline detail panels (issues, drawers, etc.) keep flowing.
+  if (hideHeader) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          <div className="space-y-4 pb-2">
+            {topLevel.map((comment) => (
+              <CommentItem key={comment.id} comment={comment} />
+            ))}
+            {topLevel.length === 0 && (
+              <p className="text-sm text-muted-foreground">No comments yet.</p>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 border-t pt-3 mt-3 bg-background">
+          <RichCommentInput
+            placeholder="Write a comment..."
+            submitting={submitting}
+            onSubmit={(payload) => submitComment(payload)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {!hideHeader && (
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">Comments ({comments.length})</h3>
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-medium">Comments ({comments.length})</h3>
+      </div>
 
       <div className="space-y-4">
         {topLevel.map((comment) => (
           <CommentItem key={comment.id} comment={comment} />
         ))}
-        {topLevel.length === 0 && <p className="text-sm text-muted-foreground">No discussion yet.</p>}
+        {topLevel.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
       </div>
 
       <div className="border-t pt-3">

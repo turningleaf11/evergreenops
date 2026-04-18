@@ -149,7 +149,7 @@ export default function ProjectDetailPage() {
           className="gap-1.5"
         >
           <MessageSquare className="h-4 w-4" />
-          Discussion
+          Comments
         </Button>
       </div>
 
