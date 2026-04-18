@@ -38,6 +38,7 @@
 - [Activity Notifications](mem://features/activity-notifications) — Real-time event tracking via header bell and feed
 - [Leadership AI](mem://ai/leadership-companion-logic) — Supabase Edge Function chat with strategy context
 - [Executive AI](mem://ai/executive-companion-logic) — Global FAB Admin AI, Suggest-then-Confirm proactive briefings
+- [Project AI Tab](mem://features/project-ai-tab) — Per-project AI with task-generation tool calling, open to all project members
 - [Execution Hub](mem://features/execution-hub) — Goals, Projects, Tasks, Issues, Submissions across Board/List/Table views
 - [Task Workspaces](mem://features/project-task-workspaces) — Card-Enhanced List UI, hover actions, status dots
 - [Threaded Comments](mem://features/threaded-comments-activity) — Merged activity feed of comments and system logs
