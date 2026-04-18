@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
-import ProjectNotesTab from "@/components/execution/ProjectNotesTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
