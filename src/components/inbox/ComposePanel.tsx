@@ -65,12 +65,12 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const url = await uploadFile(file, "email-attachments");
+    const url = await uploadFile(file);
+    if (url) {
       setAttachments(a => [...a, { name: file.name, url }]);
       toast.success("Attached");
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+    } else {
+      toast.error("Upload failed");
     }
     e.target.value = "";
   };
