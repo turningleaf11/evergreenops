@@ -92,10 +92,16 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
         <p className="text-sm text-muted-foreground text-center py-6">No files yet.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {linkedDocs.map((doc) => (
+          {linkedDocs.map((doc) => {
+            const match = typeof doc.content === "string" ? doc.content.match(/href="([^"]+)"/) : null;
+            const fileUrl = match?.[1];
+            return (
             <button
               key={doc.id}
-              onClick={() => navigate(`/docs/${doc.id}`)}
+              onClick={() => {
+                if (fileUrl) window.open(fileUrl, "_blank", "noopener,noreferrer");
+                else toast({ title: "File unavailable", variant: "destructive" });
+              }}
               className="text-left rounded-xl border border-border/50 bg-card/40 p-4 hover:bg-card/70 transition-colors"
             >
               {isImage(doc.title) ? (
@@ -110,7 +116,8 @@ export default function ProjectFilesTab({ linkedDocs, projectId, onChanged }: Pr
                 </p>
               )}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
