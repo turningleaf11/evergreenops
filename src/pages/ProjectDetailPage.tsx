@@ -12,13 +12,14 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   ArrowLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
-  LayoutDashboard, CheckSquare, PenLine, FolderOpen,
+  LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
+import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ProjectChatRail from "@/components/execution/ProjectChatRail";
 import GoalPeek from "@/components/execution/GoalPeek";
 
@@ -363,6 +364,9 @@ export default function ProjectDetailPage() {
                 <FolderOpen className="h-3.5 w-3.5" /> Files
                 {linkedDocs.length > 0 && <span className="text-[10px] text-muted-foreground">({linkedDocs.length})</span>}
               </TabsTrigger>
+              <TabsTrigger value="ai" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
+                <Sparkles className="h-3.5 w-3.5" /> AI
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-0">
@@ -390,6 +394,16 @@ export default function ProjectDetailPage() {
             </TabsContent>
             <TabsContent value="files" className="mt-0">
               <ProjectFilesTab linkedDocs={linkedDocs} projectId={project.id} onChanged={fetchData} />
+            </TabsContent>
+            <TabsContent value="ai" className="mt-0">
+              <ProjectAiTab
+                project={project}
+                tasks={tasks}
+                profiles={profiles}
+                linkedDocs={linkedDocs}
+                goalTitle={goalTitle}
+                onTasksCreated={fetchData}
+              />
             </TabsContent>
           </Tabs>
         </div>
