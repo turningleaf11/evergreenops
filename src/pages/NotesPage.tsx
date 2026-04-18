@@ -374,7 +374,6 @@ export default function NotesPage() {
                       >
                         <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: `hsl(${nb.color})` }} />
                         <span className="text-[13px] font-medium truncate flex-1 text-left">{nb.name}</span>
-                        <span className="text-[10px] text-muted-foreground/70">{nbNotes.length}</span>
                       </button>
                       <Popover>
                         <PopoverTrigger asChild>
