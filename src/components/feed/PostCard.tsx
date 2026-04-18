@@ -100,7 +100,16 @@ export function PostCard({ post, onRefresh }: PostCardProps) {
           </div>
         </div>
       ) : (
-        post.content && <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+        post.content && (
+          /<[a-z][\s\S]*>/i.test(post.content) ? (
+            <div
+              className="text-sm prose-mention"
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+          )
+        )
       )}
 
       {post.image_url && (

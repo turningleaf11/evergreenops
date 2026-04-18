@@ -132,7 +132,13 @@ export function ReplyThread({ entityType, entityId, onCountChange }: ReplyThread
                   </button>
                 )}
               </div>
-              {r.content && <p className="text-sm text-foreground/90">{r.content}</p>}
+              {r.content && (
+                /<[a-z][\s\S]*>/i.test(r.content) ? (
+                  <div className="text-sm text-foreground/90 prose-mention" dangerouslySetInnerHTML={{ __html: r.content }} />
+                ) : (
+                  <p className="text-sm text-foreground/90">{r.content}</p>
+                )
+              )}
               {r.gif_url && <img src={r.gif_url} alt="GIF" className="rounded-md max-h-36 mt-1" />}
               {r.audio_url && (
                 <audio controls className="mt-1 h-8 max-w-[240px]">

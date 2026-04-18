@@ -22,7 +22,7 @@ const sectionMeta: Record<string, { label: string; icon: React.ElementType; desc
 };
 
 export default function VisionPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isPrimaryAdmin: isAdmin } = useAuth();
   const [sections, setSections] = useState<VisionSection[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [editText, setEditText] = useState("");

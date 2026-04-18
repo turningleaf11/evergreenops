@@ -37,7 +37,7 @@ const sectionMeta: Record<string, { label: string; icon: React.ElementType; desc
 
 export default function CeoDashboard() {
   const { data, update } = useCEOContext();
-  const { user, isAdmin } = useAuth();
+  const { user, isPrimaryAdmin } = useAuth();
   const { ceoPageName } = useWorkspace();
 
   const [editingObjective, setEditingObjective] = useState(false);
@@ -152,7 +152,7 @@ export default function CeoDashboard() {
                       startVisionEdit={startVisionEdit}
                       saveVisionEdit={saveVisionEdit}
                       currentQuarterGoals={currentQuarterGoals}
-                      isAdmin={isAdmin}
+                      isAdmin={isPrimaryAdmin}
                     />
                   </div>
                 </SheetContent>
