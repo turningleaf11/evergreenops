@@ -122,14 +122,18 @@ export const UniversalMention = Mention.extend({
     };
   },
   renderHTML({ node, HTMLAttributes }) {
+    // Render as a span (NOT an anchor) so the browser can never natively navigate.
+    // The global MentionClickHandler reads data-url and routes via React Router.
     return [
-      "a",
+      "span",
       {
         ...HTMLAttributes,
-        href: node.attrs.url || "#",
+        role: "button",
+        tabindex: "0",
         "data-type": "mention",
         "data-mention-type": node.attrs.type,
         "data-mention-id": node.attrs.id,
+        "data-url": node.attrs.url || "",
         class: "mention-chip",
       },
       `@${node.attrs.label}`,
