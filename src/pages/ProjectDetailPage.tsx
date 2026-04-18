@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  ArrowLeft, Calendar, User, Users, X, Target, MessageSquare, Check,
+  ArrowLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -207,20 +207,77 @@ export default function ProjectDetailPage() {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
-                  <User className="h-3 w-3" /> {getName(project.owner_id)}
+                  <Users className="h-3 w-3" />
+                  {(() => {
+                    const teamCount = (project.assignees || []).length + (project.owner_id ? 1 : 0);
+                    if (!project.owner_id && teamCount === 0) return "Add team";
+                    const ownerName = project.owner_id ? getName(project.owner_id).split(" ")[0] : null;
+                    return ownerName ? `${ownerName}${teamCount > 1 ? ` +${teamCount - 1}` : ""}` : `${teamCount} team`;
+                  })()}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 p-1" align="start">
-                <div className="max-h-60 overflow-y-auto">
-                  {profiles.map((p) => (
-                    <button
-                      key={p.user_id}
-                      onClick={() => { updateProject({ owner_id: p.user_id }); logActivity("owner_changed", { new_owner: p.user_id }); }}
-                      className={`w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${project.owner_id === p.user_id ? "bg-accent/40 font-medium" : ""}`}
-                    >
-                      {p.full_name || "Unknown"}
-                    </button>
-                  ))}
+              <PopoverContent className="w-64 p-1" align="start">
+                <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-between">
+                  <span>Team</span>
+                  <span className="flex items-center gap-1 normal-case tracking-normal text-muted-foreground/70">
+                    <Crown className="h-3 w-3" /> = owner
+                  </span>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {profiles.map((p) => {
+                    const isOwner = project.owner_id === p.user_id;
+                    const isMember = isOwner || (project.assignees || []).includes(p.user_id);
+                    return (
+                      <div
+                        key={p.user_id}
+                        className={`group flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${isMember ? "bg-accent/30" : ""}`}
+                      >
+                        <button
+                          onClick={() => {
+                            const current: string[] = project.assignees || [];
+                            if (isOwner) {
+                              updateProject({ owner_id: null });
+                              logActivity("owner_changed", { new_owner: null });
+                              return;
+                            }
+                            if (isMember) {
+                              updateProject({ assignees: current.filter((x) => x !== p.user_id) });
+                            } else {
+                              updateProject({ assignees: [...current, p.user_id] });
+                            }
+                          }}
+                          className="flex-1 min-w-0 text-left truncate"
+                        >
+                          {p.full_name || "Unknown"}
+                        </button>
+                        {isMember && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isOwner) return;
+                              const current: string[] = project.assignees || [];
+                              updateProject({
+                                owner_id: p.user_id,
+                                assignees: current.filter((x) => x !== p.user_id),
+                              });
+                              logActivity("owner_changed", { new_owner: p.user_id });
+                            }}
+                            title={isOwner ? "Owner" : "Make owner"}
+                            className={`shrink-0 rounded-md p-1 transition-colors ${
+                              isOwner
+                                ? "text-amber-500"
+                                : "text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-accent"
+                            }`}
+                          >
+                            <Crown className="h-3.5 w-3.5" fill={isOwner ? "currentColor" : "none"} />
+                          </button>
+                        )}
+                        {isMember && !isOwner && (
+                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </PopoverContent>
             </Popover>
@@ -274,45 +331,6 @@ export default function ProjectDetailPage() {
                 </button>
               </>
             )}
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
-                  <Users className="h-3 w-3" />
-                  {(project.assignees || []).length > 0
-                    ? `${(project.assignees || []).length} team`
-                    : "Add team"}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-60 p-1" align="start">
-                <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Team members</div>
-                <div className="max-h-64 overflow-y-auto">
-                  {profiles
-                    .filter((p) => p.user_id !== project.owner_id)
-                    .map((p) => {
-                      const isMember = (project.assignees || []).includes(p.user_id);
-                      return (
-                        <button
-                          key={p.user_id}
-                          onClick={() => {
-                            const current: string[] = project.assignees || [];
-                            const next = isMember
-                              ? current.filter((x) => x !== p.user_id)
-                              : [...current, p.user_id];
-                            updateProject({ assignees: next });
-                          }}
-                          className="w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left"
-                        >
-                          <span className="truncate">{p.full_name || "Unknown"}</span>
-                          {isMember && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        </button>
-                      );
-                    })}
-                </div>
-              </PopoverContent>
-            </Popover>
             {(project.tags || []).map((t: string) => (
               <Badge key={t} variant="secondary" className="text-[11px] gap-1">
                 {t}
