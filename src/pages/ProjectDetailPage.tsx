@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
       supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
       supabase.from("profiles").select("user_id, full_name"),
-      supabase.from("documents").select("id, title, updated_at").eq("project_id", id).order("updated_at", { ascending: false }),
+      supabase.from("documents").select("id, title, updated_at, content").eq("project_id", id).order("updated_at", { ascending: false }),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
     if (tRes.data) setTasks(tRes.data);
