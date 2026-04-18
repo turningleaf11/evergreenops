@@ -23,7 +23,7 @@ import {
   Image as ImageIcon,
   Paperclip,
   Info,
-  TableIcon,
+  Table as TableIcon,
   ChevronRight,
   Sparkles,
   ListChecks as ListChecksIcon,
