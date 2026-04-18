@@ -50,6 +50,8 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   const [notesOpen, setNotesOpen] = useState(true);
   const [discussionOpen, setDiscussionOpen] = useState(true);
 
+  const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchGoal = useCallback(async () => {
     if (!goalId) return;
     const { data } = await supabase.from("goals").select("*").eq("id", goalId).single();
