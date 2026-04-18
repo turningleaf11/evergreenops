@@ -122,8 +122,24 @@ export default function NotesPage() {
     return notesByNotebook[activeView] || [];
   }, [activeView, notes, pinnedNotes, notesByNotebook]);
 
+  const mergeNoteLocally = useCallback((id: string, updates: Partial<Note>) => {
+    setNotes((prev) =>
+      prev.map((note) => (note.id === id ? { ...note, ...updates } : note))
+    );
+  }, []);
+
   const saveNote = useCallback(async (id: string, updates: Partial<Note>) => {
-    await supabase.from("notes").update(updates as any).eq("id", id);
+    const payload = { ...updates, updated_at: new Date().toISOString() };
+    const { data } = await supabase
+      .from("notes")
+      .update(payload as any)
+      .eq("id", id)
+      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with")
+      .single();
+
+    if (data) {
+      setNotes((prev) => prev.map((note) => (note.id === id ? (data as Note) : note)));
+    }
   }, []);
 
   // Flush any pending debounced save immediately
@@ -183,12 +199,20 @@ export default function NotesPage() {
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
-    if (selectedId) scheduleSave(selectedId, { title: val });
+    if (selectedId) {
+      const nextUpdatedAt = new Date().toISOString();
+      mergeNoteLocally(selectedId, { title: val, updated_at: nextUpdatedAt });
+      scheduleSave(selectedId, { title: val, updated_at: nextUpdatedAt });
+    }
   };
 
   const handleContentChange = (html: string) => {
     setContent(html);
-    if (selectedId) scheduleSave(selectedId, { content: html });
+    if (selectedId) {
+      const nextUpdatedAt = new Date().toISOString();
+      mergeNoteLocally(selectedId, { content: html, updated_at: nextUpdatedAt });
+      scheduleSave(selectedId, { content: html, updated_at: nextUpdatedAt });
+    }
   };
 
   // Flush on tab hide / before unload / unmount
