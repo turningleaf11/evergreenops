@@ -100,33 +100,6 @@ interface CommandItem {
 
 const getSuggestionItems = (): CommandItem[] => [
   {
-    title: "AI: Plan",
-    description: "Turn these notes into a phased plan",
-    icon: <Sparkles className="h-4 w-4 text-primary" />,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).run();
-      runNotesAi(editor, "plan");
-    },
-  },
-  {
-    title: "AI: Extract tasks",
-    description: "Pull a checklist of action items from notes",
-    icon: <ListChecksIcon className="h-4 w-4 text-primary" />,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).run();
-      runNotesAi(editor, "tasks");
-    },
-  },
-  {
-    title: "AI: Summarize",
-    description: "Tight summary of these notes",
-    icon: <FileTextIcon className="h-4 w-4 text-primary" />,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).run();
-      runNotesAi(editor, "summarize");
-    },
-  },
-  {
     title: "Text",
     description: "Plain paragraph",
     icon: <Type className="h-4 w-4" />,
@@ -188,6 +161,20 @@ const getSuggestionItems = (): CommandItem[] => [
     icon: <Quote className="h-4 w-4" />,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+    },
+  },
+  {
+    title: "Badge",
+    description: "Highlighted note — pick a type, emoji & color",
+    icon: <Info className="h-4 w-4 text-primary" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range)
+        .insertContent({
+          type: "badge",
+          attrs: { preset: "note", emoji: "📝", color: "220 15% 45%" },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "Note: " }] }],
+        })
+        .run();
     },
   },
   {
@@ -254,44 +241,32 @@ const getSuggestionItems = (): CommandItem[] => [
       });
     },
   },
+  // AI actions — at the end of the menu
   {
-    title: "Info Callout",
-    description: "Informational note",
-    icon: <Info className="h-4 w-4 text-blue-500" />,
+    title: "AI: Plan",
+    description: "Turn these notes into a phased plan",
+    icon: <Sparkles className="h-4 w-4 text-primary" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range)
-        .insertContent({ type: "callout", attrs: { type: "info" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Info: " }] }] })
-        .run();
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "plan");
     },
   },
   {
-    title: "Warning Callout",
-    description: "Warning note",
-    icon: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
+    title: "AI: Extract tasks",
+    description: "Pull a checklist of action items from notes",
+    icon: <ListChecksIcon className="h-4 w-4 text-primary" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range)
-        .insertContent({ type: "callout", attrs: { type: "warning" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Warning: " }] }] })
-        .run();
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "tasks");
     },
   },
   {
-    title: "Success Callout",
-    description: "Success note",
-    icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+    title: "AI: Summarize",
+    description: "Tight summary of these notes",
+    icon: <FileTextIcon className="h-4 w-4 text-primary" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range)
-        .insertContent({ type: "callout", attrs: { type: "success" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Success: " }] }] })
-        .run();
-    },
-  },
-  {
-    title: "Error Callout",
-    description: "Error note",
-    icon: <XCircle className="h-4 w-4 text-red-500" />,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range)
-        .insertContent({ type: "callout", attrs: { type: "error" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Error: " }] }] })
-        .run();
+      editor.chain().focus().deleteRange(range).run();
+      runNotesAi(editor, "summarize");
     },
   },
 ];
