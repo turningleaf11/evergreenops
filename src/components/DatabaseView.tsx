@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { useViewPreference } from "@/hooks/useViewPreference";
 import { InlineText, InlineSelect, InlineDate } from "@/components/shared/InlineCell";
 
 type ViewMode = "table" | "kanban" | "list";

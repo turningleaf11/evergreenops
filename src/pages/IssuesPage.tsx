@@ -60,7 +60,7 @@ export default function IssuesPage() {
   const [newAssignee, setNewAssignee] = useState("");
   const [viewTab, setViewTab] = useState("open");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [viewMode, setViewMode] = useState<"list" | "board">("list");
+  const [viewMode, setViewMode] = useViewPreference<"list" | "board">("issues:view", "list");
 
   const fetchAll = useCallback(async () => {
     const [i, p] = await Promise.all([
