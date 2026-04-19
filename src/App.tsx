@@ -27,6 +27,7 @@ import TaskDetailPage from "./pages/TaskDetailPage";
 import NotesPage from "./pages/NotesPage";
 import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
+import ContentStudioPage from "./pages/ContentStudioPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
