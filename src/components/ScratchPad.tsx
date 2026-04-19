@@ -123,8 +123,8 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
     onProcess(text, images);
   };
 
-  const { text: plainText } = extractTextAndImages(content);
-  const isEmpty = plainText.trim().length < 10;
+  const { text: plainText, images: plainImages } = extractTextAndImages(content);
+  const isEmpty = plainText.trim().length < 3 && plainImages.length === 0;
   const state: "idle" | "hover" | "focus" = focused ? "focus" : (hovered ? "hover" : "idle");
 
   return (
