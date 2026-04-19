@@ -27,6 +27,7 @@ import TaskDetailPage from "./pages/TaskDetailPage";
 import NotesPage from "./pages/NotesPage";
 import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
+import ContentStudioPage from "./pages/ContentStudioPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
@@ -142,6 +143,7 @@ const App = () => (
                 {/* Add-Ons */}
                 <Route path="/time-clock" element={<TimeClockPage />} />
                 <Route path="/market-research" element={<MarketResearchPage />} />
+                <Route path="/content-studio" element={<ContentStudioPage />} />
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>
