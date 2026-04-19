@@ -32,8 +32,29 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
   const [loaded, setLoaded] = useState(false);
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleImageUpload = useCallback(() => {
+    triggerFileInput("image/*", async (file) => {
+      setUploadingImage(true);
+      try {
+        const url = await uploadFile(file);
+        if (!url) {
+          toast({ title: "Upload failed", description: "Could not upload image", variant: "destructive" });
+          return;
+        }
+        const newHtml = (content || "") + `<p><img src="${url}" alt="${file.name}" /></p>`;
+        setContent(newHtml);
+        await saveContent(newHtml);
+      } catch (e: any) {
+        toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+      } finally {
+        setUploadingImage(false);
+      }
+    });
+  }, [content]);
 
   // Track focus/blur within the editor surface
   useEffect(() => {
