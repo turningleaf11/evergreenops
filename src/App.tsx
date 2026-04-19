@@ -143,6 +143,7 @@ const App = () => (
                 {/* Add-Ons */}
                 <Route path="/time-clock" element={<TimeClockPage />} />
                 <Route path="/market-research" element={<MarketResearchPage />} />
+                <Route path="/content-studio" element={<ContentStudioPage />} />
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>
