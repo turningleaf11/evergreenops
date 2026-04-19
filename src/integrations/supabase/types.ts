@@ -294,6 +294,116 @@ export type Database = {
           },
         ]
       }
+      content_brands: {
+        Row: {
+          audience: string
+          canva_kit_id: string | null
+          color: string
+          created_at: string
+          id: string
+          mission: string
+          name: string
+          seeds: Json
+          sort_order: number
+          updated_at: string
+          user_id: string
+          voice: string
+          workspace_id: string | null
+        }
+        Insert: {
+          audience?: string
+          canva_kit_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          mission?: string
+          name: string
+          seeds?: Json
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+          voice?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          audience?: string
+          canva_kit_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          mission?: string
+          name?: string
+          seeds?: Json
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          voice?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
+      content_library: {
+        Row: {
+          brand_color: string
+          brand_id: string | null
+          brand_name: string
+          canva_url: string | null
+          content: string
+          created_at: string
+          id: string
+          image_url: string | null
+          platform: string
+          platform_label: string
+          seed: string
+          status: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          brand_color?: string
+          brand_id?: string | null
+          brand_name: string
+          canva_url?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          platform: string
+          platform_label: string
+          seed?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          brand_color?: string
+          brand_id?: string | null
+          brand_name?: string
+          canva_url?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          platform?: string
+          platform_label?: string
+          seed?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_library_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "content_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       database_rows: {
         Row: {
           created_at: string
