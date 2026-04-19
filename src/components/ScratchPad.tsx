@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Trash2, ImagePlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
+import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 
 interface ScratchPadProps {
   onProcess: (text: string, images: string[]) => void;
