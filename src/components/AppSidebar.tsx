@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles,
 } from "lucide-react";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
