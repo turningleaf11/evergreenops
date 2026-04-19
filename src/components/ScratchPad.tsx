@@ -138,7 +138,11 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             )}
           />
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Scratch Pad</h2>
-          {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving...</span>}
+          {(saving || uploadingImage) && (
+            <span className="text-[10px] text-muted-foreground animate-pulse">
+              {uploadingImage ? "Uploading image..." : "Saving..."}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!isEmpty && (
@@ -146,6 +150,16 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleImageUpload}
+            disabled={uploadingImage}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Add image"
+          >
+            {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+          </Button>
           <Button
             size="icon"
             variant="default"
@@ -174,7 +188,7 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             <RichTextEditor
               content={content}
               onChange={handleChange}
-              placeholder="Dump everything here — tasks, ideas, broken things, reminders... Type '/' for commands. Hit 'Process This' when ready."
+              placeholder="Dump everything here — tasks, ideas, broken things, reminders. Paste or drop a photo (handwritten notes, whiteboards, screenshots) and AI will read it. Type '/' for commands."
               borderless
             />
           </div>
