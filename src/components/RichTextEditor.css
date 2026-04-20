@@ -30,20 +30,27 @@
 }
 
 /* === Drag Handle (TipTap DragHandleReact) === */
+/* Give every block extra left padding so the handle sits clearly to the left of text */
+.rich-editor .ProseMirror > * {
+  position: relative;
+}
 .drag-handle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 22px;
+  width: 20px;
+  height: 24px;
   border-radius: 4px;
-  color: hsl(var(--muted-foreground) / 0.55);
+  color: hsl(var(--muted-foreground) / 0.6);
   cursor: grab;
   transition: background 0.15s, color 0.15s, opacity 0.15s;
   background: transparent;
   opacity: 0;
+  /* push handle further from text for breathing room */
+  margin-left: -8px;
 }
-.ProseMirror:hover ~ .drag-handle,
+/* Show handle whenever the editor is hovered (any row), and keep visible while hovering the handle itself */
+.rich-editor:hover .drag-handle,
 .drag-handle:hover {
   opacity: 1;
 }
@@ -53,6 +60,14 @@
 }
 .drag-handle:active {
   cursor: grabbing;
+}
+
+/* ProseMirror drop cursor (when dragging a block) — use accent color */
+.ProseMirror .ProseMirror-dropcursor,
+.prosemirror-dropcursor-block,
+.prosemirror-dropcursor-inline {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
 }
 
 .rich-editor .tiptap p.is-editor-empty:first-child::before {
