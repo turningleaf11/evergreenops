@@ -1,35 +1,42 @@
 
-The user wants the CEO Scratch Pad to accept images (upload + paste) and have the AI read them (OCR/vision) when processing.
 
-Looking at the existing code:
-- `ScratchPad.tsx` uses `RichTextEditor` (TipTap) and already extracts images from HTML via `extractTextAndImages` — so images embedded in the editor are already passed up as data URLs / URLs.
-- `ceo-triage` edge function **already supports multimodal input** — it accepts `images` array and forwards them to Gemini as `image_url` parts. ✅
-- So the backend is ready. What's missing is making it easy to **get images into the scratch pad**.
+## Scratch Pad Journal + Persistent Triage
 
-Need to verify: does `RichTextEditor` support image paste/upload? Let me note what to check during implementation: TipTap Image extension + paste handler + upload to `files` bucket (so the URL is accessible to the AI, not a giant base64 in the DB).
+Two changes that work together: archive each scratch pad session when AI processes it, and persist triage results so they survive navigation.
 
-## Plan
+### 1. Archive scratch pads on AI process
 
-**1. Add image support to the Scratch Pad**
-- Add a small image button (paperclip/image icon) next to the Sparkles button in the Scratch Pad header — opens file picker, uploads via existing `uploadFile` helper to the `files` storage bucket, inserts `<img src="...">` into the editor.
-- Add **paste handler** on the editor wrapper: when user pastes an image (clipboard `image/*`), upload it and insert at cursor.
-- Add **drag-and-drop** on the editor wrapper for images.
-- Show a tiny "Uploading…" indicator while the upload is in flight.
+- New table `ceo_scratch_pad_archive`: `id`, `user_id`, `content` (HTML, includes images), `triaged_count`, `created_at`.
+- When user clicks the AI/Sparkles button:
+  1. Run triage as today.
+  2. On success, copy current pad content into the archive.
+  3. Clear the live pad (so the next session starts fresh).
+- Add **"+ New"** icon in the Scratch Pad header → manual clear (with confirm if pad is non-empty; archives before clearing).
+- Add **History** icon (clock) in the header → opens a side sheet listing past dumps: date, time, first ~80 chars preview, item count. Click a row to view read-only (rendered HTML + images). Delete from history is allowed.
 
-**2. Ensure RichTextEditor renders images**
-- Verify TipTap `Image` extension is enabled in `RichTextEditor.tsx`. If not, add it so pasted/inserted `<img>` tags render.
+### 2. Persist triage results across navigation
 
-**3. AI processing already works**
-- `extractTextAndImages` already pulls all `<img src>` from the editor HTML.
-- `ceo-triage` already sends them as `image_url` parts to Gemini 2.5 Flash (multimodal).
-- No backend changes needed.
+- New table `ceo_triage_pending`: `id`, `user_id`, `text`, `category` (task/decision/idea/delegation), `suggested_assignee_id`, `suggested_priority`, `reasoning`, `source_archive_id`, `created_at`.
+- After triage runs, insert all returned items into this table for the current user.
+- `AiTriage` component reads pending items from `ceo_triage_pending` on mount instead of holding them in local state.
+- Approving/dismissing/converting an item deletes its row.
+- Result: navigate away, come back tomorrow — your triage queue is still there.
 
-**4. Light UX polish**
-- Update placeholder text to mention "paste a photo of handwritten notes too."
-- Toast on upload failure.
+### 3. UI tweaks (`ScratchPad.tsx` + `CeoDashboard.tsx`)
 
-## Files to change
-- `src/components/ScratchPad.tsx` — add image upload button, paste handler, drag-drop, uploading state.
-- `src/components/RichTextEditor.tsx` — confirm/add TipTap Image extension (only if missing).
+- Header right side icon order: History (clock) · New (plus) · Add image · AI process.
+- AI button tooltip becomes: "Process & file this page".
+- Empty pad with no triage pending shows quiet hint: "Fresh page. Dump anything."
+- Triage panel always visible when pending items exist (no longer ephemeral).
 
-No DB changes. No new edge functions. No new secrets.
+### Files
+
+- **Migration**: create `ceo_scratch_pad_archive` and `ceo_triage_pending` tables with RLS (user owns own rows; admins manage all).
+- **Edit** `supabase/functions/ceo-triage/index.ts`: after generating items, insert them into `ceo_triage_pending` server-side and return them as today; also archive the pad content. (Needs `user_id` — pull from JWT.)
+- **Edit** `src/components/ScratchPad.tsx`: add History sheet, New button, archive-on-process flow, clear after process.
+- **Edit** `src/components/AiTriage.tsx`: load pending from DB, delete row on action.
+- **Edit** `src/pages/CeoDashboard.tsx`: wire pending-triage subscription so the panel shows whenever rows exist.
+- **New** `src/components/ScratchPadHistorySheet.tsx`: side sheet with archive list + read-only viewer.
+
+No new secrets. No new edge functions.
+
