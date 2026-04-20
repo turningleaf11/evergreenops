@@ -103,7 +103,10 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        dropcursor: { color: "hsl(var(--primary))", width: 3 },
+      }),
       Underline,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer" } }),
       Highlight.configure({ multicolor: true }),

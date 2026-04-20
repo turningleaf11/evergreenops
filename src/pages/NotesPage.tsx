@@ -28,6 +28,7 @@ interface Note {
   shared_with?: any;
   cover_url?: string | null;
   icon?: string | null;
+  cover_position?: number | null;
 }
 
 interface Notebook {
@@ -148,7 +149,7 @@ export default function NotesPage() {
       .from("notes")
       .update(payload as any)
       .eq("id", id)
-      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon")
+      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon, cover_position")
       .single();
 
     if (data) {
@@ -654,6 +655,7 @@ export default function NotesPage() {
                 <DocCover
                   coverUrl={selectedNote?.cover_url ?? null}
                   icon={selectedNote?.icon ?? null}
+                  coverPosition={selectedNote?.cover_position ?? null}
                   editable={true}
                   onChange={(updates) => {
                     if (!selectedId) return;

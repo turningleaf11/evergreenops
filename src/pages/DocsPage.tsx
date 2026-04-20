@@ -32,6 +32,7 @@ interface Doc {
   tags: string[];
   cover_url: string | null;
   icon: string | null;
+  cover_position: number | null;
 }
 
 function mapRow(row: any): Doc {
@@ -50,6 +51,7 @@ function mapRow(row: any): Doc {
     tags: row.tags || [],
     cover_url: row.cover_url || null,
     icon: row.icon || null,
+    cover_position: row.cover_position ?? 50,
   };
 }
 
@@ -200,6 +202,7 @@ export default function DocsPage() {
     if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
     if (updates.cover_url !== undefined) dbUpdates.cover_url = updates.cover_url;
     if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+    if (updates.cover_position !== undefined) dbUpdates.cover_position = updates.cover_position;
     await supabase.from("documents").update(dbUpdates).eq("id", docId);
   }, []);
 
@@ -490,6 +493,7 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
       <DocCover
         coverUrl={doc.cover_url}
         icon={doc.icon}
+        coverPosition={doc.cover_position}
         editable={isAdmin}
         onChange={(updates) => onUpdate(updates as Partial<Doc>)}
       />
