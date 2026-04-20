@@ -59,5 +59,6 @@
 - [UI Detail Polish](mem://style/ui-detail-polish) — Minimal chrome, contextual triggers, hover darkening
 - [Aesthetic](mem://style/aesthetic) — Apple/Arc-inspired, glassmorphism, 0.75rem radius, light/dark modes
 - [Database Engine](mem://features/database-engine) — 'Lists' engine, inline management, multi-criteria controls
+- [Docs Notion Polish](mem://features/docs-notion-polish) — Cover/icon, drag handles, slash categories, backlinks, click-below-focus, ?id= URL sync
 - [Add-On Packs](mem://features/addon-packs) — SaaS-ready gating with addon_packs/workspace_addons tables and useAddonEnabled hook
 - [Reminders Multi-Delegation](mem://features/reminders-multi-delegation) — Multi-user delegation via junction table

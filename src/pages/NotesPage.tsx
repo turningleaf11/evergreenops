@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import BacklinksPanel from "@/components/docs/BacklinksPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ function fmtDate(d: string) {
 export default function NotesPage() {
   const { user, profile } = useAuth();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -93,6 +95,15 @@ export default function NotesPage() {
   }, [user]);
 
   useEffect(() => { fetchNotes(); fetchNotebooks(); }, [fetchNotes, fetchNotebooks]);
+
+  // Open note from ?id= URL param (e.g. peek "Open full note" button)
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id && notes.length > 0 && id !== selectedId) {
+      const note = notes.find(n => n.id === id);
+      if (note) selectNote(note);
+    }
+  }, [searchParams, notes]);
 
   // Handle instant-create from GlobalCreateMenu
   useEffect(() => {
@@ -638,6 +649,7 @@ export default function NotesPage() {
             <div className="flex-1 overflow-auto bg-white dark:bg-card">
               <div className="px-6 lg:px-16 py-6">
                 <RichTextEditor key={selectedId} content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
+                <BacklinksPanel entityId={selectedId} />
               </div>
             </div>
           </>

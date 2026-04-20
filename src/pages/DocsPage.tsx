@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import BacklinksPanel from "@/components/docs/BacklinksPanel";
+import DocCover from "@/components/docs/DocCover";
 import { supabase } from "@/integrations/supabase/client";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +30,8 @@ interface Doc {
   createdAt: string;
   updatedAt: string;
   tags: string[];
+  cover_url: string | null;
+  icon: string | null;
 }
 
 function mapRow(row: any): Doc {
@@ -43,18 +48,39 @@ function mapRow(row: any): Doc {
     createdAt: row.created_at?.split("T")[0] || "",
     updatedAt: row.updated_at?.split("T")[0] || "",
     tags: row.tags || [],
+    cover_url: row.cover_url || null,
+    icon: row.icon || null,
   };
 }
 
 export default function DocsPage() {
   const { isAdmin, profile, user } = useAuth();
   const { departments } = useDepartments();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(searchParams.get("id"));
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Sync selection -> URL
+  useEffect(() => {
+    const current = searchParams.get("id");
+    if (selectedDoc && selectedDoc !== current) {
+      setSearchParams({ id: selectedDoc }, { replace: true });
+    } else if (!selectedDoc && current) {
+      const params = new URLSearchParams(searchParams);
+      params.delete("id");
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedDoc]);
+
+  // Sync URL -> selection (e.g. peek "Open full doc" button)
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id && id !== selectedDoc) setSelectedDoc(id);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -172,6 +198,8 @@ export default function DocsPage() {
     if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
     if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
     if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
+    if (updates.cover_url !== undefined) dbUpdates.cover_url = updates.cover_url;
+    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
     await supabase.from("documents").update(dbUpdates).eq("id", docId);
   }, []);
 
@@ -459,6 +487,12 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
 
   return (
     <div className="max-w-none">
+      <DocCover
+        coverUrl={doc.cover_url}
+        icon={doc.icon}
+        editable={isAdmin}
+        onChange={(updates) => onUpdate(updates as Partial<Doc>)}
+      />
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
           {isAdmin ? (
@@ -566,6 +600,8 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
           </div>
         </div>
       )}
+
+      <BacklinksPanel entityId={doc.id} />
     </div>
   );
 }
