@@ -316,3 +316,88 @@
 .sidebar-pinned-mode .group.peer[data-state="expanded"] > div:nth-child(2) {
   box-shadow: none !important;
 }
+
+/* ===== Kudos / Recognition celebration ===== */
+@keyframes kudos-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes kudos-heart-beat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.18); }
+  60% { transform: scale(1); }
+}
+
+@keyframes kudos-confetti-fall {
+  0% { transform: translateY(-8px) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(48px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes kudos-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+.kudos-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg,
+      hsl(330 90% 65% / 0.12) 0%,
+      hsl(280 85% 65% / 0.10) 35%,
+      hsl(45 95% 60% / 0.10) 70%,
+      hsl(15 90% 65% / 0.12) 100%);
+  background-size: 200% 200%;
+  animation: kudos-shimmer 8s ease-in-out infinite;
+  border: 1px solid hsl(330 80% 65% / 0.25);
+}
+
+.kudos-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, hsl(330 90% 70% / 0.18), transparent 40%),
+    radial-gradient(circle at 85% 80%, hsl(45 95% 65% / 0.15), transparent 40%);
+  pointer-events: none;
+}
+
+.kudos-heart {
+  animation: kudos-heart-beat 2.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.kudos-confetti {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  pointer-events: none;
+  animation: kudos-confetti-fall 2.6s ease-in infinite;
+}
+
+.kudos-sparkle {
+  position: absolute;
+  pointer-events: none;
+  animation: kudos-sparkle 2.8s ease-in-out infinite;
+}
+
+.kudos-avatar-ring {
+  background: conic-gradient(
+    from 0deg,
+    hsl(330 90% 65%),
+    hsl(280 85% 65%),
+    hsl(200 90% 60%),
+    hsl(45 95% 60%),
+    hsl(15 90% 65%),
+    hsl(330 90% 65%)
+  );
+  animation: conic-spin 6s linear infinite;
+  padding: 2px;
+  border-radius: 9999px;
+}
