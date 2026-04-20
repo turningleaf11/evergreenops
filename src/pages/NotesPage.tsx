@@ -148,7 +148,7 @@ export default function NotesPage() {
       .from("notes")
       .update(payload as any)
       .eq("id", id)
-      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with")
+      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon")
       .single();
 
     if (data) {
