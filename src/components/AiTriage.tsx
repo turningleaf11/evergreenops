@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 export type TriageItem = {
+  id: string;
   text: string;
   category: "task" | "decision" | "idea" | "delegation";
   suggested_assignee_id: string | null;
@@ -20,7 +21,7 @@ export type TriageItem = {
 interface AiTriageProps {
   items: TriageItem[];
   profiles: { user_id: string; full_name: string | null }[];
-  onItemProcessed: (index: number) => void;
+  onItemProcessed: (id: string) => void;
   onClear: () => void;
 }
 
@@ -41,18 +42,24 @@ const categoryDestinations: Record<string, { label: string; path: string; tab?: 
 export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriageProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-  const [assignees, setAssignees] = useState<Record<number, string | null>>({});
+  const [assignees, setAssignees] = useState<Record<string, string | null>>({});
   const [open, setOpen] = useState(true);
 
   if (items.length === 0) return null;
 
-  const getAssignee = (idx: number, item: TriageItem) => assignees[idx] ?? item.suggested_assignee_id;
+  const getAssignee = (item: TriageItem) =>
+    assignees[item.id] !== undefined ? assignees[item.id] : item.suggested_assignee_id;
 
-  const approveItem = async (idx: number, item: TriageItem) => {
-    const assigneeId = getAssignee(idx, item);
-    const text = editingIdx === idx ? editText : item.text;
+  const removePending = async (id: string) => {
+    await supabase.from("ceo_triage_pending").delete().eq("id", id);
+    onItemProcessed(id);
+  };
+
+  const approveItem = async (item: TriageItem) => {
+    const assigneeId = getAssignee(item);
+    const text = editingId === item.id ? editText : item.text;
     const dest = categoryDestinations[item.category];
 
     try {
@@ -65,36 +72,33 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
           status: "todo",
         });
       } else if (item.category === "decision") {
-        await supabase.from("decision_log").insert({
-          title: text,
-          created_by: user?.id,
-        });
+        await supabase.from("decision_log").insert({ title: text, created_by: user?.id });
       } else if (item.category === "idea") {
-        await supabase.from("strategy_items").insert({
-          title: text,
-          type: "idea",
-          created_by: user?.id,
-        });
+        await supabase.from("strategy_items").insert({ title: text, type: "idea", created_by: user?.id });
       }
       toast({
         title: `${item.category.charAt(0).toUpperCase() + item.category.slice(1)} created`,
         description: `Added to ${dest.label}. ${text.slice(0, 50)}`,
         action: (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs shrink-0"
-            onClick={() => navigate(dest.path)}
-          >
+          <Button variant="outline" size="sm" className="h-7 text-xs shrink-0" onClick={() => navigate(dest.path)}>
             View
           </Button>
         ),
       });
-      onItemProcessed(idx);
-      setEditingIdx(null);
+      await removePending(item.id);
+      setEditingId(null);
     } catch {
       toast({ title: "Error creating item", variant: "destructive" });
     }
+  };
+
+  const dismissAll = async () => {
+    if (!user) return;
+    const ids = items.map((i) => i.id);
+    if (ids.length > 0) {
+      await supabase.from("ceo_triage_pending").delete().in("id", ids);
+    }
+    onClear();
   };
 
   return (
@@ -102,18 +106,18 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
       <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
         {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
         <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">
-          AI Triage Results
+          AI Triage Queue
         </h2>
         <Badge variant="secondary" className="ml-2 text-xs">{items.length}</Badge>
-        <Button variant="ghost" size="sm" className="ml-auto text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); onClear(); }}>
+        <Button variant="ghost" size="sm" className="ml-auto text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); dismissAll(); }}>
           Dismiss All
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3 space-y-2">
-        {items.map((item, idx) => {
+        {items.map((item) => {
           const dest = categoryDestinations[item.category];
           return (
-            <div key={idx} className="rounded-lg border border-border bg-card p-4 space-y-2">
+            <div key={item.id} className="rounded-lg border border-border bg-card p-4 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
@@ -127,7 +131,7 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
                       → {dest.label}
                     </span>
                   </div>
-                  {editingIdx === idx ? (
+                  {editingId === item.id ? (
                     <input
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
@@ -141,24 +145,23 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                    if (editingIdx === idx) { setEditingIdx(null); }
-                    else { setEditingIdx(idx); setEditText(item.text); }
+                    if (editingId === item.id) { setEditingId(null); }
+                    else { setEditingId(item.id); setEditText(item.text); }
                   }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => approveItem(idx, item)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => approveItem(item)}>
                     <Check className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onItemProcessed(idx)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removePending(item.id)}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-              {/* Assignee selector */}
               {(item.category === "task" || item.category === "delegation") && (
                 <Select
-                  value={getAssignee(idx, item) || "unassigned"}
-                  onValueChange={(v) => setAssignees(prev => ({ ...prev, [idx]: v === "unassigned" ? null : v }))}
+                  value={getAssignee(item) || "unassigned"}
+                  onValueChange={(v) => setAssignees(prev => ({ ...prev, [item.id]: v === "unassigned" ? null : v }))}
                 >
                   <SelectTrigger className="h-7 w-48 text-xs">
                     <SelectValue placeholder="Assign to..." />
