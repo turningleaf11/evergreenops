@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Phone, Building2, User, Pencil, Camera, Plus, Trash2 } from "lucide-react";
+import { Mail, Phone, Building2, User, Pencil, Camera, Plus, Trash2, Cake, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 
 interface Profile {
   user_id: string;
@@ -23,6 +24,8 @@ interface Profile {
   email: string | null;
   bio: string | null;
   reports_to: string | null;
+  birthday?: string | null;
+  start_date?: string | null;
 }
 
 interface Department {
@@ -61,7 +64,16 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
 
   useEffect(() => {
     if (person) {
-      setForm({ title: person.title, department_id: person.department_id, reports_to: person.reports_to, email: person.email, phone: person.phone, bio: person.bio });
+      setForm({
+        title: person.title,
+        department_id: person.department_id,
+        reports_to: person.reports_to,
+        email: person.email,
+        phone: person.phone,
+        bio: person.bio,
+        birthday: person.birthday ?? null,
+        start_date: person.start_date ?? null,
+      });
       setEditing(false);
     }
   }, [person]);
@@ -88,7 +100,9 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
       email: form.email || null,
       phone: form.phone || null,
       bio: form.bio || null,
-    }).eq("user_id", person.user_id);
+      birthday: form.birthday || null,
+      start_date: form.start_date || null,
+    } as any).eq("user_id", person.user_id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -201,6 +215,18 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span>{manager ? <>Reports to <span className="font-medium">{manager.full_name || "Unnamed"}</span></> : <span className="text-muted-foreground italic">No manager assigned</span>}</span>
                 </div>
+                {person.birthday && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <Cake className="h-4 w-4 text-pink-500" />
+                    <span>Birthday <span className="font-medium">{format(parseISO(person.birthday), "MMMM d")}</span></span>
+                  </div>
+                )}
+                {person.start_date && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <PartyPopper className="h-4 w-4 text-amber-500" />
+                    <span>Joined <span className="font-medium">{format(parseISO(person.start_date), "MMM d, yyyy")}</span></span>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -244,6 +270,16 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Bio</label>
                 <Textarea value={form.bio || ""} onChange={(e) => setForm({ ...form, bio: e.target.value })} className="text-sm mt-1" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Cake className="h-3 w-3" /> Birthday</label>
+                  <Input type="date" value={form.birthday || ""} onChange={(e) => setForm({ ...form, birthday: e.target.value })} className="h-8 text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><PartyPopper className="h-3 w-3" /> Start date</label>
+                  <Input type="date" value={form.start_date || ""} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="h-8 text-sm mt-1" />
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleSave}>Save</Button>

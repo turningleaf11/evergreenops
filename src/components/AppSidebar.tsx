@@ -47,18 +47,23 @@ export function AppSidebar() {
     ? allDepartments
     : allDepartments.filter((d) => d.id === profile?.department_id);
 
-  const mainNav = [
+  const homeNav = [
     { title: "Home", url: "/", icon: Home },
-    { title: "Feed", url: "/feed", icon: Pizza },
-    // CEO Cockpit is restricted to the workspace primary admin (CEO) only
     ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
+  ];
+
+  const cultureNav = [
+    { title: "Feed", url: "/feed", icon: Pizza },
+    { title: "People", url: "/people", icon: Users },
+    { title: "Training", url: "/training", icon: GraduationCap },
+  ];
+
+  const workNav = [
     { title: "Execution Hub", url: "/execution", icon: Target },
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
-    { title: "People", url: "/people", icon: Users },
-    { title: "Training", url: "/training", icon: GraduationCap },
   ];
 
   const addonNav = [
@@ -122,7 +127,33 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNav.map((item) => (
+              {homeNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <NavItem item={item} />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          {!collapsed && <SidebarGroupLabel className="text-[10px]">People & Culture</SidebarGroupLabel>}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {cultureNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <NavItem item={item} />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          {!collapsed && <SidebarGroupLabel className="text-[10px]">Work</SidebarGroupLabel>}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {workNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <NavItem item={item} />
                 </SidebarMenuItem>

@@ -1790,6 +1790,7 @@ export type Database = {
           availability_status: string | null
           avatar_url: string | null
           bio: string | null
+          birthday: string | null
           created_at: string
           department_id: string | null
           email: string | null
@@ -1798,6 +1799,7 @@ export type Database = {
           phone: string | null
           reports_to: string | null
           skills: string[] | null
+          start_date: string | null
           time_clock_enabled: boolean
           timezone: string | null
           title: string | null
@@ -1809,6 +1811,7 @@ export type Database = {
           availability_status?: string | null
           avatar_url?: string | null
           bio?: string | null
+          birthday?: string | null
           created_at?: string
           department_id?: string | null
           email?: string | null
@@ -1817,6 +1820,7 @@ export type Database = {
           phone?: string | null
           reports_to?: string | null
           skills?: string[] | null
+          start_date?: string | null
           time_clock_enabled?: boolean
           timezone?: string | null
           title?: string | null
@@ -1828,6 +1832,7 @@ export type Database = {
           availability_status?: string | null
           avatar_url?: string | null
           bio?: string | null
+          birthday?: string | null
           created_at?: string
           department_id?: string | null
           email?: string | null
@@ -1836,6 +1841,7 @@ export type Database = {
           phone?: string | null
           reports_to?: string | null
           skills?: string[] | null
+          start_date?: string | null
           time_clock_enabled?: boolean
           timezone?: string | null
           title?: string | null

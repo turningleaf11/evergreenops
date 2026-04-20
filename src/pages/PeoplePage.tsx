@@ -33,7 +33,7 @@ export default function PeoplePage() {
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to");
+      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to, birthday, start_date");
     if (data) setProfiles(data);
   }, []);
 
