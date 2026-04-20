@@ -31,12 +31,14 @@ import {
 } from "lucide-react";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import "./RichTextEditor.css";
+import { cn } from "@/lib/utils";
 
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
   borderless?: boolean;
+  compact?: boolean;
 }
 
 const TEXT_COLORS = [
@@ -97,7 +99,7 @@ function createImageUploadPlugin() {
   });
 }
 
-export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false, compact = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const isInternalChange = useRef(false);
 
@@ -154,7 +156,12 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
 
   return (
     <div
-      className={`rich-editor ${borderless ? '' : 'border rounded-lg'} bg-background ${borderless ? 'rich-editor-borderless' : ''}`}
+      className={cn(
+        "rich-editor bg-background",
+        !borderless && "border rounded-lg",
+        borderless && !compact && "rich-editor-borderless",
+        compact && "rich-editor-compact"
+      )}
       onClick={handleSurfaceClick}
     >
       {/* Bubble Menu — appears on text selection */}
