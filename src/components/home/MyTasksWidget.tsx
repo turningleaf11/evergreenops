@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { CheckSquare, ArrowRight, Circle, CheckCircle2, Plus, X } from "lucide-react";
+import { CheckSquare, ArrowRight, Circle, CheckCircle2, Plus, X, Repeat } from "lucide-react";
 import { format, isToday, isPast, parseISO, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
 import DetailDrawer from "@/components/DetailDrawer";
@@ -17,6 +17,7 @@ interface Task {
   status: string;
   due_date: string | null;
   priority: string;
+  tags?: string[] | null;
 }
 
 export function MyTasksWidget() {
@@ -50,7 +51,7 @@ export function MyTasksWidget() {
     if (!user) return;
     const { data } = await supabase
       .from("tasks")
-      .select("id, title, status, due_date, priority")
+      .select("id, title, status, due_date, priority, tags")
       .eq("assigned_to", user.id)
       .neq("status", "done")
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -193,27 +194,44 @@ export function MyTasksWidget() {
           </div>
         ) : (
           <div className="space-y-0.5 -mx-2 px-2">
-            {filtered.slice(0, 10).map((t) => (
-              <div key={t.id} className="flex items-start gap-2 py-1.5 group">
-                <button
-                  onClick={() => toggle(t.id, t.status)}
-                  className="mt-0.5 text-muted-foreground/40 hover:text-primary transition-colors"
-                >
-                  <Circle className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => openTask(t.id)} className="min-w-0 flex-1 text-left group-hover:text-foreground">
-                  <p className="text-xs leading-snug truncate">{t.title}</p>
-                  {t.due_date && (
-                    <p className={cn(
-                      "text-[10px] mt-0.5 tabular-nums",
-                      tab === "overdue" ? "text-red-500" : "text-muted-foreground/70"
-                    )}>
-                      {format(parseISO(t.due_date), "MMM d")}
+            {[...filtered]
+              .sort((a, b) => {
+                const aCad = (a.tags || []).some((t) => t.startsWith("cadence:"));
+                const bCad = (b.tags || []).some((t) => t.startsWith("cadence:"));
+                if (aCad === bCad) return 0;
+                return aCad ? -1 : 1;
+              })
+              .slice(0, 10).map((t) => {
+              const isCadence = (t.tags || []).some((tag) => tag.startsWith("cadence:"));
+              const isOverdue = tab === "overdue";
+              return (
+                <div key={t.id} className={cn(
+                  "flex items-start gap-2 py-1.5 group rounded-md -mx-1 px-1",
+                  isCadence && "border-l-2 border-amber-500/60 pl-2 ml-0"
+                )}>
+                  <button
+                    onClick={() => toggle(t.id, t.status)}
+                    className="mt-0.5 text-muted-foreground/40 hover:text-primary transition-colors"
+                  >
+                    <Circle className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => openTask(t.id)} className="min-w-0 flex-1 text-left group-hover:text-foreground">
+                    <p className="text-xs leading-snug truncate flex items-center gap-1.5">
+                      {isCadence && <Repeat className="h-3 w-3 text-amber-500 shrink-0" />}
+                      <span className="truncate">{t.title}</span>
                     </p>
-                  )}
-                </button>
-              </div>
-            ))}
+                    {t.due_date && (
+                      <p className={cn(
+                        "text-[10px] mt-0.5 tabular-nums",
+                        isOverdue ? "text-red-500" : "text-muted-foreground/70"
+                      )}>
+                        {format(parseISO(t.due_date), "MMM d")}
+                      </p>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
