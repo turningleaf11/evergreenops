@@ -19,8 +19,9 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays,
 } from "lucide-react";
+import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AppRole } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -127,10 +128,17 @@ export default function SettingsPage() {
           <TabsTrigger value="home_widgets" className="gap-1.5">
             <LayoutDashboard className="h-3.5 w-3.5" /> Home Widgets
           </TabsTrigger>
+          <TabsTrigger value="holidays" className="gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5" /> Holidays
+          </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-1.5">
             <Mail className="h-3.5 w-3.5" /> Integrations
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="holidays" className="mt-4 space-y-4">
+          <HolidaysSection />
+        </TabsContent>
 
         <TabsContent value="integrations" className="mt-4 space-y-4">
           <Card>

@@ -31,6 +31,7 @@ import ContentStudioPage from "./pages/ContentStudioPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
+import MeetingsPage from "./pages/MeetingsPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
@@ -142,6 +143,7 @@ const App = () => (
                 <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms" element={<FormsPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
+                <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/settings/integrations/gmail" element={<IntegrationsGmailPage />} />
 
                 {/* Add-Ons */}

@@ -3,18 +3,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { CalendarDays } from "lucide-react";
 import { startOfWeek, addDays, format, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getHolidaysInRange } from "@/lib/us-holidays";
 
 interface WeekEvent {
   date: Date;
   label: string;
-  kind: "birthday" | "anniversary" | "announcement";
+  kind: "birthday" | "anniversary" | "announcement" | "holiday" | "meeting";
 }
 
 const dotClass: Record<WeekEvent["kind"], string> = {
   birthday: "bg-pink-500",
   anniversary: "bg-amber-500",
   announcement: "bg-primary",
+  holiday: "bg-emerald-500",
+  meeting: "bg-violet-500",
 };
+
+const FEDERAL_KEY = "us_federal_holidays_enabled";
 
 export function ThisWeekWidget() {
   const [events, setEvents] = useState<WeekEvent[]>([]);
@@ -26,6 +31,8 @@ export function ThisWeekWidget() {
   useEffect(() => {
     const load = async () => {
       const collected: WeekEvent[] = [];
+
+      // Birthdays + anniversaries
       const { data: profiles } = await supabase
         .from("profiles")
         .select("full_name, birthday, start_date");
@@ -51,15 +58,49 @@ export function ThisWeekWidget() {
         checkAnnual(p.start_date, "anniversary");
       });
 
+      // Announcements
       const { data: anns } = await supabase
         .from("announcements")
         .select("title, created_at")
         .gte("created_at", weekStart.toISOString())
         .lte("created_at", addDays(weekEnd, 1).toISOString());
-
       anns?.forEach((a: any) => {
-        const d = new Date(a.created_at);
-        collected.push({ date: d, label: a.title, kind: "announcement" });
+        collected.push({ date: new Date(a.created_at), label: a.title, kind: "announcement" });
+      });
+
+      // US Federal holidays
+      const fedEnabled = localStorage.getItem(FEDERAL_KEY) !== "false";
+      const fedHolidays = getHolidaysInRange(weekStart, addDays(weekEnd, 1), fedEnabled);
+      fedHolidays.forEach((h) => {
+        collected.push({ date: h.date, label: h.name, kind: "holiday" });
+      });
+
+      // Workspace custom holidays
+      const { data: customH } = await supabase
+        .from("workspace_holidays")
+        .select("name, date, is_recurring");
+      customH?.forEach((h: any) => {
+        const d = new Date(h.date + "T00:00:00");
+        if (h.is_recurring) {
+          for (const day of days) {
+            if (d.getMonth() === day.getMonth() && d.getDate() === day.getDate()) {
+              collected.push({ date: day, label: h.name, kind: "holiday" });
+            }
+          }
+        } else if (d >= weekStart && d <= addDays(weekEnd, 1)) {
+          collected.push({ date: d, label: h.name, kind: "holiday" });
+        }
+      });
+
+      // Meetings (this week)
+      const { data: meetings } = await supabase
+        .from("meetings")
+        .select("title, started_at")
+        .gte("started_at", weekStart.toISOString())
+        .lte("started_at", addDays(weekEnd, 1).toISOString());
+      meetings?.forEach((m: any) => {
+        if (!m.started_at) return;
+        collected.push({ date: new Date(m.started_at), label: m.title, kind: "meeting" });
       });
 
       setEvents(collected);
@@ -117,7 +158,9 @@ export function ThisWeekWidget() {
 
       <div className="space-y-1.5 border-t border-border/40 pt-3">
         {upcoming.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">No events this week</p>
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Quiet week — no birthdays, holidays, or meetings.
+          </p>
         ) : (
           upcoming.map((e, i) => (
             <div key={i} className="flex items-center gap-2 text-xs">

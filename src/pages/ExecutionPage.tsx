@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
+import { CadencesTab } from "@/components/cadences/CadencesTab";
 
 type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
@@ -411,6 +412,7 @@ export default function ExecutionPage() {
             <TabsTrigger value="goals">Goals</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+            <TabsTrigger value="cadences" className="gap-1.5"><Repeat className="h-3.5 w-3.5" /> Cadences</TabsTrigger>
             <TabsTrigger value="issues" className="flex items-center gap-1.5">
               Issues
               {openIssues.length > 0 && (
@@ -746,6 +748,11 @@ export default function ExecutionPage() {
               projects={projects}
             />
           )}
+        </TabsContent>
+
+        {/* Cadences tab */}
+        <TabsContent value="cadences" className="space-y-4">
+          <CadencesTab />
         </TabsContent>
 
         {/* Issues tab */}

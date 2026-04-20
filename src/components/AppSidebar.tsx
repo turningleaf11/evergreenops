@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video,
 } from "lucide-react";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
@@ -61,6 +61,7 @@ export function AppSidebar() {
   const workNav = [
     { title: "Execution Hub", url: "/execution", icon: Target },
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
+    { title: "Meetings", url: "/meetings", icon: Video },
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
