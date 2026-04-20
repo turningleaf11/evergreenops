@@ -24,7 +24,7 @@ export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
           .select("id, from_user_id, to_user_id, message, category, created_at")
           .gte("created_at", sevenDaysAgo)
           .order("created_at", { ascending: false })
-          .limit(5),
+          .limit(3),
         supabase.from("profiles").select("user_id, full_name"),
       ]);
       if (kudosRes.data) setItems(kudosRes.data);
