@@ -15,6 +15,7 @@ interface Doc {
 
 export function RecentDocsWidget() {
   const [docs, setDocs] = useState<Doc[]>([]);
+  const { openPeek } = useMentionPeek();
 
   useEffect(() => {
     supabase
