@@ -20,6 +20,11 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { WidgetCustomizer } from "@/components/home/WidgetCustomizer";
 import { FeedPreview } from "@/components/home/FeedPreview";
+import { PulseStrip } from "@/components/home/PulseStrip";
+import { InlineFeed } from "@/components/home/InlineFeed";
+import { RecognitionWidget } from "@/components/home/RecognitionWidget";
+import { MyTeamWidget } from "@/components/home/MyTeamWidget";
+import { BirthdaysWidget } from "@/components/home/BirthdaysWidget";
 import { useWidgetPreferences, type Row } from "@/hooks/useWidgetPreferences";
 import { cn } from "@/lib/utils";
 import DetailDrawer from "@/components/DetailDrawer";
@@ -501,6 +506,14 @@ const Index = () => {
 
       case "feed_preview":
         return <FeedPreview />;
+      case "inline_feed":
+        return <InlineFeed />;
+      case "recognition":
+        return <RecognitionWidget />;
+      case "my_team":
+        return <MyTeamWidget />;
+      case "birthdays":
+        return <BirthdaysWidget />;
       case "feed_chat":
         return <HomeAiChat />;
       case "reminders":
@@ -555,29 +568,21 @@ const Index = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
-          </h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5" /> {dateStr}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 flex-wrap">
-          <Button
-            variant={editing ? "default" : "ghost"}
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setEditing((v) => !v)}
-          >
-            <Columns className="h-3.5 w-3.5" /> {editing ? "Done arranging" : "Arrange"}
-          </Button>
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground text-xs" onClick={() => setCustomizerOpen(true)}>
-            <Settings2 className="h-3.5 w-3.5" /> Customize
-          </Button>
-        </div>
+      <div className="flex justify-end items-center gap-1 flex-wrap -mb-2">
+        <Button
+          variant={editing ? "default" : "ghost"}
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => setEditing((v) => !v)}
+        >
+          <Columns className="h-3.5 w-3.5" /> {editing ? "Done arranging" : "Arrange"}
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground text-xs" onClick={() => setCustomizerOpen(true)}>
+          <Settings2 className="h-3.5 w-3.5" /> Customize
+        </Button>
       </div>
+
+      <PulseStrip name={profile?.full_name} />
 
       <OnboardingBanner />
 
