@@ -29,23 +29,30 @@
   background: hsl(var(--card));
 }
 
-/* === Hover drag handle on every block === */
-.rich-editor .ProseMirror > * {
-  position: relative;
-}
-.rich-editor .ProseMirror > *:hover::before {
-  content: "⋮⋮";
-  position: absolute;
-  left: -1.4rem;
-  top: 0.15rem;
-  font-size: 0.85rem;
-  color: hsl(var(--muted-foreground) / 0.5);
+/* === Drag Handle (TipTap DragHandleReact) === */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground) / 0.55);
   cursor: grab;
-  user-select: none;
-  letter-spacing: -2px;
-  line-height: 1;
-  padding: 0.1rem 0.2rem;
-  border-radius: 3px;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  background: transparent;
+  opacity: 0;
+}
+.ProseMirror:hover ~ .drag-handle,
+.drag-handle:hover {
+  opacity: 1;
+}
+.drag-handle:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .rich-editor .tiptap p.is-editor-empty:first-child::before {

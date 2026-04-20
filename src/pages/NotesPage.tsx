@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import BacklinksPanel from "@/components/docs/BacklinksPanel";
+import DocCover from "@/components/docs/DocCover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ interface Note {
   is_public?: boolean;
   share_token?: string | null;
   shared_with?: any;
+  cover_url?: string | null;
+  icon?: string | null;
 }
 
 interface Notebook {
@@ -145,7 +148,7 @@ export default function NotesPage() {
       .from("notes")
       .update(payload as any)
       .eq("id", id)
-      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with")
+      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon")
       .single();
 
     if (data) {
@@ -648,6 +651,16 @@ export default function NotesPage() {
             </div>
             <div className="flex-1 overflow-auto bg-white dark:bg-card">
               <div className="px-6 lg:px-16 py-6">
+                <DocCover
+                  coverUrl={selectedNote?.cover_url ?? null}
+                  icon={selectedNote?.icon ?? null}
+                  editable={true}
+                  onChange={(updates) => {
+                    if (!selectedId) return;
+                    mergeNoteLocally(selectedId, updates as Partial<Note>);
+                    saveNote(selectedId, updates as Partial<Note>);
+                  }}
+                />
                 <RichTextEditor key={selectedId} content={content} onChange={handleContentChange} borderless placeholder="Start writing..." />
                 <BacklinksPanel entityId={selectedId} />
               </div>

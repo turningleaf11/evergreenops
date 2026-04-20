@@ -27,8 +27,9 @@ import { uploadFile } from "@/lib/file-upload";
 import { Plugin } from "@tiptap/pm/state";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
-  Link as LinkIcon, Palette, Plus,
+  Link as LinkIcon, Palette, Plus, GripVertical,
 } from "lucide-react";
+import DragHandle from "@tiptap/extension-drag-handle-react";
 import "./RichTextEditor.css";
 
 interface RichTextEditorProps {
@@ -216,6 +217,12 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
           <Plus className="h-4 w-4" />
         </button>
       </FloatingMenu>
+
+      <DragHandle editor={editor}>
+        <button className="drag-handle" title="Drag to move" type="button">
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      </DragHandle>
 
       <EditorContent editor={editor} />
     </div>

@@ -336,15 +336,14 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
       );
     }
 
-    // Group items by category for visual headers
+    // Group items by category (fixed order, no duplicates)
+    const CATEGORY_ORDER: CommandItem["category"][] = ["Basic", "Lists", "Layout", "Media", "AI"];
     const grouped: { category: string; items: { item: CommandItem; index: number }[] }[] = [];
-    items.forEach((item, index) => {
-      const last = grouped[grouped.length - 1];
-      if (last && last.category === item.category) {
-        last.items.push({ item, index });
-      } else {
-        grouped.push({ category: item.category, items: [{ item, index }] });
-      }
+    CATEGORY_ORDER.forEach((cat) => {
+      const matches = items
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => item.category === cat);
+      if (matches.length) grouped.push({ category: cat, items: matches });
     });
 
     return (
