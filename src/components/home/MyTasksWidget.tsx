@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { CheckSquare, ArrowRight, Circle, CheckCircle2 } from "lucide-react";
+import { CheckSquare, ArrowRight, Circle, CheckCircle2, Plus, X } from "lucide-react";
 import { format, isToday, isPast, parseISO, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
 import DetailDrawer from "@/components/DetailDrawer";
@@ -26,6 +25,9 @@ export function MyTasksWidget() {
   const [tab, setTab] = useState<Tab>("today");
   const [drawerTask, setDrawerTask] = useState<any>(null);
   const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
@@ -95,6 +97,32 @@ export function MyTasksWidget() {
     { key: "upcoming", label: "Upcoming", count: counts.upcoming, tone: "text-muted-foreground" },
   ];
 
+  const startCreate = () => {
+    setCreating(true);
+    setTab("today");
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const submitCreate = async () => {
+    const title = newTitle.trim();
+    if (!title || !user) { setCreating(false); setNewTitle(""); return; }
+    const today = format(new Date(), "yyyy-MM-dd");
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({ title, assigned_to: user.id, created_by: user.id, status: "todo", priority: "medium", due_date: today })
+      .select("id, title, status, due_date, priority")
+      .maybeSingle();
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (data) setTasks((prev) => [data as Task, ...prev]);
+    setNewTitle("");
+    setTimeout(() => inputRef.current?.focus(), 30);
+  };
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); submitCreate(); }
+    if (e.key === "Escape") { setCreating(false); setNewTitle(""); }
+  };
+
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
@@ -102,9 +130,18 @@ export function MyTasksWidget() {
           <h2 className="text-base font-semibold flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-muted-foreground/70" /> My Tasks
           </h2>
-          <Link to="/execution" className="text-xs text-primary hover:underline flex items-center gap-1">
-            All <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={startCreate}
+              className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              title="New task"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <Link to="/execution" className="text-xs text-primary hover:underline flex items-center gap-1">
+              All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
 
         <div className="flex gap-1 rounded-lg bg-muted/40 p-0.5">
@@ -129,6 +166,24 @@ export function MyTasksWidget() {
           ))}
         </div>
 
+        {creating && tab === "today" && (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/30 border border-border/40">
+            <Circle className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+            <input
+              ref={inputRef}
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={handleKey}
+              onBlur={() => { if (!newTitle.trim()) setCreating(false); }}
+              placeholder="New task for today…"
+              className="flex-1 bg-transparent border-0 outline-none text-xs placeholder:text-muted-foreground/50"
+            />
+            <button onClick={() => { setCreating(false); setNewTitle(""); }} className="text-muted-foreground/40 hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
         {filtered.length === 0 ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="h-7 w-7 text-muted-foreground/30 mx-auto mb-1.5" />
@@ -137,7 +192,7 @@ export function MyTasksWidget() {
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5 max-h-[360px] overflow-y-auto -mx-2 px-2">
+          <div className="space-y-0.5 -mx-2 px-2">
             {filtered.slice(0, 10).map((t) => (
               <div key={t.id} className="flex items-start gap-2 py-1.5 group">
                 <button
