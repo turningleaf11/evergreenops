@@ -42,10 +42,18 @@ export function RecognitionWidget() {
           <h2 className="text-base font-semibold flex items-center gap-2">
             <Heart className="h-4 w-4 text-rose-500" /> Recognition
           </h2>
-          <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
-            View all <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
+
+        <Link to="/feed?tab=kudos">
+          <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> Give Kudos
+          </Button>
+        </Link>
 
         {items.length === 0 ? (
           <div className="py-3 text-center">
