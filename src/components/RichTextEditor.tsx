@@ -108,7 +108,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         dropcursor: { color: "hsl(var(--primary))", width: 3 },
-      }),
+      }) as any,
       Underline,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer" } }),
       Highlight.configure({ multicolor: true }),
