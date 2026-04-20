@@ -487,6 +487,12 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
 
   return (
     <div className="max-w-none">
+      <DocCover
+        coverUrl={doc.cover_url}
+        icon={doc.icon}
+        editable={isAdmin}
+        onChange={(updates) => onUpdate(updates as Partial<Doc>)}
+      />
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
           {isAdmin ? (
@@ -594,6 +600,8 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
           </div>
         </div>
       )}
+
+      <BacklinksPanel entityId={doc.id} />
     </div>
   );
 }
