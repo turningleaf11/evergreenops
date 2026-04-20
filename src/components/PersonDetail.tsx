@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Phone, Building2, User, Pencil, Camera, Plus, Trash2 } from "lucide-react";
+import { Mail, Phone, Building2, User, Pencil, Camera, Plus, Trash2, Cake, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 
 interface Profile {
   user_id: string;
@@ -23,6 +24,8 @@ interface Profile {
   email: string | null;
   bio: string | null;
   reports_to: string | null;
+  birthday?: string | null;
+  start_date?: string | null;
 }
 
 interface Department {
@@ -61,7 +64,16 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
 
   useEffect(() => {
     if (person) {
-      setForm({ title: person.title, department_id: person.department_id, reports_to: person.reports_to, email: person.email, phone: person.phone, bio: person.bio });
+      setForm({
+        title: person.title,
+        department_id: person.department_id,
+        reports_to: person.reports_to,
+        email: person.email,
+        phone: person.phone,
+        bio: person.bio,
+        birthday: person.birthday ?? null,
+        start_date: person.start_date ?? null,
+      });
       setEditing(false);
     }
   }, [person]);
@@ -88,7 +100,9 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
       email: form.email || null,
       phone: form.phone || null,
       bio: form.bio || null,
-    }).eq("user_id", person.user_id);
+      birthday: form.birthday || null,
+      start_date: form.start_date || null,
+    } as any).eq("user_id", person.user_id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
