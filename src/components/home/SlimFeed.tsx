@@ -20,6 +20,8 @@ interface FeedItem {
   pinned?: boolean;
   to_user_id?: string;
   from_user_id?: string;
+  gif_url?: string | null;
+  image_url?: string | null;
 }
 
 const typeMeta = {
@@ -39,7 +41,7 @@ export function SlimFeed() {
       supabase.from("announcements").select("id, title, content, author_id, author_name, created_at, pinned").order("created_at", { ascending: false }).limit(LIMIT),
       supabase.from("polls").select("id, title, description, created_by, created_at").order("created_at", { ascending: false }).limit(LIMIT),
       supabase.from("kudos").select("id, from_user_id, to_user_id, message, created_at").order("created_at", { ascending: false }).limit(LIMIT),
-      supabase.from("posts").select("id, author_id, author_name, content, created_at").order("created_at", { ascending: false }).limit(LIMIT),
+      supabase.from("posts").select("id, author_id, author_name, content, created_at, gif_url, image_url").order("created_at", { ascending: false }).limit(LIMIT),
       supabase.from("profiles").select("user_id, full_name"),
     ]);
 
@@ -53,7 +55,7 @@ export function SlimFeed() {
     annRes.data?.forEach((a: any) => list.push({ type: "announcement", id: a.id, created_at: a.created_at, title: a.title, content: a.content, author_id: a.author_id, author_name: a.author_name, pinned: a.pinned }));
     pollRes.data?.forEach((p: any) => list.push({ type: "poll", id: p.id, created_at: p.created_at, title: p.title, content: p.description, author_id: p.created_by }));
     kudosRes.data?.forEach((k: any) => list.push({ type: "kudos", id: k.id, created_at: k.created_at, content: k.message, from_user_id: k.from_user_id, to_user_id: k.to_user_id }));
-    postsRes.data?.forEach((p: any) => list.push({ type: "post", id: p.id, created_at: p.created_at, content: p.content, author_id: p.author_id, author_name: p.author_name }));
+    postsRes.data?.forEach((p: any) => list.push({ type: "post", id: p.id, created_at: p.created_at, content: p.content, author_id: p.author_id, author_name: p.author_name, gif_url: p.gif_url, image_url: p.image_url }));
 
     list.sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
@@ -165,6 +167,16 @@ export function SlimFeed() {
                     </p>
                     {text && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">{text}</p>
+                    )}
+                    {(item.gif_url || item.image_url) && (
+                      <div className="mt-1.5 rounded-md overflow-hidden border border-border/30 max-w-[240px]">
+                        <img
+                          src={item.gif_url || item.image_url || ""}
+                          alt=""
+                          className="w-full max-h-[140px] object-cover"
+                          loading="lazy"
+                        />
+                      </div>
                     )}
                     <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                       {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}

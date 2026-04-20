@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "react-router-dom";
-import { ClipboardList, ArrowRight } from "lucide-react";
+import { ClipboardList, ChevronDown } from "lucide-react";
 import { FormSubmitDialog } from "./FormSubmitDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Form {
   id: string;
@@ -21,7 +21,7 @@ export function FormsWidget() {
       .select("id, name, description")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
-      .limit(6)
+      .limit(20)
       .then(({ data }) => {
         if (data) setForms(data as Form[]);
       });
@@ -29,37 +29,37 @@ export function FormsWidget() {
 
   return (
     <Card>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <ClipboardList className="h-4 w-4 text-muted-foreground/70" /> Forms
-          </h2>
-          <Link to="/forms" className="text-xs text-primary hover:underline flex items-center gap-1">
-            All <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        {forms.length === 0 ? (
-          <div className="py-4 text-center">
-            <ClipboardList className="h-6 w-6 text-muted-foreground/30 mx-auto mb-1.5" />
-            <p className="text-xs text-muted-foreground">No active forms</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {forms.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setActiveFormId(f.id)}
-                className="text-left px-3 py-2 rounded-lg border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-border transition-colors group min-w-0"
-              >
-                <p className="text-xs font-medium truncate group-hover:text-foreground">{f.name}</p>
-                {f.description && (
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{f.description}</p>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+      <CardContent className="p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/40 transition-colors group">
+            <span className="text-sm font-medium flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground/70" />
+              Submit a form
+              <span className="text-[10px] text-muted-foreground font-normal">
+                · {forms.length}
+              </span>
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64 max-h-80 overflow-y-auto">
+            {forms.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-muted-foreground text-center">No active forms</div>
+            ) : (
+              forms.map((f) => (
+                <DropdownMenuItem
+                  key={f.id}
+                  onClick={() => setActiveFormId(f.id)}
+                  className="flex flex-col items-start gap-0.5 cursor-pointer"
+                >
+                  <span className="text-xs font-medium">{f.name}</span>
+                  {f.description && (
+                    <span className="text-[10px] text-muted-foreground line-clamp-1">{f.description}</span>
+                  )}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardContent>
       <FormSubmitDialog
         formId={activeFormId}

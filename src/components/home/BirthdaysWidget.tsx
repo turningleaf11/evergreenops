@@ -85,7 +85,7 @@ export function BirthdaysWidget() {
   };
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold flex items-center gap-2">

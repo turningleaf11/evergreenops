@@ -26,7 +26,7 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
   useEffect(() => {
     if (!open) return;
     supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
-      if (data) setPeople(data.filter((p) => p.user_id !== user?.id));
+      if (data) setPeople(data);
     });
   }, [open, user?.id]);
 
