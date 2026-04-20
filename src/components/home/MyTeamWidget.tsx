@@ -30,7 +30,7 @@ export function MyTeamWidget() {
       .select("user_id, full_name, avatar_url, title, availability_status")
       .eq("department_id", profile.department_id)
       .neq("user_id", profile.user_id)
-      .limit(8)
+      .limit(4)
       .then(({ data }) => {
         if (data) setMembers(data);
       });
