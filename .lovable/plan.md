@@ -1,42 +1,91 @@
 
 
-## Scratch Pad Journal + Persistent Triage
+## Three-phase roadmap
 
-Two changes that work together: archive each scratch pad session when AI processes it, and persist triage results so they survive navigation.
+**Phase 1 — Mention Peek System** (this plan, build now)
+**Phase 2 — Notes/Wiki Notion-class polish + backlinks** (next)
+**Phase 3 — Home intranet redesign** (last; keeps AI companion, tasks, reminders, favorite docs, announcements, departments, forms)
 
-### 1. Archive scratch pads on AI process
+---
 
-- New table `ceo_scratch_pad_archive`: `id`, `user_id`, `content` (HTML, includes images), `triaged_count`, `created_at`.
-- When user clicks the AI/Sparkles button:
-  1. Run triage as today.
-  2. On success, copy current pad content into the archive.
-  3. Clear the live pad (so the next session starts fresh).
-- Add **"+ New"** icon in the Scratch Pad header → manual clear (with confirm if pad is non-empty; archives before clearing).
-- Add **History** icon (clock) in the header → opens a side sheet listing past dumps: date, time, first ~80 chars preview, item count. Click a row to view read-only (rendered HTML + images). Delete from history is allowed.
+## Phase 1: Mention Peek System (build now)
 
-### 2. Persist triage results across navigation
+Goal: clicking an `@mention` chip never navigates away. It opens a contextual peek matched to entity type. User stays in flow.
 
-- New table `ceo_triage_pending`: `id`, `user_id`, `text`, `category` (task/decision/idea/delegation), `suggested_assignee_id`, `suggested_priority`, `reasoning`, `source_archive_id`, `created_at`.
-- After triage runs, insert all returned items into this table for the current user.
-- `AiTriage` component reads pending items from `ceo_triage_pending` on mount instead of holding them in local state.
-- Approving/dismissing/converting an item deletes its row.
-- Result: navigate away, come back tomorrow — your triage queue is still there.
+### Peek behavior by type
 
-### 3. UI tweaks (`ScratchPad.tsx` + `CeoDashboard.tsx`)
+| Type | Peek style | Source |
+|---|---|---|
+| **Person** | Right slideout (Sheet) — avatar, title, dept, contact, bio, skills, "Open profile" button | `profiles` |
+| **Doc / Wiki** | Centered modal (Dialog, large) — rendered HTML read-only with cover/title/tags, "Open full doc" button | `documents` |
+| **Note** | Centered modal (Dialog, medium) — read-only rendered note, "Open note" button | `notes` |
+| **Task** | Right slideout — title, status, assignee, due, description, comments. Status/assignee editable inline | `database_rows` (tasks list) |
+| **Project** | Right slideout — overview only (status, owner, due, description, top-level notes preview), "Open project" button | `projects` |
+| **Goal** | Reuse existing `GoalPeek` component | `goals` |
+| **Database record** | Right slideout — record fields rendered via existing `DatabaseRecordDetail` patterns | `database_rows` |
 
-- Header right side icon order: History (clock) · New (plus) · Add image · AI process.
-- AI button tooltip becomes: "Process & file this page".
-- Empty pad with no triage pending shows quiet hint: "Fresh page. Dump anything."
-- Triage panel always visible when pending items exist (no longer ephemeral).
+### New components
+
+- **`src/components/mention-peek/MentionPeekProvider.tsx`** — React context exposing `openPeek(type, id)`. Holds active peek state.
+- **`src/components/mention-peek/MentionPeekRoot.tsx`** — mounts at app root, renders the right peek surface (Sheet vs Dialog) for the active item.
+- **`src/components/mention-peek/peeks/PersonPeek.tsx`** — Sheet content.
+- **`src/components/mention-peek/peeks/DocPeek.tsx`** — Dialog content (used for `doc` and `note`; size varies).
+- **`src/components/mention-peek/peeks/TaskPeek.tsx`** — Sheet content.
+- **`src/components/mention-peek/peeks/ProjectPeek.tsx`** — Sheet content.
+- **`src/components/mention-peek/peeks/RecordPeek.tsx`** — Sheet content; reuses logic from `DatabaseRecordDetail`.
+- **`src/components/mention-peek/peeks/GoalPeek.tsx`** — thin wrapper around existing `execution/GoalPeek.tsx`.
+
+### Edits
+
+- **`src/App.tsx`** — wrap routes with `<MentionPeekProvider>` and mount `<MentionPeekRoot />` once.
+- **`src/components/MentionClickHandler.tsx`** — replace `navigate(url)` with `openPeek(type, id)` when type is recognized; fall back to `navigate(url)` for unknown types or external URLs. Remove the existing person hover card (replaced by click-to-peek). Keep the global click capture so it works across the entire app, including inside docs.
+
+### Mention chip URL/type mapping (already encoded by `UniversalMention`)
+
+The chip already carries `data-mention-type` and `data-mention-id`. We just consume those. No edge function change.
 
 ### Files
 
-- **Migration**: create `ceo_scratch_pad_archive` and `ceo_triage_pending` tables with RLS (user owns own rows; admins manage all).
-- **Edit** `supabase/functions/ceo-triage/index.ts`: after generating items, insert them into `ceo_triage_pending` server-side and return them as today; also archive the pad content. (Needs `user_id` — pull from JWT.)
-- **Edit** `src/components/ScratchPad.tsx`: add History sheet, New button, archive-on-process flow, clear after process.
-- **Edit** `src/components/AiTriage.tsx`: load pending from DB, delete row on action.
-- **Edit** `src/pages/CeoDashboard.tsx`: wire pending-triage subscription so the panel shows whenever rows exist.
-- **New** `src/components/ScratchPadHistorySheet.tsx`: side sheet with archive list + read-only viewer.
+- **New**: 6 files under `src/components/mention-peek/`.
+- **Edited**: `src/App.tsx`, `src/components/MentionClickHandler.tsx`.
 
-No new secrets. No new edge functions.
+No DB changes. No new edge functions. No new secrets.
+
+---
+
+## Phase 2 (next plan): Notes/Wiki — Notion-class polish + backlinks
+
+- Click below content → cursor jumps to end (extend editor click-target to fill the page).
+- Cover image (upload + unsplash search) per doc/note, stored in a new `cover_url` column.
+- Emoji icon picker (stored in `icon` column).
+- Drag handle on every block (TipTap `dragHandle` extension or custom NodeView).
+- Slash menu reorganized into categories (Basic / Media / Layout / Embeds).
+- **Backlinks panel** at the bottom of every doc/note: "Linked from" list, computed by scanning `documents.content` and `notes.content` for `data-mention-id="<this-id>"`. Cached per-entity in a small `entity_backlinks` materialized view or computed live with an indexed text search.
+- No embedded database views (per your call).
+
+DB: add `cover_url TEXT`, `icon TEXT` to `documents` and `notes`. Add a `backlinks` lookup function or live query.
+
+---
+
+## Phase 3 (last plan): Home intranet redesign
+
+Keep the existing widget customizer, but ship a new **default intranet layout** with:
+- **Hero banner** — workspace logo, name, current company focus / quarterly theme, rotating pinned announcement.
+- **Pinned announcements strip** — the most prominent block.
+- **AI Companion entry tile** (preserved).
+- **Tasks widget** (preserved — your priorities).
+- **Reminders widget** (preserved).
+- **Favorite docs** — new widget; user can star docs/notes; star table `doc_favorites`.
+- **Departments grid** — tiles linking to each department hub, with a 1-line "what they're shipping" pulled from latest project.
+- **Forms launcher** — quick-submit tiles for active form templates.
+- **People strip** — new this week, birthdays/anniversaries, who's online.
+- **Kudos pulse** — recent kudos rotating.
+
+DB: `doc_favorites` table.
+
+---
+
+## What I'll build in this turn
+
+Only Phase 1 (Mention Peek System). Phases 2 & 3 will be planned & built after you confirm Phase 1 feels right.
 
