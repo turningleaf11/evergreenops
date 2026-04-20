@@ -43,7 +43,8 @@ const Index = () => {
       {/* Row 3: Magazine grid — Tasks/Docs (3) + Recognition/Feed (5) + Reminders/Week/Celebrations/Team (4) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5">
         {/* Left column — personal work */}
-        <div className="lg:col-span-3 md:col-span-1 space-y-5">
+        <div className="lg:col-span-4 md:col-span-1 space-y-5">
+          <RemindersWidget />
           <MyTasksWidget />
           <RecentDocsWidget />
         </div>
@@ -55,11 +56,10 @@ const Index = () => {
         </div>
 
         {/* Right rail — time & people */}
-        <div className="lg:col-span-4 md:col-span-1 space-y-5">
-          <RemindersWidget />
+        <div className="lg:col-span-3 md:col-span-1 space-y-5">
           <ThisWeekWidget />
-          <BirthdaysWidget />
           <MyTeamWidget />
+          <BirthdaysWidget />
         </div>
       </div>
 
