@@ -551,9 +551,6 @@ const Index = () => {
     }
   };
 
-  const today = new Date();
-  const dateStr = format(today, "EEEE, MMMM d, yyyy");
-
   // Show horizontal feed at top if widget is visible
   const feedVisible = widgets.find((w) => w.id === "feed_preview" && w.visible);
 
