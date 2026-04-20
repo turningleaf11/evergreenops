@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { CheckSquare, ArrowRight, Circle, CheckCircle2 } from "lucide-react";
 import { format, isToday, isPast, parseISO, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
+import DetailDrawer from "@/components/DetailDrawer";
+import { toast } from "@/hooks/use-toast";
 
 type Tab = "today" | "overdue" | "upcoming";
 
@@ -21,6 +24,25 @@ export function MyTasksWidget() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tab, setTab] = useState<Tab>("today");
+  const [drawerTask, setDrawerTask] = useState<any>(null);
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
+      if (data) {
+        const m: Record<string, string> = {};
+        data.forEach((p: any) => { m[p.user_id] = p.full_name || "Teammate"; });
+        setProfileMap(m);
+      }
+    });
+  }, []);
+
+  const getName = (uid: string | null) => (uid ? profileMap[uid] || "—" : "—");
+
+  const openTask = async (id: string) => {
+    const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+    if (data) setDrawerTask(data);
+  };
 
   const load = async () => {
     if (!user) return;
@@ -124,7 +146,7 @@ export function MyTasksWidget() {
                 >
                   <Circle className="h-3.5 w-3.5" />
                 </button>
-                <Link to={`/tasks/${t.id}`} className="min-w-0 flex-1 group-hover:text-foreground">
+                <button onClick={() => openTask(t.id)} className="min-w-0 flex-1 text-left group-hover:text-foreground">
                   <p className="text-xs leading-snug truncate">{t.title}</p>
                   {t.due_date && (
                     <p className={cn(
@@ -134,12 +156,32 @@ export function MyTasksWidget() {
                       {format(parseISO(t.due_date), "MMM d")}
                     </p>
                   )}
-                </Link>
+                </button>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+      <DetailDrawer
+        open={!!drawerTask}
+        onOpenChange={(o) => { if (!o) setDrawerTask(null); }}
+        type="task"
+        item={drawerTask}
+        onStatusChange={async (v) => {
+          if (!drawerTask) return;
+          await supabase.from("tasks").update({ status: v }).eq("id", drawerTask.id);
+          setDrawerTask((p: any) => p ? { ...p, status: v } : null);
+          setTasks((prev) => v === "done" ? prev.filter((t) => t.id !== drawerTask.id) : prev);
+        }}
+        onTitleChange={async (newTitle) => {
+          if (!drawerTask) return;
+          const { error } = await supabase.from("tasks").update({ title: newTitle }).eq("id", drawerTask.id);
+          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+          setDrawerTask((p: any) => p ? { ...p, title: newTitle } : null);
+          setTasks((prev) => prev.map((t) => t.id === drawerTask.id ? { ...t, title: newTitle } : t));
+        }}
+        getName={getName}
+      />
     </Card>
   );
 }

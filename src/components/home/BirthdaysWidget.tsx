@@ -94,10 +94,9 @@ export function BirthdaysWidget() {
         </div>
 
         {items.length === 0 ? (
-          <div className="py-6 text-center">
-            <PartyPopper className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">No upcoming birthdays or anniversaries.</p>
-            <p className="text-[10px] text-muted-foreground/70 mt-1">Add your birthday in Settings to be celebrated.</p>
+          <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+            <PartyPopper className="h-3.5 w-3.5 text-muted-foreground/40" />
+            <span>No upcoming celebrations</span>
           </div>
         ) : (
           <div className="space-y-1.5">

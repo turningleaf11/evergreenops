@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ClipboardList, ArrowRight } from "lucide-react";
+import { FormSubmitDialog } from "./FormSubmitDialog";
 
 interface Form {
   id: string;
@@ -12,6 +13,7 @@ interface Form {
 
 export function FormsWidget() {
   const [forms, setForms] = useState<Form[]>([]);
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -45,20 +47,25 @@ export function FormsWidget() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {forms.map((f) => (
-              <Link
+              <button
                 key={f.id}
-                to="/forms"
-                className="px-3 py-2 rounded-lg border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-border transition-colors group min-w-0"
+                onClick={() => setActiveFormId(f.id)}
+                className="text-left px-3 py-2 rounded-lg border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-border transition-colors group min-w-0"
               >
                 <p className="text-xs font-medium truncate group-hover:text-foreground">{f.name}</p>
                 {f.description && (
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">{f.description}</p>
                 )}
-              </Link>
+              </button>
             ))}
           </div>
         )}
       </CardContent>
+      <FormSubmitDialog
+        formId={activeFormId}
+        open={!!activeFormId}
+        onOpenChange={(o) => { if (!o) setActiveFormId(null); }}
+      />
     </Card>
   );
 }

@@ -89,7 +89,7 @@ export function SlimFeed() {
       return (
         <>
           <span className="font-medium">{author}</span>
-          <span className="text-muted-foreground"> · </span>
+          <span className="text-muted-foreground"> announced </span>
           <span className="font-medium">{item.title}</span>
         </>
       );
@@ -103,7 +103,12 @@ export function SlimFeed() {
         </>
       );
     }
-    return <span className="font-medium">{author}</span>;
+    return (
+      <>
+        <span className="font-medium">{author}</span>
+        <span className="text-muted-foreground"> posted</span>
+      </>
+    );
   };
 
   return (
@@ -159,7 +164,7 @@ export function SlimFeed() {
                       {renderLine(item)}
                     </p>
                     {text && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{text}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">{text}</p>
                     )}
                     <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                       {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}

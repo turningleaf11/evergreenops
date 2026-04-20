@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useMentionPeek } from "@/components/mention-peek/MentionPeekProvider";
 
 const statusDot: Record<string, string> = {
   available: "bg-emerald-500",
@@ -18,6 +19,7 @@ const statusDot: Record<string, string> = {
 export function MyTeamWidget() {
   const { profile } = useAuth();
   const { departments } = useDepartments();
+  const { openPeek } = useMentionPeek();
   const [members, setMembers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -64,7 +66,11 @@ export function MyTeamWidget() {
               const initials = (m.full_name || "U").split(" ").map((n: string) => n[0]).slice(0, 2).join("");
               const status = m.availability_status || "available";
               return (
-                <div key={m.user_id} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-muted/40 transition-colors">
+                <button
+                  key={m.user_id}
+                  onClick={() => openPeek("person", m.user_id)}
+                  className="w-full flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-muted/40 transition-colors text-left"
+                >
                   <div className="relative shrink-0">
                     <Avatar className="h-8 w-8">
                       {m.avatar_url && <AvatarImage src={m.avatar_url} />}
@@ -76,7 +82,7 @@ export function MyTeamWidget() {
                     <p className="text-sm font-medium truncate leading-tight">{m.full_name || "Unnamed"}</p>
                     {m.title && <p className="text-[10px] text-muted-foreground truncate">{m.title}</p>}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { FileText, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useMentionPeek } from "@/components/mention-peek/MentionPeekProvider";
 
 interface Doc {
   id: string;
@@ -14,6 +15,7 @@ interface Doc {
 
 export function RecentDocsWidget() {
   const [docs, setDocs] = useState<Doc[]>([]);
+  const { openPeek } = useMentionPeek();
 
   useEffect(() => {
     supabase
@@ -47,10 +49,10 @@ export function RecentDocsWidget() {
         ) : (
           <div className="space-y-0.5">
             {docs.map((d) => (
-              <Link
+              <button
                 key={d.id}
-                to={`/docs/${d.id}`}
-                className="flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-muted/40 transition-colors group"
+                onClick={() => openPeek("doc", d.id)}
+                className="w-full flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-muted/40 transition-colors group text-left"
               >
                 <span className="text-sm shrink-0 w-4 text-center">
                   {d.icon || "📄"}
@@ -61,7 +63,7 @@ export function RecentDocsWidget() {
                     {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
                   </p>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         )}
