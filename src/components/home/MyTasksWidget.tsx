@@ -24,6 +24,25 @@ export function MyTasksWidget() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tab, setTab] = useState<Tab>("today");
+  const [drawerTask, setDrawerTask] = useState<any>(null);
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
+      if (data) {
+        const m: Record<string, string> = {};
+        data.forEach((p: any) => { m[p.user_id] = p.full_name || "Teammate"; });
+        setProfileMap(m);
+      }
+    });
+  }, []);
+
+  const getName = (uid: string | null) => (uid ? profileMap[uid] || "—" : "—");
+
+  const openTask = async (id: string) => {
+    const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+    if (data) setDrawerTask(data);
+  };
 
   const load = async () => {
     if (!user) return;
