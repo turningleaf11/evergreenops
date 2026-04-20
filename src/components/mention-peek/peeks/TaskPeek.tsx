@@ -34,7 +34,8 @@ export default function TaskPeek({ id, open, onClose }: Props) {
   const load = useCallback(async () => {
     const { data } = await supabase.from("database_rows").select("*").eq("id", id).maybeSingle();
     setRow(data);
-    const assigneeId = data?.values?.assigned_to || data?.values?.owner_id;
+    const vals = (data?.values || {}) as any;
+    const assigneeId = vals.assigned_to || vals.owner_id;
     if (assigneeId) {
       const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", assigneeId).maybeSingle();
       setAssigneeName(prof?.full_name || "");
