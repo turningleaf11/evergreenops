@@ -92,6 +92,7 @@ interface CommandItem {
   title: string;
   description: string;
   icon: React.ReactNode;
+  category: "Basic" | "Lists" | "Media" | "Layout" | "AI";
   command: (props: { editor: any; range: any }) => void;
 }
 
