@@ -181,6 +181,117 @@ export type Database = {
           },
         ]
       }
+      cadence_runs: {
+        Row: {
+          cadence_id: string
+          completed_at: string | null
+          created_at: string
+          due_date: string
+          generated_task_id: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          cadence_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_date: string
+          generated_task_id?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          cadence_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          generated_task_id?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadence_runs_cadence_id_fkey"
+            columns: ["cadence_id"]
+            isOneToOne: false
+            referencedRelation: "cadences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cadences: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          owner_id: string | null
+          schedule_config: Json
+          schedule_type: string
+          sop_doc_id: string | null
+          task_template: Json
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          owner_id?: string | null
+          schedule_config?: Json
+          schedule_type?: string
+          sop_doc_id?: string | null
+          task_template?: Json
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          owner_id?: string | null
+          schedule_config?: Json
+          schedule_type?: string
+          sop_doc_id?: string | null
+          task_template?: Json
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadences_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadences_sop_doc_id_fkey"
+            columns: ["sop_doc_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadences_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ceo_briefing_config: {
         Row: {
           config: Json
@@ -1451,6 +1562,115 @@ export type Database = {
           },
         ]
       }
+      meeting_action_items: {
+        Row: {
+          assignee_email: string | null
+          assignee_user_id: string | null
+          completed: boolean
+          converted_task_id: string | null
+          created_at: string
+          id: string
+          meeting_id: string
+          sort_order: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_email?: string | null
+          assignee_user_id?: string | null
+          completed?: boolean
+          converted_task_id?: string | null
+          created_at?: string
+          id?: string
+          meeting_id: string
+          sort_order?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_email?: string | null
+          assignee_user_id?: string | null
+          completed?: boolean
+          converted_task_id?: string | null
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          sort_order?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          attendees: Json
+          created_at: string
+          duration_seconds: number | null
+          fathom_meeting_id: string | null
+          host_email: string | null
+          id: string
+          raw_payload: Json | null
+          recording_url: string | null
+          started_at: string | null
+          summary: string | null
+          synced_at: string | null
+          title: string
+          transcript_text: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          attendees?: Json
+          created_at?: string
+          duration_seconds?: number | null
+          fathom_meeting_id?: string | null
+          host_email?: string | null
+          id?: string
+          raw_payload?: Json | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          synced_at?: string | null
+          title?: string
+          transcript_text?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          attendees?: Json
+          created_at?: string
+          duration_seconds?: number | null
+          fathom_meeting_id?: string | null
+          host_email?: string | null
+          id?: string
+          raw_payload?: Json | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          synced_at?: string | null
+          title?: string
+          transcript_text?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_folders: {
         Row: {
           color: string
@@ -2547,6 +2767,50 @@ export type Database = {
           },
           {
             foreignKeyName: "workspace_addons_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_holidays: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          is_recurring: boolean
+          name: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          id?: string
+          is_recurring?: boolean
+          name: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          is_recurring?: boolean
+          name?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_holidays_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
