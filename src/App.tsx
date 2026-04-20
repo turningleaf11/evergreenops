@@ -35,6 +35,8 @@ import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
 import { MentionClickHandler } from "./components/MentionClickHandler";
+import { MentionPeekProvider } from "./components/mention-peek/MentionPeekProvider";
+import { MentionPeekRoot } from "./components/mention-peek/MentionPeekRoot";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -99,7 +101,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <MentionPeekProvider>
           <MentionClickHandler />
+          <MentionPeekRoot />
           <Routes>
             {/* Public shared note (no auth required) */}
             <Route path="/n/:token" element={<PublicNotePage />} />
@@ -150,6 +154,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </MentionPeekProvider>
         </BrowserRouter>
       </TooltipProvider>
       </TrainingProgressProvider>
