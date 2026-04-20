@@ -10,31 +10,24 @@ export function DailyMotivation() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/10 via-accent/5 to-card p-5 shadow-sm h-full flex flex-col">
-      <div className="absolute -top-6 -right-6 h-32 w-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
-      <div className="relative flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
-            <QuoteIcon className="h-4 w-4" />
-          </div>
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-            Daily motivation
-          </span>
-        </div>
-        <button
-          onClick={reroll}
-          className="h-7 w-7 rounded-md hover:bg-background/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          title="New quote"
+    <div className="group relative flex items-start gap-3 px-1 py-2 h-full">
+      <QuoteIcon className="h-5 w-5 text-primary/60 shrink-0 mt-1" strokeWidth={2.25} />
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[17px] sm:text-[18px] leading-snug text-foreground/90 italic"
+          style={{ fontFamily: "'Cormorant Garamond', 'Playfair Display', Georgia, serif", fontWeight: 500 }}
         >
-          <RefreshCw className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <div className="relative mt-3 flex-1 flex flex-col justify-center">
-        <p className="text-[15px] leading-snug font-medium text-foreground">
-          "{quote.quote}"
+          {quote.quote}
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">— {quote.author}</p>
+        <p className="mt-1.5 text-xs text-muted-foreground tracking-wide">— {quote.author}</p>
       </div>
+      <button
+        onClick={reroll}
+        className="opacity-0 group-hover:opacity-100 h-6 w-6 rounded-md hover:bg-muted/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0"
+        title="New quote"
+      >
+        <RefreshCw className="h-3 w-3" />
+      </button>
     </div>
   );
 }
