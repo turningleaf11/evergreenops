@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Repeat, Plus, Calendar, CheckCircle2, AlertTriangle, Clock, FileText } from "lucide-react";
+import { Repeat, Plus, Calendar, CheckCircle2, AlertTriangle, Clock, FileText, Play } from "lucide-react";
+import { supabase as sb } from "@/integrations/supabase/client";
 import { CadenceEditor } from "./CadenceEditor";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -161,6 +162,17 @@ export function CadencesTab() {
             <option value="all">All departments</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              const { data, error } = await sb.functions.invoke("cadences-generate");
+              if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+              else { toast({ title: "Generated", description: `${(data as any)?.generated ?? 0} new tasks` }); load(); }
+            }}
+          >
+            <Play className="h-3.5 w-3.5 mr-1" /> Run now
+          </Button>
           <Button size="sm" onClick={() => { setEditing(null); setEditorOpen(true); }}>
             <Plus className="h-3.5 w-3.5 mr-1" /> New cadence
           </Button>
