@@ -146,7 +146,7 @@ export function MyTasksWidget() {
                 >
                   <Circle className="h-3.5 w-3.5" />
                 </button>
-                <Link to={`/tasks/${t.id}`} className="min-w-0 flex-1 group-hover:text-foreground">
+                <button onClick={() => openTask(t.id)} className="min-w-0 flex-1 text-left group-hover:text-foreground">
                   <p className="text-xs leading-snug truncate">{t.title}</p>
                   {t.due_date && (
                     <p className={cn(
@@ -156,7 +156,7 @@ export function MyTasksWidget() {
                       {format(parseISO(t.due_date), "MMM d")}
                     </p>
                   )}
-                </Link>
+                </button>
               </div>
             ))}
           </div>
