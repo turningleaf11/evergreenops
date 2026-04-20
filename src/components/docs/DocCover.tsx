@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ImageIcon, Smile, Trash2, Upload, Move, Check, X, Plus } from "lucide-react";
+import { ImageIcon, Smile, Trash2, Move, Check, X, Plus, Pencil } from "lucide-react";
 import { uploadFile } from "@/lib/file-upload";
 import { Input } from "@/components/ui/input";
+import CoverPickerDialog from "./CoverPickerDialog";
+import { parseCoverValue } from "@/lib/cover-presets";
 
 // Larger curated emoji set
 const EMOJI_PRESETS = [
@@ -46,7 +48,9 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
   const [uploading, setUploading] = useState(false);
   const [repositioning, setRepositioning] = useState(false);
   const [tempPosition, setTempPosition] = useState<number>(coverPosition ?? 50);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const dragRef = useRef<{ startY: number; startPos: number; height: number } | null>(null);
+  const parsed = parseCoverValue(coverUrl);
 
   const handleUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -92,13 +96,22 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
 
   const activePosition = repositioning ? tempPosition : (coverPosition ?? 50);
 
+  const coverStyle: React.CSSProperties =
+    parsed.kind === "image"
+      ? { backgroundImage: `url(${parsed.raw})`, backgroundSize: "cover", backgroundPosition: `center ${activePosition}%` }
+      : parsed.kind === "gradient"
+        ? { backgroundImage: parsed.raw }
+        : parsed.kind === "color"
+          ? { backgroundColor: parsed.raw }
+          : {};
+
   return (
     <div className="group/cover">
       {coverUrl ? (
         <div className="relative -mx-6 lg:-mx-16 mb-4">
           <div
-            className={`w-full h-44 md:h-56 bg-cover ${repositioning ? "cursor-move ring-2 ring-primary" : ""}`}
-            style={{ backgroundImage: `url(${coverUrl})`, backgroundPosition: `center ${activePosition}%` }}
+            className={`w-full h-44 md:h-56 ${repositioning ? "cursor-move ring-2 ring-primary" : ""}`}
+            style={coverStyle}
             onMouseDown={onCoverMouseDown}
             onMouseMove={onCoverMouseMove}
             onMouseUp={onCoverMouseUp}
@@ -106,14 +119,13 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
           />
           {editable && !repositioning && (
             <div className="absolute top-3 right-4 flex gap-1.5 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-              <Button size="sm" variant="secondary" className="h-7 text-xs gap-1.5 backdrop-blur-md bg-background/80" onClick={startReposition}>
-                <Move className="h-3 w-3" /> Reposition
-              </Button>
-              <Button size="sm" variant="secondary" className="h-7 text-xs gap-1.5 backdrop-blur-md bg-background/80" onClick={() => fileRef.current?.click()}>
-                <Upload className="h-3 w-3" /> Change
-              </Button>
-              <Button size="sm" variant="secondary" className="h-7 text-xs gap-1.5 backdrop-blur-md bg-background/80" onClick={() => onChange({ cover_url: null, cover_position: 50 })}>
-                <Trash2 className="h-3 w-3" /> Remove
+              {parsed.kind === "image" && (
+                <Button size="sm" variant="secondary" className="h-7 text-xs gap-1.5 backdrop-blur-md bg-background/80" onClick={startReposition}>
+                  <Move className="h-3 w-3" /> Reposition
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" className="h-7 text-xs gap-1.5 backdrop-blur-md bg-background/80" onClick={() => setPickerOpen(true)}>
+                <Pencil className="h-3 w-3" /> Change cover
               </Button>
             </div>
           )}
@@ -156,7 +168,7 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
       {editable && (!coverUrl || !icon) && (
         <div className="flex items-center gap-1 mb-2 -ml-1">
           {!coverUrl && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground" onClick={() => fileRef.current?.click()}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground" onClick={() => setPickerOpen(true)}>
               <ImageIcon className="h-3.5 w-3.5" /> Add cover
             </Button>
           )}
@@ -183,6 +195,13 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.currentTarget.value = ""; }}
       />
       {uploading && <p className="text-xs text-muted-foreground">Uploading cover…</p>}
+
+      <CoverPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        hasCover={!!coverUrl}
+        onSelect={(value) => onChange({ cover_url: value, cover_position: 50 })}
+      />
     </div>
   );
 }
