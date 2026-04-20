@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Upload, Link2, Search, Loader2, ImageIcon } from "lucide-react";
 import { uploadFile } from "@/lib/file-upload";
-import { supabase } from "@/integrations/supabase/client";
 import { COLOR_PRESETS, GRADIENT_PRESETS, PHOTO_PRESETS } from "@/lib/cover-presets";
 import { toast } from "sonner";
 
