@@ -56,12 +56,31 @@ function mapRow(row: any): Doc {
 export default function DocsPage() {
   const { isAdmin, profile, user } = useAuth();
   const { departments } = useDepartments();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(searchParams.get("id"));
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Sync selection -> URL
+  useEffect(() => {
+    const current = searchParams.get("id");
+    if (selectedDoc && selectedDoc !== current) {
+      setSearchParams({ id: selectedDoc }, { replace: true });
+    } else if (!selectedDoc && current) {
+      const params = new URLSearchParams(searchParams);
+      params.delete("id");
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedDoc]);
+
+  // Sync URL -> selection (e.g. peek "Open full doc" button)
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id && id !== selectedDoc) setSelectedDoc(id);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -179,6 +198,8 @@ export default function DocsPage() {
     if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
     if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
     if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
+    if (updates.cover_url !== undefined) dbUpdates.cover_url = updates.cover_url;
+    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
     await supabase.from("documents").update(dbUpdates).eq("id", docId);
   }, []);
 
