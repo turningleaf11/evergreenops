@@ -9,17 +9,15 @@ import { FeedCard, type FeedItem } from "@/components/feed/FeedCard";
 
 const LIMIT = 4;
 
-export function InlineFeed() {
+interface InlineFeedProps {
+  requestedMode?: PostMode;
+  requestKey?: number;
+}
+
+export function InlineFeed({ requestedMode, requestKey }: InlineFeedProps) {
   const { user } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
-  const [requestedMode, setRequestedMode] = useState<PostMode | undefined>();
-  const [requestKey, setRequestKey] = useState(0);
-
-  const openComposer = useCallback((mode: PostMode) => {
-    setRequestedMode(mode);
-    setRequestKey((current) => current + 1);
-  }, []);
 
   const fetchFeed = useCallback(async () => {
     const [annRes, pollRes, kudosRes, postsRes] = await Promise.all([
