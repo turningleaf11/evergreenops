@@ -162,6 +162,26 @@ export function MyTasksWidget() {
           </div>
         )}
       </CardContent>
+      <DetailDrawer
+        open={!!drawerTask}
+        onOpenChange={(o) => { if (!o) setDrawerTask(null); }}
+        type="task"
+        item={drawerTask}
+        onStatusChange={async (v) => {
+          if (!drawerTask) return;
+          await supabase.from("tasks").update({ status: v }).eq("id", drawerTask.id);
+          setDrawerTask((p: any) => p ? { ...p, status: v } : null);
+          setTasks((prev) => v === "done" ? prev.filter((t) => t.id !== drawerTask.id) : prev);
+        }}
+        onTitleChange={async (newTitle) => {
+          if (!drawerTask) return;
+          const { error } = await supabase.from("tasks").update({ title: newTitle }).eq("id", drawerTask.id);
+          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+          setDrawerTask((p: any) => p ? { ...p, title: newTitle } : null);
+          setTasks((prev) => prev.map((t) => t.id === drawerTask.id ? { ...t, title: newTitle } : t));
+        }}
+        getName={getName}
+      />
     </Card>
   );
 }
