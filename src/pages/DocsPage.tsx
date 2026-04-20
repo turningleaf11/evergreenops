@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import BacklinksPanel from "@/components/docs/BacklinksPanel";
+import DocCover from "@/components/docs/DocCover";
 import { supabase } from "@/integrations/supabase/client";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +30,8 @@ interface Doc {
   createdAt: string;
   updatedAt: string;
   tags: string[];
+  cover_url: string | null;
+  icon: string | null;
 }
 
 function mapRow(row: any): Doc {
@@ -43,6 +48,8 @@ function mapRow(row: any): Doc {
     createdAt: row.created_at?.split("T")[0] || "",
     updatedAt: row.updated_at?.split("T")[0] || "",
     tags: row.tags || [],
+    cover_url: row.cover_url || null,
+    icon: row.icon || null,
   };
 }
 
