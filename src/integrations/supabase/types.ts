@@ -733,7 +733,9 @@ export type Database = {
           author_id: string | null
           author_name: string | null
           content: string | null
+          cover_url: string | null
           created_at: string
+          icon: string | null
           id: string
           parent_id: string | null
           project_id: string | null
@@ -749,7 +751,9 @@ export type Database = {
           author_id?: string | null
           author_name?: string | null
           content?: string | null
+          cover_url?: string | null
           created_at?: string
+          icon?: string | null
           id?: string
           parent_id?: string | null
           project_id?: string | null
@@ -765,7 +769,9 @@ export type Database = {
           author_id?: string | null
           author_name?: string | null
           content?: string | null
+          cover_url?: string | null
           created_at?: string
+          icon?: string | null
           id?: string
           parent_id?: string | null
           project_id?: string | null
@@ -1476,8 +1482,10 @@ export type Database = {
         Row: {
           content: string | null
           converted_doc_id: string | null
+          cover_url: string | null
           created_at: string
           folder: string | null
+          icon: string | null
           id: string
           is_public: boolean
           notebook_id: string | null
@@ -1491,8 +1499,10 @@ export type Database = {
         Insert: {
           content?: string | null
           converted_doc_id?: string | null
+          cover_url?: string | null
           created_at?: string
           folder?: string | null
+          icon?: string | null
           id?: string
           is_public?: boolean
           notebook_id?: string | null
@@ -1506,8 +1516,10 @@ export type Database = {
         Update: {
           content?: string | null
           converted_doc_id?: string | null
+          cover_url?: string | null
           created_at?: string
           folder?: string | null
+          icon?: string | null
           id?: string
           is_public?: boolean
           notebook_id?: string | null
