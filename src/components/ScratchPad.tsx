@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Trash2, ImagePlus } from "lucide-react";
+import { Sparkles, Loader2, ImagePlus, Plus, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
+import { ScratchPadHistorySheet } from "@/components/ScratchPadHistorySheet";
 
 interface ScratchPadProps {
-  onProcess: (text: string, images: string[]) => void;
+  onProcess: (text: string, images: string[]) => Promise<void> | void;
   isProcessing: boolean;
 }
 
@@ -33,8 +34,24 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const saveContent = useCallback(async (html: string) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      if (padId) {
+        await supabase.from("ceo_scratch_pad").update({ content: html, updated_at: new Date().toISOString() }).eq("id", padId);
+      } else {
+        const { data } = await supabase.from("ceo_scratch_pad").insert({ user_id: user.id, content: html }).select().single();
+        if (data) setPadId((data as any).id);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [user, padId]);
 
   const handleImageUpload = useCallback(() => {
     triggerFileInput("image/*", async (file) => {
@@ -54,15 +71,13 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
         setUploadingImage(false);
       }
     });
-  }, [content]);
+  }, [content, saveContent]);
 
-  // Track focus/blur within the editor surface
   useEffect(() => {
     const root = wrapperRef.current;
     if (!root) return;
     const onFocusIn = () => setFocused(true);
     const onFocusOut = (e: FocusEvent) => {
-      // Only blur if focus has left the wrapper entirely
       if (!root.contains(e.relatedTarget as Node)) setFocused(false);
     };
     root.addEventListener("focusin", onFocusIn);
@@ -73,7 +88,6 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
     };
   }, [loaded]);
 
-  // Load scratch pad
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -91,36 +105,35 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
     })();
   }, [user]);
 
-  const saveContent = useCallback(async (html: string) => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      if (padId) {
-        await supabase.from("ceo_scratch_pad").update({ content: html, updated_at: new Date().toISOString() }).eq("id", padId);
-      } else {
-        const { data } = await supabase.from("ceo_scratch_pad").insert({ user_id: user.id, content: html }).select().single();
-        if (data) setPadId((data as any).id);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }, [user, padId]);
-
   const handleChange = (html: string) => {
     setContent(html);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => saveContent(html), 1500);
   };
 
-  const handleClear = async () => {
+  const handleNew = async () => {
+    if (!isEmpty) {
+      const ok = window.confirm("Start a fresh page? Your current notes will be archived to History.");
+      if (!ok) return;
+      // Archive before clearing
+      if (user) {
+        await supabase.from("ceo_scratch_pad_archive").insert({
+          user_id: user.id,
+          content,
+          triaged_count: 0,
+        });
+      }
+    }
     setContent("");
     await saveContent("");
-    toast({ title: "Scratch pad cleared" });
+    toast({ title: "Fresh page" });
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
     const { text, images } = extractTextAndImages(content);
-    onProcess(text, images);
+    await onProcess(text, images);
+    // Edge function clears the pad row server-side; mirror it locally
+    setContent("");
   };
 
   const { text: plainText, images: plainImages } = extractTextAndImages(content);
@@ -144,12 +157,25 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {!isEmpty && (
-            <Button variant="ghost" size="sm" onClick={handleClear} className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHistoryOpen(true)}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="History"
+          >
+            <History className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleNew}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="New page"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -166,10 +192,10 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             onClick={handleProcess}
             disabled={isProcessing || isEmpty}
             className={cn(
-              "h-8 w-8 transition-shadow",
+              "h-8 w-8 ml-1 transition-shadow",
               state === "focus" && !isEmpty && "shadow-[0_0_16px_hsl(var(--primary)/0.45)]",
             )}
-            title="Process This"
+            title="Process & file this page"
           >
             {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           </Button>
@@ -188,12 +214,14 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             <RichTextEditor
               content={content}
               onChange={handleChange}
-              placeholder="Dump everything here — tasks, ideas, broken things, reminders. Paste or drop a photo (handwritten notes, whiteboards, screenshots) and AI will read it. Type '/' for commands."
+              placeholder="Fresh page. Dump anything — tasks, ideas, broken things. Paste or drop a photo (handwritten notes, whiteboards) and AI will read it. Type '/' for commands."
               borderless
             />
           </div>
         </div>
       )}
+
+      <ScratchPadHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
     </div>
   );
 }

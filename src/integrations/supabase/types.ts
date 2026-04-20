@@ -223,6 +223,74 @@ export type Database = {
         }
         Relationships: []
       }
+      ceo_scratch_pad_archive: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          triaged_count: number
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          triaged_count?: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          triaged_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ceo_triage_pending: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          reasoning: string | null
+          source_archive_id: string | null
+          suggested_assignee_id: string | null
+          suggested_priority: string | null
+          text: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          source_archive_id?: string | null
+          suggested_assignee_id?: string | null
+          suggested_priority?: string | null
+          text: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          source_archive_id?: string | null
+          suggested_assignee_id?: string | null
+          suggested_priority?: string | null
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ceo_triage_pending_source_archive_id_fkey"
+            columns: ["source_archive_id"]
+            isOneToOne: false
+            referencedRelation: "ceo_scratch_pad_archive"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_reactions: {
         Row: {
           comment_id: string

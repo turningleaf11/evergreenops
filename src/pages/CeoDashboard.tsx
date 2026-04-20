@@ -49,10 +49,34 @@ export default function CeoDashboard() {
   const [visionEditText, setVisionEditText] = useState("");
   const [visionGoals, setVisionGoals] = useState<{ id: string; title: string; status: string; quarter: string; year: number }[]>([]);
 
-  // Triage state
+  // Triage state — backed by ceo_triage_pending so it persists across navigation
   const [triageItems, setTriageItems] = useState<TriageItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+
+  const loadPendingTriage = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("ceo_triage_pending")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    if (data) setTriageItems(data as unknown as TriageItem[]);
+  }, [user]);
+
+  useEffect(() => { loadPendingTriage(); }, [loadPendingTriage]);
+
+  // Realtime: keep panel in sync if rows change elsewhere
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`triage-pending-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ceo_triage_pending", filter: `user_id=eq.${user.id}` }, () => {
+        loadPendingTriage();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadPendingTriage]);
 
   const fetchVision = useCallback(async () => {
     const [v, g] = await Promise.all([
@@ -104,8 +128,11 @@ export default function CeoDashboard() {
         body: { content: text, images },
       });
       if (error) throw error;
-      if (data?.items) setTriageItems(data.items);
-      else toast({ title: "No items extracted", description: "Try adding more detail to your notes." });
+      if (data?.items?.length) {
+        setTriageItems((prev) => [...prev, ...(data.items as TriageItem[])]);
+      } else {
+        toast({ title: "No items extracted", description: "Try adding more detail to your notes." });
+      }
     } catch (err: any) {
       toast({ title: "Processing failed", description: err.message, variant: "destructive" });
     } finally {
@@ -214,7 +241,7 @@ export default function CeoDashboard() {
               <AiTriage
                 items={triageItems}
                 profiles={profiles}
-                onItemProcessed={(idx) => setTriageItems(prev => prev.filter((_, i) => i !== idx))}
+                onItemProcessed={(id) => setTriageItems(prev => prev.filter((it) => it.id !== id))}
                 onClear={() => setTriageItems([])}
               />
             )}
