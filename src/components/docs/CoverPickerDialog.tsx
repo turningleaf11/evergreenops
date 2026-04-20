@@ -206,11 +206,6 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke("unsplash-search", {
-        method: "GET",
-        // edge function reads from URL; pass via query string
-      });
-      // supabase.functions.invoke doesn't support query params directly — call via fetch instead:
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unsplash-search?q=${encodeURIComponent(q)}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
