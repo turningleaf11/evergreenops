@@ -137,10 +137,22 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
     },
   });
 
+  // Click below the editor content focuses cursor at the end (Notion-style)
+  const handleSurfaceClick = (e: React.MouseEvent) => {
+    if (!editor) return;
+    const target = e.target as HTMLElement;
+    // Only when clicking the wrapper itself, not nested content
+    if (target.closest(".ProseMirror")) return;
+    editor.chain().focus("end").run();
+  };
+
   if (!editor) return null;
 
   return (
-    <div className={`rich-editor ${borderless ? '' : 'border rounded-lg'} bg-background ${borderless ? 'rich-editor-borderless' : ''}`}>
+    <div
+      className={`rich-editor ${borderless ? '' : 'border rounded-lg'} bg-background ${borderless ? 'rich-editor-borderless' : ''}`}
+      onClick={handleSurfaceClick}
+    >
       {/* Bubble Menu — appears on text selection */}
       <BubbleMenu editor={editor} className="bubble-menu">
         <button onClick={() => editor.chain().focus().toggleBold().run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">

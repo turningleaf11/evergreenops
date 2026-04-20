@@ -101,6 +101,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Text",
     description: "Plain paragraph",
     icon: <Type className="h-4 w-4" />,
+    category: "Basic",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setParagraph().run();
     },
@@ -109,6 +110,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Heading 1",
     description: "Large heading",
     icon: <Heading1 className="h-4 w-4" />,
+    category: "Basic",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run();
     },
@@ -117,6 +119,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Heading 2",
     description: "Medium heading",
     icon: <Heading2 className="h-4 w-4" />,
+    category: "Basic",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run();
     },
@@ -125,6 +128,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Heading 3",
     description: "Small heading",
     icon: <Heading3 className="h-4 w-4" />,
+    category: "Basic",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
     },
@@ -133,6 +137,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Bullet List",
     description: "Unordered list",
     icon: <List className="h-4 w-4" />,
+    category: "Lists",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBulletList().run();
     },
@@ -141,6 +146,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Numbered List",
     description: "Ordered list",
     icon: <ListOrdered className="h-4 w-4" />,
+    category: "Lists",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleOrderedList().run();
     },
@@ -149,6 +155,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Checklist",
     description: "Task list with checkboxes",
     icon: <ListChecks className="h-4 w-4" />,
+    category: "Lists",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleTaskList().run();
     },
@@ -157,6 +164,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Blockquote",
     description: "Indented quote",
     icon: <Quote className="h-4 w-4" />,
+    category: "Layout",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBlockquote().run();
     },
@@ -165,6 +173,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Badge",
     description: "Highlighted note — pick a type, emoji & color",
     icon: <Info className="h-4 w-4 text-primary" />,
+    category: "Layout",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range)
         .insertContent({
@@ -179,6 +188,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Code Block",
     description: "Syntax-highlighted code",
     icon: <Code2 className="h-4 w-4" />,
+    category: "Basic",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
     },
@@ -187,6 +197,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Divider",
     description: "Horizontal rule",
     icon: <Minus className="h-4 w-4" />,
+    category: "Layout",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHorizontalRule().run();
     },
@@ -195,6 +206,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Table",
     description: "Insert a simple table",
     icon: <TableIcon className="h-4 w-4" />,
+    category: "Layout",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     },
@@ -203,6 +215,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Toggle List",
     description: "Collapsible content block",
     icon: <ChevronRight className="h-4 w-4" />,
+    category: "Layout",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).insertContent(
         `<details><summary>Toggle heading</summary><p>Hidden content</p></details>`
@@ -213,6 +226,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "Image",
     description: "Upload an image",
     icon: <ImageIcon className="h-4 w-4" />,
+    category: "Media",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       triggerFileInput("image/*", async (file) => {
@@ -227,6 +241,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "File Attachment",
     description: "Upload and attach a file",
     icon: <Paperclip className="h-4 w-4" />,
+    category: "Media",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       triggerFileInput("*", async (file) => {
@@ -244,6 +259,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "AI: Plan",
     description: "Turn these notes into a phased plan",
     icon: <Sparkles className="h-4 w-4 text-primary" />,
+    category: "AI",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       runNotesAi(editor, "plan");
@@ -253,6 +269,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "AI: Extract tasks",
     description: "Pull a checklist of action items from notes",
     icon: <ListChecksIcon className="h-4 w-4 text-primary" />,
+    category: "AI",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       runNotesAi(editor, "tasks");
@@ -262,6 +279,7 @@ const getSuggestionItems = (): CommandItem[] => [
     title: "AI: Summarize",
     description: "Tight summary of these notes",
     icon: <FileTextIcon className="h-4 w-4 text-primary" />,
+    category: "AI",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       runNotesAi(editor, "summarize");
@@ -318,21 +336,39 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
       );
     }
 
+    // Group items by category for visual headers
+    const grouped: { category: string; items: { item: CommandItem; index: number }[] }[] = [];
+    items.forEach((item, index) => {
+      const last = grouped[grouped.length - 1];
+      if (last && last.category === item.category) {
+        last.items.push({ item, index });
+      } else {
+        grouped.push({ category: item.category, items: [{ item, index }] });
+      }
+    });
+
     return (
       <div className="slash-menu">
-        {items.map((item, index) => (
-          <button
-            key={item.title}
-            className={`slash-menu-item ${index === selectedIndex ? "is-selected" : ""}`}
-            onClick={() => selectItem(index)}
-            onMouseEnter={() => setSelectedIndex(index)}
-          >
-            <span className="slash-menu-icon">{item.icon}</span>
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-medium">{item.title}</span>
-              <span className="text-xs text-muted-foreground">{item.description}</span>
+        {grouped.map((group) => (
+          <div key={group.category}>
+            <div className="px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              {group.category}
             </div>
-          </button>
+            {group.items.map(({ item, index }) => (
+              <button
+                key={item.title}
+                className={`slash-menu-item ${index === selectedIndex ? "is-selected" : ""}`}
+                onClick={() => selectItem(index)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                <span className="slash-menu-icon">{item.icon}</span>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium">{item.title}</span>
+                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                </div>
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     );
