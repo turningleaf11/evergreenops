@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ClipboardList, ArrowRight } from "lucide-react";
+import { FormSubmitDialog } from "./FormSubmitDialog";
 
 interface Form {
   id: string;
@@ -12,6 +13,7 @@ interface Form {
 
 export function FormsWidget() {
   const [forms, setForms] = useState<Form[]>([]);
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
