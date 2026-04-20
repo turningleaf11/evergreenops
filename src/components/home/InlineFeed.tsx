@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageSquare } from "lucide-react";
-import { FeedComposer } from "@/components/feed/FeedComposer";
+import { FeedComposer, type PostMode } from "@/components/feed/FeedComposer";
 import { FeedCard, type FeedItem } from "@/components/feed/FeedCard";
 
 const LIMIT = 4;
@@ -13,6 +13,13 @@ export function InlineFeed() {
   const { user } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [requestedMode, setRequestedMode] = useState<PostMode | undefined>();
+  const [requestKey, setRequestKey] = useState(0);
+
+  const openComposer = useCallback((mode: PostMode) => {
+    setRequestedMode(mode);
+    setRequestKey((current) => current + 1);
+  }, []);
 
   const fetchFeed = useCallback(async () => {
     const [annRes, pollRes, kudosRes, postsRes] = await Promise.all([
@@ -58,7 +65,7 @@ export function InlineFeed() {
           </Link>
         </div>
 
-        <FeedComposer onPost={fetchFeed} people={people} />
+        <FeedComposer onPost={fetchFeed} people={people} compact requestedMode={requestedMode} requestKey={requestKey} />
 
         {items.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
