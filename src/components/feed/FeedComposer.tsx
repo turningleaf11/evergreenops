@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,9 +15,12 @@ import { cn } from "@/lib/utils";
 interface FeedComposerProps {
   onPost: () => void;
   people: { user_id: string; full_name: string | null }[];
+  compact?: boolean;
+  requestedMode?: PostMode;
+  requestKey?: number;
 }
 
-type PostMode = "post" | "announcement" | "poll" | "kudos";
+export type PostMode = "post" | "announcement" | "poll" | "kudos";
 
 const modes: { value: PostMode; label: string; icon?: React.ElementType; adminOnly?: boolean }[] = [
   { value: "post", label: "Post" },
@@ -26,7 +29,7 @@ const modes: { value: PostMode; label: string; icon?: React.ElementType; adminOn
   { value: "kudos", label: "Kudos", icon: Heart },
 ];
 
-export function FeedComposer({ onPost, people }: FeedComposerProps) {
+export function FeedComposer({ onPost, people, compact = false, requestedMode, requestKey }: FeedComposerProps) {
   const { user, profile, isAdmin } = useAuth();
   const [mode, setMode] = useState<PostMode>("post");
   const [content, setContent] = useState("");
@@ -47,6 +50,12 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
   const [kudosCat, setKudosCat] = useState("great_work");
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!requestKey || !requestedMode) return;
+    setMode(requestedMode);
+    setExpanded(true);
+  }, [requestKey, requestedMode]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -257,12 +266,13 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
               )}
 
               {/* Main editor — supports @mentions across people, docs, notes, tasks, projects, goals, lists */}
-              <div className="rich-editor-compact -ml-1.5">
+              <div className={cn(compact && "-ml-1")}>
                 <RichTextEditor
                   content={content}
                   onChange={setContent}
                   placeholder={placeholders[mode]}
                   borderless
+                  compact={compact}
                 />
               </div>
 

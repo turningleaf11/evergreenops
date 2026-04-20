@@ -4,10 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Heart, ArrowRight, Plus } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
-export function RecognitionWidget() {
+interface RecognitionWidgetProps {
+  onGiveKudos?: () => void;
+}
+
+export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
   const [items, setItems] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
 
@@ -49,11 +53,9 @@ export function RecognitionWidget() {
           </div>
         </div>
 
-        <Link to="/feed?tab=kudos">
-          <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5">
+        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={onGiveKudos}>
             <Plus className="h-3.5 w-3.5" /> Give Kudos
-          </Button>
-        </Link>
+        </Button>
 
         {items.length === 0 ? (
           <div className="py-3 text-center">
