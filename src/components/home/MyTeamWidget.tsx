@@ -39,7 +39,7 @@ export function MyTeamWidget() {
   const dept = departments.find((d) => d.id === profile?.department_id);
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold flex items-center gap-2">
@@ -52,8 +52,8 @@ export function MyTeamWidget() {
         </div>
 
         {members.length === 0 ? (
-          <div className="py-6 text-center">
-            <Users className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
+          <div className="py-3 text-center">
+            <Users className="h-6 w-6 text-muted-foreground/30 mx-auto mb-1.5" />
             <p className="text-xs text-muted-foreground">
               {profile?.department_id ? "You're the only one here so far." : "Join a department to see your team."}
             </p>

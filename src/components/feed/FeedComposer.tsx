@@ -257,7 +257,7 @@ export function FeedComposer({ onPost, people }: FeedComposerProps) {
               )}
 
               {/* Main editor — supports @mentions across people, docs, notes, tasks, projects, goals, lists */}
-              <div className="rich-editor-borderless -ml-1.5">
+              <div className="rich-editor-compact -ml-1.5">
                 <RichTextEditor
                   content={content}
                   onChange={setContent}

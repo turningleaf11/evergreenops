@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Heart, ArrowRight, Plus } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
 export function RecognitionWidget() {
@@ -35,20 +36,28 @@ export function RecognitionWidget() {
   const initials = (name: string) => name.split(" ").map((n) => n[0]).slice(0, 2).join("");
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold flex items-center gap-2">
             <Heart className="h-4 w-4 text-rose-500" /> Recognition
           </h2>
-          <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
-            View all <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
 
+        <Link to="/feed?tab=kudos">
+          <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> Give Kudos
+          </Button>
+        </Link>
+
         {items.length === 0 ? (
-          <div className="py-6 text-center">
-            <Heart className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
+          <div className="py-3 text-center">
+            <Heart className="h-6 w-6 text-muted-foreground/30 mx-auto mb-1.5" />
             <p className="text-xs text-muted-foreground">No kudos this week — be the first to give some 💛</p>
           </div>
         ) : (
