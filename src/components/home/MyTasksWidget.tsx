@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { CheckSquare, ArrowRight, Circle, CheckCircle2 } from "lucide-react";
 import { format, isToday, isPast, parseISO, isFuture } from "date-fns";
 import { cn } from "@/lib/utils";
+import DetailDrawer from "@/components/DetailDrawer";
+import { toast } from "@/hooks/use-toast";
 
 type Tab = "today" | "overdue" | "upcoming";
 
