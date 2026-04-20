@@ -51,30 +51,7 @@ export default function DocCover({ coverUrl, icon, editable, onChange }: Props) 
         </div>
       ) : null}
 
-      {/* Floating action row: visible on hover when no cover, always when editable */}
-      {editable && (
-        <div className={`flex items-center gap-2 ${coverUrl ? "" : "opacity-0 group-hover/cover:opacity-100 transition-opacity h-7"}`}>
-          {!coverUrl && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5" onClick={() => fileRef.current?.click()}>
-              <ImageIcon className="h-3.5 w-3.5" /> Add cover
-            </Button>
-          )}
-          {!icon && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5">
-                  <Smile className="h-3.5 w-3.5" /> Add icon
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-2" align="start">
-                <EmojiGrid onPick={(e) => onChange({ icon: e })} />
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-      )}
-
-      {/* Icon row (above title) */}
+      {/* Icon (above title) */}
       {icon && (
         <Popover>
           <PopoverTrigger asChild disabled={!editable}>
@@ -89,6 +66,29 @@ export default function DocCover({ coverUrl, icon, editable, onChange }: Props) 
             <EmojiGrid onPick={(e) => onChange({ icon: e })} onRemove={() => onChange({ icon: null })} />
           </PopoverContent>
         </Popover>
+      )}
+
+      {/* Always-visible Add cover / Add icon when missing */}
+      {editable && (!coverUrl || !icon) && (
+        <div className="flex items-center gap-1 mb-2 -ml-1">
+          {!coverUrl && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground" onClick={() => fileRef.current?.click()}>
+              <ImageIcon className="h-3.5 w-3.5" /> Add cover
+            </Button>
+          )}
+          {!icon && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground">
+                  <Smile className="h-3.5 w-3.5" /> Add icon
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <EmojiGrid onPick={(e) => onChange({ icon: e })} />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       )}
 
       <input
