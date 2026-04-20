@@ -84,7 +84,9 @@ export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
                       <span className="font-semibold">{toName}</span>
                     </p>
                     {k.message && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 italic">"{k.message}"</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {k.message.replace(/<[^>]*>/g, "").trim()}
+                      </p>
                     )}
                     <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                       {formatDistanceToNow(new Date(k.created_at), { addSuffix: true })}
