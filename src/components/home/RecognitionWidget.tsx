@@ -35,7 +35,7 @@ export function RecognitionWidget() {
   const initials = (name: string) => name.split(" ").map((n) => n[0]).slice(0, 2).join("");
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold flex items-center gap-2">
@@ -47,8 +47,8 @@ export function RecognitionWidget() {
         </div>
 
         {items.length === 0 ? (
-          <div className="py-6 text-center">
-            <Heart className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
+          <div className="py-3 text-center">
+            <Heart className="h-6 w-6 text-muted-foreground/30 mx-auto mb-1.5" />
             <p className="text-xs text-muted-foreground">No kudos this week — be the first to give some 💛</p>
           </div>
         ) : (
