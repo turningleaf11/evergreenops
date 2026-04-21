@@ -1309,6 +1309,74 @@ export type Database = {
           },
         ]
       }
+      ideas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dependencies: string[]
+          description: string | null
+          effort: string | null
+          horizon: string | null
+          id: string
+          priority_score: number | null
+          promoted_to_id: string | null
+          promoted_to_type: string | null
+          source_triage_id: string | null
+          status: string
+          tags: string[]
+          theme: string | null
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dependencies?: string[]
+          description?: string | null
+          effort?: string | null
+          horizon?: string | null
+          id?: string
+          priority_score?: number | null
+          promoted_to_id?: string | null
+          promoted_to_type?: string | null
+          source_triage_id?: string | null
+          status?: string
+          tags?: string[]
+          theme?: string | null
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dependencies?: string[]
+          description?: string | null
+          effort?: string | null
+          horizon?: string | null
+          id?: string
+          priority_score?: number | null
+          promoted_to_id?: string | null
+          promoted_to_type?: string | null
+          source_triage_id?: string | null
+          status?: string
+          tags?: string[]
+          theme?: string | null
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ideas_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           assigned_to: string | null
