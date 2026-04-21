@@ -785,9 +785,11 @@ export default function DepartmentPage() {
 
 function EmbeddedLeadership({ deptId }: { deptId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
+  const { isAdmin } = useAuth();
 
   return (
     <div className="space-y-6">
+      <ScorecardSection departmentId={deptId} isAdmin={isAdmin} />
       <StrategyFeed departmentId={deptId} />
       <TranslationBlockComponent departmentId={deptId} />
       <UpwardProposalForm departmentId={deptId} />
