@@ -2294,6 +2294,110 @@ export type Database = {
         }
         Relationships: []
       }
+      scorecard_entries: {
+        Row: {
+          actual_value: number | null
+          entered_at: string
+          entered_by: string | null
+          id: string
+          metric_id: string
+          note: string | null
+          week_start_date: string
+        }
+        Insert: {
+          actual_value?: number | null
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          metric_id: string
+          note?: string | null
+          week_start_date: string
+        }
+        Update: {
+          actual_value?: number | null
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          metric_id?: string
+          note?: string | null
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorecard_entries_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "scorecard_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scorecard_metrics: {
+        Row: {
+          created_at: string
+          data_source: string
+          department_id: string | null
+          description: string | null
+          ghl_field_key: string | null
+          id: string
+          is_active: boolean
+          name: string
+          owner_id: string | null
+          sort_order: number
+          unit: string
+          updated_at: string
+          weekly_target: number
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_source?: string
+          department_id?: string | null
+          description?: string | null
+          ghl_field_key?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          owner_id?: string | null
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          weekly_target?: number
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_source?: string
+          department_id?: string | null
+          description?: string | null
+          ghl_field_key?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_id?: string | null
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          weekly_target?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorecard_metrics_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scorecard_metrics_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategy_items: {
         Row: {
           assigned_departments: string[] | null
