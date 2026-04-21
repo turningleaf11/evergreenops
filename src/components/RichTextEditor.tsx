@@ -166,19 +166,19 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
     >
       {/* Bubble Menu — appears on text selection */}
       <BubbleMenu editor={editor} className="bubble-menu">
-        <button onClick={() => editor.chain().focus().toggleBold().run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">
+        <button onClick={() => editor.chain().focus().toggleMark("bold").run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">
           <Bold className="h-3.5 w-3.5" />
         </button>
-        <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`bubble-btn ${editor.isActive("italic") ? "is-active" : ""}`} title="Italic">
+        <button onClick={() => editor.chain().focus().toggleMark("italic").run()} className={`bubble-btn ${editor.isActive("italic") ? "is-active" : ""}`} title="Italic">
           <Italic className="h-3.5 w-3.5" />
         </button>
         <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={`bubble-btn ${editor.isActive("underline") ? "is-active" : ""}`} title="Underline">
           <UnderlineIcon className="h-3.5 w-3.5" />
         </button>
-        <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`bubble-btn ${editor.isActive("strike") ? "is-active" : ""}`} title="Strikethrough">
+        <button onClick={() => editor.chain().focus().toggleMark("strike").run()} className={`bubble-btn ${editor.isActive("strike") ? "is-active" : ""}`} title="Strikethrough">
           <Strikethrough className="h-3.5 w-3.5" />
         </button>
-        <button onClick={() => editor.chain().focus().toggleCode().run()} className={`bubble-btn ${editor.isActive("code") ? "is-active" : ""}`} title="Code">
+        <button onClick={() => editor.chain().focus().toggleMark("code").run()} className={`bubble-btn ${editor.isActive("code") ? "is-active" : ""}`} title="Code">
           <Code className="h-3.5 w-3.5" />
         </button>
 
