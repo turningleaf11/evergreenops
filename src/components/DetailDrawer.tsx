@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, User, Tag, Flag, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, User, Tag, Flag, AlertCircle, Repeat, FileText, ExternalLink, FolderKanban } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 interface EditableTitleProps {
   value: string;
@@ -88,6 +92,54 @@ function DetailContent({ type, item, onStatusChange, getName }: {
   getName: (uid: string | null) => string;
 }) {
   const statuses = type === "project" ? projectStatuses : taskStatuses;
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [sop, setSop] = useState<{ id: string; title: string } | null>(null);
+  const [converting, setConverting] = useState(false);
+
+  // If task is from a cadence, look up the linked SOP doc
+  useEffect(() => {
+    setSop(null);
+    if (type !== "task" || !item?.tags) return;
+    const cadenceTag = (item.tags as string[]).find(t => t.startsWith("cadence:"));
+    if (!cadenceTag) return;
+    const cadenceId = cadenceTag.split(":")[1];
+    if (!cadenceId) return;
+    (async () => {
+      const { data: cad } = await supabase.from("cadences").select("sop_doc_id").eq("id", cadenceId).maybeSingle();
+      if (!cad?.sop_doc_id) return;
+      const { data: doc } = await supabase.from("documents").select("id, title").eq("id", cad.sop_doc_id).maybeSingle();
+      if (doc) setSop(doc);
+    })();
+  }, [type, item?.id, item?.tags]);
+
+  const convertToProject = async () => {
+    if (!user || !item) return;
+    setConverting(true);
+    try {
+      const { data: profile } = await supabase.from("profiles").select("workspace_id").eq("user_id", user.id).maybeSingle();
+      const { data: project, error } = await supabase.from("projects").insert({
+        title: item.title,
+        description: item.description || "",
+        created_by: user.id,
+        owner_id: item.assigned_to || user.id,
+        priority: item.priority || "medium",
+        status: "not_started",
+        tags: (item.tags || []).filter((t: string) => !t.startsWith("cadence:")),
+        workspace_id: profile?.workspace_id ?? null,
+      }).select("id").maybeSingle();
+      if (error) throw error;
+      // Mark task as done & link to project (best-effort)
+      await supabase.from("tasks").update({ status: "done", project_id: project?.id ?? null }).eq("id", item.id);
+      toast({ title: "Converted to project", description: item.title });
+      if (project?.id) navigate(`/projects/${project.id}`);
+    } catch (e: any) {
+      toast({ title: "Convert failed", description: e.message, variant: "destructive" });
+    } finally {
+      setConverting(false);
+    }
+  };
+
 
   return (
     <div className="space-y-5">
