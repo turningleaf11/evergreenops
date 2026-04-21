@@ -244,6 +244,34 @@ function DetailContent({ type, item, onStatusChange, getName }: {
         )}
       </div>
 
+      {sop && (
+        <Card className="bg-amber-500/[0.04] border-amber-500/30">
+          <CardContent className="p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Repeat className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Linked SOP</p>
+                <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                  <FileText className="h-3 w-3 text-muted-foreground" /> {sop.title}
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate(`/docs/${sop.id}`)}>
+              Open <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {type === "task" && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" onClick={convertToProject} disabled={converting}>
+            <FolderKanban className="h-3 w-3 mr-1.5" />
+            {converting ? "Converting…" : "Convert to project"}
+          </Button>
+        </div>
+      )}
+
       {item.description && (
         <Card className="bg-muted/30 border-border/30">
           <CardContent className="p-4">
