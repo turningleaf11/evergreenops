@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 export type TriageItem = {
   id: string;
   text: string;
-  category: "task" | "decision" | "idea" | "delegation";
+  category: "task" | "decision" | "idea" | "delegation" | "project";
   suggested_assignee_id: string | null;
   suggested_priority: string;
   reasoning: string;
@@ -30,13 +30,15 @@ const categoryColors: Record<string, string> = {
   decision: "bg-amber-500/10 text-amber-700 border-amber-200",
   idea: "bg-purple-500/10 text-purple-700 border-purple-200",
   delegation: "bg-green-500/10 text-green-700 border-green-200",
+  project: "bg-indigo-500/10 text-indigo-700 border-indigo-200",
 };
 
 const categoryDestinations: Record<string, { label: string; path: string; tab?: string }> = {
   task: { label: "Execution", path: "/execution" },
   delegation: { label: "Execution", path: "/execution" },
+  project: { label: "Execution → Projects", path: "/execution" },
   decision: { label: "Strategy → Decision Log", path: "/ceo", tab: "strategy" },
-  idea: { label: "Strategy → Strategy Items", path: "/ceo", tab: "strategy" },
+  idea: { label: "CEO Cockpit → Ideas", path: "/ceo", tab: "ideas" },
 };
 
 export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriageProps) {
@@ -71,10 +73,23 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
           priority: item.suggested_priority || "medium",
           status: "todo",
         });
+      } else if (item.category === "project") {
+        await supabase.from("projects").insert({
+          title: text,
+          created_by: user?.id,
+          owner_id: assigneeId || user?.id,
+          status: "not_started",
+          priority: item.suggested_priority || "medium",
+        });
       } else if (item.category === "decision") {
         await supabase.from("decision_log").insert({ title: text, created_by: user?.id });
       } else if (item.category === "idea") {
-        await supabase.from("strategy_items").insert({ title: text, type: "idea", created_by: user?.id });
+        await supabase.from("ideas").insert({
+          title: text,
+          created_by: user?.id,
+          status: "captured",
+          source_triage_id: item.id,
+        });
       }
       toast({
         title: `${item.category.charAt(0).toUpperCase() + item.category.slice(1)} created`,
