@@ -23,6 +23,7 @@ import { UpwardProposalForm } from "@/components/UpwardProposal";
 import { LeadershipAiChat } from "@/components/LeadershipAiChat";
 import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
+import ScorecardSection from "@/components/scorecard/ScorecardSection";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
