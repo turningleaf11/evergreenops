@@ -46,7 +46,14 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `You are an executive assistant AI for a CEO. You help organize raw notes into actionable items.
 
-Given the CEO's scratch pad notes (which may include text and/or images of handwritten notes), extract individual items and categorize each as one of: task, decision, idea, delegation.
+Given the CEO's scratch pad notes (which may include text and/or images of handwritten notes), extract individual items and categorize each as one of: task, project, decision, idea, delegation.
+
+Use these definitions:
+- task: a specific small unit of work the CEO will do.
+- delegation: a task to be assigned to a teammate.
+- project: a multi-step initiative that will produce an outcome (more than a single task). Anything described with words like "build", "launch", "rebuild", "roll out" usually goes here.
+- decision: a documented choice or directional call.
+- idea: a raw concept worth capturing for later evaluation (not yet committed work).
 
 Context — Team Roster:
 ${teamRoster}
@@ -96,7 +103,7 @@ For each item, suggest an assignee from the team roster if appropriate (use thei
                       type: "object",
                       properties: {
                         text: { type: "string" },
-                        category: { type: "string", enum: ["task", "decision", "idea", "delegation"] },
+                        category: { type: "string", enum: ["task", "project", "decision", "idea", "delegation"] },
                         suggested_assignee_id: { type: "string", nullable: true },
                         suggested_priority: { type: "string", enum: ["low", "medium", "high"] },
                         reasoning: { type: "string" },
