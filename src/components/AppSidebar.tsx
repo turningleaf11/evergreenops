@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3,
 } from "lucide-react";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
@@ -65,6 +65,10 @@ export function AppSidebar() {
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     { title: "Lists", url: "/databases", icon: DbIcon },
+  ];
+
+  const reportingNav = [
+    ...(isAdmin ? [{ title: "Scorecard", url: "/scorecard", icon: BarChart3 }] : []),
   ];
 
   const addonNav = [
@@ -204,6 +208,22 @@ export function AppSidebar() {
           </Collapsible>
         </SidebarGroup>
 
+
+        {/* Reporting */}
+        {reportingNav.length > 0 && (
+          <SidebarGroup>
+            {!collapsed && <SidebarGroupLabel className="text-[10px]">Reporting</SidebarGroupLabel>}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {reportingNav.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <NavItem item={item} />
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Add-Ons */}
         {addonNav.length > 0 && (
