@@ -107,9 +107,6 @@ export default function ScorecardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (authLoading) return null;
-  if (!isAdmin) return <Navigate to="/" replace />;
-
   const entryFor = (metricId: string, week: string) =>
     entries.find(e => e.metric_id === metricId && e.week_start_date === week);
 
