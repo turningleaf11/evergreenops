@@ -402,6 +402,39 @@ export type Database = {
           },
         ]
       }
+      ceo_weekly_priorities: {
+        Row: {
+          created_at: string
+          id: string
+          second_priority: string
+          third_priority: string
+          top_priority: string
+          updated_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          second_priority?: string
+          third_priority?: string
+          top_priority?: string
+          updated_at?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          second_priority?: string
+          third_priority?: string
+          top_priority?: string
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       comment_reactions: {
         Row: {
           comment_id: string
