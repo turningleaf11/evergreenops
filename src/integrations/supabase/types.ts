@@ -1342,6 +1342,63 @@ export type Database = {
           },
         ]
       }
+      idea_vault: {
+        Row: {
+          ai_cluster: string | null
+          ai_summary: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          effort_estimate: string | null
+          id: string
+          promoted_at: string | null
+          promoted_to_id: string | null
+          promoted_to_type: string | null
+          source: string
+          status: string
+          time_horizon: string | null
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_cluster?: string | null
+          ai_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effort_estimate?: string | null
+          id?: string
+          promoted_at?: string | null
+          promoted_to_id?: string | null
+          promoted_to_type?: string | null
+          source?: string
+          status?: string
+          time_horizon?: string | null
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_cluster?: string | null
+          ai_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          effort_estimate?: string | null
+          id?: string
+          promoted_at?: string | null
+          promoted_to_id?: string | null
+          promoted_to_type?: string | null
+          source?: string
+          status?: string
+          time_horizon?: string | null
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       ideas: {
         Row: {
           created_at: string
@@ -3076,6 +3133,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_primary_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reminder_assignee: {
         Args: { _reminder_id: string; _user_id: string }
         Returns: boolean
