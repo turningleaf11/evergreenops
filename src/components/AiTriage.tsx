@@ -84,11 +84,12 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
       } else if (item.category === "decision") {
         await supabase.from("decision_log").insert({ title: text, created_by: user?.id });
       } else if (item.category === "idea") {
-        await supabase.from("ideas").insert({
+        await (supabase as any).from("idea_vault").insert({
           title: text,
+          description: item.reasoning || null,
           created_by: user?.id,
           status: "captured",
-          source_triage_id: item.id,
+          source: "triage",
         });
       }
       toast({
