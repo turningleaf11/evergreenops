@@ -13,7 +13,7 @@ import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { ScratchPad } from "@/components/ScratchPad";
 import { AiTriage, type TriageItem } from "@/components/AiTriage";
 import { DelegationBoard } from "@/components/DelegationBoard";
-import { IdeasBacklog } from "@/components/ideas/IdeasBacklog";
+import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -229,7 +229,7 @@ export default function CeoDashboard() {
         <Tabs defaultValue="braindump" className="w-full">
           <TabsList className="w-full justify-start mb-6 bg-transparent">
             <TabsTrigger value="braindump">Brain Dump</TabsTrigger>
-            <TabsTrigger value="ideas">Ideas</TabsTrigger>
+            {isPrimaryAdmin && <TabsTrigger value="ideas">Idea Vault</TabsTrigger>}
             {isPrimaryAdmin && <TabsTrigger value="thisweek">This Week</TabsTrigger>}
             <TabsTrigger value="command">Command</TabsTrigger>
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
@@ -302,12 +302,14 @@ export default function CeoDashboard() {
             </Accordion>
           </TabsContent>
 
-          {/* Ideas Tab */}
-          <TabsContent value="ideas">
-            <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-              <IdeasBacklog />
-            </div>
-          </TabsContent>
+          {/* Idea Vault Tab */}
+          {isPrimaryAdmin && (
+            <TabsContent value="ideas">
+              <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
+                <IdeaVault />
+              </div>
+            </TabsContent>
+          )}
 
           {/* Delegation Tab */}
           <TabsContent value="delegation">
