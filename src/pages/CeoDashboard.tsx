@@ -14,6 +14,7 @@ import { ScratchPad } from "@/components/ScratchPad";
 import { AiTriage, type TriageItem } from "@/components/AiTriage";
 import { DelegationBoard } from "@/components/DelegationBoard";
 import { IdeasBacklog } from "@/components/ideas/IdeasBacklog";
+import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -229,9 +230,16 @@ export default function CeoDashboard() {
           <TabsList className="w-full justify-start mb-6 bg-transparent">
             <TabsTrigger value="braindump">Brain Dump</TabsTrigger>
             <TabsTrigger value="ideas">Ideas</TabsTrigger>
+            {isPrimaryAdmin && <TabsTrigger value="thisweek">This Week</TabsTrigger>}
             <TabsTrigger value="command">Command</TabsTrigger>
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
+
+          {isPrimaryAdmin && (
+            <TabsContent value="thisweek">
+              <ThisWeekTab />
+            </TabsContent>
+          )}
 
           {/* Brain Dump Tab */}
           <TabsContent value="braindump" className="space-y-6">

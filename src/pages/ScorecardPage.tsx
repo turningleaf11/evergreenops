@@ -99,6 +99,22 @@ export default function ScorecardPage() {
         .in("metric_id", mData.map(m => m.id))
         .gte("week_start_date", earliest);
       setEntries(eData || []);
+
+      // Auto-sync GHL-sourced metrics for the current week (non-blocking)
+      const week = mondayOf(new Date());
+      const ghlMissing = mData.some((m: any) =>
+        m.data_source === "ghl" && !(eData || []).find((e: any) => e.metric_id === m.id && e.week_start_date === week),
+      );
+      if (ghlMissing) {
+        supabase.functions.invoke("scorecard-ghl-sync").then(({ data }) => {
+          if (data?.synced > 0) {
+            supabase.from("scorecard_entries").select("*")
+              .in("metric_id", mData.map((m: any) => m.id))
+              .gte("week_start_date", earliest)
+              .then(({ data: refreshed }) => setEntries(refreshed || []));
+          }
+        });
+      }
     } else {
       setEntries([]);
     }
