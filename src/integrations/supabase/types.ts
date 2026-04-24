@@ -1405,6 +1405,59 @@ export type Database = {
           },
         ]
       }
+      growth_profiles: {
+        Row: {
+          career_goals: string | null
+          company_role_description: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          last_updated_by: string | null
+          notes: string | null
+          personal_rei_goals: string | null
+          seats_owned: string[] | null
+          skills_developing: string[] | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          career_goals?: string | null
+          company_role_description?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          last_updated_by?: string | null
+          notes?: string | null
+          personal_rei_goals?: string | null
+          seats_owned?: string[] | null
+          skills_developing?: string[] | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          career_goals?: string | null
+          company_role_description?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          last_updated_by?: string | null
+          notes?: string | null
+          personal_rei_goals?: string | null
+          seats_owned?: string[] | null
+          skills_developing?: string[] | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idea_vault: {
         Row: {
           ai_cluster: string | null
@@ -2026,6 +2079,109 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      one_on_ones: {
+        Row: {
+          action_items: Json
+          conducted_by: string
+          created_at: string
+          employee_id: string
+          id: string
+          meeting_date: string
+          next_meeting_date: string | null
+          notes: string | null
+          sentiment: string
+          workspace_id: string | null
+        }
+        Insert: {
+          action_items?: Json
+          conducted_by: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          meeting_date: string
+          next_meeting_date?: string | null
+          notes?: string | null
+          sentiment?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          action_items?: Json
+          conducted_by?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          meeting_date?: string
+          next_meeting_date?: string | null
+          notes?: string | null
+          sentiment?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "one_on_ones_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      people_health_snapshots: {
+        Row: {
+          calculated_at: string
+          days_since_last_one_on_one: number | null
+          employee_id: string
+          id: string
+          kudos_received_30_days: number
+          last_one_on_one_date: string | null
+          onboarding_complete: boolean
+          onboarding_progress_pct: number
+          one_on_one_frequency_score: number
+          open_action_items: number
+          overall_health: string
+          snapshot_date: string
+          workspace_id: string | null
+        }
+        Insert: {
+          calculated_at?: string
+          days_since_last_one_on_one?: number | null
+          employee_id: string
+          id?: string
+          kudos_received_30_days?: number
+          last_one_on_one_date?: string | null
+          onboarding_complete?: boolean
+          onboarding_progress_pct?: number
+          one_on_one_frequency_score?: number
+          open_action_items?: number
+          overall_health?: string
+          snapshot_date: string
+          workspace_id?: string | null
+        }
+        Update: {
+          calculated_at?: string
+          days_since_last_one_on_one?: number | null
+          employee_id?: string
+          id?: string
+          kudos_received_30_days?: number
+          last_one_on_one_date?: string | null
+          onboarding_complete?: boolean
+          onboarding_progress_pct?: number
+          one_on_one_frequency_score?: number
+          open_action_items?: number
+          overall_health?: string
+          snapshot_date?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_health_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       poll_votes: {
         Row: {
