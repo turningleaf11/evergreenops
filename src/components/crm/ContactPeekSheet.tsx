@@ -251,7 +251,25 @@ export function ContactPeekSheet({
                   )}
                 </div>
 
-                <CustomFieldsPanel
+                {/* Owner */}
+                <div className="px-6 py-4 border-b border-border/50">
+                  <OwnerPicker
+                    ownerId={contact.owner_id}
+                    onChange={async (id) => {
+                      const { error } = await supabase
+                        .from("contacts")
+                        .update({ owner_id: id })
+                        .eq("id", contact.id);
+                      if (error) {
+                        toast({ title: "Couldn't update owner", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      setContact({ ...contact, owner_id: id });
+                      onChanged();
+                    }}
+                  />
+                </div>
+
                   contactId={contact.id}
                   values={(contact.custom_fields || {}) as Record<string, unknown>}
                   onSaved={(v) => setContact({ ...contact, custom_fields: v })}
