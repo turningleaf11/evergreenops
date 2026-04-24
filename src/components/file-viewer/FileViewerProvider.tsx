@@ -5,6 +5,7 @@ import { Download, ExternalLink, X, FileText, Loader2, AlertCircle } from "lucid
 import { supabase } from "@/integrations/supabase/client";
 import { getStoragePathFromUrl } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
+import PdfPreview from "./PdfPreview";
 
 type OpenOpts = { url: string; fileName?: string; mimeType?: string };
 
@@ -246,21 +247,12 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                   </div>
                 )}
                 {kind === "pdf" && (
-                  <object data={blobUrl} type="application/pdf" className="w-full h-full">
-                    <iframe src={blobUrl} title={fileName} className="w-full h-full border-0" />
-                    <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
-                      <FileText className="h-10 w-10 text-muted-foreground" />
-                      <div className="text-sm font-medium">PDF preview unavailable in this browser</div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleOpenNewTab}>
-                          <ExternalLink className="h-4 w-4 mr-1.5" /> Open in new tab
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={handleDownload}>
-                          <Download className="h-4 w-4 mr-1.5" /> Download
-                        </Button>
-                      </div>
-                    </div>
-                  </object>
+                  <PdfPreview
+                    fileUrl={blobUrl}
+                    fileName={fileName}
+                    onDownload={handleDownload}
+                    onOpenNewTab={handleOpenNewTab}
+                  />
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
