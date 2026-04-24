@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Copy, Trash2, RefreshCw, Plus, Send, Key, Webhook, Settings as SettingsIcon, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 type DB = {
   id: string;
