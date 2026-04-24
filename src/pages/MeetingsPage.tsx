@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { ActionItemList } from "@/components/meetings/ActionItemList";
+import { LeadershipMeetingsTab } from "@/components/meetings/LeadershipMeetingsTab";
 
 interface Meeting {
   id: string;
@@ -74,15 +75,30 @@ export default function MeetingsPage() {
           <h1 className="text-xl font-semibold flex items-center gap-2">
             <Video className="h-5 w-5 text-muted-foreground" /> Meetings
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Recordings, transcripts & action items from Fathom</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Recordings & transcripts from Fathom · Structured leadership meetings</p>
         </div>
-        <Button size="sm" onClick={sync} disabled={syncing} variant="outline">
-          <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", syncing && "animate-spin")} />
-          {syncing ? "Syncing…" : "Sync from Fathom"}
-        </Button>
       </div>
 
-      <div className="flex-1 grid grid-cols-12 overflow-hidden">
+      <Tabs defaultValue="leadership" className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-6 pt-3 border-b border-border/60">
+          <TabsList>
+            <TabsTrigger value="leadership">Leadership Meetings</TabsTrigger>
+            <TabsTrigger value="recordings">Recordings (Fathom)</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="leadership" className="flex-1 overflow-y-auto m-0">
+          <LeadershipMeetingsTab />
+        </TabsContent>
+
+        <TabsContent value="recordings" className="flex-1 overflow-hidden m-0 flex flex-col">
+          <div className="px-6 py-3 border-b border-border/60 flex items-center justify-end">
+            <Button size="sm" onClick={sync} disabled={syncing} variant="outline">
+              <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", syncing && "animate-spin")} />
+              {syncing ? "Syncing…" : "Sync from Fathom"}
+            </Button>
+          </div>
+          <div className="flex-1 grid grid-cols-12 overflow-hidden">
         {/* Left rail: meeting list */}
         <div className="col-span-4 border-r border-border/60 overflow-y-auto">
           {loading ? (
