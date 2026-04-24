@@ -162,12 +162,31 @@ export default function CeoDashboard() {
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-8 pt-10 pb-6">
-        <div className="flex items-start justify-between">
+    <div className="min-h-screen relative bg-background">
+      {/* Premium command-center backdrop — accent-tinted gradient + soft radial glows */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-background to-background"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[480px] opacity-70"
+        style={{
+          background:
+            "radial-gradient(60% 50% at 20% 0%, hsl(var(--primary) / 0.10), transparent 70%), radial-gradient(50% 40% at 85% 10%, hsl(var(--primary) / 0.07), transparent 70%)",
+        }}
+      />
+
+      <div className="relative max-w-5xl mx-auto px-8 pt-12 pb-8">
+        <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="text-xs text-muted-foreground/70 tracking-wide uppercase mb-1">{dateStr}</p>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">{ceoPageName}</h1>
+            <p className="text-[11px] text-primary/80 tracking-[0.2em] uppercase font-semibold mb-2">
+              {dateStr}
+            </p>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
+              {ceoPageName}
+            </h1>
+            <div className="mt-3 h-px w-24 bg-gradient-to-r from-primary/60 to-transparent" />
           </div>
 
           {/* Vision Portal — Binoculars icon now jumps to Big Picture › Vision */}
@@ -191,7 +210,7 @@ export default function CeoDashboard() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-8 pb-16 space-y-8">
+      <div className="relative max-w-5xl mx-auto px-8 pb-16 space-y-10">
         {/* Current Objective — slim pinned context line */}
         <div className="mb-2">
           <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-widest mb-1.5">Current Objective</p>
@@ -259,20 +278,20 @@ export default function CeoDashboard() {
           )}
 
           {/* Big Picture Tab */}
-          <TabsContent value="bigpicture" className="space-y-10">
+          <TabsContent value="bigpicture" className="space-y-12 divide-y divide-border/40">
             {/* Section 1 — Vision */}
             <section
               ref={visionSectionRef}
-              className={`rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1 transition-all duration-500 ${
+              className={`rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 transition-all duration-500 ${
                 visionHighlight ? "ring-2 ring-primary/60 elevation-3" : ""
               }`}
             >
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <div className="mb-5">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2 tracking-tight">
                   <Eye className="h-4 w-4 text-primary" />
                   Vision &amp; Long-Term Targets
                 </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-1">
                   The foundation everything else is built on.
                 </p>
               </div>
@@ -289,10 +308,10 @@ export default function CeoDashboard() {
             </section>
 
             {/* Section 2 — Strategy */}
-            <section className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-foreground">Strategy Items</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 pt-12">
+              <div className="mb-5">
+                <h2 className="text-lg font-bold text-foreground tracking-tight">Strategy Items</h2>
+                <p className="text-xs text-muted-foreground mt-1">
                   Active strategic priorities cascading to your teams.
                 </p>
               </div>
@@ -300,10 +319,10 @@ export default function CeoDashboard() {
             </section>
 
             {/* Section 3 — Idea Vault */}
-            <section className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-foreground">Idea Vault</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 pt-12">
+              <div className="mb-5">
+                <h2 className="text-lg font-bold text-foreground tracking-tight">Idea Vault</h2>
+                <p className="text-xs text-muted-foreground mt-1">
                   Raw thinking captured from Brain Dump. Promote when ready.
                 </p>
               </div>
