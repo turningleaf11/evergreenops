@@ -162,6 +162,7 @@ export default function DataTableView({
                 />
               </div>
             ))}
+            <div />
           </div>
 
           {/* Body */}
