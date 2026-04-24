@@ -700,11 +700,13 @@ export default function ExecutionPage() {
                     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
                     else fetchAll();
                   }}
-              getName={getName}
-              statusOptions={projectStatusOptions}
-              profiles={profiles}
-              goals={goals}
-            />
+                  getName={getName}
+                  statusOptions={projectStatusOptions}
+                  profiles={profiles}
+                  goals={goals}
+                />
+              )}
+            </>
           )}
         </TabsContent>
 
