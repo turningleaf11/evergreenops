@@ -42,7 +42,9 @@ import { MentionPeekRoot } from "./components/mention-peek/MentionPeekRoot";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
+import { OnboardingGate } from "./components/OnboardingGate";
 
 const queryClient = new QueryClient();
 
@@ -119,7 +121,9 @@ const App = () => (
 
             {/* Protected app routes */}
             <Route element={<ProtectedRoute />}>
-              <Route element={<Layout />}>
+              {/* Full-screen onboarding (no Layout) */}
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
                 <Route path="/" element={<Index />} />
                 <Route element={<PrimaryAdminRoute />}>
                   <Route path="/ceo" element={<CeoDashboard />} />
