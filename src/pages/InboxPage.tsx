@@ -75,16 +75,24 @@ export default function InboxPage() {
 
   const loadGmailLabels = async () => {
     const { data } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
-    if (data?.labels) {
-      setGmailLabels(data.labels);
-      // Default every Gmail label group to collapsed on first load.
-      setCollapsedGroups((prev) => {
-        if (prev.size > 0) return prev; // user already toggled — don't override
-        const next = new Set<string>();
-        for (const l of data.labels as { path: string[] }[]) next.add(l.path[0]);
-        return next;
-      });
-    }
+    if (!data?.labels) return;
+    // Client-side safety net: drop Gmail's noisy auto-classifier labels even if
+    // an older edge response slips through (CATEGORY_*, *_STAR color variants,
+    // IMPORTANT). The edge function also filters these.
+    const cleaned = (data.labels as { id: string; path: string[] }[]).filter((l) => {
+      if (l.id === "IMPORTANT") return false;
+      if (l.id.startsWith("CATEGORY_")) return false;
+      if (/_STAR$|_BUBBLE$|_GUILLEMET$|_CHECK$|^STAR_/.test(l.id)) return false;
+      return true;
+    });
+    setGmailLabels(cleaned as any);
+    // Default every Gmail label group to collapsed on first load.
+    setCollapsedGroups((prev) => {
+      if (prev.size > 0) return prev;
+      const next = new Set<string>();
+      for (const l of cleaned) next.add(l.path[0]);
+      return next;
+    });
   };
 
   useEffect(() => { if (hasAccess) { loadLabels(); loadGmailLabels(); } }, [hasAccess]);

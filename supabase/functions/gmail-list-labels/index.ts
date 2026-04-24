@@ -21,24 +21,9 @@ Deno.serve(async (req) => {
   if (!r.ok) return json({ error: await r.text() }, r.status);
   const data: { labels?: GmailLabel[] } = await r.json();
 
-  // Hide built-in folders we already surface elsewhere, and Gmail's noisy
-  // auto-classifier "system" labels (CATEGORY_*, *_STAR/*_BUBBLE color-star
-  // variants, IMPORTANT, etc.) — users don't manage those, they pollute the
-  // sidebar.
-  const HIDDEN = new Set([
-    "INBOX", "SENT", "DRAFT", "TRASH", "SPAM", "STARRED", "UNREAD", "CHAT", "IMPORTANT",
-  ]);
-  const isNoisySystem = (l: GmailLabel) => {
-    if (l.type !== "system") return false;
-    if (l.id.startsWith("CATEGORY_")) return true;
-    // Color-star / color-bubble variants Gmail exposes alongside STARRED
-    if (/_STAR$|_BUBBLE$|_GUILLEMET$|_CHECK$|^STAR_/.test(l.id)) return true;
-    return false;
-  };
-
+  const HIDDEN = new Set(["INBOX", "SENT", "DRAFT", "TRASH", "SPAM", "STARRED", "UNREAD", "CHAT"]);
   const labels = (data.labels ?? [])
     .filter((l) => !HIDDEN.has(l.id))
-    .filter((l) => !isNoisySystem(l))
     .filter((l) => l.labelListVisibility !== "labelHide")
     .map((l) => {
       const path = l.name.split("/");
