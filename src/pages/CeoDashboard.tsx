@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { CeoBriefing } from "@/components/CeoBriefing";
 import { TopPriorities } from "@/components/TopPriorities";
 import { DecisionLog } from "@/components/DecisionLog";
-import { MorningReset } from "@/components/MorningReset";
 import { StrategyItemCreator } from "@/components/StrategyItemCreator";
 import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { ScratchPad } from "@/components/ScratchPad";
@@ -15,6 +14,8 @@ import { AiTriage, type TriageItem } from "@/components/AiTriage";
 import { DelegationBoard } from "@/components/DelegationBoard";
 import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
+import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
+import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -231,6 +232,9 @@ export default function CeoDashboard() {
 
           {/* Today Tab (formerly Brain Dump) */}
           <TabsContent value="today" className="space-y-6">
+            {isPrimaryAdmin && <DailyBriefingCard />}
+            {isPrimaryAdmin && <TodaysPriorities />}
+
             <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
               <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
             </div>

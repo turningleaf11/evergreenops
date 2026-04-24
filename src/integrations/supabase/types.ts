@@ -616,6 +616,69 @@ export type Database = {
           },
         ]
       }
+      daily_briefings: {
+        Row: {
+          briefing_date: string
+          bullets: Json
+          created_at: string
+          focus: string
+          generated_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          briefing_date: string
+          bullets?: Json
+          created_at?: string
+          focus?: string
+          generated_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          briefing_date?: string
+          bullets?: Json
+          created_at?: string
+          focus?: string
+          generated_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_priorities: {
+        Row: {
+          created_at: string
+          id: string
+          priority_date: string
+          slot: number
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          priority_date: string
+          slot: number
+          text?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          priority_date?: string
+          slot?: number
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       database_rows: {
         Row: {
           created_at: string
