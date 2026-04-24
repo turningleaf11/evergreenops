@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -14,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { user, profile, isPrimaryAdmin, loading } = useAuth();
-  const { workspace } = useWorkspace() as any;
   const location = useLocation();
   const [checked, setChecked] = useState(false);
   const [shouldOnboard, setShouldOnboard] = useState(false);
@@ -37,20 +35,25 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     (async () => {
-      // Workspace age check — only trigger if workspace was created <24h ago
-      const wsCreated = workspace?.created_at ? new Date(workspace.created_at).getTime() : null;
+      // Fetch workspace creation time + vision in parallel
+      const wsId = (profile as any).workspace_id;
+      const [wsRes, visionRes] = await Promise.all([
+        wsId
+          ? supabase.from("workspaces").select("created_at").eq("id", wsId).maybeSingle()
+          : Promise.resolve({ data: null } as any),
+        supabase.from("vision").select("section, content"),
+      ]);
+
+      const wsCreated = (wsRes as any)?.data?.created_at
+        ? new Date((wsRes as any).data.created_at).getTime()
+        : null;
       const ageOk = wsCreated ? Date.now() - wsCreated < 24 * 60 * 60 * 1000 : false;
 
-      // Check vision table for real content
-      const { data: visionRows } = await supabase
-        .from("vision")
-        .select("section, content");
-      const hasVision = (visionRows || []).some((r: any) => {
+      const hasVision = ((visionRes as any)?.data || []).some((r: any) => {
         const t = r?.content?.text;
         return typeof t === "string" && t.trim().length > 0;
       });
 
-      // Trigger if workspace is fresh and no vision, OR if there's saved progress
       const hasProgress = p.onboarding_progress && Object.keys(p.onboarding_progress).length > 0;
       const trigger = (ageOk && !hasVision) || hasProgress;
 
@@ -61,7 +64,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     })();
 
     return () => { cancelled = true; };
-  }, [loading, user, profile, isPrimaryAdmin, workspace]);
+  }, [loading, user, profile, isPrimaryAdmin]);
 
   if (loading || !checked) return <>{children}</>;
 
