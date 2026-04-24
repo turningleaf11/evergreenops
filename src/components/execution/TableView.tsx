@@ -14,6 +14,7 @@ interface TableViewProps {
   statusOptions: { value: string; label: string }[];
   goals?: any[];
   projects?: any[];
+  disableGrouping?: boolean;
 }
 
 const statusRingColors: Record<string, string> = {
@@ -89,15 +90,17 @@ function StatusCircle({ status, statusOptions, onStatusChange, itemId }: {
 /* HoverActions removed — drop-down/edit/archive icons no longer rendered on row hover */
 
 export default function TableView({
-  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
+  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects, disableGrouping,
 }: TableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const grouped = statusOptions.map(s => ({
-    ...s,
-    items: items.filter(item => item.status === s.value),
-  }));
+  const grouped = disableGrouping
+    ? [{ value: "__all__", label: "", items }]
+    : statusOptions.map(s => ({
+        ...s,
+        items: items.filter(item => item.status === s.value),
+      }));
 
   const toggleGroup = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
@@ -110,16 +113,18 @@ export default function TableView({
         const isOpen = !collapsed[group.value];
 
         return (
-          <div key={group.value} className="rounded-xl bg-muted/20 p-3">
+          <div key={group.value} className={cn(!disableGrouping && "rounded-xl bg-muted/20 p-3")}>
             <Collapsible open={isOpen} onOpenChange={() => toggleGroup(group.value)}>
-              <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
-                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
-                <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
-                <span className="text-sm font-semibold">{group.label}</span>
-                <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-1.5 mt-2">
+              {!disableGrouping && (
+                <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
+                  <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
+                  <span className="text-sm font-semibold">{group.label}</span>
+                  <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent forceMount={disableGrouping ? true : undefined}>
+                <div className={cn("space-y-1.5", !disableGrouping && "mt-2")}>
                   {group.items.map(item => {
                     const ownerName = getName(item[ownerField]);
                     const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
