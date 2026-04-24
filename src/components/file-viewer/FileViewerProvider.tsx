@@ -180,9 +180,10 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
   };
 
   const handleOpenNewTab = () => {
-    const target = shouldOpenNatively(fileName, resolvedMime || opts?.mimeType)
-      ? opts?.url
-      : (blobUrl || opts?.url);
+    // Prefer the original (storage/signed) URL when we have one — opening a
+    // blob: URL in a new tab is unreliable (Edge often blocks it) and the
+    // user just sees the raw blob: URL in the address bar.
+    const target = opts?.url || blobUrl;
     if (!target) return;
     const win = window.open(target, "_blank", "noopener,noreferrer");
     if (!win) {
