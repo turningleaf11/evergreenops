@@ -1390,6 +1390,41 @@ export type Database = {
           },
         ]
       }
+      deal_team_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_team_members_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           company_id: string | null
@@ -4299,6 +4334,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_contact: {
+        Args: { _contact_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_access_deal: {
+        Args: { _deal_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_use_gmail: { Args: { _user_id: string }; Returns: boolean }
       crm_suggest_links_for_emails: {
         Args: { _emails: string[] }
@@ -4316,6 +4359,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_deal_team_member: {
+        Args: { _deal_id: string; _user_id: string }
         Returns: boolean
       }
       is_primary_admin: { Args: { _user_id: string }; Returns: boolean }

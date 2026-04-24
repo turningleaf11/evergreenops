@@ -39,6 +39,7 @@ import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { QuickCreateDialog } from "./QuickCreateDialog";
+import { OwnerPicker, DealTeamMembersPanel } from "./PeoplePickers";
 
 interface Deal {
   id: string;
@@ -51,6 +52,8 @@ interface Deal {
   probability: number;
   expected_close_date: string | null;
   primary_contact_id: string | null;
+  owner_id: string | null;
+  created_by: string | null;
   status: string;
   lost_reason: string | null;
   description: string;
@@ -557,6 +560,22 @@ export function DealPeekSheet({
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Owner + Team */}
+                <div className="px-6 py-4 border-b border-border/50 space-y-4">
+                  <OwnerPicker
+                    ownerId={deal.owner_id}
+                    onChange={(id) => saveField({ owner_id: id })}
+                  />
+                  <DealTeamMembersPanel
+                    dealId={deal.id}
+                    canManage={
+                      !!user &&
+                      (user.id === deal.owner_id || user.id === deal.created_by)
+                    }
+                    currentUserId={user?.id ?? null}
+                  />
                 </div>
 
                 {/* Linked contacts */}

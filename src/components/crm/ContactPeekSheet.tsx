@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { OwnerPicker } from "./PeoplePickers";
 
 interface Contact {
   id: string;
@@ -23,6 +24,7 @@ interface Contact {
   status: string;
   notes: string;
   company_id: string | null;
+  owner_id: string | null;
   last_contacted_at: string | null;
   custom_fields: Record<string, unknown>;
   created_at: string;
@@ -249,6 +251,24 @@ export function ContactPeekSheet({
                   )}
                 </div>
 
+                {/* Owner */}
+                <div className="px-6 py-4 border-b border-border/50">
+                  <OwnerPicker
+                    ownerId={contact.owner_id}
+                    onChange={async (id) => {
+                      const { error } = await supabase
+                        .from("contacts")
+                        .update({ owner_id: id })
+                        .eq("id", contact.id);
+                      if (error) {
+                        toast({ title: "Couldn't update owner", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      setContact({ ...contact, owner_id: id });
+                      onChanged();
+                    }}
+                  />
+                </div>
                 <CustomFieldsPanel
                   contactId={contact.id}
                   values={(contact.custom_fields || {}) as Record<string, unknown>}
