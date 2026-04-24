@@ -28,7 +28,7 @@ interface Deal {
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }
-interface Activity { id: string; type: string; subject: string; body: string; occurred_at: string }
+interface Activity { id: string; type: string; subject: string; body: string; occurred_at: string; metadata?: Record<string, unknown> }
 
 const formatMoney = (n: number, currency = "USD") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
