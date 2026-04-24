@@ -120,6 +120,12 @@ export default function SettingsPage() {
       ],
     },
     {
+      label: "CRM",
+      items: [
+        { value: "crm_fields", icon: Briefcase, label: "Custom Fields" },
+      ],
+    },
+    {
       label: "Extensions",
       items: [
         { value: "addons", icon: Package, label: "Add-Ons" },
