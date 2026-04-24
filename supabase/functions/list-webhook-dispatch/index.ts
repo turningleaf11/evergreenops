@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
     if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
     const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: auth } } });
-    const { data: claims } = await userClient.auth.getClaims(auth.replace("Bearer ", ""));
-    if (!claims?.claims) return json({ error: "Unauthorized" }, 401);
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
     const body = await req.json().catch(() => ({}));
     const { database_id, event, row, webhook_id } = body || {};

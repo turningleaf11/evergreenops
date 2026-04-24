@@ -1,1 +1,7 @@
 project_id = "tjthjgmqdvmgosbzfrif"
+
+[functions.list-api]
+verify_jwt = false
+
+[functions.list-webhook-in]
+verify_jwt = false
