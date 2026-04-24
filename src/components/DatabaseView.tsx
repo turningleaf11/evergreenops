@@ -201,7 +201,7 @@ function CellValue({ column, value, allDatabases, allRows }: { column: DatabaseC
     case "phone":
       return <a href={`tel:${value}`} className="text-xs text-primary underline" onClick={e => e.stopPropagation()}>{value}</a>;
     case "file":
-      return value ? <a href={value} target="_blank" rel="noopener" className="text-xs text-primary underline flex items-center gap-1" onClick={e => e.stopPropagation()}><ExternalLink className="h-3 w-3" />File</a> : <span className="text-muted-foreground">—</span>;
+      return value ? <a href={value} className="file-attachment text-xs text-primary underline flex items-center gap-1" onClick={e => e.stopPropagation()}><ExternalLink className="h-3 w-3" />File</a> : <span className="text-muted-foreground">—</span>;
     case "progress":
       const pct = typeof value === "number" ? value : 0;
       return (
