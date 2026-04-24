@@ -125,6 +125,8 @@ export default function SettingsPage() {
     },
   ];
 
+  const [activeSection, setActiveSection] = useState("workspace");
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -132,28 +134,61 @@ export default function SettingsPage() {
         <p className="text-muted-foreground mt-1.5">Manage workspace, departments, training, and user roles.</p>
       </div>
 
-      <Tabs defaultValue="workspace" orientation="vertical" className="flex flex-col lg:flex-row gap-8 items-start">
-        <aside className="w-full lg:w-60 lg:sticky lg:top-6 shrink-0">
-          <TabsList className="flex lg:flex-col h-auto w-full bg-transparent p-0 gap-0.5 overflow-x-auto lg:overflow-visible flex-nowrap lg:flex-wrap justify-start">
+      {/* Mobile: horizontal scroller */}
+      <div className="lg:hidden mb-4 -mx-6 px-6 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1 w-max">
+          {navSections.flatMap((s) => s.items).map((item) => {
+            const isActive = activeSection === item.value;
+            return (
+              <button
+                key={item.value}
+                onClick={() => setActiveSection(item.value)}
+                className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 h-9 text-sm font-medium rounded-md transition-colors ${
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                }`}
+              >
+                <item.icon className="h-4 w-4" />
+                <span className="whitespace-nowrap">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <Tabs value={activeSection} onValueChange={setActiveSection} className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Desktop sidebar */}
+        <aside className="hidden lg:block w-60 shrink-0 lg:sticky lg:top-6">
+          <nav className="rounded-xl border border-border/60 bg-card/40 p-2 space-y-1">
             {navSections.map((section, i) => (
-              <div key={section.label} className="contents lg:block lg:w-full">
-                {i > 0 && <div className="hidden lg:block h-px bg-border/60 my-2" />}
-                <div className="hidden lg:block px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div key={section.label}>
+                {i > 0 && <div className="h-px bg-border/60 my-2" />}
+                <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {section.label}
                 </div>
-                {section.items.map((item) => (
-                  <TabsTrigger
-                    key={item.value}
-                    value={item.value}
-                    className="shrink-0 lg:w-full justify-start gap-2 lg:gap-2.5 px-3 py-2 h-9 text-sm font-medium rounded-md data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none hover:bg-muted/60"
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </TabsTrigger>
-                ))}
+                <div className="space-y-0.5">
+                  {section.items.map((item) => {
+                    const isActive = activeSection === item.value;
+                    return (
+                      <button
+                        key={item.value}
+                        onClick={() => setActiveSection(item.value)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 h-9 text-sm font-medium rounded-md transition-colors ${
+                          isActive
+                            ? "bg-primary/10 text-primary ring-1 ring-primary/15"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
-          </TabsList>
+          </nav>
         </aside>
 
         <div className="flex-1 min-w-0 w-full">
