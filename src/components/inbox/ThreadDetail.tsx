@@ -119,7 +119,12 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
           {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           AI Reply
         </Button>
-        <Button variant="outline" size="sm" className="h-7" onClick={() => onReply()}>
+        <Button variant="outline" size="sm" className="h-7" onClick={() => {
+          const lastFrom = messages[messages.length - 1]?.headers?.from || "";
+          const subj = messages[0]?.headers?.subject || "";
+          const replySubject = /^re:/i.test(subj) ? subj : `Re: ${subj}`;
+          onReply({ to: lastFrom, subject: replySubject });
+        }}>
           <Reply className="h-3.5 w-3.5 mr-1" /> Reply
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
