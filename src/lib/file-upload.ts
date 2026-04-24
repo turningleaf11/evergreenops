@@ -39,30 +39,21 @@ export function getStoragePathFromUrl(url: string, bucket = FILES_BUCKET): strin
   }
 }
 
-export async function openStoredFile(url: string, options?: { fileName?: string; bucket?: string }) {
-  const bucket = options?.bucket ?? FILES_BUCKET;
-  const path = getStoragePathFromUrl(url, bucket);
+/**
+ * Open a stored file inside the in-app File Viewer (PDF/image preview, with
+ * Download and Open-in-new-tab actions). Falls back to a new tab if the viewer
+ * provider isn't mounted.
+ */
+export async function openStoredFile(url: string, options?: { fileName?: string; bucket?: string; mimeType?: string }) {
+  const detail = { url, fileName: options?.fileName, mimeType: options?.mimeType };
+  const dispatched = typeof window !== "undefined"
+    && window.dispatchEvent(new CustomEvent("lovable:open-file", { detail, cancelable: true }));
 
-  if (!path) {
-    window.open(url, "_blank", "noopener,noreferrer");
-    return;
-  }
+  // If a listener (FileViewerProvider) handled it, we're done.
+  if (dispatched && (window as any).__lovableFileViewerMounted) return;
 
-  const { data, error } = await supabase.storage.from(bucket).download(path);
-  if (error) throw error;
-
-  const blobUrl = URL.createObjectURL(data);
-  const anchor = document.createElement("a");
-  const fileName = options?.fileName || path.split("/").pop() || "file";
-  const canPreview = /^image\//i.test(data.type) || data.type === "application/pdf" || /\.(png|jpe?g|gif|webp|svg|bmp|pdf)$/i.test(fileName);
-
-  anchor.href = blobUrl;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  if (!canPreview) anchor.download = fileName;
-  anchor.click();
-
-  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  // Fallback: open in a new tab.
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export function triggerFileInput(accept: string, onFile: (file: File) => void) {
