@@ -22,6 +22,7 @@ interface Contact {
   notes: string;
   company_id: string | null;
   last_contacted_at: string | null;
+  custom_fields: Record<string, unknown>;
   created_at: string;
 }
 
