@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,19 @@ interface RowExtras {
 
 export function LeadershipMeetingsTab() {
   const { user, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [extras, setExtras] = useState<Record<string, RowExtras>>({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("leadership"));
   const [autoCheckRan, setAutoCheckRan] = useState(false);
+
+  // Sync URL → state when ?leadership=... changes
+  useEffect(() => {
+    const fromUrl = searchParams.get("leadership");
+    if (fromUrl && fromUrl !== selectedId) setSelectedId(fromUrl);
+  }, [searchParams, selectedId]);
 
   const today = new Date();
   const isThursday = today.getDay() === 4;
@@ -134,7 +142,13 @@ export function LeadershipMeetingsTab() {
   };
 
   if (selectedId) {
-    return <LeadershipMeetingDetail meetingId={selectedId} onBack={() => { setSelectedId(null); load(); }} />;
+    return <LeadershipMeetingDetail meetingId={selectedId} onBack={() => {
+      setSelectedId(null);
+      const next = new URLSearchParams(searchParams);
+      next.delete("leadership");
+      setSearchParams(next, { replace: true });
+      load();
+    }} />;
   }
 
   return (
