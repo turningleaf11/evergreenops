@@ -220,7 +220,8 @@ export default function MeetingsPage() {
             </div>
           )}
         </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
