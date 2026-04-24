@@ -144,7 +144,7 @@ export function QuickCreateDialog({
         const { data, error } = await supabase
           .from("deals")
           .insert({
-            workspace_id: workspaceId,
+            workspace_id: workspaceId ?? undefined,
             title: dealTitle.trim(),
             value: dealValue ? Number(dealValue) : null,
             pipeline_id: pipelineId,
@@ -152,8 +152,8 @@ export function QuickCreateDialog({
             status: "open",
             owner_id: userId,
             created_by: userId,
-            custom_fields: dealCustom,
-          })
+            custom_fields: dealCustom as any,
+          } as any)
           .select("id")
           .single();
         if (error) throw error;
