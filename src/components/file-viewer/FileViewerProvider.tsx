@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, ExternalLink, X, FileText, Loader2, AlertCircle } from "lucide-react";
+import { Download, ExternalLink, FileText, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStoragePathFromUrl } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
