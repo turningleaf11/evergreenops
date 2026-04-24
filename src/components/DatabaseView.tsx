@@ -323,9 +323,8 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
   const renderRows = (rowsToRender: DatabaseRow[]) => rowsToRender.map(row => (
     <div
       key={row.id}
-      className="grid items-center cursor-pointer hover:bg-muted/30 transition-colors group"
+      className="grid items-center hover:bg-muted/30 transition-colors group"
       style={{ gridTemplateColumns: gridTemplate }}
-      onClick={() => onEdit?.(row)}
     >
       {orderedCols.map((col) => (
         <div key={col.id} className="px-3 py-1.5 min-w-0">
@@ -341,9 +340,22 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
       ))}
       {isAdmin && <div />}
       {(onEdit || onDelete) && (
-        <div className="px-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="px-2 flex items-center justify-end gap-0.5">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+              title="Open record"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          )}
           {onDelete && (
-            <button onClick={(e) => { e.stopPropagation(); onDelete(row.id); }} className="p-1 rounded hover:bg-destructive/10">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(row.id); }}
+              className="p-1 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Delete row"
+            >
               <Trash2 className="h-3.5 w-3.5 text-destructive" />
             </button>
           )}
