@@ -206,10 +206,16 @@ export default function DatabasesPage() {
           rows={dbRows as any}
           onAdd={isAdmin ? handleAddRow : undefined}
           onEdit={handleEditRow as any}
-          onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined}
+          onDelete={isAdmin ? async (id) => {
+            const snap = allRows.find(r => r.id === id);
+            await supabase.from("database_rows").delete().eq("id", id);
+            setAllRows((prev) => prev.filter((r) => r.id !== id));
+            if (snap) dispatchWebhook(snap.databaseId, "row.deleted", { id: snap.id, values: snap.values });
+          } : undefined}
           onRowUpdate={async (rowId, values) => {
-            await supabase.from("database_rows").update({ values: values as any }).eq("id", rowId);
+            const { data } = await supabase.from("database_rows").update({ values: values as any }).eq("id", rowId).select().single();
             setAllRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, values } : r)));
+            if (data && currentDb) dispatchWebhook(currentDb.id, "row.updated", data);
           }}
           allDatabases={allDatabases as any}
           allRows={allRows as any}
@@ -227,6 +233,19 @@ export default function DatabasesPage() {
           allDatabases={allDatabases as any}
           allRows={allRows as any}
         />
+
+        {isAdmin && profile?.workspace_id && (
+          <DatabaseSettingsSheet
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            database={currentDb as any}
+            workspaceId={(profile as any).workspace_id}
+            onSavedMeta={(patch) => {
+              setAllDatabases(prev => prev.map(d => d.id === currentDb.id ? { ...d, ...patch } : d));
+            }}
+            onDeleted={() => { setSettingsOpen(false); handleDeleteDatabase(currentDb.id); }}
+          />
+        )}
       </div>
     );
   }
