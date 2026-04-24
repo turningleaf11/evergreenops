@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { OwnerPicker } from "./PeoplePickers";
 
 interface Contact {
   id: string;
@@ -23,6 +24,7 @@ interface Contact {
   status: string;
   notes: string;
   company_id: string | null;
+  owner_id: string | null;
   last_contacted_at: string | null;
   custom_fields: Record<string, unknown>;
   created_at: string;
