@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, ExternalLink, X, FileText, Loader2, AlertCircle } from "lucide-react";
@@ -96,6 +96,12 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
 
   const fileName = opts?.fileName || (opts?.url ? opts.url.split("/").pop()?.split("?")[0] || "file" : "file");
   const kind = inferKind(fileName, resolvedMime || opts?.mimeType);
+  const inlinePreviewUrl = useMemo(() => {
+    if (!blobUrl) return null;
+    if (kind !== "pdf") return blobUrl;
+    const params = new URLSearchParams({ file: blobUrl });
+    return `/pdfjs/web/viewer.html?${params.toString()}`;
+  }, [blobUrl, kind]);
 
   // Load file as a blob (works around CORS/auth and enables real Download)
   useEffect(() => {
@@ -179,7 +185,7 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
             <Button size="sm" variant="ghost" onClick={handleDownload} disabled={!blobUrl}>
               <Download className="h-4 w-4 mr-1.5" /> Download
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleOpenNewTab} disabled={!blobUrl && !opts?.url}>
+             <Button size="sm" variant="ghost" onClick={handleOpenNewTab} disabled={!blobUrl && !opts?.url}>
               <ExternalLink className="h-4 w-4 mr-1.5" /> Open in new tab
             </Button>
             <Button size="icon" variant="ghost" onClick={close}>
@@ -215,10 +221,13 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                     <img src={blobUrl} alt={fileName} className="max-h-full max-w-full object-contain rounded" />
                   </div>
                 )}
-                {kind === "pdf" && (
-                  <object data={blobUrl} type="application/pdf" className="w-full h-full bg-white">
-                    <iframe src={blobUrl} title={fileName} className="w-full h-full border-0 bg-white" />
-                  </object>
+                {kind === "pdf" && inlinePreviewUrl && (
+                  <iframe
+                    src={inlinePreviewUrl}
+                    title={fileName}
+                    className="w-full h-full border-0 bg-white"
+                    sandbox="allow-same-origin allow-scripts allow-downloads"
+                  />
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
