@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Users, ListFilter } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, ListFilter, UserPlus2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 type DelegatedItem = {
   id: string;
@@ -151,7 +152,13 @@ export function DelegationBoard() {
             </Button>
           </div>
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No delegated items yet. Tasks and projects you create and assign to others will appear here.</p>
+            <EmptyState
+              icon={UserPlus2}
+              title="Nothing delegated yet"
+              description="When you assign a task or project to someone else, it shows up here grouped by person or status."
+              card={false}
+              size="sm"
+            />
           ) : (
             <div className="space-y-4">
               {view === "person" ? byPerson() : byStatus()}

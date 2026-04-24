@@ -12,9 +12,10 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, ChevronDown, Target, BarChart3 } from "lucide-react";
+import { Plus, ChevronDown, Target, BarChart3, LineChart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Navigate } from "react-router-dom";
 
 interface Metric {

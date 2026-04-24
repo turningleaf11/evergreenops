@@ -18,6 +18,7 @@ import { Lightbulb, Plus, MoreHorizontal, Trash2, Pencil, ArrowRight, CheckSquar
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 type Idea = {
   id: string;

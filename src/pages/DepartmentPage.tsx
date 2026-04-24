@@ -34,6 +34,7 @@ import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
