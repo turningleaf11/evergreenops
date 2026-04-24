@@ -107,14 +107,15 @@ export default function DataTableView({
       : <ArrowDown className="h-3 w-3 ml-1 inline" />;
   };
 
-  // Use 1fr on the last column to absorb extra space; explicit widths elsewhere.
+  // Use 1fr on the last data column to absorb extra space; explicit widths elsewhere.
+  // Append a fixed 40px column for the row "open" affordance.
   const gridTemplate = COLUMNS.map((c, i) => {
     const w = getWidth(c.id, c.defaultWidth);
     const stored = getStoredWidth(c.id);
     const userSet = stored !== 160;
     if (i === COLUMNS.length - 1 && !userSet) return `minmax(${c.minWidth}px, 1fr)`;
     return `minmax(${c.minWidth}px, ${w}px)`;
-  }).join(" ");
+  }).join(" ") + " 44px";
 
   const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
     const onMove = (e: PointerEvent) => {
