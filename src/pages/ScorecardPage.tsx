@@ -220,18 +220,18 @@ export default function ScorecardPage() {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total Metrics</div>
-                <div className="text-2xl font-semibold tabular-nums mt-0.5">{summary.total}</div>
+                <div className="text-4xl font-bold tabular-nums mt-1 tracking-tight">{summary.total}</div>
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">On Track</div>
-                <div className="text-2xl font-semibold tabular-nums mt-0.5 text-emerald-500">
-                  {summary.pctOn}% <span className="text-xs text-muted-foreground font-normal">({summary.onTrack})</span>
+                <div className="text-4xl font-bold tabular-nums mt-1 tracking-tight text-emerald-500">
+                  {summary.pctOn}% <span className="text-sm text-muted-foreground font-normal">({summary.onTrack})</span>
                 </div>
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Off Track</div>
-                <div className="text-2xl font-semibold tabular-nums mt-0.5 text-destructive">
-                  {summary.pctOff}% <span className="text-xs text-muted-foreground font-normal">({summary.offTrack})</span>
+                <div className="text-4xl font-bold tabular-nums mt-1 tracking-tight text-destructive">
+                  {summary.pctOff}% <span className="text-sm text-muted-foreground font-normal">({summary.offTrack})</span>
                 </div>
               </div>
             </div>

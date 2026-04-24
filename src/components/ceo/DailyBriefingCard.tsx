@@ -103,13 +103,29 @@ export function DailyBriefingCard() {
   }, [user, today, generate]);
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-2 relative">
-      <div className="flex items-start justify-between gap-4 mb-4">
+    <div
+      className="relative rounded-2xl border border-primary/20 p-7 elevation-3 overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--primary) / 0.04) 60%, hsl(var(--primary) / 0.08) 100%)",
+      }}
+    >
+      {/* Soft accent glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-60"
+        style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.18), transparent 70%)" }}
+      />
+      <div className="relative flex items-start justify-between gap-4 mb-5">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          <div className="inline-flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+            <Sparkles className="h-3 w-3 text-primary" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">AI Daily Briefing</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Good morning, {firstName}.
           </h2>
-          <p className="text-xs text-muted-foreground/80 mt-0.5">
+          <p className="text-xs text-muted-foreground/80 mt-1">
             {formatDate(new Date())}
           </p>
         </div>
