@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 
 interface Contact {
   id: string;
