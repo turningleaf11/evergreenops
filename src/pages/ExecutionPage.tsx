@@ -31,6 +31,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { FolderKanban } from "lucide-react";
 
 type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
@@ -580,10 +582,20 @@ export default function ExecutionPage() {
             });
 
             if (filtered.length === 0) {
+              const isFiltered = goalQuarter !== "all" || goalYear !== "all" || goalDept !== "all";
               return (
-                <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
-                  No goals match these filters. Create your first goal to set direction.
-                </CardContent></Card>
+                <EmptyState
+                  icon={Target}
+                  title={isFiltered ? "No goals match these filters" : "No goals yet"}
+                  description={
+                    isFiltered
+                      ? "Try adjusting the quarter, year, or department filter — or set a new rock for this period."
+                      : "Goals are your quarterly rocks — the few outcomes that matter most. Set the direction the team rallies behind."
+                  }
+                  actionLabel="New Goal"
+                  actionIcon={Plus}
+                  onAction={() => setCreateGoalOpen(true)}
+                />
               );
             }
 
@@ -637,47 +649,64 @@ export default function ExecutionPage() {
             priorityOptions={priorityOptions}
           />
 
-          {pv.view === "list" && (
-            <TableView
-              items={filteredProjects}
-              type="project"
-              onItemClick={openProjectDrawer}
-              onStatusChange={(id, status) => updateStatus("projects", id, status)}
-              getName={getName}
-              statusOptions={projectStatusOptions}
-              goals={goals}
+          {filteredProjects.length === 0 ? (
+            <EmptyState
+              icon={FolderKanban}
+              title={projects.length === 0 ? "No projects yet" : "No projects match these filters"}
+              description={
+                projects.length === 0
+                  ? "Projects are how goals turn into action — group related work, assign an owner, and track it through to done."
+                  : "Try clearing a filter, or kick off a new project to move a goal forward."
+              }
+              actionLabel="New Project"
+              actionIcon={Plus}
+              onAction={() => setCreateProjectOpen(true)}
             />
-          )}
+          ) : (
+            <>
+              {pv.view === "list" && (
+                <TableView
+                  items={filteredProjects}
+                  type="project"
+                  onItemClick={openProjectDrawer}
+                  onStatusChange={(id, status) => updateStatus("projects", id, status)}
+                  getName={getName}
+                  statusOptions={projectStatusOptions}
+                  goals={goals}
+                />
+              )}
 
-          {pv.view === "board" && (
-            <KanbanBoard
-              columns={projectKanbanCols}
-              items={filteredProjects}
-              statusField="status"
-              onItemClick={openProjectDrawer}
-              onStatusChange={(id, status) => updateStatus("projects", id, status)}
-              getName={getName}
-              ownerField="owner_id"
-              type="project"
-            />
-          )}
+              {pv.view === "board" && (
+                <KanbanBoard
+                  columns={projectKanbanCols}
+                  items={filteredProjects}
+                  statusField="status"
+                  onItemClick={openProjectDrawer}
+                  onStatusChange={(id, status) => updateStatus("projects", id, status)}
+                  getName={getName}
+                  ownerField="owner_id"
+                  type="project"
+                />
+              )}
 
-          {pv.view === "table" && (
-            <DataTableView
-              items={filteredProjects}
-              type="project"
-              onItemClick={openProjectDrawer}
-              onStatusChange={(id, status) => updateStatus("projects", id, status)}
-              onUpdate={async (id, patch) => {
-                const { error } = await supabase.from("projects").update(patch as any).eq("id", id);
-                if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                else fetchAll();
-              }}
-              getName={getName}
-              statusOptions={projectStatusOptions}
-              profiles={profiles}
-              goals={goals}
-            />
+              {pv.view === "table" && (
+                <DataTableView
+                  items={filteredProjects}
+                  type="project"
+                  onItemClick={openProjectDrawer}
+                  onStatusChange={(id, status) => updateStatus("projects", id, status)}
+                  onUpdate={async (id, patch) => {
+                    const { error } = await supabase.from("projects").update(patch as any).eq("id", id);
+                    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                    else fetchAll();
+                  }}
+                  getName={getName}
+                  statusOptions={projectStatusOptions}
+                  profiles={profiles}
+                  goals={goals}
+                />
+              )}
+            </>
           )}
         </TabsContent>
 

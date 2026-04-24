@@ -12,9 +12,10 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, ChevronDown, Target, BarChart3 } from "lucide-react";
+import { Plus, ChevronDown, Target, BarChart3, LineChart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Navigate } from "react-router-dom";
 
 interface Metric {
@@ -347,7 +348,14 @@ export default function ScorecardPage() {
           {loading ? (
             <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
           ) : trendMetrics.length === 0 ? (
-            <Card className="p-12 text-center text-sm text-muted-foreground">No metrics to display.</Card>
+            <EmptyState
+              icon={LineChart}
+              title="No metrics to display"
+              description="Add a scorecard metric to start tracking weekly performance trends."
+              actionLabel="Add Metric"
+              actionIcon={Plus}
+              onAction={() => setCreateOpen(true)}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {trendMetrics.map(m => {

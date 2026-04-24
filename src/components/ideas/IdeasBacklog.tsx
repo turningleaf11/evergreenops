@@ -18,6 +18,7 @@ import { Lightbulb, Plus, Sparkles, MoreHorizontal, ArrowRight, Trash2, Filter }
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 type Idea = {
   id: string;
@@ -231,10 +232,13 @@ export function IdeasBacklog() {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-sm text-muted-foreground">
-          <Lightbulb className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          No ideas yet.
-        </div>
+        <EmptyState
+          icon={Lightbulb}
+          title="No ideas in this view"
+          description="Dump something in Brain Dump to get started — AI triage will route it here."
+          card={false}
+          size="sm"
+        />
       ) : (
         <div className="space-y-5">
           {Object.entries(grouped).map(([theme, items]) => (
