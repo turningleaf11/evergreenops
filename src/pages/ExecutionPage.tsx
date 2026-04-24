@@ -793,6 +793,7 @@ export default function ExecutionPage() {
                   getName={getName}
                   statusOptions={taskStatusOptions}
                   projects={projects}
+                  disableGrouping
                 />
               );
 
