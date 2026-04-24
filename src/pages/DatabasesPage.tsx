@@ -5,10 +5,11 @@ import type { DatabaseColumn, Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft, Trash2, Save, Bookmark } from "lucide-react";
+import { Plus, Database as DbIcon, Target, FolderKanban, CheckSquare, Bug, Calendar, ArrowLeft, Settings as SettingsIcon, Bookmark } from "lucide-react";
 import DatabaseView from "@/components/DatabaseView";
 import DatabaseRecordDetail from "@/components/DatabaseRecordDetail";
 import CreateDatabaseDialog from "@/components/CreateDatabaseDialog";
+import DatabaseSettingsSheet from "@/components/databases/DatabaseSettingsSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -82,6 +83,14 @@ export default function DatabasesPage() {
   const [isNew, setIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const dispatchWebhook = (databaseId: string, event: string, row: any) => {
+    // Fire-and-forget. Errors logged on the server side.
+    supabase.functions.invoke("list-webhook-dispatch", {
+      body: { database_id: databaseId, event, row },
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     const fetch = async () => {
@@ -139,18 +148,24 @@ export default function DatabasesPage() {
         .from("database_rows")
         .insert({ database_id: currentDb.id, values: values as any })
         .select().single();
-      if (data) setAllRows((prev) => [...prev, mapRow(data)]);
+      if (data) {
+        setAllRows((prev) => [...prev, mapRow(data)]);
+        dispatchWebhook(currentDb.id, "row.created", data);
+      }
     } else if (editingRow) {
-      await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id);
+      const { data } = await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id).select().single();
       setAllRows((prev) => prev.map((r) => (r.id === editingRow.id ? { ...r, values } : r)));
+      if (data) dispatchWebhook(editingRow.databaseId, "row.updated", data);
     }
     setDetailOpen(false);
   };
 
   const handleDeleteRow = async () => {
     if (editingRow) {
+      const snapshot = editingRow;
       await supabase.from("database_rows").delete().eq("id", editingRow.id);
       setAllRows((prev) => prev.filter((r) => r.id !== editingRow.id));
+      dispatchWebhook(snapshot.databaseId, "row.deleted", { id: snapshot.id, values: snapshot.values });
       setDetailOpen(false);
     }
   };
@@ -165,7 +180,11 @@ export default function DatabasesPage() {
       <div className="p-6 max-w-[1600px] mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-          {isAdmin && (<Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete Database</Button>)}
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon className="h-4 w-4 mr-1" /> Settings
+            </Button>
+          )}
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{currentDb.title}</h1>
@@ -187,10 +206,16 @@ export default function DatabasesPage() {
           rows={dbRows as any}
           onAdd={isAdmin ? handleAddRow : undefined}
           onEdit={handleEditRow as any}
-          onDelete={isAdmin ? async (id) => { await supabase.from("database_rows").delete().eq("id", id); setAllRows((prev) => prev.filter((r) => r.id !== id)); } : undefined}
+          onDelete={isAdmin ? async (id) => {
+            const snap = allRows.find(r => r.id === id);
+            await supabase.from("database_rows").delete().eq("id", id);
+            setAllRows((prev) => prev.filter((r) => r.id !== id));
+            if (snap) dispatchWebhook(snap.databaseId, "row.deleted", { id: snap.id, values: snap.values });
+          } : undefined}
           onRowUpdate={async (rowId, values) => {
-            await supabase.from("database_rows").update({ values: values as any }).eq("id", rowId);
+            const { data } = await supabase.from("database_rows").update({ values: values as any }).eq("id", rowId).select().single();
             setAllRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, values } : r)));
+            if (data && currentDb) dispatchWebhook(currentDb.id, "row.updated", data);
           }}
           allDatabases={allDatabases as any}
           allRows={allRows as any}
@@ -208,6 +233,19 @@ export default function DatabasesPage() {
           allDatabases={allDatabases as any}
           allRows={allRows as any}
         />
+
+        {isAdmin && profile?.workspace_id && (
+          <DatabaseSettingsSheet
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            database={currentDb as any}
+            workspaceId={(profile as any).workspace_id}
+            onSavedMeta={(patch) => {
+              setAllDatabases(prev => prev.map(d => d.id === currentDb.id ? { ...d, ...patch } : d));
+            }}
+            onDeleted={() => { setSettingsOpen(false); handleDeleteDatabase(currentDb.id); }}
+          />
+        )}
       </div>
     );
   }

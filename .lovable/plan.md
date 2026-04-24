@@ -1,46 +1,49 @@
-## Fix primary-admin Vision Setup redirect
+## Per-list Settings & API Connector
 
-This is not happening because you already have an account. The current code shows that the button is only visible to a primary admin, so your account is already being recognized correctly in Settings.
+Add a Settings panel to every list (database) so admins can manage the list and connect it to outside systems via REST API and webhooks.
 
-The redirect is happening because the app reloads into `/onboarding`, then briefly checks `isPrimaryAdmin` before the role query has finished. In that short window, the page treats you like a non-admin and sends you back to `/`.
+### What you'll see in the app
 
-### Changes to make
+1. A **Settings** (gear) button in the list header, replacing the bare "Delete Database" link. Admin-only.
+2. Clicking it opens a side panel with three tabs:
+   - **General** — rename, description, icon, and **Delete list** (with confirm).
+   - **API** — a unique REST endpoint URL for this list, an API key (generate / rotate / revoke), and copyable example requests for `GET / POST / PATCH / DELETE` rows. Includes a small reference of the list's columns so external systems know the field IDs.
+   - **Webhooks** — 
+     - **Inbound:** a unique URL anyone can POST JSON to in order to create a row (with optional shared secret).
+     - **Outbound:** add one or more webhook URLs and pick which events fire them (`row.created`, `row.updated`, `row.deleted`). Each webhook shows last delivery status and a "Send test" button. Zapier/Make/n8n style.
+3. Recent deliveries log (last 20) per outbound webhook so you can debug failures.
 
-1. Update `src/contexts/AuthContext.tsx`
-- Add a dedicated `roleLoaded` flag.
-- Reset it whenever auth state changes or the user signs out.
-- Only mark `roleLoaded = true` after both the `profiles` query and the `user_roles` query complete.
-- Expose `roleLoaded` from `useAuth()`.
+### Permissions
+Workspace admins only — matches the rest of the lists module.
 
-2. Update `src/pages/OnboardingPage.tsx`
-- Do not evaluate the non-admin redirect until `roleLoaded` is true.
-- Keep the loading state visible while auth or role resolution is still in flight.
-- Preserve the current onboarding experience once role data is ready.
+---
 
-3. Update `src/components/OnboardingGate.tsx`
-- Wait for `roleLoaded` before deciding whether the user is a primary admin.
-- Prevent the gate from making an early false “not primary admin” decision during refresh/navigation.
+### Technical plan
 
-4. Update `src/App.tsx`
-- Make `PrimaryAdminRoute` wait for role resolution too, so all primary-admin-only routes use the same readiness rule.
+**New tables (migration)**
+- `database_api_keys` — `id, database_id, workspace_id, key_hash, key_prefix, label, created_by, created_at, revoked_at`. Store only a hash; show full key once on creation.
+- `database_webhooks` — `id, database_id, workspace_id, direction ('in'|'out'), url, secret, events text[], active bool, created_by, created_at, last_status, last_delivered_at`. Inbound rows reuse `secret` as the shared signing secret and ignore `url`.
+- `database_webhook_deliveries` — `id, webhook_id, event, status_code, response_excerpt, payload jsonb, created_at` (kept to last ~50 per webhook via trim trigger).
+- RLS: workspace-scoped read for admins; only admins of the same workspace can insert/update/delete.
 
-5. Update `src/pages/SettingsPage.tsx`
-- Replace `window.location.href = "/onboarding"` with router navigation.
-- After resetting onboarding fields and refreshing the profile, navigate with SPA routing so the auth tree stays mounted and the race window is minimized.
+**Edge functions**
+- `list-api` (public, `verify_jwt = false`): routes `/{database_id}/rows[/:rowId]` for `GET / POST / PATCH / DELETE`. Auth: `Authorization: Bearer <api_key>`; hash and look up in `database_api_keys`, scope all operations to that key's `database_id` + `workspace_id`. Validates body against the list's `columns` schema with Zod.
+- `list-webhook-in` (public): `POST /{database_id}` with header `X-Lovable-Signature` (HMAC of body using the inbound webhook's secret). On valid signature, inserts a row.
+- `list-webhook-dispatch` (internal, JWT-required): called from the app after row create/update/delete. Looks up active outbound webhooks for the database, POSTs `{ event, database_id, row }` with `X-Lovable-Signature`, records a delivery row, updates `last_status`.
 
-### Expected result
+**Frontend**
+- New `src/components/databases/DatabaseSettingsSheet.tsx` with the three tabs above (uses existing `Sheet`, `Tabs`, `Input`, `Button`, `Badge`, `ConfirmDeleteDialog`).
+- Replace the inline "Delete Database" button in `src/pages/DatabasesPage.tsx` (line ~168) with a `Settings` icon button that opens the sheet; move delete into the General tab.
+- After every successful row save / delete in `DatabasesPage.tsx`, fire-and-forget invoke `list-webhook-dispatch` with the event payload.
+- Small helper `src/lib/list-api-docs.ts` to render copy-pasteable cURL examples per list.
 
-After this change:
-- A primary admin can click `Run Vision Setup` from Settings.
-- The app will stay on `/onboarding` instead of bouncing to `/`.
-- Existing accounts will be able to re-run Vision Setup normally.
+**Security**
+- API keys hashed with SHA-256 before storage; shown plaintext only at creation.
+- HMAC-SHA256 signing on inbound and outbound webhook bodies.
+- All edge functions include CORS headers and Zod input validation.
+- Rate-limit `list-api` and `list-webhook-in` per key/IP via in-memory token bucket (fine for current scale, with a note in code).
 
-### Technical details
-
-Relevant code already confirms the race:
-- `SettingsPage.tsx` uses a hard reload: `window.location.href = "/onboarding"`
-- `OnboardingPage.tsx` redirects when `profile && !isPrimaryAdmin`
-- `AuthContext.tsx` sets `loading = false` before role resolution is guaranteed complete
-- `OnboardingGate.tsx` also evaluates `isPrimaryAdmin` without a separate role-ready state
-
-Approve this plan and I’ll implement the guard synchronization fix across those files.
+**Out of scope (can come later)**
+- OpenAPI spec download
+- Per-field write permissions on API keys (read-only vs read-write keys)
+- Retry queue for failed outbound webhooks (current version logs failure and moves on)
