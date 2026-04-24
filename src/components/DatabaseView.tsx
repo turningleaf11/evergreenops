@@ -279,6 +279,8 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
     const stored = getStoredWidth(c.id);
     const userSet = stored !== 160;
     const w = getWidth(c.id, defaultWidthFor(c, i));
+    // Title column auto-fits content unless the user has manually resized it
+    if (c.id === "title" && !userSet) return `minmax(160px, max-content)`;
     if (i === orderedCols.length - 1 && !userSet) return `minmax(120px, 1fr)`;
     return `minmax(110px, ${w}px)`;
   }).join(" ") + (isAdmin ? " 40px" : "") + ((onEdit || onDelete) ? " 60px" : "");
@@ -329,12 +331,14 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
       {orderedCols.map((col) => (
         <div key={col.id} className="px-3 py-1.5 min-w-0">
           {col.id === "title" ? (
-            <InlineText
-              value={row.values.title || ""}
-              onChange={(nv) => updateCell(row, "title", nv)}
-              className="font-medium"
-              placeholder="Untitled"
-            />
+            <div className="max-w-[480px]">
+              <InlineText
+                value={row.values.title || ""}
+                onChange={(nv) => updateCell(row, "title", nv)}
+                className="font-medium"
+                placeholder="Untitled"
+              />
+            </div>
           ) : renderCell(col, row)}
         </div>
       ))}
