@@ -22,6 +22,8 @@ interface Profile {
   email: string | null;
   bio: string | null;
   reports_to: string | null;
+  start_date?: string | null;
+  created_at?: string | null;
 }
 
 export default function PeoplePage() {
@@ -36,7 +38,7 @@ export default function PeoplePage() {
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to, birthday, start_date");
+      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to, birthday, start_date, created_at");
     if (data) setProfiles(data);
   }, []);
 
