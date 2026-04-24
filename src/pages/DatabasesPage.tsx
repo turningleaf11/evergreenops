@@ -142,22 +142,26 @@ export default function DatabasesPage() {
   const handleAddRow = () => { setEditingRow(null); setIsNew(true); setDetailOpen(true); };
   const handleEditRow = (row: DBRow) => { setEditingRow(row as any); setIsNew(false); setDetailOpen(true); };
 
-  const handleSaveRow = async (values: Record<string, any>) => {
+  const handleSaveRow = async (values: Record<string, any>, opts?: { keepOpen?: boolean }) => {
     if (isNew && currentDb) {
       const { data } = await supabase
         .from("database_rows")
         .insert({ database_id: currentDb.id, values: values as any })
         .select().single();
       if (data) {
-        setAllRows((prev) => [...prev, mapRow(data)]);
+        const mapped = mapRow(data);
+        setAllRows((prev) => [...prev, mapped]);
         dispatchWebhook(currentDb.id, "row.created", data);
+        // After first save, switch to edit mode so further edits update instead of re-inserting.
+        setEditingRow(mapped as any);
+        setIsNew(false);
       }
     } else if (editingRow) {
       const { data } = await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id).select().single();
       setAllRows((prev) => prev.map((r) => (r.id === editingRow.id ? { ...r, values } : r)));
       if (data) dispatchWebhook(editingRow.databaseId, "row.updated", data);
     }
-    setDetailOpen(false);
+    if (!opts?.keepOpen) setDetailOpen(false);
   };
 
   const handleDeleteRow = async () => {

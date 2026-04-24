@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, Repeat } from "lucide-react";
+import { ArrowUp, ArrowDown, Repeat, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { InlineText, InlineSelect, InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
@@ -107,14 +107,15 @@ export default function DataTableView({
       : <ArrowDown className="h-3 w-3 ml-1 inline" />;
   };
 
-  // Use 1fr on the last column to absorb extra space; explicit widths elsewhere.
+  // Use 1fr on the last data column to absorb extra space; explicit widths elsewhere.
+  // Append a fixed 40px column for the row "open" affordance.
   const gridTemplate = COLUMNS.map((c, i) => {
     const w = getWidth(c.id, c.defaultWidth);
     const stored = getStoredWidth(c.id);
     const userSet = stored !== 160;
     if (i === COLUMNS.length - 1 && !userSet) return `minmax(${c.minWidth}px, 1fr)`;
     return `minmax(${c.minWidth}px, ${w}px)`;
-  }).join(" ");
+  }).join(" ") + " 44px";
 
   const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
     const onMove = (e: PointerEvent) => {
@@ -161,6 +162,7 @@ export default function DataTableView({
                 />
               </div>
             ))}
+            <div />
           </div>
 
           {/* Body */}
@@ -270,6 +272,17 @@ export default function DataTableView({
                       value={item.due_date}
                       onChange={(v) => onUpdate?.(item.id, { due_date: v })}
                     />
+                  </div>
+
+                  {/* Open record */}
+                  <div className="px-2 flex items-center justify-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title="Open"
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               );

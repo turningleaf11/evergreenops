@@ -20,7 +20,7 @@ interface DatabaseRecordDetailProps {
   row: DatabaseRow | null;
   open: boolean;
   onClose: () => void;
-  onSave: (values: Record<string, any>) => void;
+  onSave: (values: Record<string, any>, opts?: { keepOpen?: boolean }) => void;
   onDelete?: () => void;
   allDatabases?: Database[];
   allRows?: DatabaseRow[];
@@ -67,8 +67,12 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
             <input
               value={titleVal}
               onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => onSave(values)}
-              onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLInputElement).blur();
+                }
+              }}
               className="text-lg font-semibold bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 rounded-md hover:bg-muted/30 focus:bg-muted/30 transition-colors w-full pr-8"
             />
           </SheetTitle>
