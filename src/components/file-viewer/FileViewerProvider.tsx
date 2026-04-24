@@ -32,7 +32,8 @@ function shouldOpenNatively(name: string, mime?: string) {
   const m = (mime || "").toLowerCase();
   const n = (name || "").toLowerCase();
 
-  if (m === "application/pdf" || n.endsWith(".pdf")) return true;
+  // Office docs can't be previewed in-browser; open natively.
+  // PDFs and images are handled inside the in-app viewer.
   return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(n)
     || /application\/(msword|vnd\.ms-|vnd\.openxmlformats-officedocument)/i.test(m);
 }
