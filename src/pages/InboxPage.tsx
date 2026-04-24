@@ -75,7 +75,16 @@ export default function InboxPage() {
 
   const loadGmailLabels = async () => {
     const { data } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
-    if (data?.labels) setGmailLabels(data.labels);
+    if (data?.labels) {
+      setGmailLabels(data.labels);
+      // Default every Gmail label group to collapsed on first load.
+      setCollapsedGroups((prev) => {
+        if (prev.size > 0) return prev; // user already toggled — don't override
+        const next = new Set<string>();
+        for (const l of data.labels as { path: string[] }[]) next.add(l.path[0]);
+        return next;
+      });
+    }
   };
 
   useEffect(() => { if (hasAccess) { loadLabels(); loadGmailLabels(); } }, [hasAccess]);
