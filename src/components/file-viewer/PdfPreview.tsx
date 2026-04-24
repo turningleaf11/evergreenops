@@ -4,9 +4,13 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText, Download, ExternalLink } from "lucide-react";
+// Bundle the pdf.js worker locally via Vite so it isn't blocked by ad/tracker
+// blockers (e.g. Edge / uBlock blocking cdnjs requests). Must be configured in
+// the same module that uses react-pdf to avoid being overwritten by module
+// load order.
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-// Configure pdf.js worker via CDN to avoid bundler-specific worker setup.
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface PdfPreviewProps {
   fileUrl: string;
