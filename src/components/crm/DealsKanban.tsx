@@ -102,13 +102,15 @@ export function DealsKanban({ search }: { search: string }) {
   const moveDeal = async (dealId: string, newStageId: string, lostReason?: string) => {
     const stage = stages.find((s) => s.id === newStageId);
     if (!stage) return;
-    const patch: Record<string, unknown> = { stage_id: newStageId };
-    if (stage.is_won) patch.status = "won";
-    else if (stage.is_lost) { patch.status = "lost"; patch.lost_reason = lostReason ?? null; }
-    else patch.status = "open";
+    const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
+    const patch = {
+      stage_id: newStageId,
+      status,
+      lost_reason: stage.is_lost ? (lostReason ?? null) : null,
+    };
 
     // Optimistic
-    setDeals((prev) => prev.map((d) => d.id === dealId ? { ...d, ...patch } as Deal : d));
+    setDeals((prev) => prev.map((d) => d.id === dealId ? { ...d, ...patch } : d));
 
     const { error } = await supabase.from("deals").update(patch).eq("id", dealId);
     if (error) {
