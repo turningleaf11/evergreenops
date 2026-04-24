@@ -59,6 +59,23 @@ export function LinkToCrm({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTab, setCreateTab] = useState<"contact" | "deal">("contact");
+
+  // Derive a sensible prefill from the first non-self participant email.
+  const primaryParticipant = useMemo(() => {
+    const e = participantEmails.find((x) => !!x);
+    if (!e) return undefined;
+    // try to derive name from the address (e.g. "first.last@..." → "First Last")
+    const local = e.split("@")[0];
+    const parts = local.split(/[._-]/).filter(Boolean);
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    return {
+      email: e,
+      firstName: parts[0] ? cap(parts[0]) : "",
+      lastName: parts.slice(1).map(cap).join(" "),
+    };
+  }, [participantEmails]);
 
   const linkedKeys = useMemo(
     () => new Set(existing.map((l) => `${l.entity_type}:${l.entity_id}`)),
