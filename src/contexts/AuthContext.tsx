@@ -84,12 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
+          setRoleLoaded(false);
           // Use setTimeout to avoid Supabase client deadlock
           setTimeout(() => fetchProfile(newSession.user.id), 0);
         } else {
           setProfile(null);
           setRole("user");
           setIsPrimaryAdmin(false);
+          setRoleLoaded(true);
         }
         setLoading(false);
       }
@@ -101,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
         fetchProfile(existingSession.user.id);
+      } else {
+        setRoleLoaded(true);
       }
       setLoading(false);
     });
@@ -115,12 +119,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setRole("user");
     setIsPrimaryAdmin(false);
+    setRoleLoaded(true);
   }, []);
 
   const isAdmin = role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, roleLoaded, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
