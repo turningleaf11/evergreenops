@@ -177,13 +177,13 @@ export default function CeoDashboard() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto px-8 pt-12 pb-8">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <p className="text-[11px] text-primary/80 tracking-[0.2em] uppercase font-semibold mb-2">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pt-8 sm:pt-12 pb-6 sm:pb-8">
+        <div className="flex items-end justify-between gap-4 sm:gap-6">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] text-primary/80 tracking-[0.2em] uppercase font-semibold mb-1.5 sm:mb-2 truncate">
               {dateStr}
             </p>
-            <h1 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight leading-tight truncate">
               {ceoPageName}
             </h1>
             <div className="mt-3 h-px w-24 bg-gradient-to-r from-primary/60 to-transparent" />
@@ -210,7 +210,7 @@ export default function CeoDashboard() {
         </div>
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-8 pb-16 space-y-10">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16 space-y-8 sm:space-y-10">
         {/* Current Objective — slim pinned context line */}
         <div className="mb-2">
           <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-widest mb-1.5">Current Objective</p>

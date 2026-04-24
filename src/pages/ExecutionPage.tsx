@@ -407,7 +407,7 @@ export default function ExecutionPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <TabsList>
             <TabsTrigger value="goals">Goals</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>

@@ -315,14 +315,14 @@ export default function DepartmentPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-[1500px] mx-auto space-y-6">
       {/* Department Header with accent */}
       <div className="relative">
         <div className="absolute inset-x-0 top-0 h-1 rounded-t-lg" style={{ backgroundColor: `hsl(${deptColor})` }} />
-        <div className="pt-4 flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{dept.name}</h1>
-            {dept.description && <p className="text-muted-foreground mt-1">{dept.description}</p>}
+        <div className="pt-4 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight truncate">{dept.name}</h1>
+            {dept.description && <p className="text-muted-foreground mt-1 text-sm">{dept.description}</p>}
           </div>
           {pinboardItems.filter(p => p.type === "link" && p.url).length > 0 && (
             <DropdownMenu>

@@ -75,7 +75,7 @@ export default function PeoplePage() {
   };
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-[1400px] mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">People</h1>
         <p className="text-muted-foreground mt-1">Team directory across all departments.</p>

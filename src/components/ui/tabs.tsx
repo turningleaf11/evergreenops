@@ -12,7 +12,9 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-11 items-center gap-1 justify-center rounded-xl bg-muted/40 p-1 text-muted-foreground border border-border/40",
+      // On small screens, allow horizontal scrolling so many tabs don't wrap or get cut off.
+      // `max-w-full` + `overflow-x-auto` + `whitespace-nowrap` keeps the pill bar tidy.
+      "inline-flex h-11 items-center gap-1 justify-start rounded-xl bg-muted/40 p-1 text-muted-foreground border border-border/40 max-w-full overflow-x-auto whitespace-nowrap scrollbar-hide",
       className,
     )}
     {...props}
@@ -27,7 +29,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ring-offset-background transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/60 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 sm:px-4 py-2 text-sm font-medium ring-offset-background transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/60 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 shrink-0",
       className,
     )}
     {...props}
