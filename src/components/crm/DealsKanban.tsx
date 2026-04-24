@@ -33,6 +33,7 @@ interface Deal {
   status: string;
   primary_contact_id: string | null;
   expected_close_date: string | null;
+  created_at?: string;
 }
 
 interface Pipeline {
