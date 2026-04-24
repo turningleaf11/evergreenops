@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,13 @@ export default function PeoplePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<Profile | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = useMemo(() => {
+    const t = searchParams.get("tab");
+    if (t === "people-ops" && isAdmin) return "people-ops";
+    if (t === "org-chart") return "org-chart";
+    return "directory";
+  }, [searchParams, isAdmin]);
 
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase
@@ -73,7 +81,15 @@ export default function PeoplePage() {
         <p className="text-muted-foreground mt-1">Team directory across all departments.</p>
       </div>
 
-      <Tabs defaultValue="directory">
+      <Tabs
+        value={initialTab}
+        onValueChange={(v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v === "directory") next.delete("tab");
+          else next.set("tab", v);
+          setSearchParams(next, { replace: true });
+        }}
+      >
         <TabsList>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="org-chart">Org Chart</TabsTrigger>
