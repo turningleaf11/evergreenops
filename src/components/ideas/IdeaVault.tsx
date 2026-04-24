@@ -67,6 +67,20 @@ export function IdeaVault() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [deleteTarget, setDeleteTarget] = useState<Idea | null>(null);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+
+  const enrichIdea = useCallback(async (ideaId: string) => {
+    setEnrichingIds(prev => { const n = new Set(prev); n.add(ideaId); return n; });
+    try {
+      await supabase.functions.invoke("idea-vault-enrich", { body: { ideaId } });
+      const { data } = await sb.from("idea_vault").select("*").eq("id", ideaId).maybeSingle();
+      if (data) setIdeas(prev => prev.map(i => i.id === ideaId ? (data as Idea) : i));
+    } catch (e) {
+      console.error("enrich failed", e);
+    } finally {
+      setEnrichingIds(prev => { const n = new Set(prev); n.delete(ideaId); return n; });
+    }
+  }, []);
 
   // capture modal
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -95,6 +109,14 @@ export function IdeaVault() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-enrich any idea that hasn't been processed yet (e.g. arrived via triage)
+  useEffect(() => {
+    const pending = ideas.filter(i => !i.ai_summary && !i.ai_cluster && !enrichingIds.has(i.id));
+    if (pending.length === 0) return;
+    pending.slice(0, 3).forEach(i => enrichIdea(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideas]);
+
   const filtered = useMemo(() => {
     if (filter === "all") {
       // Hide Promoted & Killed unless explicitly filtered
@@ -119,7 +141,7 @@ export function IdeaVault() {
     if (!newTitle.trim() || !user) return;
     setBusy(true);
     const { data: profile } = await supabase.from("profiles").select("workspace_id").eq("user_id", user.id).maybeSingle();
-    const { error } = await sb.from("idea_vault").insert({
+    const { data: inserted, error } = await sb.from("idea_vault").insert({
       title: newTitle.trim(),
       description: newDesc.trim() || null,
       time_horizon: newHorizon || null,
@@ -127,13 +149,18 @@ export function IdeaVault() {
       workspace_id: profile?.workspace_id ?? null,
       source: "manual",
       status: "captured",
-    });
+    }).select("*").maybeSingle();
     setBusy(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     resetCapture();
     setCaptureOpen(false);
     toast({ title: "Idea captured" });
-    load();
+    if (inserted) {
+      setIdeas(prev => [inserted as Idea, ...prev]);
+      enrichIdea((inserted as Idea).id);
+    } else {
+      load();
+    }
   };
 
   const setStatus = async (id: string, status: string) => {
@@ -306,7 +333,11 @@ export function IdeaVault() {
                       <span className={cn("text-[10px] font-medium uppercase px-2 py-0.5 rounded-full border", meta.color)}>
                         {meta.label}
                       </span>
-                      {idea.ai_cluster && <Badge variant="secondary" className="text-[10px]">{idea.ai_cluster}</Badge>}
+                      {idea.ai_cluster ? (
+                        <Badge variant="secondary" className="text-[10px]">{idea.ai_cluster}</Badge>
+                      ) : enrichingIds.has(idea.id) ? (
+                        <span className="inline-block h-4 w-20 rounded-full bg-muted animate-pulse" aria-label="AI analyzing idea" />
+                      ) : null}
                       {horizon && <Badge variant="outline" className="text-[10px]">{horizon.label}</Badge>}
                       <span className="text-[10px] text-muted-foreground ml-auto">{formatDate(idea.created_at)}</span>
                     </div>
