@@ -331,12 +331,14 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
       {orderedCols.map((col) => (
         <div key={col.id} className="px-3 py-1.5 min-w-0">
           {col.id === "title" ? (
-            <InlineText
-              value={row.values.title || ""}
-              onChange={(nv) => updateCell(row, "title", nv)}
-              className="font-medium"
-              placeholder="Untitled"
-            />
+            <div className="max-w-[480px]">
+              <InlineText
+                value={row.values.title || ""}
+                onChange={(nv) => updateCell(row, "title", nv)}
+                className="font-medium"
+                placeholder="Untitled"
+              />
+            </div>
           ) : renderCell(col, row)}
         </div>
       ))}
