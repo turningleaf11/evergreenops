@@ -162,6 +162,15 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
                     <p className="text-sm text-foreground">{item.text}</p>
                   )}
                   <p className="text-xs text-muted-foreground italic">{item.reasoning}</p>
+                  {item.category === "idea" && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/ceo")}
+                      className="text-[11px] text-primary hover:underline mt-1 inline-block"
+                    >
+                      View Idea Vault →
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
