@@ -150,7 +150,10 @@ export function DailyBriefingCard() {
             ))}
           </ul>
           {briefing.focus && (
-            <div className="mt-4 pl-3 border-l-2 border-emerald-500/70 py-1">
+            <div
+              className="mt-4 pl-3 py-1 border-l-2"
+              style={{ borderColor: "hsl(142 71% 45% / 0.7)" }}
+            >
               <p className="text-[15px] font-semibold text-foreground leading-snug">
                 {briefing.focus}
               </p>
