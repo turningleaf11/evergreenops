@@ -1,13 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, FileText, ListTodo, FolderKanban, User, Megaphone, X } from "lucide-react";
+import {
+  Search,
+  FileText,
+  ListTodo,
+  FolderKanban,
+  User,
+  Megaphone,
+  X,
+  UserSquare2,
+  Briefcase,
+  Building2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "project" | "document" | "profile" | "announcement";
+  subtitle?: string;
+  type:
+    | "task"
+    | "project"
+    | "document"
+    | "profile"
+    | "announcement"
+    | "contact"
+    | "deal"
+    | "company";
 }
 
 const typeConfig = {
@@ -16,6 +36,9 @@ const typeConfig = {
   document: { icon: FileText, label: "Documents", path: () => `/docs` },
   profile: { icon: User, label: "People", path: () => `/people` },
   announcement: { icon: Megaphone, label: "Announcements", path: () => `/feed` },
+  contact: { icon: UserSquare2, label: "Contacts", path: () => `/crm/contacts` },
+  deal: { icon: Briefcase, label: "Deals", path: () => `/crm/deals` },
+  company: { icon: Building2, label: "Companies", path: () => `/crm/companies` },
 };
 
 export function GlobalSearch() {
