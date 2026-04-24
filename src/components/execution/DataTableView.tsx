@@ -273,6 +273,17 @@ export default function DataTableView({
                       onChange={(v) => onUpdate?.(item.id, { due_date: v })}
                     />
                   </div>
+
+                  {/* Open record */}
+                  <div className="px-2 flex items-center justify-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title="Open"
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
