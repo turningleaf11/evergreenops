@@ -134,32 +134,25 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="workspace" orientation="vertical" className="flex flex-col lg:flex-row gap-8 items-start">
         <aside className="w-full lg:w-60 lg:sticky lg:top-6 shrink-0">
-          <TabsList className="flex lg:flex-col h-auto w-full bg-transparent p-0 gap-0.5 overflow-x-auto lg:overflow-visible">
+          <TabsList className="flex lg:flex-col h-auto w-full bg-transparent p-0 gap-0.5 overflow-x-auto lg:overflow-visible flex-nowrap lg:flex-wrap justify-start">
             {navSections.map((section, i) => (
-              <div key={section.label} className="hidden lg:block w-full">
-                {i > 0 && <div className="h-px bg-border/60 my-2" />}
-                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div key={section.label} className="contents lg:block lg:w-full">
+                {i > 0 && <div className="hidden lg:block h-px bg-border/60 my-2" />}
+                <div className="hidden lg:block px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {section.label}
                 </div>
                 {section.items.map((item) => (
                   <TabsTrigger
                     key={item.value}
                     value={item.value}
-                    className="w-full justify-start gap-2.5 px-3 py-2 h-9 text-sm font-medium rounded-md data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none hover:bg-muted/60"
+                    className="shrink-0 lg:w-full justify-start gap-2 lg:gap-2.5 px-3 py-2 h-9 text-sm font-medium rounded-md data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none hover:bg-muted/60"
                   >
-                    <item.icon className="h-4 w-4" /> {item.label}
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
                   </TabsTrigger>
                 ))}
               </div>
             ))}
-            {/* Mobile: horizontal scroll fallback */}
-            <div className="flex lg:hidden gap-1 w-full">
-              {navSections.flatMap((s) => s.items).map((item) => (
-                <TabsTrigger key={item.value} value={item.value} className="gap-1.5 shrink-0">
-                  <item.icon className="h-3.5 w-3.5" /> {item.label}
-                </TabsTrigger>
-              ))}
-            </div>
           </TabsList>
         </aside>
 
