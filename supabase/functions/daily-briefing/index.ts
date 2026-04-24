@@ -95,13 +95,6 @@ Deno.serve(async (req) => {
       .limit(20);
 
     // 3. Delegation board items = reminders not done, oldest first
-    const { data: delegations } = await admin
-      .from("reminders" as any)
-      .select("title, status, due_date, created_at")
-      .neq("status", "done")
-      .order("created_at", { ascending: true })
-      .limit: 20 as any;
-    // ^ trailing colon would break — use proper call:
     const delegationsRes = await admin
       .from("reminders" as any)
       .select("title, status, due_date, created_at")
