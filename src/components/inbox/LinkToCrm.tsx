@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Plus, X, Check, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Link2, Loader2, Plus, X, Check, UserPlus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
