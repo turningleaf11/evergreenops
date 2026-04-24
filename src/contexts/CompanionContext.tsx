@@ -5,10 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { assembleStrategyContext, type AssembledStrategyContext } from "@/lib/strategy-context";
 import { toast } from "sonner";
+import type { SaveDestination } from "@/components/companion/SaveToAppDialog";
 
-interface Message {
+export interface Message {
+  /** ai_strategy_messages row id (null while streaming, set after persistence) */
+  id: string | null;
   role: "user" | "assistant";
   content: string;
+  saved_to_type?: SaveDestination | null;
+  saved_to_id?: string | null;
 }
 
 export interface ThreadSummary {
@@ -37,11 +42,14 @@ interface CompanionContextType {
   renameThread: (id: string, title: string) => Promise<void>;
   archiveThread: (id: string) => Promise<void>;
   refreshThreads: () => Promise<void>;
+  /** Mark a message as saved (updates local state) */
+  markMessageSaved: (messageId: string, dest: SaveDestination, savedId: string) => void;
 }
 
 export const CompanionContext = createContext<CompanionContextType | null>(null);
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ceo-chat`;
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-memory-extract`;
 
 async function fetchLiveSnapshot() {
   const today = new Date().toISOString().split("T")[0];
@@ -175,11 +183,26 @@ async function generateThreadTitle(firstMessage: string): Promise<string> {
       }
     }
     title = title.trim().replace(/^["']|["']$/g, "").replace(/\.$/, "");
-    // Take first 6 words max as safety
     const words = title.split(/\s+/).slice(0, 6).join(" ");
     return words || firstMessage.slice(0, 40);
   } catch {
     return firstMessage.slice(0, 40);
+  }
+}
+
+/** Fire-and-forget background memory extraction + (optional) summary */
+async function triggerMemoryExtraction(threadId: string, mode: "extract" | "summary" | "both") {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token) return;
+    await fetch(EXTRACT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ thread_id: threadId, mode }),
+    });
+  } catch (e) {
+    console.warn("memory extraction failed:", e);
   }
 }
 
@@ -210,20 +233,27 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     setThreadsLoading(false);
   }, [user?.id]);
 
-  // Load threads when sheet opens
   useEffect(() => {
     if (open && isPrimaryAdmin) refreshThreads();
   }, [open, isPrimaryAdmin, refreshThreads]);
 
   const selectThread = useCallback(async (id: string) => {
     setActiveThreadId(id);
-    greetingSent.current = true; // suppress morning briefing on existing threads
+    greetingSent.current = true;
     const { data: rows } = await supabase
       .from("ai_strategy_messages")
-      .select("role,content")
+      .select("id,role,content,saved_to_type,saved_to_id")
       .eq("thread_id", id)
       .order("created_at", { ascending: true });
-    setMessages((rows || []).map((r) => ({ role: r.role as "user" | "assistant", content: r.content })));
+    setMessages(
+      (rows || []).map((r: any) => ({
+        id: r.id,
+        role: r.role as "user" | "assistant",
+        content: r.content,
+        saved_to_type: r.saved_to_type ?? null,
+        saved_to_id: r.saved_to_id ?? null,
+      })),
+    );
   }, []);
 
   const newThread = useCallback(() => {
@@ -248,7 +278,13 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     toast.success("Conversation archived");
   }, [activeThreadId]);
 
-  // Proactive greeting on CEO Dashboard — only when no active thread
+  const markMessageSaved = useCallback((messageId: string, dest: SaveDestination, savedId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, saved_to_type: dest, saved_to_id: savedId } : m)),
+    );
+  }, []);
+
+  // Proactive greeting — only when no active thread
   useEffect(() => {
     if (!open || activeThreadId) return;
     if ((location.pathname !== "/" && location.pathname !== "/ceo")) return;
@@ -265,7 +301,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
           if (last?.role === "assistant") {
             return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
           }
-          return [{ role: "assistant", content: assistantSoFar }];
+          return [{ id: null, role: "assistant", content: assistantSoFar }];
         });
       };
 
@@ -285,7 +321,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         }, upsertAssistant);
       } catch (e) {
         console.error("Briefing error:", e);
-        setMessages([{ role: "assistant", content: "Good morning. I had trouble loading your briefing — ask me anything to get started." }]);
+        setMessages([{ id: null, role: "assistant", content: "Good morning. I had trouble loading your briefing — ask me anything to get started." }]);
       }
       setLoading(false);
     })();
@@ -294,7 +330,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
   const send = useCallback(async () => {
     if (!input.trim() || loading || !user?.id) return;
     const userText = input.trim();
-    const userMsg: Message = { role: "user", content: userText };
+    const userMsg: Message = { id: null, role: "user", content: userText };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
@@ -303,7 +339,6 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     let isFirstMessage = false;
 
     try {
-      // Create thread on first send if none active
       if (!threadId) {
         const { data: created, error: tErr } = await supabase
           .from("ai_strategy_threads")
@@ -322,7 +357,6 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         isFirstMessage = true;
       }
 
-      // Assemble full strategy context (vision, rocks, scorecard, memory, etc.)
       let strategyContext: AssembledStrategyContext | null = null;
       try {
         strategyContext = await assembleStrategyContext({
@@ -333,15 +367,21 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         console.error("Strategy context assembly failed:", ctxErr);
       }
 
-      // Persist user message with context snapshot
-      await supabase.from("ai_strategy_messages").insert({
-        thread_id: threadId,
-        role: "user",
-        content: userText,
-        context_snapshot: strategyContext as any,
-      });
+      // Persist user message and capture id
+      const { data: insertedUser } = await supabase
+        .from("ai_strategy_messages")
+        .insert({
+          thread_id: threadId,
+          role: "user",
+          content: userText,
+          context_snapshot: strategyContext as any,
+        })
+        .select("id")
+        .single();
+      if (insertedUser?.id) {
+        setMessages((prev) => prev.map((m, i) => (i === prev.length - 1 && m.role === "user" && m.id === null ? { ...m, id: insertedUser.id } : m)));
+      }
 
-      // Build last-10 history for AI memory
       const history = [...messages, userMsg].slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
       let assistantSoFar = "";
@@ -352,7 +392,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
           if (last?.role === "assistant") {
             return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
           }
-          return [...prev, { role: "assistant", content: assistantSoFar }];
+          return [...prev, { id: null, role: "assistant", content: assistantSoFar }];
         });
       };
 
@@ -362,20 +402,31 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         strategyContext,
       }, upsertAssistant);
 
-      // Persist assistant response + bump thread timestamp
       if (assistantSoFar.trim()) {
-        await supabase.from("ai_strategy_messages").insert({
-          thread_id: threadId,
-          role: "assistant",
-          content: assistantSoFar,
-        });
+        const { data: insertedAssistant } = await supabase
+          .from("ai_strategy_messages")
+          .insert({
+            thread_id: threadId,
+            role: "assistant",
+            content: assistantSoFar,
+          })
+          .select("id")
+          .single();
+        if (insertedAssistant?.id) {
+          setMessages((prev) =>
+            prev.map((m, i) =>
+              i === prev.length - 1 && m.role === "assistant" && m.id === null
+                ? { ...m, id: insertedAssistant.id }
+                : m,
+            ),
+          );
+        }
       }
       await supabase
         .from("ai_strategy_threads")
         .update({ last_message_at: new Date().toISOString() })
         .eq("id", threadId);
 
-      // Auto-title on first exchange
       if (isFirstMessage) {
         generateThreadTitle(userText).then(async (title) => {
           if (!title) return;
@@ -384,16 +435,25 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // Re-sort thread list with this thread on top
       setThreads((prev) => {
         const moved = prev.find((t) => t.id === threadId);
         const rest = prev.filter((t) => t.id !== threadId);
         const updated = moved ? { ...moved, last_message_at: new Date().toISOString() } : null;
         return updated ? [updated, ...rest] : prev;
       });
+
+      // ---- Background: memory extraction & rolling summary ----
+      // Total persisted messages = previous count + this user msg (+1) + maybe assistant (+1)
+      const totalAfter = (messages.length + 2);
+      const shouldExtract = totalAfter > 0 && totalAfter % 5 === 0;
+      const shouldSummarize = totalAfter >= 20 && totalAfter % 10 === 0;
+      if (shouldExtract || shouldSummarize) {
+        const mode = shouldExtract && shouldSummarize ? "both" : shouldExtract ? "extract" : "summary";
+        triggerMemoryExtraction(threadId!, mode);
+      }
     } catch (e) {
       console.error("Companion error:", e);
-      setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      setMessages((prev) => [...prev, { id: null, role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
       setLoading(false);
     }
@@ -417,6 +477,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         renameThread,
         archiveThread,
         refreshThreads,
+        markMessageSaved,
       }}
     >
       {children}
