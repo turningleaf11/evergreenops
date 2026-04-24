@@ -148,18 +148,24 @@ export default function DatabasesPage() {
         .from("database_rows")
         .insert({ database_id: currentDb.id, values: values as any })
         .select().single();
-      if (data) setAllRows((prev) => [...prev, mapRow(data)]);
+      if (data) {
+        setAllRows((prev) => [...prev, mapRow(data)]);
+        dispatchWebhook(currentDb.id, "row.created", data);
+      }
     } else if (editingRow) {
-      await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id);
+      const { data } = await supabase.from("database_rows").update({ values: values as any }).eq("id", editingRow.id).select().single();
       setAllRows((prev) => prev.map((r) => (r.id === editingRow.id ? { ...r, values } : r)));
+      if (data) dispatchWebhook(editingRow.databaseId, "row.updated", data);
     }
     setDetailOpen(false);
   };
 
   const handleDeleteRow = async () => {
     if (editingRow) {
+      const snapshot = editingRow;
       await supabase.from("database_rows").delete().eq("id", editingRow.id);
       setAllRows((prev) => prev.filter((r) => r.id !== editingRow.id));
+      dispatchWebhook(snapshot.databaseId, "row.deleted", { id: snapshot.id, values: snapshot.values });
       setDetailOpen(false);
     }
   };
@@ -174,7 +180,11 @@ export default function DatabasesPage() {
       <div className="p-6 max-w-[1600px] mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/databases")} className="h-8"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-          {isAdmin && (<Button variant="ghost" size="sm" className="h-8 text-destructive" onClick={() => handleDeleteDatabase(currentDb.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete Database</Button>)}
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon className="h-4 w-4 mr-1" /> Settings
+            </Button>
+          )}
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{currentDb.title}</h1>
