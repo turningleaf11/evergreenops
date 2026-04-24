@@ -60,7 +60,6 @@ export function LinkToCrm({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createTab, setCreateTab] = useState<"contact" | "deal">("contact");
 
   // Derive a sensible prefill from the first non-self participant email.
   const primaryParticipant = useMemo(() => {
@@ -337,28 +336,14 @@ export function LinkToCrm({
             </div>
 
             {/* Quick create */}
-            <div className="border-t border-border/40 px-3 py-2 flex gap-2">
+            <div className="border-t border-border/40 px-3 py-2">
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-1 h-7 gap-1"
-                onClick={() => {
-                  setCreateTab("contact");
-                  setCreateOpen(true);
-                }}
+                className="w-full h-7 gap-1"
+                onClick={() => setCreateOpen(true)}
               >
-                <UserPlus className="h-3.5 w-3.5" /> New contact
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 h-7 gap-1"
-                onClick={() => {
-                  setCreateTab("deal");
-                  setCreateOpen(true);
-                }}
-              >
-                <Briefcase className="h-3.5 w-3.5" /> New deal
+                <UserPlus className="h-3.5 w-3.5" /> Add contact (optionally with deal)
               </Button>
             </div>
           </>
@@ -370,10 +355,10 @@ export function LinkToCrm({
         onOpenChange={setCreateOpen}
         workspaceId={workspaceId}
         userId={user?.id ?? null}
-        initialTab={createTab}
+        initialTab="contact"
         prefill={primaryParticipant}
         onCreated={async ({ type, id }) => {
-          // Auto-link the newly created record to this thread
+          // Auto-link every record created (contact and/or deal) to this thread
           await link(type, id);
         }}
       />
