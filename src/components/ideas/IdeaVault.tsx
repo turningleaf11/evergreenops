@@ -133,7 +133,7 @@ export function IdeaVault() {
     if (!newTitle.trim() || !user) return;
     setBusy(true);
     const { data: profile } = await supabase.from("profiles").select("workspace_id").eq("user_id", user.id).maybeSingle();
-    const { error } = await sb.from("idea_vault").insert({
+    const { data: inserted, error } = await sb.from("idea_vault").insert({
       title: newTitle.trim(),
       description: newDesc.trim() || null,
       time_horizon: newHorizon || null,
@@ -141,13 +141,18 @@ export function IdeaVault() {
       workspace_id: profile?.workspace_id ?? null,
       source: "manual",
       status: "captured",
-    });
+    }).select("*").maybeSingle();
     setBusy(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     resetCapture();
     setCaptureOpen(false);
     toast({ title: "Idea captured" });
-    load();
+    if (inserted) {
+      setIdeas(prev => [inserted as Idea, ...prev]);
+      enrichIdea((inserted as Idea).id);
+    } else {
+      load();
+    }
   };
 
   const setStatus = async (id: string, status: string) => {
