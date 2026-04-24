@@ -216,11 +216,46 @@ export function DealsKanban({ search }: { search: string }) {
               {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
+          <div className="inline-flex rounded-lg border border-border/50 bg-muted/30 p-0.5">
+            <button
+              onClick={() => setView("board")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                view === "board" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Board view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Board
+            </button>
+            <button
+              onClick={() => setView("table")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                view === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Table view"
+            >
+              <TableIcon className="h-3.5 w-3.5" /> Table
+            </button>
+          </div>
           <Button size="sm" onClick={() => setNewOpen(true)}>
             <Plus className="h-4 w-4 mr-1" /> New deal
           </Button>
         </div>
       </div>
+
+      {view === "table" && (
+        <DealsTableView
+          deals={filteredSortedDeals}
+          stageMap={stageMap}
+          onOpen={(id) => setOpenDealId(id)}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSort={toggleSort}
+        />
+      )}
+
+      {view === "board" && (
 
       <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
         {stages.map((stage) => {
