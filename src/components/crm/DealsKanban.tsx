@@ -47,6 +47,7 @@ const formatMoney = (n: number, currency = "USD") =>
 export function DealsKanban({ search }: { search: string }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
+  const [view, setView] = useViewPreference<"board" | "table">("crm:deals:view", "board");
   const [loading, setLoading] = useState(true);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
@@ -58,6 +59,8 @@ export function DealsKanban({ search }: { search: string }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverStageId, setHoverStageId] = useState<string | null>(null);
   const [pendingLost, setPendingLost] = useState<{ dealId: string; stageId: string } | null>(null);
+  const [sortBy, setSortBy] = useState<"created" | "value" | "title" | "close" | "stage">("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     (async () => {
