@@ -92,6 +92,140 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_business_memory: {
+        Row: {
+          content: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          memory_type: string
+          source_message_id: string | null
+          source_thread_id: string | null
+          title: string
+          workspace_id: string | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          memory_type: string
+          source_message_id?: string | null
+          source_thread_id?: string | null
+          title: string
+          workspace_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          memory_type?: string
+          source_message_id?: string | null
+          source_thread_id?: string | null
+          title?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_business_memory_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_business_memory_source_thread_id_fkey"
+            columns: ["source_thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_strategy_messages: {
+        Row: {
+          content: string
+          context_snapshot: Json | null
+          created_at: string
+          id: string
+          role: string
+          saved_to_id: string | null
+          saved_to_type: string | null
+          thread_id: string
+        }
+        Insert: {
+          content?: string
+          context_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          role: string
+          saved_to_id?: string | null
+          saved_to_type?: string | null
+          thread_id: string
+        }
+        Update: {
+          content?: string
+          context_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          role?: string
+          saved_to_id?: string | null
+          saved_to_type?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_strategy_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_strategy_threads: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          last_message_at: string
+          status: string
+          summary: string | null
+          summary_updated_at: string | null
+          thread_type: string
+          title: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          last_message_at?: string
+          status?: string
+          summary?: string | null
+          summary_updated_at?: string | null
+          thread_type?: string
+          title?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_message_at?: string
+          status?: string
+          summary?: string | null
+          summary_updated_at?: string | null
+          thread_type?: string
+          title?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       announcement_acknowledgments: {
         Row: {
           acknowledged_at: string
