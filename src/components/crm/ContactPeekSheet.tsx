@@ -269,7 +269,7 @@ export function ContactPeekSheet({
                     }}
                   />
                 </div>
-
+                <CustomFieldsPanel
                   contactId={contact.id}
                   values={(contact.custom_fields || {}) as Record<string, unknown>}
                   onSaved={(v) => setContact({ ...contact, custom_fields: v })}
