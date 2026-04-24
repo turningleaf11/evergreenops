@@ -562,6 +562,22 @@ export function DealPeekSheet({
                   )}
                 </div>
 
+                {/* Owner + Team */}
+                <div className="px-6 py-4 border-b border-border/50 space-y-4">
+                  <OwnerPicker
+                    ownerId={deal.owner_id}
+                    onChange={(id) => saveField({ owner_id: id })}
+                  />
+                  <DealTeamMembersPanel
+                    dealId={deal.id}
+                    canManage={
+                      !!user &&
+                      (user.id === deal.owner_id || user.id === deal.created_by)
+                    }
+                    currentUserId={user?.id ?? null}
+                  />
+                </div>
+
                 {/* Linked contacts */}
                 <div className="px-6 py-4 border-b border-border/50">
                   <div className="flex items-center justify-between mb-2">
