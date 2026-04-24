@@ -246,21 +246,21 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                   </div>
                 )}
                 {kind === "pdf" && (
-                  <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
-                    <FileText className="h-10 w-10 text-muted-foreground" />
-                    <div className="text-sm font-medium">Open PDF in browser</div>
-                    <p className="text-xs text-muted-foreground max-w-md">
-                      PDF preview is opened in a separate browser tab for better compatibility in Microsoft Edge.
-                    </p>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleOpenNewTab}>
-                        <ExternalLink className="h-4 w-4 mr-1.5" /> Open PDF
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleDownload}>
-                        <Download className="h-4 w-4 mr-1.5" /> Download
-                      </Button>
+                  <object data={blobUrl} type="application/pdf" className="w-full h-full">
+                    <iframe src={blobUrl} title={fileName} className="w-full h-full border-0" />
+                    <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+                      <FileText className="h-10 w-10 text-muted-foreground" />
+                      <div className="text-sm font-medium">PDF preview unavailable in this browser</div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleOpenNewTab}>
+                          <ExternalLink className="h-4 w-4 mr-1.5" /> Open in new tab
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleDownload}>
+                          <Download className="h-4 w-4 mr-1.5" /> Download
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  </object>
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
