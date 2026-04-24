@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Circle, AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
 import { TeamHealthWidget } from "@/components/ceo/TeamHealthWidget";
+import { ThisWeeksMeetingWidget } from "@/components/ceo/ThisWeeksMeetingWidget";
 
 interface Metric {
   id: string;
@@ -248,6 +249,9 @@ export function ThisWeekTab() {
 
       {/* SECTION 1B — TEAM HEALTH */}
       <TeamHealthWidget />
+
+      {/* SECTION 1C — THIS WEEK'S LEADERSHIP MEETING */}
+      <ThisWeeksMeetingWidget />
 
       {/* SECTION 2 — WEEKLY PRIORITIES */}
       <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">

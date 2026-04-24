@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ interface Meeting {
 }
 
 export default function MeetingsPage() {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("leadership") || searchParams.get("tab") === "recordings" ? (searchParams.get("tab") === "recordings" ? "recordings" : "leadership") : "leadership";
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -79,7 +82,7 @@ export default function MeetingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="leadership" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs defaultValue={initialTab} className="flex-1 flex flex-col overflow-hidden">
         <div className="px-6 pt-3 border-b border-border/60">
           <TabsList>
             <TabsTrigger value="leadership">Leadership Meetings</TabsTrigger>
