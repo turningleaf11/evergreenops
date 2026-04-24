@@ -13,6 +13,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
+import { OneOnOnesTab } from "@/components/people-ops/OneOnOnesTab";
+import { GrowthTab } from "@/components/people-ops/GrowthTab";
+import { OnboardingTab } from "@/components/people-ops/OnboardingTab";
 
 interface Profile {
   user_id: string;
