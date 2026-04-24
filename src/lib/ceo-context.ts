@@ -16,31 +16,20 @@ export interface Decision {
   outcome?: string;
 }
 
-export interface MorningResetData {
-  date: string;
-  whatMatters: string;
-  whatToIgnore: string;
-  oneWin: string;
-}
-
 export interface CEOContextData {
   currentObjective: string;
   currentConstraints: string[];
   topPriorities: Priority[];
   recentDecisions: Decision[];
-  morningReset: MorningResetData;
 }
 
 // ---- Defaults ----
-
-const today = new Date().toISOString().split("T")[0];
 
 const defaultContext: CEOContextData = {
   currentObjective: "",
   currentConstraints: [],
   topPriorities: [],
   recentDecisions: [],
-  morningReset: { date: today, whatMatters: "", whatToIgnore: "", oneWin: "" },
 };
 
 // ---- localStorage persistence ----
@@ -52,8 +41,16 @@ function loadContext(): CEOContextData {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Strip removed fields from old storage
-      const { strategicTensions, pipelineSnapshot, topRisks, topLeverage, decisionsNeeded, ...rest } = parsed;
+      // Strip removed fields from old storage (incl. legacy morningReset)
+      const {
+        strategicTensions,
+        pipelineSnapshot,
+        topRisks,
+        topLeverage,
+        decisionsNeeded,
+        morningReset,
+        ...rest
+      } = parsed;
       return { ...defaultContext, ...rest };
     }
   } catch {
@@ -77,7 +74,6 @@ interface CEOContextType {
   addDecision: (text: string) => void;
   updateDecision: (id: string, updates: Partial<Decision>) => void;
   removeDecision: (id: string) => void;
-  updateMorningReset: (partial: Partial<MorningResetData>) => void;
 }
 
 const CEOCtx = createContext<CEOContextType | null>(null);
@@ -129,12 +125,8 @@ export function CEOContextProvider({ children }: { children: React.ReactNode }) 
     setData((prev) => ({ ...prev, recentDecisions: prev.recentDecisions.filter((d) => d.id !== id) }));
   }, []);
 
-  const updateMorningReset = useCallback((partial: Partial<MorningResetData>) => {
-    setData((prev) => ({ ...prev, morningReset: { ...prev.morningReset, ...partial, date: today } }));
-  }, []);
-
   return React.createElement(CEOCtx.Provider, {
-    value: { data, update, addPriority, updatePriority, removePriority, addDecision, updateDecision, removeDecision, updateMorningReset },
+    value: { data, update, addPriority, updatePriority, removePriority, addDecision, updateDecision, removeDecision },
   }, children);
 }
 
