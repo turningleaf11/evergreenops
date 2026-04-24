@@ -92,7 +92,7 @@ export function DealPeekSheet({
 
   const saveField = async (patch: Partial<Deal>) => {
     if (!deal) return;
-    const { error } = await supabase.from("deals").update(patch).eq("id", deal.id);
+    const { error } = await supabase.from("deals").update(patch as any).eq("id", deal.id);
     if (error) {
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;
