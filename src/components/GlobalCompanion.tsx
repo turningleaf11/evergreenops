@@ -226,33 +226,59 @@ export function GlobalCompanion() {
                 </div>
               )}
 
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
-                  {msg.role === "assistant" && (
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                  )}
-                  <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}>
-                    {msg.role === "assistant" ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {messages.map((msg, i) => {
+                const isAssistant = msg.role === "assistant";
+                const canSave = isAssistant && !!msg.id && !!msg.content?.trim() && !(loading && i === messages.length - 1);
+                const savedLabel = msg.saved_to_type ? SAVE_DEST_LABELS[msg.saved_to_type as SaveDestination] : null;
+                return (
+                  <div key={msg.id ?? i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
+                    {isAssistant && (
+                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <Bot className="h-3.5 w-3.5 text-primary" />
                       </div>
-                    ) : (
-                      msg.content
+                    )}
+                    <div className="max-w-[85%] flex flex-col items-start gap-1">
+                      <div className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground self-end"
+                          : "bg-muted text-foreground"
+                      }`}>
+                        {isAssistant ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          msg.content
+                        )}
+                      </div>
+                      {isAssistant && (canSave || savedLabel) && (
+                        <div className="flex items-center gap-2 px-1">
+                          {savedLabel ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-primary/80 bg-primary/10 rounded-full px-2 py-0.5">
+                              <Check className="h-2.5 w-2.5" />
+                              Saved to {savedLabel}
+                            </span>
+                          ) : null}
+                          {canSave && (
+                            <button
+                              onClick={() => setSaveDialog({ open: true, messageId: msg.id, content: msg.content })}
+                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors rounded-full px-2 py-0.5 hover:bg-muted"
+                            >
+                              <Bookmark className="h-2.5 w-2.5" />
+                              {savedLabel ? "Save again →" : "Save →"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {msg.role === "user" && (
+                      <div className="h-6 w-6 rounded-full bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <User className="h-3.5 w-3.5 text-foreground" />
+                      </div>
                     )}
                   </div>
-                  {msg.role === "user" && (
-                    <div className="h-6 w-6 rounded-full bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="h-3.5 w-3.5 text-foreground" />
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
 
               {loading && !messages.some((m, i) => m.role === "assistant" && i === messages.length - 1) && (
                 <div className="flex gap-2.5">
