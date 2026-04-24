@@ -249,11 +249,9 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
   const orderedCols = titleCol ? [titleCol, ...otherCols] : otherCols;
 
   const viewKey = `database-${database.id}`;
-  const { getWidth: getStoredWidth, setWidth } = useColumnWidths(viewKey);
-  const getWidth = (id: string, fallback: number) => {
-    const stored = getStoredWidth(id);
-    return stored === 160 ? fallback : stored;
-  };
+  const { widths: storedWidths, setWidth } = useColumnWidths(viewKey);
+  const hasStored = (id: string) => Object.prototype.hasOwnProperty.call(storedWidths, id);
+  const getWidth = (id: string, fallback: number) => storedWidths[id] ?? fallback;
 
   const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
     const onMove = (e: PointerEvent) => setWidth(colId, startWidth + (e.clientX - startX));
@@ -269,21 +267,27 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
     document.body.style.userSelect = "none";
   }, [setWidth]);
 
+  // Auto-size title column based on the longest title currently visible.
+  const autoTitleWidth = (() => {
+    const longest = rows.reduce((max, r) => {
+      const t = String(r.values?.title ?? "");
+      return t.length > max ? t.length : max;
+    }, 0);
+    // ~7.5px per char for 14px font + padding, clamped to a sensible range
+    return Math.min(480, Math.max(180, Math.round(longest * 7.5) + 48));
+  })();
+
   // Default widths by column position
   const defaultWidthFor = (col: DatabaseColumn, idx: number) => {
-    if (col.id === "title") return 320;
-    if (idx === orderedCols.length - 1) return 160;
+    if (col.id === "title") return autoTitleWidth;
+    if (idx === orderedCols.length - 1) return 180;
     return 160;
   };
 
   const gridTemplate = orderedCols.map((c, i) => {
-    const stored = getStoredWidth(c.id);
-    const userSet = stored !== 160;
     const w = getWidth(c.id, defaultWidthFor(c, i));
-    // Title column auto-fits content unless the user has manually resized it
-    if (c.id === "title" && !userSet) return `minmax(160px, max-content)`;
-    if (i === orderedCols.length - 1 && !userSet) return `minmax(120px, 1fr)`;
-    return `minmax(110px, ${w}px)`;
+    if (i === orderedCols.length - 1 && !hasStored(c.id)) return `minmax(120px, 1fr)`;
+    return `${w}px`;
   }).join(" ") + (isAdmin ? " 40px" : "") + ((onEdit || onDelete) ? " 60px" : "");
 
   const updateCell = (row: DatabaseRow, colId: string, val: any) => {
@@ -332,14 +336,12 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
       {orderedCols.map((col) => (
         <div key={col.id} className="px-3 py-1.5 min-w-0">
           {col.id === "title" ? (
-            <div className="max-w-[480px]">
-              <InlineText
-                value={row.values.title || ""}
-                onChange={(nv) => updateCell(row, "title", nv)}
-                className="font-medium"
-                placeholder="Untitled"
-              />
-            </div>
+            <InlineText
+              value={row.values.title || ""}
+              onChange={(nv) => updateCell(row, "title", nv)}
+              className="font-medium"
+              placeholder="Untitled"
+            />
           ) : renderCell(col, row)}
         </div>
       ))}
