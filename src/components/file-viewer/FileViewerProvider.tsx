@@ -44,6 +44,33 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
     setResolvedMime(o.mimeType);
   }, []);
 
+  // Listen for global open-file events + intercept clicks on <a class="file-attachment">.
+  useEffect(() => {
+    (window as any).__lovableFileViewerMounted = true;
+    const onEvent = (e: Event) => {
+      const detail = (e as CustomEvent<OpenOpts>).detail;
+      if (detail?.url) open(detail);
+      e.preventDefault?.();
+    };
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      const a = (e.target as HTMLElement)?.closest?.("a.file-attachment, a[data-file-attachment]") as HTMLAnchorElement | null;
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href || href === "#") return;
+      e.preventDefault();
+      e.stopPropagation();
+      open({ url: href, fileName: a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || undefined });
+    };
+    window.addEventListener("lovable:open-file", onEvent as EventListener);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      (window as any).__lovableFileViewerMounted = false;
+      window.removeEventListener("lovable:open-file", onEvent as EventListener);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [open]);
+
   const close = useCallback(() => {
     setOpts(null);
     if (blobUrl) {
