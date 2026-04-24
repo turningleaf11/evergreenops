@@ -90,15 +90,17 @@ function StatusCircle({ status, statusOptions, onStatusChange, itemId }: {
 /* HoverActions removed — drop-down/edit/archive icons no longer rendered on row hover */
 
 export default function TableView({
-  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects,
+  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects, disableGrouping,
 }: TableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const grouped = statusOptions.map(s => ({
-    ...s,
-    items: items.filter(item => item.status === s.value),
-  }));
+  const grouped = disableGrouping
+    ? [{ value: "__all__", label: "", items }]
+    : statusOptions.map(s => ({
+        ...s,
+        items: items.filter(item => item.status === s.value),
+      }));
 
   const toggleGroup = (key: string) =>
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
