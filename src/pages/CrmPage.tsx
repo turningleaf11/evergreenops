@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Users, Building2, Briefcase, Plus, Loader2, Search } from "lucide-react";
+import { Users, Building2, Briefcase, Plus, Search, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ContactsTable } from "@/components/crm/ContactsTable";
 import { CompaniesTable } from "@/components/crm/CompaniesTable";
 import { DealsKanban } from "@/components/crm/DealsKanban";
+import { LeadsList } from "@/components/crm/LeadsList";
 import { ContactPeekSheet } from "@/components/crm/ContactPeekSheet";
 import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
 
-type Tab = "contacts" | "companies" | "deals";
+type Tab = "leads" | "contacts" | "companies" | "deals";
 
 export default function CrmPage() {
   const navigate = useNavigate();
@@ -23,10 +23,11 @@ export default function CrmPage() {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
-  const initialTab: Tab =
-    (params.tab as Tab) === "companies" || (params.tab as Tab) === "deals"
-      ? (params.tab as Tab)
-      : "contacts";
+  const initialTab: Tab = (["leads", "contacts", "companies", "deals"] as Tab[]).includes(
+    params.tab as Tab,
+  )
+    ? (params.tab as Tab)
+    : "contacts";
 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [search, setSearch] = useState("");
@@ -96,6 +97,9 @@ export default function CrmPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
         <div className="px-6 pt-3 border-b border-border/50">
           <TabsList className="h-9 bg-transparent p-0 gap-1">
+            <TabsTrigger value="leads" className="data-[state=active]:bg-muted gap-1.5">
+              <Inbox className="h-3.5 w-3.5" /> Leads
+            </TabsTrigger>
             <TabsTrigger value="contacts" className="data-[state=active]:bg-muted gap-1.5">
               <Users className="h-3.5 w-3.5" /> Contacts
             </TabsTrigger>
@@ -108,6 +112,9 @@ export default function CrmPage() {
           </TabsList>
         </div>
 
+        <TabsContent value="leads" className="flex-1 min-h-0 overflow-auto m-0">
+          <LeadsList search={search} />
+        </TabsContent>
         <TabsContent value="contacts" className="flex-1 min-h-0 overflow-auto m-0">
           <ContactsTable
             search={search}
