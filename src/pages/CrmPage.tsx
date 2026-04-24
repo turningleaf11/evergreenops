@@ -19,6 +19,7 @@ type Tab = "contacts" | "companies" | "deals";
 export default function CrmPage() {
   const navigate = useNavigate();
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
@@ -31,11 +32,26 @@ export default function CrmPage() {
   const [search, setSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [openContactId, setOpenContactId] = useState<string | null>(null);
+  const [openDealId, setOpenDealId] = useState<string | null>(null);
   const [newContactOpen, setNewContactOpen] = useState(false);
 
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
+
+  // Open peek from URL query params (e.g. ?contact=<id> or ?deal=<id>)
+  useEffect(() => {
+    const c = searchParams.get("contact");
+    const d = searchParams.get("deal");
+    if (c) setOpenContactId(c);
+    if (d) setOpenDealId(d);
+  }, [searchParams]);
+
+  const clearPeekParam = (key: "contact" | "deal") => {
+    const next = new URLSearchParams(searchParams);
+    next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
 
   const handleTabChange = (next: string) => {
     const t = next as Tab;
