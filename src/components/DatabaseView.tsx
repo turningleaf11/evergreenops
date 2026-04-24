@@ -279,6 +279,8 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
     const stored = getStoredWidth(c.id);
     const userSet = stored !== 160;
     const w = getWidth(c.id, defaultWidthFor(c, i));
+    // Title column auto-fits content unless the user has manually resized it
+    if (c.id === "title" && !userSet) return `minmax(160px, max-content)`;
     if (i === orderedCols.length - 1 && !userSet) return `minmax(120px, 1fr)`;
     return `minmax(110px, ${w}px)`;
   }).join(" ") + (isAdmin ? " 40px" : "") + ((onEdit || onDelete) ? " 60px" : "");
