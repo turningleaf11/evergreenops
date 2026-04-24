@@ -38,23 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<AppRole>("user");
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      setRoleLoaded(false);
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).single(),
+        supabase.from("user_roles").select("role, is_primary").eq("user_id", userId),
+      ]);
+
+      const profileData = profileRes.data;
+      const roleData = roleRes.data;
 
       if (profileData) {
         setProfile(profileData as Profile);
       }
-
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role, is_primary")
-        .eq("user_id", userId);
 
       if (roleData && roleData.length > 0) {
         const roles = roleData.map((r: any) => r.role);
@@ -66,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+    } finally {
+      setRoleLoaded(true);
     }
   }, []);
 
