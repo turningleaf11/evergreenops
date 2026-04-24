@@ -205,6 +205,7 @@ export default function ExecutionPage() {
   // View states for projects and tasks tabs
   const pv = useViewState("projects");
   const tv = useViewState("tasks");
+  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "due_date" | "priority" | "project">("none");
 
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i] = await Promise.all([
@@ -721,9 +722,24 @@ export default function ExecutionPage() {
             filterPriority={tv.filterPriority} onFilterPriorityChange={tv.setFilterPriority}
             statusOptions={taskStatusOptions}
             priorityOptions={priorityOptions}
-          />
+          >
+            {tv.view === "list" && (
+              <Select value={taskGroupBy} onValueChange={(v) => setTaskGroupBy(v as any)}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue placeholder="Group by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grouping</SelectItem>
+                  <SelectItem value="status">Group: Status</SelectItem>
+                  <SelectItem value="due_date">Group: Due Date</SelectItem>
+                  <SelectItem value="priority">Group: Priority</SelectItem>
+                  <SelectItem value="project">Group: Project</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </ViewControls>
 
-          {tv.view === "list" && (
+          {tv.view === "list" && taskGroupBy === "none" && (
             <TableView
               items={visibleTasks}
               type="task"
@@ -734,6 +750,68 @@ export default function ExecutionPage() {
               projects={projects}
             />
           )}
+
+          {tv.view === "list" && taskGroupBy !== "none" && (() => {
+            const groupTask = (t: Task): { key: string; label: string; order: number } => {
+              if (taskGroupBy === "status") {
+                const opt = taskStatusOptions.find(s => s.value === t.status);
+                const order = taskStatusOptions.findIndex(s => s.value === t.status);
+                return { key: t.status || "none", label: opt?.label || "—", order: order < 0 ? 99 : order };
+              }
+              if (taskGroupBy === "priority") {
+                const key = t.priority || "none";
+                const opt = priorityOptions.find(p => p.value === key);
+                return { key, label: opt?.label || "No Priority", order: priorityOrder[key] ?? 99 };
+              }
+              if (taskGroupBy === "project") {
+                const key = t.project_id || "none";
+                const proj = projects.find(p => p.id === t.project_id);
+                return { key, label: proj?.title || "No Project", order: proj ? 0 : 99 };
+              }
+              // due_date
+              if (!t.due_date) return { key: "none", label: "No Due Date", order: 99 };
+              const today = new Date(); today.setHours(0,0,0,0);
+              const due = new Date(t.due_date + "T00:00:00");
+              const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+              if (diff < 0) return { key: "overdue", label: "Overdue", order: 0 };
+              if (diff === 0) return { key: "today", label: "Today", order: 1 };
+              if (diff === 1) return { key: "tomorrow", label: "Tomorrow", order: 2 };
+              if (diff <= 7) return { key: "week", label: "This Week", order: 3 };
+              if (diff <= 30) return { key: "month", label: "This Month", order: 4 };
+              return { key: "later", label: "Later", order: 5 };
+            };
+            const groups = new Map<string, { label: string; order: number; items: Task[] }>();
+            for (const t of visibleTasks) {
+              const g = groupTask(t);
+              if (!groups.has(g.key)) groups.set(g.key, { label: g.label, order: g.order, items: [] });
+              groups.get(g.key)!.items.push(t);
+            }
+            const sorted = Array.from(groups.entries()).sort((a, b) => a[1].order - b[1].order);
+            return (
+              <div className="space-y-6">
+                {sorted.map(([key, grp]) => (
+                  <div key={key} className="space-y-2">
+                    <div className="flex items-center gap-2 px-1">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
+                      <span className="text-xs text-muted-foreground">{grp.items.length}</span>
+                    </div>
+                    <TableView
+                      items={grp.items}
+                      type="task"
+                      onItemClick={openTaskDrawer}
+                      onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+                      getName={getName}
+                      statusOptions={taskStatusOptions}
+                      projects={projects}
+                    />
+                  </div>
+                ))}
+                {sorted.length === 0 && (
+                  <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>
+                )}
+              </div>
+            );
+          })()}
 
           {tv.view === "board" && (
             <KanbanBoard
