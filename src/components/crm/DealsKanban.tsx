@@ -344,3 +344,94 @@ export function DealsKanban({ search }: { search: string }) {
     </div>
   );
 }
+
+interface DealsTableViewProps {
+  deals: Deal[];
+  stageMap: Map<string, Stage>;
+  onOpen: (id: string) => void;
+  sortBy: "created" | "value" | "title" | "close" | "stage";
+  sortDir: "asc" | "desc";
+  onSort: (key: "created" | "value" | "title" | "close" | "stage") => void;
+}
+
+function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: DealsTableViewProps) {
+  if (deals.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-card py-16 text-center text-sm text-muted-foreground">
+        <Briefcase className="h-7 w-7 mx-auto mb-2 opacity-50" />
+        <p className="font-medium text-foreground mb-1">No deals to show</p>
+        <p>Try changing the search or pipeline.</p>
+      </div>
+    );
+  }
+
+  const SortHeader = ({ k, label, className }: { k: typeof sortBy; label: string; className?: string }) => (
+    <button
+      onClick={() => onSort(k)}
+      className={cn(
+        "inline-flex items-center gap-1 text-left",
+        sortBy === k && "text-foreground"
+      )}
+    >
+      {label}
+      <ArrowUpDown className={cn("h-3 w-3 opacity-40", sortBy === k && "opacity-100")} />
+      {sortBy === k && <span className="text-[9px]">{sortDir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+
+  return (
+    <div className="rounded-xl border border-border/50 overflow-hidden bg-card">
+      <div className="grid grid-cols-[2.5fr_1.4fr_1fr_1fr_1fr_1.2fr] px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/50 bg-muted/30">
+        <div><SortHeader k="title" label="Deal" /></div>
+        <div><SortHeader k="stage" label="Stage" /></div>
+        <div className="text-right"><SortHeader k="value" label="Value" /></div>
+        <div>Status</div>
+        <div><SortHeader k="close" label="Close date" /></div>
+        <div><SortHeader k="created" label="Created" /></div>
+      </div>
+      {deals.map((d) => {
+        const stage = stageMap.get(d.stage_id);
+        const stageColor = stage?.color || "220 12% 60%";
+        const statusColor =
+          d.status === "won" ? "142 76% 36%" :
+          d.status === "lost" ? "0 70% 50%" :
+          "210 70% 50%";
+        return (
+          <button
+            key={d.id}
+            onClick={() => onOpen(d.id)}
+            className="w-full text-left grid grid-cols-[2.5fr_1.4fr_1fr_1fr_1fr_1.2fr] items-center px-3 py-2 text-sm border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors"
+          >
+            <div className="font-medium truncate min-w-0 pr-2">{d.title}</div>
+            <div className="min-w-0">
+              {stage && (
+                <span className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: `hsl(${stageColor})` }} />
+                  <span className="truncate">{stage.name}</span>
+                </span>
+              )}
+            </div>
+            <div className="text-right tabular-nums">
+              {formatMoney(Number(d.value || 0), d.currency)}
+            </div>
+            <div>
+              <Badge
+                variant="outline"
+                className="text-[10px] capitalize"
+                style={{ borderColor: `hsl(${statusColor})`, color: `hsl(${statusColor})` }}
+              >
+                {d.status}
+              </Badge>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString() : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {(d as any).created_at ? formatDistanceToNow(new Date((d as any).created_at), { addSuffix: true }) : "—"}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
