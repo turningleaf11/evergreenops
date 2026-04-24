@@ -120,7 +120,7 @@ function getCurrentQuarter(): { quarter: string; year: number } {
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user, profile, isPrimaryAdmin, refreshProfile, loading: authLoading } = useAuth();
-  const { workspace } = useWorkspace() as any;
+  const workspace = useWorkspace();
 
   const [stepIdx, setStepIdx] = useState(0);
   const [transcript, setTranscript] = useState<Record<string, ChatTurn[]>>({});
