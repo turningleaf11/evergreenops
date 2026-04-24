@@ -270,10 +270,17 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       };
 
       try {
-        const liveSnapshot = await fetchLiveSnapshot();
+        const [liveSnapshot, strategyContext] = await Promise.all([
+          fetchLiveSnapshot(),
+          assembleStrategyContext({
+            userName: profile?.full_name || user?.email || "the CEO",
+            workspaceId: profile?.workspace_id ?? null,
+          }),
+        ]);
         await streamChat({
           messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
           ceoContext: { ...data, currentPage: location.pathname },
+          strategyContext,
           liveSnapshot,
         }, upsertAssistant);
       } catch (e) {
@@ -282,7 +289,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     })();
-  }, [open, location.pathname, messages.length, loading, data, activeThreadId]);
+  }, [open, location.pathname, messages.length, loading, data, activeThreadId, profile?.full_name, profile?.workspace_id, user?.email]);
 
   const send = useCallback(async () => {
     if (!input.trim() || loading || !user?.id) return;
