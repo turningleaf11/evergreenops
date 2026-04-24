@@ -38,7 +38,7 @@ const categoryDestinations: Record<string, { label: string; path: string; tab?: 
   delegation: { label: "Execution", path: "/execution" },
   project: { label: "Execution → Projects", path: "/execution" },
   decision: { label: "Strategy → Decision Log", path: "/ceo", tab: "strategy" },
-  idea: { label: "CEO Cockpit → Ideas", path: "/ceo", tab: "ideas" },
+  idea: { label: "Idea Vault", path: "/ceo", tab: "bigpicture" },
 };
 
 export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriageProps) {
@@ -162,6 +162,15 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
                     <p className="text-sm text-foreground">{item.text}</p>
                   )}
                   <p className="text-xs text-muted-foreground italic">{item.reasoning}</p>
+                  {item.category === "idea" && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/ceo")}
+                      className="text-[11px] text-primary hover:underline mt-1 inline-block"
+                    >
+                      View Idea Vault →
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
