@@ -19,7 +19,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
