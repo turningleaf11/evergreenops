@@ -108,6 +108,13 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Trash" onClick={() => modify("trash")}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+        <LinkToCrm
+          threadId={threadId}
+          participantEmails={participantEmails}
+          subject={subject}
+          snippet={messages[0]?.snippet || ""}
+          workspaceId={workspaceId}
+        />
         <Button variant="outline" size="sm" className="h-7 gap-1" onClick={aiSuggest} disabled={aiLoading} title="AI-drafted reply">
           {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           AI Reply
