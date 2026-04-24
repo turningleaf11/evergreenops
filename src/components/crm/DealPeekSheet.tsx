@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Loader2, Mail, Phone, Briefcase, NotebookPen, ExternalLink, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ interface Deal {
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }
-interface Activity { id: string; type: string; subject: string; body: string; occurred_at: string }
+interface Activity { id: string; type: string; subject: string; body: string; occurred_at: string; metadata?: Record<string, unknown> }
 
 const formatMoney = (n: number, currency = "USD") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
@@ -68,7 +69,7 @@ export function DealPeekSheet({
         const [{ data: st }, { data: links }, { data: acts }] = await Promise.all([
           supabase.from("pipeline_stages").select("id,name,color,is_won,is_lost").eq("pipeline_id", dealRow.pipeline_id).order("sort_order"),
           supabase.from("entity_links").select("target_id").eq("source_type", "deal").eq("source_id", dealRow.id).eq("target_type", "contact"),
-          supabase.from("crm_activities").select("id,type,subject,body,occurred_at").eq("entity_type", "deal").eq("entity_id", dealRow.id).order("occurred_at", { ascending: false }).limit(50),
+          supabase.from("crm_activities").select("id,type,subject,body,occurred_at,metadata").eq("entity_type", "deal").eq("entity_id", dealRow.id).order("occurred_at", { ascending: false }).limit(50),
         ]);
         if (!active) return;
         setStages((st as Stage[]) || []);
@@ -265,16 +266,27 @@ export function DealPeekSheet({
                   <p className="text-sm text-muted-foreground py-6 text-center">No activity yet.</p>
                 ) : (
                   <div className="space-y-3">
-                    {activities.map((a) => (
-                      <div key={a.id} className="rounded-lg border border-border/40 bg-card p-3 text-sm">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground capitalize">{a.type}</span>
-                          <span className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}</span>
+                    {activities.map((a) => {
+                      const threadId = (a.metadata as any)?.gmail_thread_id as string | undefined;
+                      const isEmail = a.type === "email" && threadId;
+                      return (
+                        <div key={a.id} className="rounded-lg border border-border/40 bg-card p-3 text-sm">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground capitalize">{a.type}</span>
+                            <div className="flex items-center gap-2">
+                              {isEmail && (
+                                <Link to={`/inbox?thread=${threadId}`} className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5">
+                                  Open <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              )}
+                              <span className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}</span>
+                            </div>
+                          </div>
+                          {a.subject && <div className="font-medium mb-0.5">{a.subject}</div>}
+                          {a.body && <p className="whitespace-pre-wrap text-muted-foreground">{a.body}</p>}
                         </div>
-                        {a.subject && <div className="font-medium mb-0.5">{a.subject}</div>}
-                        {a.body && <p className="whitespace-pre-wrap text-muted-foreground">{a.body}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

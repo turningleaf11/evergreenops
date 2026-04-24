@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,14 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Open thread when ?thread=<id> is in URL (e.g. linked from CRM timeline)
+  useEffect(() => {
+    const t = searchParams.get("thread");
+    if (t && t !== selectedId) setSelectedId(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>({});
   const [labels, setLabels] = useState<EmailLabel[]>([]);

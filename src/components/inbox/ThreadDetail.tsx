@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { LinkToCrm } from "./LinkToCrm";
+import { useAuth } from "@/contexts/AuthContext";
+
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+function extractEmails(headerVal: string | undefined): string[] {
+  if (!headerVal) return [];
+  return Array.from(headerVal.matchAll(EMAIL_RE)).map((m) => m[0].toLowerCase());
+}
 
 interface ThreadMessage {
   id: string;
@@ -22,9 +30,21 @@ interface Props {
 }
 
 export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
+  const { profile } = useAuth() as any;
+  const workspaceId = profile?.workspace_id ?? null;
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+
+  const participantEmails = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of messages) {
+      extractEmails(m.headers?.from).forEach((e) => set.add(e));
+      extractEmails(m.headers?.to).forEach((e) => set.add(e));
+      extractEmails(m.headers?.cc).forEach((e) => set.add(e));
+    }
+    return Array.from(set);
+  }, [messages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +108,13 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Trash" onClick={() => modify("trash")}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+        <LinkToCrm
+          threadId={threadId}
+          participantEmails={participantEmails}
+          subject={subject}
+          snippet={messages[0]?.snippet || ""}
+          workspaceId={workspaceId}
+        />
         <Button variant="outline" size="sm" className="h-7 gap-1" onClick={aiSuggest} disabled={aiLoading} title="AI-drafted reply">
           {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           AI Reply
