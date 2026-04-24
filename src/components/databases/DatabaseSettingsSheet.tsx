@@ -388,9 +388,10 @@ curl -X DELETE "${apiUrl}/ROW_ID" -H "Authorization: Bearer YOUR_KEY"`}</pre>
         <ConfirmDeleteDialog
           open={confirmDelete}
           onOpenChange={setConfirmDelete}
-          title="Delete this list?"
+          entityLabel="list"
+          entityName={database.title}
           description="All rows in this list will be permanently deleted. This action cannot be undone."
-          onConfirm={() => { setConfirmDelete(false); onDeleted(); }}
+          onConfirm={() => { onDeleted(); }}
         />
       </SheetContent>
     </Sheet>
