@@ -23,6 +23,8 @@ interface AuthContextType {
   /** True only for the primary admin (the workspace CEO). Used to gate the CEO Cockpit. */
   isPrimaryAdmin: boolean;
   loading: boolean;
+  /** True once both profile and user_roles queries have completed for the current user. */
+  roleLoaded: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }

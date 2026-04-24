@@ -1,61 +1,46 @@
+## Fix primary-admin Vision Setup redirect
 
-Fix the Settings page by separating its navigation from the shared tab-bar styling that is forcing the desktop layout to behave like a horizontal strip.
+This is not happening because you already have an account. The current code shows that the button is only visible to a primary admin, so your account is already being recognized correctly in Settings.
 
-1. Replace the Settings page navigation architecture
-- Refactor `src/pages/SettingsPage.tsx` so Settings uses a controlled `activeSection` state instead of relying on the current `TabsList`/`TabsTrigger` desktop layout.
-- Keep the existing section grouping (`Workspace`, `People`, `Extensions`), but render them as a dedicated left sidebar on desktop:
-  - fixed-width/sticky aside
-  - grouped labels with dividers
-  - full-width nav rows
-  - active state matching the current workspace accent color
-- On mobile, render a separate horizontal scroller above the content instead of trying to reuse the desktop sidebar markup.
+The redirect is happening because the app reloads into `/onboarding`, then briefly checks `isPrimaryAdmin` before the role query has finished. In that short window, the page treats you like a non-admin and sends you back to `/`.
 
-2. Remove the layout conflict causing the current breakage
-- Stop using the current `contents lg:block` structure inside the tab list.
-- Avoid depending on shared `src/components/ui/tabs.tsx` styles for the desktop Settings sidebar, since those base styles are optimized for horizontal tab bars and are leaking into this page.
-- Ensure the Settings sidebar container has proper width containment (`w-full`, fixed desktop width, `shrink-0`, `min-w-0` on content area) so nav items cannot spill into the main panel.
+### Changes to make
 
-3. Keep content rendering exactly the same
-- Preserve the existing Settings sections and functionality:
-  - Workspace
-  - Departments
-  - Home Widgets
-  - Holidays
-  - Users & Roles
-  - Training
-  - Add-Ons
-  - Forms
-  - Integrations
-- Only change how the section navigation is rendered and how the active panel is selected.
-- Do not alter any data fetching, forms, dialogs, permissions, or business logic.
+1. Update `src/contexts/AuthContext.tsx`
+- Add a dedicated `roleLoaded` flag.
+- Reset it whenever auth state changes or the user signs out.
+- Only mark `roleLoaded = true` after both the `profiles` query and the `user_roles` query complete.
+- Expose `roleLoaded` from `useAuth()`.
 
-4. Tighten the desktop visual layout
-- Wrap the left navigation in a clean panel/card so it reads as a true settings sidebar.
-- Align the content area to start at the top of the first section.
-- Make the active item more obvious with:
-  - soft tinted background
-  - stronger text/icon color
-  - subtle inset/border treatment
-- Keep inactive items visually quiet and evenly spaced.
+2. Update `src/pages/OnboardingPage.tsx`
+- Do not evaluate the non-admin redirect until `roleLoaded` is true.
+- Keep the loading state visible while auth or role resolution is still in flight.
+- Preserve the current onboarding experience once role data is ready.
 
-5. Preserve mobile behavior cleanly
-- Show a compact horizontal tab strip only below the desktop breakpoint.
-- Keep it scrollable when needed.
-- Ensure the desktop sidebar is hidden on mobile and the mobile strip is hidden on desktop so there is never duplicated navigation in the DOM causing overlap.
+3. Update `src/components/OnboardingGate.tsx`
+- Wait for `roleLoaded` before deciding whether the user is a primary admin.
+- Prevent the gate from making an early false “not primary admin” decision during refresh/navigation.
 
-6. Validate the problem areas shown in the screenshots
-- Confirm that items like `Departments`, `Home Widgets`, `Holidays`, `Training`, `Forms`, and `Integrations` no longer spill into the main content region.
-- Confirm `Users & Roles` content starts in the correct column and the `Invite User` action aligns within the main panel instead of competing with the nav.
-- Confirm loading states like `Loading users...` and `Loading add-ons...` render inside the content panel only.
+4. Update `src/App.tsx`
+- Make `PrimaryAdminRoute` wait for role resolution too, so all primary-admin-only routes use the same readiness rule.
 
-Files to update
-- `src/pages/SettingsPage.tsx` — main refactor for controlled settings navigation and responsive desktop/mobile layouts
-- Possibly no global component changes unless a tiny utility class adjustment is truly necessary; prefer keeping the fix local to Settings so other tabbed pages are unaffected
+5. Update `src/pages/SettingsPage.tsx`
+- Replace `window.location.href = "/onboarding"` with router navigation.
+- After resetting onboarding fields and refreshing the profile, navigate with SPA routing so the auth tree stays mounted and the race window is minimized.
 
-Technical implementation notes
-- Use a local `const [activeSection, setActiveSection] = useState(...)`.
-- Render sidebar buttons from the existing `navSections` config.
-- Render the active content panel with either:
-  - conditional section rendering, or
-  - controlled Radix `Tabs` value with custom non-Radix desktop nav
-- Prefer a local, page-specific nav component pattern over further extending the global `TabsList` primitive, since the Settings page needs a sidebar pattern rather than a generic tab bar.
+### Expected result
+
+After this change:
+- A primary admin can click `Run Vision Setup` from Settings.
+- The app will stay on `/onboarding` instead of bouncing to `/`.
+- Existing accounts will be able to re-run Vision Setup normally.
+
+### Technical details
+
+Relevant code already confirms the race:
+- `SettingsPage.tsx` uses a hard reload: `window.location.href = "/onboarding"`
+- `OnboardingPage.tsx` redirects when `profile && !isPrimaryAdmin`
+- `AuthContext.tsx` sets `loading = false` before role resolution is guaranteed complete
+- `OnboardingGate.tsx` also evaluates `isPrimaryAdmin` without a separate role-ready state
+
+Approve this plan and I’ll implement the guard synchronization fix across those files.
