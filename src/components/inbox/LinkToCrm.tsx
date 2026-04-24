@@ -230,34 +230,55 @@ export function LinkToCrm({
         {existing.length > 0 && (
           <div className="px-3 py-2 border-b border-border/40 space-y-1.5">
             <div className="text-[10px] uppercase text-muted-foreground">Linked records</div>
-            {existing.map((l) => (
-              <div
-                key={l.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-sm"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {l.entity_type}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {l.entity_id.slice(0, 8)}…
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => unlink(l.id)}
-                  disabled={busyId === l.id}
+            {existing.map((l) => {
+              const key = `${l.entity_type}:${l.entity_id}`;
+              const displayName = names[key] || `${l.entity_id.slice(0, 8)}…`;
+              const canOpen = l.entity_type === "contact" || l.entity_type === "deal";
+              const openHref =
+                l.entity_type === "contact"
+                  ? `/crm/contacts?contact=${l.entity_id}`
+                  : l.entity_type === "deal"
+                    ? `/crm/deals?deal=${l.entity_id}`
+                    : null;
+              return (
+                <div
+                  key={l.id}
+                  className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-sm"
                 >
-                  {busyId === l.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <X className="h-3 w-3" />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Badge variant="outline" className="text-[10px] capitalize shrink-0">
+                      {l.entity_type}
+                    </Badge>
+                    <span className="text-xs font-medium truncate">{displayName}</span>
+                  </div>
+                  {canOpen && openHref && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      title={`Open ${l.entity_type}`}
+                      onClick={() => { setOpen(false); navigate(openHref); }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
                   )}
-                </Button>
-              </div>
-            ))}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Unlink"
+                    onClick={() => unlink(l.id)}
+                    disabled={busyId === l.id}
+                  >
+                    {busyId === l.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
 
