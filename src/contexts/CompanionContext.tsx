@@ -397,7 +397,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, profile?.workspace_id]);
+  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, user?.email, profile?.workspace_id, profile?.full_name]);
 
   return (
     <CompanionContext.Provider
