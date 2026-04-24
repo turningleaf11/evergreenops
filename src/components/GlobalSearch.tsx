@@ -135,12 +135,17 @@ export function GlobalSearch() {
                 </div>
                 {items.map((r) => (
                   <button
-                    key={r.id}
+                    key={`${r.type}-${r.id}`}
                     onClick={() => handleSelect(r)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left"
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-                    <span className="truncate">{r.title}</span>
+                    <span className="truncate flex-1">{r.title}</span>
+                    {r.subtitle && (
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[40%]">
+                        {r.subtitle}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
