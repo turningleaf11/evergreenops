@@ -42,6 +42,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newDeptName, setNewDeptName] = useState("");
   const [newOnboardingTitle, setNewOnboardingTitle] = useState("");
+  const [activeSection, setActiveSection] = useState("workspace");
 
   if (!isAdmin) {
     return (
