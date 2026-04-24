@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTraining } from "@/contexts/TrainingContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,8 @@ interface Profile {
   avatar_url: string | null;
   department_id: string | null;
   title: string | null;
+  start_date?: string | null;
+  created_at?: string | null;
 }
 
 interface OneOnOne {
@@ -61,17 +64,28 @@ const sentimentLabel: Record<Sentiment, string> = {
   critical: "Critical",
 };
 
-function computeHealth(r: Omit<Row, "health">): Health {
-  if (!r.onboardingComplete) return "red";
-  if (r.daysSince === null || r.daysSince > 30) return "red";
+function computeHealth(r: Omit<Row, "health"> & { accountDays: number | null }): Health {
+  const onboardingIncomplete = r.onboardingPct < 100;
+  const accountOld = r.accountDays !== null && r.accountDays > 30;
+
+  // RED conditions
+  if (onboardingIncomplete && accountOld) return "red";
+  if (r.daysSince !== null && r.daysSince > 30) return "red";
   if (r.sentiment === "critical") return "red";
-  if (r.daysSince > 14 || r.sentiment === "neutral" || r.sentiment === "concerned") return "yellow";
+
+  // YELLOW conditions
+  if (r.daysSince !== null && r.daysSince >= 15 && r.daysSince <= 30) return "yellow";
+  if (r.sentiment === "concerned") return "yellow";
+  if (onboardingIncomplete && !accountOld) return "yellow";
+
   return "green";
 }
 
 export function PeopleOpsTab({ profiles, departments, onSelect }: Props) {
+  const { onboardingSteps } = useTraining();
   const [oneOnOnes, setOneOnOnes] = useState<OneOnOne[]>([]);
   const [kudos, setKudos] = useState<Array<{ to_user_id: string; created_at: string }>>([]);
+  const [snapshots, setSnapshots] = useState<Array<{ employee_id: string; onboarding_progress_pct: number; snapshot_date: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,7 +93,7 @@ export function PeopleOpsTab({ profiles, departments, onSelect }: Props) {
     const load = async () => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
-      const [ooRes, kRes] = await Promise.all([
+      const [ooRes, kRes, snapRes] = await Promise.all([
         supabase
           .from("one_on_ones")
           .select("employee_id, meeting_date, sentiment, action_items")
@@ -88,20 +102,47 @@ export function PeopleOpsTab({ profiles, departments, onSelect }: Props) {
           .from("kudos")
           .select("to_user_id, created_at")
           .gte("created_at", since.toISOString()),
+        supabase
+          .from("people_health_snapshots")
+          .select("employee_id, onboarding_progress_pct, snapshot_date")
+          .order("snapshot_date", { ascending: false }),
       ]);
       if (cancelled) return;
       setOneOnOnes((ooRes.data as OneOnOne[]) || []);
       setKudos(kRes.data || []);
+      setSnapshots((snapRes.data as any) || []);
       setLoading(false);
     };
     load();
-    return () => { cancelled = true; };
+
+    // Realtime: refresh on any change to underlying tables
+    const channel = supabase
+      .channel("people-ops-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "one_on_ones" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "kudos" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "people_health_snapshots" }, load)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  // Latest onboarding % per employee from snapshots (if any).
+  const onboardingByUser = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of snapshots) {
+      if (!map.has(s.employee_id)) map.set(s.employee_id, s.onboarding_progress_pct);
+    }
+    return map;
+  }, [snapshots]);
+
+  const totalOnboardingSteps = onboardingSteps.length;
 
   const rows: Row[] = useMemo(() => {
     return profiles.map((p) => {
       const dept = departments.find((d) => d.id === p.department_id);
-      // latest 1:1
       const myOO = oneOnOnes.filter((o) => o.employee_id === p.user_id);
       const last = myOO[0] || null;
       const daysSince = last ? differenceInDays(new Date(), new Date(last.meeting_date)) : null;
@@ -111,9 +152,14 @@ export function PeopleOpsTab({ profiles, departments, onSelect }: Props) {
       }, 0);
       const kudos30 = kudos.filter((k) => k.to_user_id === p.user_id).length;
 
-      // Onboarding placeholder — until wired to real onboarding source, treat all as complete.
-      const onboardingComplete = true;
-      const onboardingPct = 100;
+      // Onboarding % — use snapshot if present, else assume complete when no steps defined.
+      const snapPct = onboardingByUser.get(p.user_id);
+      const onboardingPct = snapPct !== undefined ? snapPct : (totalOnboardingSteps === 0 ? 100 : 100);
+      const onboardingComplete = onboardingPct >= 100;
+
+      // Account age: prefer start_date, fall back to created_at.
+      const accountDate = p.start_date || p.created_at || null;
+      const accountDays = accountDate ? differenceInDays(new Date(), new Date(accountDate)) : null;
 
       const partial = {
         profile: p,
@@ -126,9 +172,9 @@ export function PeopleOpsTab({ profiles, departments, onSelect }: Props) {
         openActionItems,
         kudos30,
       };
-      return { ...partial, health: computeHealth(partial) };
+      return { ...partial, health: computeHealth({ ...partial, accountDays }) };
     });
-  }, [profiles, departments, oneOnOnes, kudos]);
+  }, [profiles, departments, oneOnOnes, kudos, onboardingByUser, totalOnboardingSteps]);
 
   const summary = useMemo(() => {
     const total = rows.length;

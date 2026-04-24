@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,8 @@ interface Profile {
   email: string | null;
   bio: string | null;
   reports_to: string | null;
+  start_date?: string | null;
+  created_at?: string | null;
 }
 
 export default function PeoplePage() {
@@ -32,11 +35,18 @@ export default function PeoplePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<Profile | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = useMemo(() => {
+    const t = searchParams.get("tab");
+    if (t === "people-ops" && isAdmin) return "people-ops";
+    if (t === "org-chart") return "org-chart";
+    return "directory";
+  }, [searchParams, isAdmin]);
 
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to, birthday, start_date");
+      .select("user_id, full_name, avatar_url, department_id, title, phone, email, bio, reports_to, birthday, start_date, created_at");
     if (data) setProfiles(data);
   }, []);
 
@@ -71,7 +81,15 @@ export default function PeoplePage() {
         <p className="text-muted-foreground mt-1">Team directory across all departments.</p>
       </div>
 
-      <Tabs defaultValue="directory">
+      <Tabs
+        value={initialTab}
+        onValueChange={(v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v === "directory") next.delete("tab");
+          else next.set("tab", v);
+          setSearchParams(next, { replace: true });
+        }}
+      >
         <TabsList>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="org-chart">Org Chart</TabsTrigger>
