@@ -336,27 +336,31 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
       {orderedCols.map((col) => (
         <div key={col.id} className="px-3 py-1.5 min-w-0">
           {col.id === "title" ? (
-            <InlineText
-              value={row.values.title || ""}
-              onChange={(nv) => updateCell(row, "title", nv)}
-              className="font-medium"
-              placeholder="Untitled"
-            />
+            <div className="flex items-center gap-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <InlineText
+                  value={row.values.title || ""}
+                  onChange={(nv) => updateCell(row, "title", nv)}
+                  className="font-medium"
+                  placeholder="Untitled"
+                />
+              </div>
+              {onEdit && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+                  className="shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                  title="Open record"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           ) : renderCell(col, row)}
         </div>
       ))}
       {isAdmin && <div />}
       {(onEdit || onDelete) && (
         <div className="px-2 flex items-center justify-end gap-0.5">
-          {onEdit && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(row); }}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
-              title="Open record"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </button>
-          )}
           {onDelete && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
