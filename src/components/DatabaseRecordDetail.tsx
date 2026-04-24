@@ -249,7 +249,7 @@ function FieldEditor({ column, value, onChange }: { column: DatabaseColumn; valu
         <div className="space-y-1.5">
           <Input value={value || ""} onChange={e => onChange(e.target.value)} placeholder="File URL" className="h-8 text-sm" autoFocus />
           {value && (
-            <a href={value} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex items-center gap-1">
+            <a href={value} className="file-attachment text-xs text-primary underline flex items-center gap-1">
               <ExternalLink className="h-3 w-3" /> Open file
             </a>
           )}
