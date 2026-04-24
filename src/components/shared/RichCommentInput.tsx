@@ -204,9 +204,9 @@ export function AttachmentChips({ attachments }: { attachments: CommentAttachmen
         <a
           key={a.url}
           href={a.url}
-          target="_blank"
-          rel="noopener"
-          className="inline-flex items-center gap-1.5 bg-muted/60 hover:bg-muted rounded-md px-2 py-0.5 text-xs text-foreground/90"
+          data-file-attachment
+          data-file-name={a.name}
+          className="file-attachment inline-flex items-center gap-1.5 bg-muted/60 hover:bg-muted rounded-md px-2 py-0.5 text-xs text-foreground/90 cursor-pointer"
         >
           <FileText className="h-3 w-3 text-muted-foreground" />
           <span className="truncate max-w-[160px]">{a.name}</span>
