@@ -327,7 +327,16 @@ export default function OnboardingPage() {
     setStepIdx(stepIdx - 1);
   };
 
-  if (authLoading || !user) {
+  // Redirect non-admins (in effect, not during render)
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+    if (profile && !isPrimaryAdmin) {
+      navigate("/", { replace: true });
+    }
+  }, [authLoading, user, profile, isPrimaryAdmin, navigate]);
+
+  if (authLoading || !user || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -336,8 +345,11 @@ export default function OnboardingPage() {
   }
 
   if (!isPrimaryAdmin) {
-    navigate("/");
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   // ---------- COMPLETE step ----------
