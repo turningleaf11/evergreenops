@@ -119,7 +119,7 @@ function getCurrentQuarter(): { quarter: string; year: number } {
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user, profile, isPrimaryAdmin, refreshProfile, loading: authLoading } = useAuth();
+  const { user, profile, isPrimaryAdmin, refreshProfile, loading: authLoading, roleLoaded } = useAuth();
   const workspace = useWorkspace();
 
   const [stepIdx, setStepIdx] = useState(0);
@@ -327,16 +327,17 @@ export default function OnboardingPage() {
     setStepIdx(stepIdx - 1);
   };
 
-  // Redirect non-admins (in effect, not during render)
+  // Redirect non-admins (in effect, not during render). Wait until role data has finished loading.
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
-    if (profile && !isPrimaryAdmin) {
+    if (!roleLoaded) return;
+    if (!isPrimaryAdmin) {
       navigate("/", { replace: true });
     }
-  }, [authLoading, user, profile, isPrimaryAdmin, navigate]);
+  }, [authLoading, user, roleLoaded, isPrimaryAdmin, navigate]);
 
-  if (authLoading || !user || !profile) {
+  if (authLoading || !user || !profile || !roleLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

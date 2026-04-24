@@ -23,6 +23,8 @@ interface AuthContextType {
   /** True only for the primary admin (the workspace CEO). Used to gate the CEO Cockpit. */
   isPrimaryAdmin: boolean;
   loading: boolean;
+  /** True once both profile and user_roles queries have completed for the current user. */
+  roleLoaded: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -36,23 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<AppRole>("user");
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      setRoleLoaded(false);
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).single(),
+        supabase.from("user_roles").select("role, is_primary").eq("user_id", userId),
+      ]);
+
+      const profileData = profileRes.data;
+      const roleData = roleRes.data;
 
       if (profileData) {
         setProfile(profileData as Profile);
       }
-
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role, is_primary")
-        .eq("user_id", userId);
 
       if (roleData && roleData.length > 0) {
         const roles = roleData.map((r: any) => r.role);
@@ -64,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+    } finally {
+      setRoleLoaded(true);
     }
   }, []);
 
@@ -81,12 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
+          setRoleLoaded(false);
           // Use setTimeout to avoid Supabase client deadlock
           setTimeout(() => fetchProfile(newSession.user.id), 0);
         } else {
           setProfile(null);
           setRole("user");
           setIsPrimaryAdmin(false);
+          setRoleLoaded(true);
         }
         setLoading(false);
       }
@@ -98,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
         fetchProfile(existingSession.user.id);
+      } else {
+        setRoleLoaded(true);
       }
       setLoading(false);
     });
@@ -112,12 +119,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setRole("user");
     setIsPrimaryAdmin(false);
+    setRoleLoaded(true);
   }, []);
 
   const isAdmin = role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, roleLoaded, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

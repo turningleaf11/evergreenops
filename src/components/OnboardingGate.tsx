@@ -12,13 +12,14 @@ import { supabase } from "@/integrations/supabase/client";
  * For everyone else (or once any of those conditions fails), renders children.
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const { user, profile, isPrimaryAdmin, loading } = useAuth();
+  const { user, profile, isPrimaryAdmin, loading, roleLoaded } = useAuth();
   const location = useLocation();
   const [checked, setChecked] = useState(false);
   const [shouldOnboard, setShouldOnboard] = useState(false);
 
   useEffect(() => {
     if (loading) return;
+    if (!roleLoaded) return;
     if (!user || !profile) {
       setChecked(true);
       return;
@@ -64,7 +65,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     })();
 
     return () => { cancelled = true; };
-  }, [loading, user, profile, isPrimaryAdmin]);
+  }, [loading, roleLoaded, user, profile, isPrimaryAdmin]);
 
   if (loading || !checked) return <>{children}</>;
 

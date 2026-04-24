@@ -68,8 +68,8 @@ function ProtectedRoute() {
 
 /** Restricts a route to the workspace primary admin (CEO). */
 function PrimaryAdminRoute() {
-  const { isPrimaryAdmin, loading } = useAuth();
-  if (loading) return null;
+  const { isPrimaryAdmin, loading, roleLoaded } = useAuth();
+  if (loading || !roleLoaded) return null;
   if (!isPrimaryAdmin) return <Navigate to="/" replace />;
   return <Outlet />;
 }

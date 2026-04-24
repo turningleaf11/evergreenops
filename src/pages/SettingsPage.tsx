@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -36,6 +37,7 @@ const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Pr
 
 export default function SettingsPage() {
   const { isAdmin, isPrimaryAdmin, user, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const workspace = useWorkspace();
   const { departments, addDepartment, updateDepartment, deleteDepartment } = useDepartments();
   const training = useTraining();
@@ -324,7 +326,7 @@ export default function SettingsPage() {
                       .update({ onboarding_skipped: false, onboarding_completed_at: null, onboarding_progress: {} })
                       .eq("user_id", user.id);
                     await refreshProfile();
-                    window.location.href = "/onboarding";
+                    navigate("/onboarding");
                   }}
                 >
                   Run Vision Setup
