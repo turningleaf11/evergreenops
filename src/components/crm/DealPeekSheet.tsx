@@ -782,8 +782,8 @@ export function DealPeekSheet({
         onOpenChange={setCreateOpen}
         workspaceId={deal?.workspace_id ?? null}
         userId={user?.id ?? null}
-        onCreated={async (contactId) => {
-          if (contactId) await linkContact(contactId);
+        onCreated={async (created) => {
+          if (created?.type === "contact" && created.id) await linkContact(created.id);
           setCreateOpen(false);
         }}
       />
