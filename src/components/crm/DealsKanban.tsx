@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Briefcase, Plus } from "lucide-react";
+import { Loader2, Briefcase, Plus, LayoutGrid, Table as TableIcon, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { NewDealDialog } from "./NewDealDialog";
 import { DealPeekSheet } from "./DealPeekSheet";
 import { LostReasonDialog } from "./LostReasonDialog";
 import { cn } from "@/lib/utils";
+import { useViewPreference } from "@/hooks/useViewPreference";
+import { formatDistanceToNow } from "date-fns";
 
 interface Stage {
   id: string;
