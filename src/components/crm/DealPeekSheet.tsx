@@ -26,6 +26,7 @@ interface Deal {
   status: string;
   lost_reason: string | null;
   description: string;
+  custom_fields: Record<string, unknown>;
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }
