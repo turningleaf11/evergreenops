@@ -30,9 +30,21 @@ interface Props {
 }
 
 export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
+  const { profile } = useAuth() as any;
+  const workspaceId = profile?.workspace_id ?? null;
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+
+  const participantEmails = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of messages) {
+      extractEmails(m.headers?.from).forEach((e) => set.add(e));
+      extractEmails(m.headers?.to).forEach((e) => set.add(e));
+      extractEmails(m.headers?.cc).forEach((e) => set.add(e));
+    }
+    return Array.from(set);
+  }, [messages]);
 
   useEffect(() => {
     let cancelled = false;
