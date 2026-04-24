@@ -108,10 +108,9 @@ export function ContactPeekSheet({
 
   const handleComposerSubmit = async (payload: ComposerSubmit) => {
     if (!contact || !user) return;
-    if (payload.type === "email") return;
     let subject = "";
-    let body = payload.body;
-    let type: string = payload.type;
+    const body = payload.body;
+    const type: string = payload.type;
     if (payload.type === "call") {
       subject = `Call · ${payload.outcome.replace("_", " ")} · ${payload.durationMin}m`;
     }
