@@ -52,11 +52,13 @@ export function LinkToCrm({
   snippet,
   workspaceId,
 }: Props) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [existing, setExisting] = useState<ExistingLink[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
