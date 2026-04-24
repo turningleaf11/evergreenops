@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Calendar, Repeat, Check } from "lucide-react";
+import { ChevronDown, Calendar, Repeat, Check, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableViewProps {
