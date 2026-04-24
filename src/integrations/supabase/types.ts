@@ -492,6 +492,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ceo_strategic_questions: {
+        Row: {
+          created_at: string
+          id: string
+          question: string
+          user_id: string
+          week_start_date: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question: string
+          user_id: string
+          week_start_date: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question?: string
+          user_id?: string
+          week_start_date?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       ceo_triage_pending: {
         Row: {
           category: string
