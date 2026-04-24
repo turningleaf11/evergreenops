@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone, Building2, NotebookPen } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Loader2, Mail, Phone, Building2, NotebookPen, ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
