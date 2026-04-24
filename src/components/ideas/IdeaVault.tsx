@@ -109,6 +109,14 @@ export function IdeaVault() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-enrich any idea that hasn't been processed yet (e.g. arrived via triage)
+  useEffect(() => {
+    const pending = ideas.filter(i => !i.ai_summary && !i.ai_cluster && !enrichingIds.has(i.id));
+    if (pending.length === 0) return;
+    pending.slice(0, 3).forEach(i => enrichIdea(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideas]);
+
   const filtered = useMemo(() => {
     if (filter === "all") {
       // Hide Promoted & Killed unless explicitly filtered
@@ -325,7 +333,11 @@ export function IdeaVault() {
                       <span className={cn("text-[10px] font-medium uppercase px-2 py-0.5 rounded-full border", meta.color)}>
                         {meta.label}
                       </span>
-                      {idea.ai_cluster && <Badge variant="secondary" className="text-[10px]">{idea.ai_cluster}</Badge>}
+                      {idea.ai_cluster ? (
+                        <Badge variant="secondary" className="text-[10px]">{idea.ai_cluster}</Badge>
+                      ) : enrichingIds.has(idea.id) ? (
+                        <span className="inline-block h-4 w-20 rounded-full bg-muted animate-pulse" aria-label="AI analyzing idea" />
+                      ) : null}
                       {horizon && <Badge variant="outline" className="text-[10px]">{horizon.label}</Badge>}
                       <span className="text-[10px] text-muted-foreground ml-auto">{formatDate(idea.created_at)}</span>
                     </div>
