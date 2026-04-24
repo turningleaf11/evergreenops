@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useCEOContext } from "@/lib/ceo-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { assembleStrategyContext, type AssembledStrategyContext } from "@/lib/strategy-context";
 import { toast } from "sonner";
 
 interface Message {
@@ -269,10 +270,17 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       };
 
       try {
-        const liveSnapshot = await fetchLiveSnapshot();
+        const [liveSnapshot, strategyContext] = await Promise.all([
+          fetchLiveSnapshot(),
+          assembleStrategyContext({
+            userName: profile?.full_name || user?.email || "the CEO",
+            workspaceId: profile?.workspace_id ?? null,
+          }),
+        ]);
         await streamChat({
           messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
           ceoContext: { ...data, currentPage: location.pathname },
+          strategyContext,
           liveSnapshot,
         }, upsertAssistant);
       } catch (e) {
@@ -281,7 +289,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     })();
-  }, [open, location.pathname, messages.length, loading, data, activeThreadId]);
+  }, [open, location.pathname, messages.length, loading, data, activeThreadId, profile?.full_name, profile?.workspace_id, user?.email]);
 
   const send = useCallback(async () => {
     if (!input.trim() || loading || !user?.id) return;
@@ -314,11 +322,23 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         isFirstMessage = true;
       }
 
-      // Persist user message
+      // Assemble full strategy context (vision, rocks, scorecard, memory, etc.)
+      let strategyContext: AssembledStrategyContext | null = null;
+      try {
+        strategyContext = await assembleStrategyContext({
+          userName: profile?.full_name || user.email || "the CEO",
+          workspaceId: profile?.workspace_id ?? null,
+        });
+      } catch (ctxErr) {
+        console.error("Strategy context assembly failed:", ctxErr);
+      }
+
+      // Persist user message with context snapshot
       await supabase.from("ai_strategy_messages").insert({
         thread_id: threadId,
         role: "user",
         content: userText,
+        context_snapshot: strategyContext as any,
       });
 
       // Build last-10 history for AI memory
@@ -339,6 +359,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       await streamChat({
         messages: history,
         ceoContext: { ...data, currentPage: location.pathname },
+        strategyContext,
       }, upsertAssistant);
 
       // Persist assistant response + bump thread timestamp
@@ -376,7 +397,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, profile?.workspace_id]);
+  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, user?.email, profile?.workspace_id, profile?.full_name]);
 
   return (
     <CompanionContext.Provider
