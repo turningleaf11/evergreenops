@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,10 +7,15 @@ import { Loader2, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface SendResult {
+  threadId?: string;
+  id?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSent?: () => void;
+  onSent?: (result: SendResult) => void;
   defaultTo?: string;
   defaultSubject?: string;
   threadId?: string;
@@ -23,10 +28,19 @@ export function ComposeModal({ open, onOpenChange, onSent, defaultTo = "", defau
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
 
+  // Sync defaults when modal reopens with new context (e.g. reply with new defaultTo)
+  useEffect(() => {
+    if (open) {
+      setTo(defaultTo);
+      setSubject(defaultSubject);
+      setBody("");
+    }
+  }, [open, defaultTo, defaultSubject]);
+
   const send = async () => {
     if (!to || !subject) { toast.error("To and subject required"); return; }
     setSending(true);
-    const { error } = await supabase.functions.invoke("gmail-send", {
+    const { data, error } = await supabase.functions.invoke("gmail-send", {
       body: {
         to, subject,
         body: body.replace(/\n/g, "<br/>"),
@@ -40,7 +54,7 @@ export function ComposeModal({ open, onOpenChange, onSent, defaultTo = "", defau
       toast.success("Sent");
       setTo(""); setSubject(""); setBody("");
       onOpenChange(false);
-      onSent?.();
+      onSent?.({ threadId: (data as any)?.threadId, id: (data as any)?.id });
     }
   };
 
