@@ -155,8 +155,22 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
 }
 
 function sanitizeEmailHtml(html: string): string {
-  return html
+  let out = html
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<link[^>]*>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "");
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    // Strip <base> tags which can break relative link resolution
+    .replace(/<base[^>]*>/gi, "");
+
+  // Force every <a> to open in a new tab with safe rel. Gmail HTML often
+  // omits target=_blank, so clicking a Drive/tracking link tries to navigate
+  // our SPA and gets blocked (ERR_BLOCKED_BY_RESPONSE / X-Frame-Options).
+  out = out.replace(/<a\b([^>]*)>/gi, (_m, attrs: string) => {
+    let a = attrs;
+    // Remove any existing target / rel so we control them.
+    a = a.replace(/\s(target|rel)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+    return `<a${a} target="_blank" rel="noopener noreferrer nofollow">`;
+  });
+
+  return out;
 }
