@@ -47,7 +47,21 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
 
   return (
     <Sheet open={open} onOpenChange={o => { if (!o) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto top-[60px] h-[calc(100vh-60px)] border-l border-border/50 p-6">
+      <SheetContent
+        className="w-full sm:max-w-xl overflow-y-auto top-[60px] h-[calc(100vh-60px)] border-l border-border/50 p-6"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-radix-popper-content-wrapper], [data-radix-popover-content], [role='dialog'], [role='listbox'], [role='menu']")) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-radix-popper-content-wrapper], [data-radix-popover-content], [role='dialog'], [role='listbox'], [role='menu']")) {
+            e.preventDefault();
+          }
+        }}
+      >
         <SheetHeader>
           <SheetTitle asChild>
             <input
