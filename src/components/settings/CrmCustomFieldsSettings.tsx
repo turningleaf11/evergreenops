@@ -68,8 +68,8 @@ function slugify(s: string): string {
 
 export function CrmCustomFieldsSettings() {
   const { user } = useAuth();
-  const workspace = useWorkspace() as any;
-  const workspaceId = workspace?.workspace?.id ?? workspace?.id ?? null;
+  const workspace = useWorkspace();
+  const workspaceId = workspace.id;
   const [entity, setEntity] = useState<Entity>("contact");
   const [fields, setFields] = useState<Field[]>([]);
   const [loading, setLoading] = useState(true);
