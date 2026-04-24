@@ -236,14 +236,76 @@ export default function InboxPage() {
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Gmail labels</span>
             </div>
             {(() => {
-              // Build groups: top-level prefix → its labels (and its own row if standalone)
-              const groups = new Map<string, typeof gmailLabels>();
+              // Split into system-label buckets (Categories, Stars & flags)
+              // and user labels (which keep the existing tree-by-prefix behavior).
+              const systemBuckets: Record<SystemLabelGroup, typeof gmailLabels> = {
+                categories: [],
+                stars: [],
+              };
+              const userLabels: typeof gmailLabels = [];
               for (const l of gmailLabels) {
+                const meta = getSystemLabelMeta(l.id);
+                if (meta) systemBuckets[meta.group].push(l);
+                else userLabels.push(l);
+              }
+
+              // Render a single labeled row given a label + metadata
+              const renderSystemRow = (l: typeof gmailLabels[number]) => {
+                const meta = getSystemLabelMeta(l.id)!;
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => { setActiveLabel(`gmail:${l.id}`); setSelectedId(null); }}
+                    className={cn(
+                      "flex items-center gap-2 px-2.5 py-1 rounded-md text-sm transition-colors text-left w-full no-underline",
+                      activeLabel === `gmail:${l.id}` ? "bg-primary/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon
+                      className="h-3.5 w-3.5 shrink-0"
+                      style={{ color: meta.color, fill: meta.filled ? meta.color : "none" }}
+                    />
+                    <span className="truncate text-xs">{meta.displayName}</span>
+                  </button>
+                );
+              };
+
+              const renderSystemGroup = (groupKey: SystemLabelGroup) => {
+                const items = systemBuckets[groupKey];
+                if (items.length === 0) return null;
+                const prefix = groupKey === "categories" ? "__sys_categories__" : "__sys_stars__";
+                const isCollapsed = collapsedGroups.has(prefix);
+                return (
+                  <div key={prefix}>
+                    <button
+                      onClick={() => {
+                        setCollapsedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full text-left no-underline"
+                    >
+                      <ChevronRight className={cn("h-3 w-3 transition-transform shrink-0", !isCollapsed && "rotate-90")} />
+                      <span className="truncate">{SYSTEM_GROUP_LABELS[groupKey]}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{items.length}</span>
+                    </button>
+                    {!isCollapsed && <div className="ml-2">{items.map(renderSystemRow)}</div>}
+                  </div>
+                );
+              };
+
+              // Build groups for user labels: top-level prefix → its labels
+              const groups = new Map<string, typeof gmailLabels>();
+              for (const l of userLabels) {
                 const key = l.path[0];
                 if (!groups.has(key)) groups.set(key, []);
                 groups.get(key)!.push(l);
               }
-              return Array.from(groups.entries()).map(([prefix, items]) => {
+
+              const userNodes = Array.from(groups.entries()).map(([prefix, items]) => {
                 // Standalone label (no children): single row
                 if (items.length === 1 && items[0].depth === 0) {
                   const l = items[0];
@@ -313,6 +375,14 @@ export default function InboxPage() {
                   </div>
                 );
               });
+
+              return (
+                <>
+                  {renderSystemGroup("categories")}
+                  {renderSystemGroup("stars")}
+                  {userNodes}
+                </>
+              );
             })()}
           </div>
         )}
