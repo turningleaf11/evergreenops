@@ -174,6 +174,12 @@ export function ContactPeekSheet({
                 )}
               </div>
 
+              <CustomFieldsPanel
+                contactId={contact.id}
+                values={(contact.custom_fields || {}) as Record<string, unknown>}
+                onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+              />
+
               {/* Log a note */}
               <div className="px-6 py-4 border-b border-border/50">
                 <div className="flex items-center gap-2 mb-2">
