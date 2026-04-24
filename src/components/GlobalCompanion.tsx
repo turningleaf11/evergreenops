@@ -314,6 +314,16 @@ export function GlobalCompanion() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <SaveToAppDialog
+        open={saveDialog.open}
+        onOpenChange={(v) => setSaveDialog((s) => ({ ...s, open: v }))}
+        content={saveDialog.content}
+        messageId={saveDialog.messageId}
+        onSaved={(dest, savedId) => {
+          if (saveDialog.messageId) markMessageSaved(saveDialog.messageId, dest, savedId);
+        }}
+      />
     </>
   );
 }
