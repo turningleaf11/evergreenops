@@ -41,10 +41,16 @@ export function GlobalCompanion() {
   const newThread = companionCtx?.newThread ?? (() => {});
   const renameThread = companionCtx?.renameThread ?? (async () => {});
   const archiveThread = companionCtx?.archiveThread ?? (async () => {});
+  const markMessageSaved = companionCtx?.markMessageSaved ?? (() => {});
 
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [saveDialog, setSaveDialog] = useState<{ open: boolean; messageId: string | null; content: string }>({
+    open: false,
+    messageId: null,
+    content: "",
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
