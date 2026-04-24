@@ -142,11 +142,16 @@
   }
 
   .page-title {
-    @apply text-2xl font-bold tracking-tight;
+    @apply text-3xl font-bold tracking-tight;
   }
 
   .section-title {
-    @apply text-base font-semibold text-foreground;
+    @apply text-lg font-bold tracking-tight text-foreground mt-2 mb-1;
+  }
+
+  /* Standardized vertical rhythm between major page sections */
+  .page-sections > * + * {
+    margin-top: 3rem;
   }
 
   /* Elevation system */
