@@ -13,6 +13,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
+import { OneOnOnesTab } from "@/components/people-ops/OneOnOnesTab";
+import { GrowthTab } from "@/components/people-ops/GrowthTab";
+import { OnboardingTab } from "@/components/people-ops/OnboardingTab";
 
 interface Profile {
   user_id: string;
@@ -291,42 +294,65 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
           {/* Admin notes section */}
           {isAdmin && (
             <div className="border-t pt-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Team Notes</h3>
-              <Tabs defaultValue="one_on_one">
-                <TabsList className="h-8">
-                  <TabsTrigger value="one_on_one" className="text-xs">1-on-1</TabsTrigger>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">People Ops</h3>
+              <Tabs defaultValue="one_on_ones">
+                <TabsList className="h-8 flex-wrap">
+                  <TabsTrigger value="one_on_ones" className="text-xs">1-on-1s</TabsTrigger>
                   <TabsTrigger value="growth" className="text-xs">Growth</TabsTrigger>
-                  <TabsTrigger value="general" className="text-xs">General</TabsTrigger>
+                  <TabsTrigger value="onboarding" className="text-xs">Onboarding</TabsTrigger>
+                  <TabsTrigger value="notes" className="text-xs">Notes</TabsTrigger>
                 </TabsList>
-                {["one_on_one", "growth", "general"].map((type) => (
-                  <TabsContent key={type} value={type} className="space-y-3 mt-3">
-                    <div className="flex gap-2">
-                      <Textarea
-                        placeholder={`Add ${type.replace("_", " ")} note...`}
-                        value={noteType === type ? newNote : ""}
-                        onFocus={() => setNoteType(type)}
-                        onChange={(e) => { setNoteType(type); setNewNote(e.target.value); }}
-                        className="text-sm"
-                        rows={2}
-                      />
-                      <Button size="icon" variant="outline" className="shrink-0 mt-auto" onClick={addNote} disabled={!newNote.trim() || noteType !== type}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {filteredNotes(type).map((note) => (
-                      <div key={note.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-sm">
-                        <div className="flex-1">
-                          <p className="whitespace-pre-wrap">{note.content}</p>
-                          <p className="text-[10px] text-muted-foreground mt-1">{new Date(note.created_at).toLocaleDateString()}</p>
+
+                <TabsContent value="one_on_ones" className="mt-4">
+                  <OneOnOnesTab employeeId={person.user_id} profiles={profiles} />
+                </TabsContent>
+
+                <TabsContent value="growth" className="mt-4">
+                  <GrowthTab employeeId={person.user_id} profiles={profiles} />
+                </TabsContent>
+
+                <TabsContent value="onboarding" className="mt-4">
+                  <OnboardingTab employeeId={person.user_id} />
+                </TabsContent>
+
+                <TabsContent value="notes" className="space-y-3 mt-4">
+                  <Tabs defaultValue="one_on_one">
+                    <TabsList className="h-8">
+                      <TabsTrigger value="one_on_one" className="text-xs">1-on-1</TabsTrigger>
+                      <TabsTrigger value="growth" className="text-xs">Growth</TabsTrigger>
+                      <TabsTrigger value="general" className="text-xs">General</TabsTrigger>
+                    </TabsList>
+                    {["one_on_one", "growth", "general"].map((type) => (
+                      <TabsContent key={type} value={type} className="space-y-3 mt-3">
+                        <div className="flex gap-2">
+                          <Textarea
+                            placeholder={`Add ${type.replace("_", " ")} note...`}
+                            value={noteType === type ? newNote : ""}
+                            onFocus={() => setNoteType(type)}
+                            onChange={(e) => { setNoteType(type); setNewNote(e.target.value); }}
+                            className="text-sm"
+                            rows={2}
+                          />
+                          <Button size="icon" variant="outline" className="shrink-0 mt-auto" onClick={addNote} disabled={!newNote.trim() || noteType !== type}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <button onClick={() => deleteNote(note.id)} className="text-muted-foreground hover:text-destructive shrink-0">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                        {filteredNotes(type).map((note) => (
+                          <div key={note.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-sm">
+                            <div className="flex-1">
+                              <p className="whitespace-pre-wrap">{note.content}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">{new Date(note.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <button onClick={() => deleteNote(note.id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {filteredNotes(type).length === 0 && <p className="text-xs text-muted-foreground">No notes yet.</p>}
+                      </TabsContent>
                     ))}
-                    {filteredNotes(type).length === 0 && <p className="text-xs text-muted-foreground">No notes yet.</p>}
-                  </TabsContent>
-                ))}
+                  </Tabs>
+                </TabsContent>
               </Tabs>
             </div>
           )}
