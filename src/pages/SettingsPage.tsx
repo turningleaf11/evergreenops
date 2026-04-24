@@ -98,43 +98,73 @@ export default function SettingsPage() {
     toast({ title: "Training module added" });
   };
 
+  const navSections = [
+    {
+      label: "Workspace",
+      items: [
+        { value: "workspace", icon: Settings, label: "Workspace" },
+        { value: "departments", icon: Building2, label: "Departments" },
+        { value: "home_widgets", icon: LayoutDashboard, label: "Home Widgets" },
+        { value: "holidays", icon: CalendarDays, label: "Holidays" },
+      ],
+    },
+    {
+      label: "People",
+      items: [
+        { value: "users", icon: Users, label: "Users & Roles" },
+        { value: "training", icon: GraduationCap, label: "Training" },
+      ],
+    },
+    {
+      label: "Extensions",
+      items: [
+        { value: "addons", icon: Package, label: "Add-Ons" },
+        { value: "forms", icon: FileSpreadsheet, label: "Forms" },
+        { value: "integrations", icon: Mail, label: "Integrations" },
+      ],
+    },
+  ];
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage workspace, departments, training, and user roles.</p>
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground mt-1.5">Manage workspace, departments, training, and user roles.</p>
       </div>
 
-      <Tabs defaultValue="workspace">
-        <TabsList>
-          <TabsTrigger value="workspace" className="gap-1.5">
-            <Settings className="h-3.5 w-3.5" /> Workspace
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="gap-1.5">
-            <Building2 className="h-3.5 w-3.5" /> Departments
-          </TabsTrigger>
-          <TabsTrigger value="training" className="gap-1.5">
-            <GraduationCap className="h-3.5 w-3.5" /> Training
-          </TabsTrigger>
-          <TabsTrigger value="users" className="gap-1.5">
-            <Users className="h-3.5 w-3.5" /> Users & Roles
-          </TabsTrigger>
-          <TabsTrigger value="addons" className="gap-1.5">
-            <Package className="h-3.5 w-3.5" /> Add-Ons
-          </TabsTrigger>
-          <TabsTrigger value="forms" className="gap-1.5">
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Forms
-          </TabsTrigger>
-          <TabsTrigger value="home_widgets" className="gap-1.5">
-            <LayoutDashboard className="h-3.5 w-3.5" /> Home Widgets
-          </TabsTrigger>
-          <TabsTrigger value="holidays" className="gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5" /> Holidays
-          </TabsTrigger>
-          <TabsTrigger value="integrations" className="gap-1.5">
-            <Mail className="h-3.5 w-3.5" /> Integrations
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="workspace" orientation="vertical" className="flex flex-col lg:flex-row gap-8 items-start">
+        <aside className="w-full lg:w-60 lg:sticky lg:top-6 shrink-0">
+          <TabsList className="flex lg:flex-col h-auto w-full bg-transparent p-0 gap-0.5 overflow-x-auto lg:overflow-visible">
+            {navSections.map((section, i) => (
+              <div key={section.label} className="hidden lg:block w-full">
+                {i > 0 && <div className="h-px bg-border/60 my-2" />}
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {section.label}
+                </div>
+                {section.items.map((item) => (
+                  <TabsTrigger
+                    key={item.value}
+                    value={item.value}
+                    className="w-full justify-start gap-2.5 px-3 py-2 h-9 text-sm font-medium rounded-md data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none hover:bg-muted/60"
+                  >
+                    <item.icon className="h-4 w-4" /> {item.label}
+                  </TabsTrigger>
+                ))}
+              </div>
+            ))}
+            {/* Mobile: horizontal scroll fallback */}
+            <div className="flex lg:hidden gap-1 w-full">
+              {navSections.flatMap((s) => s.items).map((item) => (
+                <TabsTrigger key={item.value} value={item.value} className="gap-1.5 shrink-0">
+                  <item.icon className="h-3.5 w-3.5" /> {item.label}
+                </TabsTrigger>
+              ))}
+            </div>
+          </TabsList>
+        </aside>
+
+        <div className="flex-1 min-w-0 w-full">
+        {/* spacer wrapper closes after all TabsContent below */}
 
         <TabsContent value="holidays" className="mt-4 space-y-4">
           <HolidaysSection />
@@ -423,6 +453,7 @@ export default function SettingsPage() {
         <TabsContent value="home_widgets" className="mt-4">
           <HomeWidgetDefaultsTab />
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
