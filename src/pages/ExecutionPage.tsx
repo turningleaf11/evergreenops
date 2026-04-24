@@ -723,7 +723,7 @@ export default function ExecutionPage() {
             statusOptions={taskStatusOptions}
             priorityOptions={priorityOptions}
           >
-            {tv.view === "list" && (
+            {(tv.view === "list" || tv.view === "table") && (
               <Select value={taskGroupBy} onValueChange={(v) => setTaskGroupBy(v as any)}>
                 <SelectTrigger className="w-36 h-8 text-xs">
                   <SelectValue placeholder="Group by" />
@@ -739,19 +739,65 @@ export default function ExecutionPage() {
             )}
           </ViewControls>
 
-          {tv.view === "list" && taskGroupBy === "none" && (
-            <TableView
-              items={visibleTasks}
-              type="task"
-              onItemClick={openTaskDrawer}
-              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-              getName={getName}
-              statusOptions={taskStatusOptions}
-              projects={projects}
-            />
-          )}
+          {(() => {
+            if (tv.view === "board") {
+              return (
+                <KanbanBoard
+                  columns={taskKanbanCols}
+                  items={visibleTasks}
+                  statusField="status"
+                  onItemClick={openTaskDrawer}
+                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+                  getName={getName}
+                  ownerField="assigned_to"
+                  type="task"
+                  onAddCard={(status) => {
+                    const title = window.prompt("Task title");
+                    if (!title?.trim() || !user) return;
+                    supabase.from("tasks").insert({
+                      title: title.trim(),
+                      status,
+                      created_by: user.id,
+                    } as any).then(({ error }) => {
+                      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                      else fetchAll();
+                    });
+                  }}
+                />
+              );
+            }
 
-          {tv.view === "list" && taskGroupBy !== "none" && (() => {
+            const renderItems = (items: Task[]) =>
+              tv.view === "table" ? (
+                <DataTableView
+                  items={items}
+                  type="task"
+                  onItemClick={openTaskDrawer}
+                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+                  onUpdate={async (id, patch) => {
+                    const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
+                    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                    else fetchAll();
+                  }}
+                  getName={getName}
+                  statusOptions={taskStatusOptions}
+                  profiles={profiles}
+                  projects={projects}
+                />
+              ) : (
+                <TableView
+                  items={items}
+                  type="task"
+                  onItemClick={openTaskDrawer}
+                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
+                  getName={getName}
+                  statusOptions={taskStatusOptions}
+                  projects={projects}
+                />
+              );
+
+            if (taskGroupBy === "none") return renderItems(visibleTasks);
+
             const groupTask = (t: Task): { key: string; label: string; order: number } => {
               if (taskGroupBy === "status") {
                 const opt = taskStatusOptions.find(s => s.value === t.status);
@@ -768,7 +814,6 @@ export default function ExecutionPage() {
                 const proj = projects.find(p => p.id === t.project_id);
                 return { key, label: proj?.title || "No Project", order: proj ? 0 : 99 };
               }
-              // due_date
               if (!t.due_date) return { key: "none", label: "No Due Date", order: 99 };
               const today = new Date(); today.setHours(0,0,0,0);
               const due = new Date(t.due_date + "T00:00:00");
@@ -795,15 +840,7 @@ export default function ExecutionPage() {
                       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
                       <span className="text-xs text-muted-foreground">{grp.items.length}</span>
                     </div>
-                    <TableView
-                      items={grp.items}
-                      type="task"
-                      onItemClick={openTaskDrawer}
-                      onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-                      getName={getName}
-                      statusOptions={taskStatusOptions}
-                      projects={projects}
-                    />
+                    {renderItems(grp.items)}
                   </div>
                 ))}
                 {sorted.length === 0 && (
@@ -812,49 +849,6 @@ export default function ExecutionPage() {
               </div>
             );
           })()}
-
-          {tv.view === "board" && (
-            <KanbanBoard
-              columns={taskKanbanCols}
-              items={visibleTasks}
-              statusField="status"
-              onItemClick={openTaskDrawer}
-              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-              getName={getName}
-              ownerField="assigned_to"
-              type="task"
-              onAddCard={(status) => {
-                const title = window.prompt("Task title");
-                if (!title?.trim() || !user) return;
-                supabase.from("tasks").insert({
-                  title: title.trim(),
-                  status,
-                  created_by: user.id,
-                } as any).then(({ error }) => {
-                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                  else fetchAll();
-                });
-              }}
-            />
-          )}
-
-          {tv.view === "table" && (
-            <DataTableView
-              items={visibleTasks}
-              type="task"
-              onItemClick={openTaskDrawer}
-              onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-              onUpdate={async (id, patch) => {
-                const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
-                if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                else fetchAll();
-              }}
-              getName={getName}
-              statusOptions={taskStatusOptions}
-              profiles={profiles}
-              projects={projects}
-            />
-          )}
         </TabsContent>
 
         {/* Cadences tab */}
