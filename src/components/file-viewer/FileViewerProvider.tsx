@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, ExternalLink, X, FileText, Loader2, AlertCircle } from "lucide-react";
@@ -26,6 +26,15 @@ function inferKind(name: string, mime?: string): "image" | "pdf" | "video" | "au
   if (m.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|aac)$/i.test(n)) return "audio";
   if (m.startsWith("text/") || /\.(txt|md|csv|json|log|yml|yaml)$/i.test(n)) return "text";
   return "other";
+}
+
+function shouldOpenNatively(name: string, mime?: string) {
+  const m = (mime || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+
+  if (m === "application/pdf" || n.endsWith(".pdf")) return true;
+  return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(n)
+    || /application\/(msword|vnd\.ms-|vnd\.openxmlformats-officedocument)/i.test(m);
 }
 
 function shouldInterceptAnchor(anchor: HTMLAnchorElement) {
@@ -71,9 +80,19 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
       const href = a.getAttribute("href");
       if (!href || href === "#") return;
       if (!shouldInterceptAnchor(a)) return;
+      const fileName = a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || href;
+      const mimeType = a.getAttribute("type") || undefined;
+
+      if (shouldOpenNatively(fileName, mimeType)) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(href, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
-      open({ url: href, fileName: a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || undefined });
+      open({ url: href, fileName, mimeType });
     };
     window.addEventListener("lovable:open-file", onEvent as EventListener);
     document.addEventListener("click", onClick, true);
@@ -96,12 +115,6 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
 
   const fileName = opts?.fileName || (opts?.url ? opts.url.split("/").pop()?.split("?")[0] || "file" : "file");
   const kind = inferKind(fileName, resolvedMime || opts?.mimeType);
-  const inlinePreviewUrl = useMemo(() => {
-    if (!blobUrl) return null;
-    if (kind !== "pdf") return blobUrl;
-    const params = new URLSearchParams({ file: blobUrl });
-    return `/pdfjs/web/viewer.html?${params.toString()}`;
-  }, [blobUrl, kind]);
 
   // Load file as a blob (works around CORS/auth and enables real Download)
   useEffect(() => {
@@ -221,13 +234,22 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                     <img src={blobUrl} alt={fileName} className="max-h-full max-w-full object-contain rounded" />
                   </div>
                 )}
-                {kind === "pdf" && inlinePreviewUrl && (
-                  <iframe
-                    src={inlinePreviewUrl}
-                    title={fileName}
-                    className="w-full h-full border-0 bg-white"
-                    sandbox="allow-same-origin allow-scripts allow-downloads"
-                  />
+                {kind === "pdf" && (
+                  <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                    <div className="text-sm font-medium">Open PDF in browser</div>
+                    <p className="text-xs text-muted-foreground max-w-md">
+                      PDF preview is opened in a separate browser tab for better compatibility in Microsoft Edge.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleOpenNewTab}>
+                        <ExternalLink className="h-4 w-4 mr-1.5" /> Open PDF
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleDownload}>
+                        <Download className="h-4 w-4 mr-1.5" /> Download
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
