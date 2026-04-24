@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, Repeat } from "lucide-react";
+import { ArrowUp, ArrowDown, Repeat, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { InlineText, InlineSelect, InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
