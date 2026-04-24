@@ -169,38 +169,19 @@ export default function CeoDashboard() {
             <h1 className="text-2xl font-semibold text-foreground tracking-tight">{ceoPageName}</h1>
           </div>
 
-          {/* Vision Portal — Binoculars icon */}
+          {/* Vision Portal — Binoculars icon now jumps to Big Picture › Vision */}
           <TooltipProvider>
             <Tooltip>
-              <Sheet>
-                <SheetTrigger asChild>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 shrink-0 elevation-1 hover:elevation-2 transition-shadow duration-200">
-                      <Binoculars className="h-4 w-4 text-primary" />
-                    </Button>
-                  </TooltipTrigger>
-                </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                      <Eye className="h-4 w-4 text-primary" />
-                      Vision &amp; Long-Term Targets
-                    </SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-4">
-                    <VisionAccordion
-                      visionSections={visionSections}
-                      visionEditing={visionEditing}
-                      visionEditText={visionEditText}
-                      setVisionEditText={setVisionEditText}
-                      startVisionEdit={startVisionEdit}
-                      saveVisionEdit={saveVisionEdit}
-                      currentQuarterGoals={currentQuarterGoals}
-                      isAdmin={isPrimaryAdmin}
-                    />
-                  </div>
-                </SheetContent>
-              </Sheet>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={focusVisionSection}
+                  className="rounded-full h-10 w-10 shrink-0 elevation-1 hover:elevation-2 transition-shadow duration-200"
+                >
+                  <Binoculars className="h-4 w-4 text-primary" />
+                </Button>
+              </TooltipTrigger>
               <TooltipContent side="left">
                 <p>Vision &amp; Long-Term Targets</p>
               </TooltipContent>
