@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Search, LayoutGrid, List, TableIcon, Plus, Trash2, Link as LinkIcon, ExternalLink, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Calendar, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DatabaseViewControls, { FilterDef, SortDef, applyFiltersAndSorts } from "@/components/DatabaseViewControls";
 import { AddColumnPopover, ColumnHeaderMenu } from "@/components/ColumnManager";
