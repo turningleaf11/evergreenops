@@ -169,8 +169,9 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
   };
 
   const handleOpenNewTab = () => {
-    // Use the blob URL when available so cross-origin / auth issues don't break it
-    const target = blobUrl || opts?.url;
+    const target = shouldOpenNatively(fileName, resolvedMime || opts?.mimeType)
+      ? opts?.url
+      : (blobUrl || opts?.url);
     if (!target) return;
     const win = window.open(target, "_blank", "noopener,noreferrer");
     if (!win) {
