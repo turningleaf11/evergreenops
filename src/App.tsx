@@ -36,6 +36,8 @@ import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import ScorecardPage from "./pages/ScorecardPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
+import PublicFormPage from "./pages/PublicFormPage";
+import InternalFormPage from "./pages/InternalFormPage";
 import { MentionClickHandler } from "./components/MentionClickHandler";
 import { MentionPeekProvider } from "./components/mention-peek/MentionPeekProvider";
 import { MentionPeekRoot } from "./components/mention-peek/MentionPeekRoot";
@@ -112,6 +114,9 @@ const App = () => (
             {/* Public shared note (no auth required) */}
             <Route path="/n/:token" element={<PublicNotePage />} />
 
+            {/* Public list form (no auth required) */}
+            <Route path="/f/:slug" element={<PublicFormPage />} />
+
             {/* Public auth routes */}
             <Route element={<PublicRoute />}>
               <Route path="/landing" element={<LandingPage />} />
@@ -147,6 +152,7 @@ const App = () => (
                 {/* Intranet */}
                 <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms" element={<FormsPage />} />
+                <Route path="/forms/list/:slug" element={<InternalFormPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
                 <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/scorecard" element={<ScorecardPage />} />

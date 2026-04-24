@@ -248,6 +248,14 @@ export default function DatabasesPage() {
               setAllDatabases(prev => prev.map(d => d.id === currentDb.id ? { ...d, ...patch } : d));
             }}
             onDeleted={() => { setSettingsOpen(false); handleDeleteDatabase(currentDb.id); }}
+            onImported={async () => {
+              const { data } = await supabase.from("database_rows").select("*").eq("database_id", currentDb.id);
+              if (data) {
+                const mapped = data.map(mapRow);
+                setAllRows(prev => [...prev.filter(r => r.databaseId !== currentDb.id), ...mapped]);
+              }
+            }}
+            dispatchWebhook={(event, row) => dispatchWebhook(currentDb.id, event, row)}
           />
         )}
       </div>
