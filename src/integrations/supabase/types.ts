@@ -667,6 +667,134 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          address: Json
+          created_at: string
+          created_by: string | null
+          domain: string | null
+          id: string
+          industry: string | null
+          name: string
+          notes: string
+          owner_id: string | null
+          size: string | null
+          tags: string[]
+          updated_at: string
+          website: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          address?: Json
+          created_at?: string
+          created_by?: string | null
+          domain?: string | null
+          id?: string
+          industry?: string | null
+          name: string
+          notes?: string
+          owner_id?: string | null
+          size?: string | null
+          tags?: string[]
+          updated_at?: string
+          website?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          address?: Json
+          created_at?: string
+          created_by?: string | null
+          domain?: string | null
+          id?: string
+          industry?: string | null
+          name?: string
+          notes?: string
+          owner_id?: string | null
+          size?: string | null
+          tags?: string[]
+          updated_at?: string
+          website?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          address: Json
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_contacted_at: string | null
+          last_name: string
+          notes: string
+          owner_id: string | null
+          phone: string | null
+          social: Json
+          source: string | null
+          status: string
+          tags: string[]
+          title: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          address?: Json
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_contacted_at?: string | null
+          last_name?: string
+          notes?: string
+          owner_id?: string | null
+          phone?: string | null
+          social?: Json
+          source?: string | null
+          status?: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          address?: Json
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_contacted_at?: string | null
+          last_name?: string
+          notes?: string
+          owner_id?: string | null
+          phone?: string | null
+          social?: Json
+          source?: string | null
+          status?: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_brands: {
         Row: {
           audience: string
@@ -776,6 +904,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crm_activities: {
+        Row: {
+          actor_id: string | null
+          body: string
+          created_at: string
+          duration_minutes: number | null
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          subject: string
+          type: string
+          workspace_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string
+          created_at?: string
+          duration_minutes?: number | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          subject?: string
+          type: string
+          workspace_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string
+          created_at?: string
+          duration_minutes?: number | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          subject?: string
+          type?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
       }
       daily_briefings: {
         Row: {
@@ -1154,6 +1327,104 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          department_id: string | null
+          description: string
+          expected_close_date: string | null
+          id: string
+          lost_reason: string | null
+          owner_id: string | null
+          pipeline_id: string
+          primary_contact_id: string | null
+          probability: number
+          stage_id: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          value: number
+          workspace_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id?: string | null
+          description?: string
+          expected_close_date?: string | null
+          id?: string
+          lost_reason?: string | null
+          owner_id?: string | null
+          pipeline_id: string
+          primary_contact_id?: string | null
+          probability?: number
+          stage_id: string
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          value?: number
+          workspace_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          department_id?: string | null
+          description?: string
+          expected_close_date?: string | null
+          id?: string
+          lost_reason?: string | null
+          owner_id?: string | null
+          pipeline_id?: string
+          primary_contact_id?: string | null
+          probability?: number
+          stage_id?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          value?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -2719,6 +2990,83 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pipeline_stages: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_lost: boolean
+          is_won: boolean
+          name: string
+          pipeline_id: string
+          probability_default: number
+          sort_order: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          name: string
+          pipeline_id: string
+          probability_default?: number
+          sort_order?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          name?: string
+          pipeline_id?: string
+          probability_default?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_default: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
       }
       poll_votes: {
         Row: {

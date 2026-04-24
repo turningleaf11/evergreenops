@@ -31,6 +31,7 @@ import ContentStudioPage from "./pages/ContentStudioPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
+import CrmPage from "./pages/CrmPage";
 import MeetingsPage from "./pages/MeetingsPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
 import ScorecardPage from "./pages/ScorecardPage";
@@ -156,6 +157,8 @@ const App = () => (
                 <Route path="/forms" element={<FormsPage />} />
                 <Route path="/forms/list/:slug" element={<InternalFormPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
+                <Route path="/crm" element={<Navigate to="/crm/contacts" replace />} />
+                <Route path="/crm/:tab" element={<CrmPage />} />
                 <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/scorecard" element={<ScorecardPage />} />
                 <Route path="/settings/integrations/gmail" element={<IntegrationsGmailPage />} />

@@ -62,3 +62,4 @@
 - [Docs Notion Polish](mem://features/docs-notion-polish) — Cover/icon, drag handles, slash categories, backlinks, click-below-focus, ?id= URL sync
 - [Add-On Packs](mem://features/addon-packs) — SaaS-ready gating with addon_packs/workspace_addons tables and useAddonEnabled hook
 - [Reminders Multi-Delegation](mem://features/reminders-multi-delegation) — Multi-user delegation via junction table
+- [CRM Module](mem://features/crm-module) — Contacts/Companies/Deals/Pipelines with activity timeline and Gmail email_links integration
