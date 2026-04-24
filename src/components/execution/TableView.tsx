@@ -113,16 +113,18 @@ export default function TableView({
         const isOpen = !collapsed[group.value];
 
         return (
-          <div key={group.value} className="rounded-xl bg-muted/20 p-3">
+          <div key={group.value} className={cn(!disableGrouping && "rounded-xl bg-muted/20 p-3")}>
             <Collapsible open={isOpen} onOpenChange={() => toggleGroup(group.value)}>
-              <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
-                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
-                <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
-                <span className="text-sm font-semibold">{group.label}</span>
-                <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-1.5 mt-2">
+              {!disableGrouping && (
+                <CollapsibleTrigger className="flex items-center gap-2 px-1 py-1.5 w-full text-left group">
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
+                  <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
+                  <span className="text-sm font-semibold">{group.label}</span>
+                  <span className="text-xs text-muted-foreground ml-1">{group.items.length}</span>
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent forceMount={disableGrouping ? true : undefined}>
+                <div className={cn("space-y-1.5", !disableGrouping && "mt-2")}>
                   {group.items.map(item => {
                     const ownerName = getName(item[ownerField]);
                     const goalTitle = goals?.find((g: any) => g.id === item.goal_id)?.title;
