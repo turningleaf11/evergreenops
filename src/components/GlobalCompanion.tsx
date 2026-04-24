@@ -2,10 +2,11 @@ import { useRef, useEffect, useContext, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Send, Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare } from "lucide-react";
+import { Send, Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
+import { SaveToAppDialog, SAVE_DEST_LABELS, type SaveDestination } from "@/components/companion/SaveToAppDialog";
 
 function relTime(iso: string): string {
   try {
