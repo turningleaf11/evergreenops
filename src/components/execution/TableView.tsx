@@ -180,13 +180,6 @@ export default function TableView({
                               {getInitials(ownerName)}
                             </div>
                           )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
-                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-                            title="Open"
-                          >
-                            <Maximize2 className="h-3 w-3" />
-                          </button>
                         </div>
                       );
                     }
