@@ -335,9 +335,48 @@ export function LinkToCrm({
                 <div className="text-xs text-muted-foreground py-2 text-center">No matches</div>
               )}
             </div>
+
+            {/* Quick create */}
+            <div className="border-t border-border/40 px-3 py-2 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 gap-1"
+                onClick={() => {
+                  setCreateTab("contact");
+                  setCreateOpen(true);
+                }}
+              >
+                <UserPlus className="h-3.5 w-3.5" /> New contact
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 gap-1"
+                onClick={() => {
+                  setCreateTab("deal");
+                  setCreateOpen(true);
+                }}
+              >
+                <Briefcase className="h-3.5 w-3.5" /> New deal
+              </Button>
+            </div>
           </>
         )}
       </PopoverContent>
+
+      <QuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        workspaceId={workspaceId}
+        userId={user?.id ?? null}
+        initialTab={createTab}
+        prefill={primaryParticipant}
+        onCreated={async ({ type, id }) => {
+          // Auto-link the newly created record to this thread
+          await link(type, id);
+        }}
+      />
     </Popover>
   );
 }
