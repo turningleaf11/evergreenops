@@ -16,6 +16,7 @@ import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
+import { StrategicQuestionCard } from "@/components/ceo/StrategicQuestionCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -234,6 +235,7 @@ export default function CeoDashboard() {
           <TabsContent value="today" className="space-y-6">
             {isPrimaryAdmin && <DailyBriefingCard />}
             {isPrimaryAdmin && <TodaysPriorities />}
+            {isPrimaryAdmin && <StrategicQuestionCard />}
 
             <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
               <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
