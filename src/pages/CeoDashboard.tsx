@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCEOContext } from "@/lib/ceo-context";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,6 +55,21 @@ export default function CeoDashboard() {
   const [triageItems, setTriageItems] = useState<TriageItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+
+  // Big Picture tab state — for binoculars scroll-to-vision behaviour
+  const [activeTab, setActiveTab] = useState<string>("today");
+  const [visionHighlight, setVisionHighlight] = useState(false);
+  const visionSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const focusVisionSection = useCallback(() => {
+    setActiveTab("bigpicture");
+    // Wait for tab content to mount
+    setTimeout(() => {
+      visionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setVisionHighlight(true);
+      setTimeout(() => setVisionHighlight(false), 1600);
+    }, 80);
+  }, []);
 
   const loadPendingTriage = useCallback(async () => {
     if (!user) return;
