@@ -232,6 +232,9 @@ export default function CeoDashboard() {
 
           {/* Today Tab (formerly Brain Dump) */}
           <TabsContent value="today" className="space-y-6">
+            {isPrimaryAdmin && <DailyBriefingCard />}
+            {isPrimaryAdmin && <TodaysPriorities />}
+
             <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
               <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
             </div>
