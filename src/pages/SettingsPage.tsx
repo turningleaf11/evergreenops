@@ -22,6 +22,7 @@ import {
   Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
+import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
