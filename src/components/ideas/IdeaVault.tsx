@@ -67,6 +67,20 @@ export function IdeaVault() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [deleteTarget, setDeleteTarget] = useState<Idea | null>(null);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+
+  const enrichIdea = useCallback(async (ideaId: string) => {
+    setEnrichingIds(prev => { const n = new Set(prev); n.add(ideaId); return n; });
+    try {
+      await supabase.functions.invoke("idea-vault-enrich", { body: { ideaId } });
+      const { data } = await sb.from("idea_vault").select("*").eq("id", ideaId).maybeSingle();
+      if (data) setIdeas(prev => prev.map(i => i.id === ideaId ? (data as Idea) : i));
+    } catch (e) {
+      console.error("enrich failed", e);
+    } finally {
+      setEnrichingIds(prev => { const n = new Set(prev); n.delete(ideaId); return n; });
+    }
+  }, []);
 
   // capture modal
   const [captureOpen, setCaptureOpen] = useState(false);
