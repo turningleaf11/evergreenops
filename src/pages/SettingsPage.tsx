@@ -490,6 +490,10 @@ export default function SettingsPage() {
         <TabsContent value="home_widgets" className="mt-4">
           <HomeWidgetDefaultsTab />
         </TabsContent>
+
+        <TabsContent value="crm_fields" className="mt-4">
+          <CrmCustomFieldsSettings />
+        </TabsContent>
         </div>
       </Tabs>
     </div>
