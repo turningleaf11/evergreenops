@@ -95,8 +95,32 @@ export function LinkToCrm({
         ? supabase.rpc("crm_suggest_links_for_emails", { _emails: participantEmails })
         : Promise.resolve({ data: [] as Suggestion[] } as any),
     ]);
-    setExisting((links as ExistingLink[]) || []);
+    const linkRows = (links as ExistingLink[]) || [];
+    setExisting(linkRows);
     setSuggestions(((sugg as Suggestion[]) || []).filter(Boolean));
+
+    // Resolve display names for linked records
+    const contactIds = linkRows.filter((l) => l.entity_type === "contact").map((l) => l.entity_id);
+    const dealIds = linkRows.filter((l) => l.entity_type === "deal").map((l) => l.entity_id);
+    const companyIds = linkRows.filter((l) => l.entity_type === "company").map((l) => l.entity_id);
+    const [contactsRes, dealsRes, companiesRes] = await Promise.all([
+      contactIds.length
+        ? supabase.from("contacts").select("id,first_name,last_name,email").in("id", contactIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+      dealIds.length
+        ? supabase.from("deals").select("id,title").in("id", dealIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+      companyIds.length
+        ? supabase.from("companies").select("id,name").in("id", companyIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+    ]);
+    const map: Record<string, string> = {};
+    (contactsRes.data || []).forEach((c: any) => {
+      map[`contact:${c.id}`] = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Contact";
+    });
+    (dealsRes.data || []).forEach((d: any) => { map[`deal:${d.id}`] = d.title || "Deal"; });
+    (companiesRes.data || []).forEach((c: any) => { map[`company:${c.id}`] = c.name || "Company"; });
+    setNames(map);
     setLoading(false);
   };
 
