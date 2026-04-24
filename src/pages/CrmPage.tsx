@@ -126,7 +126,13 @@ export default function CrmPage() {
 
       <ContactPeekSheet
         contactId={openContactId}
-        onClose={() => setOpenContactId(null)}
+        onClose={() => { setOpenContactId(null); clearPeekParam("contact"); }}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <DealPeekSheet
+        dealId={openDealId}
+        onClose={() => { setOpenDealId(null); clearPeekParam("deal"); }}
         onChanged={() => setRefreshKey((k) => k + 1)}
       />
 
