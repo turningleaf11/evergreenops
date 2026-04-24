@@ -38,7 +38,7 @@ const categoryDestinations: Record<string, { label: string; path: string; tab?: 
   delegation: { label: "Execution", path: "/execution" },
   project: { label: "Execution → Projects", path: "/execution" },
   decision: { label: "Strategy → Decision Log", path: "/ceo", tab: "strategy" },
-  idea: { label: "CEO Cockpit → Ideas", path: "/ceo", tab: "ideas" },
+  idea: { label: "Idea Vault", path: "/ceo", tab: "bigpicture" },
 };
 
 export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriageProps) {
