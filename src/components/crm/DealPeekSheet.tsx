@@ -304,3 +304,48 @@ export function DealPeekSheet({
     </Sheet>
   );
 }
+
+function DealCustomFieldsPanel({
+  dealId,
+  values,
+  onSaved,
+}: {
+  dealId: string;
+  values: Record<string, unknown>;
+  onSaved: (v: Record<string, unknown>) => void;
+}) {
+  const { fields } = useCustomFields("deal");
+  const [draft, setDraft] = useState<Record<string, unknown>>(values);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(values), [dealId]);
+  if (fields.length === 0) return null;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(values);
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("deals")
+      .update({ custom_fields: draft as any } as any)
+      .eq("id", dealId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(draft);
+  };
+  return (
+    <div className="px-6 py-4 border-b border-border/50">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+        Custom fields
+      </div>
+      <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
+      {dirty && (
+        <div className="flex justify-end mt-2">
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Save
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
