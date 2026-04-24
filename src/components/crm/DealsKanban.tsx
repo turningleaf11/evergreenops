@@ -316,6 +316,7 @@ export function DealsKanban({ search }: { search: string }) {
           );
         })}
       </div>
+      )}
 
       <NewDealDialog
         open={newOpen}
