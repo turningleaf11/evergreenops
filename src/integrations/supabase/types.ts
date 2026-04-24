@@ -92,6 +92,140 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_business_memory: {
+        Row: {
+          content: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          memory_type: string
+          source_message_id: string | null
+          source_thread_id: string | null
+          title: string
+          workspace_id: string | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          memory_type: string
+          source_message_id?: string | null
+          source_thread_id?: string | null
+          title: string
+          workspace_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          memory_type?: string
+          source_message_id?: string | null
+          source_thread_id?: string | null
+          title?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_business_memory_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_business_memory_source_thread_id_fkey"
+            columns: ["source_thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_strategy_messages: {
+        Row: {
+          content: string
+          context_snapshot: Json | null
+          created_at: string
+          id: string
+          role: string
+          saved_to_id: string | null
+          saved_to_type: string | null
+          thread_id: string
+        }
+        Insert: {
+          content?: string
+          context_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          role: string
+          saved_to_id?: string | null
+          saved_to_type?: string | null
+          thread_id: string
+        }
+        Update: {
+          content?: string
+          context_snapshot?: Json | null
+          created_at?: string
+          id?: string
+          role?: string
+          saved_to_id?: string | null
+          saved_to_type?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_strategy_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_strategy_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_strategy_threads: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          last_message_at: string
+          status: string
+          summary: string | null
+          summary_updated_at: string | null
+          thread_type: string
+          title: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          last_message_at?: string
+          status?: string
+          summary?: string | null
+          summary_updated_at?: string | null
+          thread_type?: string
+          title?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_message_at?: string
+          status?: string
+          summary?: string | null
+          summary_updated_at?: string | null
+          thread_type?: string
+          title?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       announcement_acknowledgments: {
         Row: {
           acknowledged_at: string
@@ -1729,6 +1863,104 @@ export type Database = {
           },
         ]
       }
+      leadership_meeting_action_items: {
+        Row: {
+          agenda_item_id: string | null
+          assigned_to: string
+          converted_to_task_id: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          meeting_id: string
+          title: string
+        }
+        Insert: {
+          agenda_item_id?: string | null
+          assigned_to: string
+          converted_to_task_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          title: string
+        }
+        Update: {
+          agenda_item_id?: string | null
+          assigned_to?: string
+          converted_to_task_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadership_meeting_action_items_agenda_item_id_fkey"
+            columns: ["agenda_item_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_agenda_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leadership_meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "leadership_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leadership_meetings: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_date: string
+          meeting_week: string
+          overall_notes: string | null
+          rating: number | null
+          started_at: string | null
+          status: string
+          workspace_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_week?: string
+          overall_notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_week?: string
+          overall_notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadership_meetings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_research: {
         Row: {
           ai_analysis: Json | null
@@ -1879,6 +2111,62 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_agenda_items: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          description: string | null
+          discussion_notes: string | null
+          id: string
+          item_type: string
+          meeting_id: string
+          reference_id: string | null
+          reference_type: string | null
+          section: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          description?: string | null
+          discussion_notes?: string | null
+          id?: string
+          item_type?: string
+          meeting_id: string
+          reference_id?: string | null
+          reference_type?: string | null
+          section: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          description?: string | null
+          discussion_notes?: string | null
+          id?: string
+          item_type?: string
+          meeting_id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          section?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_agenda_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "leadership_meetings"
             referencedColumns: ["id"]
           },
         ]
