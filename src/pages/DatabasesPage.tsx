@@ -83,6 +83,14 @@ export default function DatabasesPage() {
   const [isNew, setIsNew] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const dispatchWebhook = (databaseId: string, event: string, row: any) => {
+    // Fire-and-forget. Errors logged on the server side.
+    supabase.functions.invoke("list-webhook-dispatch", {
+      body: { database_id: databaseId, event, row },
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     const fetch = async () => {
