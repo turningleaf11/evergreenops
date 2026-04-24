@@ -28,6 +28,15 @@ function inferKind(name: string, mime?: string): "image" | "pdf" | "video" | "au
   return "other";
 }
 
+function shouldOpenNatively(name: string, mime?: string) {
+  const m = (mime || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+
+  if (m === "application/pdf" || n.endsWith(".pdf")) return true;
+  return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(n)
+    || /application\/(msword|vnd\.ms-|vnd\.openxmlformats-officedocument)/i.test(m);
+}
+
 function shouldInterceptAnchor(anchor: HTMLAnchorElement) {
   if (anchor.classList.contains("file-attachment") || anchor.hasAttribute("data-file-attachment")) return true;
 
@@ -49,6 +58,15 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
   const [resolvedMime, setResolvedMime] = useState<string | undefined>(undefined);
 
   const open = useCallback((o: OpenOpts) => {
+    const nextFileName = o.fileName || o.url.split("/").pop()?.split("?")[0] || "file";
+    if (shouldOpenNatively(nextFileName, o.mimeType)) {
+      const win = window.open(o.url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        toast({ title: "Allow pop-ups for this site to open the file." });
+      }
+      return;
+    }
+
     setOpts(o);
     setBlobUrl(null);
     setTextContent(null);
@@ -71,9 +89,19 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
       const href = a.getAttribute("href");
       if (!href || href === "#") return;
       if (!shouldInterceptAnchor(a)) return;
+      const fileName = a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || href;
+      const mimeType = a.getAttribute("type") || undefined;
+
+      if (shouldOpenNatively(fileName, mimeType)) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(href, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
-      open({ url: href, fileName: a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || undefined });
+      open({ url: href, fileName, mimeType });
     };
     window.addEventListener("lovable:open-file", onEvent as EventListener);
     document.addEventListener("click", onClick, true);
@@ -150,8 +178,9 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
   };
 
   const handleOpenNewTab = () => {
-    // Use the blob URL when available so cross-origin / auth issues don't break it
-    const target = blobUrl || opts?.url;
+    const target = shouldOpenNatively(fileName, resolvedMime || opts?.mimeType)
+      ? opts?.url
+      : (blobUrl || opts?.url);
     if (!target) return;
     const win = window.open(target, "_blank", "noopener,noreferrer");
     if (!win) {
@@ -179,7 +208,7 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
             <Button size="sm" variant="ghost" onClick={handleDownload} disabled={!blobUrl}>
               <Download className="h-4 w-4 mr-1.5" /> Download
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleOpenNewTab} disabled={!blobUrl && !opts?.url}>
+             <Button size="sm" variant="ghost" onClick={handleOpenNewTab} disabled={!blobUrl && !opts?.url}>
               <ExternalLink className="h-4 w-4 mr-1.5" /> Open in new tab
             </Button>
             <Button size="icon" variant="ghost" onClick={close}>
@@ -216,9 +245,21 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                   </div>
                 )}
                 {kind === "pdf" && (
-                  <object data={blobUrl} type="application/pdf" className="w-full h-full bg-white">
-                    <iframe src={blobUrl} title={fileName} className="w-full h-full border-0 bg-white" />
-                  </object>
+                  <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                    <div className="text-sm font-medium">Open PDF in browser</div>
+                    <p className="text-xs text-muted-foreground max-w-md">
+                      PDF preview is opened in a separate browser tab for better compatibility in Microsoft Edge.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleOpenNewTab}>
+                        <ExternalLink className="h-4 w-4 mr-1.5" /> Open PDF
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleDownload}>
+                        <Download className="h-4 w-4 mr-1.5" /> Download
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
