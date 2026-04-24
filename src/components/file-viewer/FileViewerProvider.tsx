@@ -214,9 +214,8 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
              <Button size="sm" variant="ghost" onClick={handleOpenNewTab} disabled={!blobUrl && !opts?.url}>
               <ExternalLink className="h-4 w-4 mr-1.5" /> Open in new tab
             </Button>
-            <Button size="icon" variant="ghost" onClick={close}>
-              <X className="h-4 w-4" />
-            </Button>
+            {/* Close button is provided by DialogContent — spacer keeps actions clear of it */}
+            <div className="w-8 shrink-0" />
           </div>
 
           {/* Body */}
