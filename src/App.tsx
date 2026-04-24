@@ -41,6 +41,7 @@ import InternalFormPage from "./pages/InternalFormPage";
 import { MentionClickHandler } from "./components/MentionClickHandler";
 import { MentionPeekProvider } from "./components/mention-peek/MentionPeekProvider";
 import { MentionPeekRoot } from "./components/mention-peek/MentionPeekRoot";
+import { FileViewerProvider } from "./components/file-viewer/FileViewerProvider";
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -107,6 +108,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <FileViewerProvider>
           <MentionPeekProvider>
           <MentionClickHandler />
           <MentionPeekRoot />
