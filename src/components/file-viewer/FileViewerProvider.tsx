@@ -58,6 +58,15 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
   const [resolvedMime, setResolvedMime] = useState<string | undefined>(undefined);
 
   const open = useCallback((o: OpenOpts) => {
+    const nextFileName = o.fileName || o.url.split("/").pop()?.split("?")[0] || "file";
+    if (shouldOpenNatively(nextFileName, o.mimeType)) {
+      const win = window.open(o.url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        toast({ title: "Allow pop-ups for this site to open the file." });
+      }
+      return;
+    }
+
     setOpts(o);
     setBlobUrl(null);
     setTextContent(null);
