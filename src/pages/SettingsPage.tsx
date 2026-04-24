@@ -123,7 +123,7 @@ export default function SettingsPage() {
         { value: "integrations", icon: Mail, label: "Integrations" },
       ],
     },
-  ] as const;
+  ];
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
