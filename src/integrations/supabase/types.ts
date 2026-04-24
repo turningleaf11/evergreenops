@@ -2542,6 +2542,87 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          company_name: string | null
+          converted_contact_id: string | null
+          converted_deal_id: string | null
+          created_at: string
+          created_by: string | null
+          custom_fields: Json
+          email: string | null
+          id: string
+          name: string
+          next_action_at: string | null
+          notes: string
+          owner_id: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          temperature: string
+          title: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          converted_contact_id?: string | null
+          converted_deal_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          email?: string | null
+          id?: string
+          name?: string
+          next_action_at?: string | null
+          notes?: string
+          owner_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          temperature?: string
+          title?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          converted_contact_id?: string | null
+          converted_deal_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          email?: string | null
+          id?: string
+          name?: string
+          next_action_at?: string | null
+          notes?: string
+          owner_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          temperature?: string
+          title?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_contact_id_fkey"
+            columns: ["converted_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_converted_deal_id_fkey"
+            columns: ["converted_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_research: {
         Row: {
           ai_analysis: Json | null

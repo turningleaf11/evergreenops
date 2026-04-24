@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Loader2, Mail, Phone, NotebookPen, ExternalLink, Reply, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Mail, Phone, Send } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +10,12 @@ import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { OwnerPicker } from "./PeoplePickers";
+import { CrmComposerTabs, type ComposerSubmit } from "./CrmComposerTabs";
+import {
+  CrmActivityTimeline,
+  ActivityFilterPills,
+  type TimelineActivity,
+} from "./CrmActivityTimeline";
 
 interface Contact {
   id: string;
@@ -30,14 +34,7 @@ interface Contact {
   created_at: string;
 }
 
-interface Activity {
-  id: string;
-  type: string;
-  subject: string;
-  body: string;
-  occurred_at: string;
-  metadata: Record<string, unknown>;
-}
+interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
 
 const STATUS_COLOR: Record<string, string> = {
   lead: "210 70% 50%",
@@ -58,28 +55,26 @@ export function ContactPeekSheet({
   const { user } = useAuth();
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
+  const [activities, setActivities] = useState<TimelineActivity[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [filter, setFilter] = useState("all");
 
-  // Compose modal state
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeCtx, setComposeCtx] = useState<{
-    to: string;
-    subject: string;
-    threadId?: string;
-  }>({ to: "", subject: "" });
+  const [composeCtx, setComposeCtx] = useState<{ to: string; subject: string; threadId?: string }>({
+    to: "",
+    subject: "",
+  });
 
   const reload = async () => {
     if (!contactId) return;
     const { data: acts } = await supabase
       .from("crm_activities")
-      .select("id,type,subject,body,occurred_at,metadata")
+      .select("id,type,subject,body,occurred_at,actor_id,metadata")
       .eq("entity_type", "contact")
       .eq("entity_id", contactId)
       .order("occurred_at", { ascending: false })
-      .limit(100);
-    setActivities((acts as Activity[]) || []);
+      .limit(200);
+    setActivities((acts as TimelineActivity[]) || []);
   };
 
   useEffect(() => {
@@ -91,49 +86,52 @@ export function ContactPeekSheet({
     let active = true;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: acts }] = await Promise.all([
+      const [{ data: c }, { data: acts }, { data: p }] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", contactId).maybeSingle(),
         supabase
           .from("crm_activities")
-          .select("id,type,subject,body,occurred_at,metadata")
+          .select("id,type,subject,body,occurred_at,actor_id,metadata")
           .eq("entity_type", "contact")
           .eq("entity_id", contactId)
           .order("occurred_at", { ascending: false })
-          .limit(100),
+          .limit(200),
+        supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500),
       ]);
       if (!active) return;
       setContact((c as Contact) || null);
-      setActivities((acts as Activity[]) || []);
+      setActivities((acts as TimelineActivity[]) || []);
+      setPeople((p as Person[]) || []);
       setLoading(false);
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [contactId]);
 
-  const logNote = async () => {
-    if (!contact || !noteDraft.trim() || !user) return;
-    setSavingNote(true);
+  const handleComposerSubmit = async (payload: ComposerSubmit) => {
+    if (!contact || !user) return;
+    let subject = "";
+    const body = payload.body;
+    const type: string = payload.type;
+    if (payload.type === "call") {
+      subject = `Call · ${payload.outcome.replace("_", " ")} · ${payload.durationMin}m`;
+    }
     const { data, error } = await supabase
       .from("crm_activities")
       .insert({
         workspace_id: contact.workspace_id,
         entity_type: "contact",
         entity_id: contact.id,
-        type: "note",
-        subject: "",
-        body: noteDraft.trim(),
+        type,
+        subject,
+        body,
         actor_id: user.id,
       })
-      .select()
+      .select("id,type,subject,body,occurred_at,actor_id,metadata")
       .single();
-    setSavingNote(false);
     if (error) {
-      toast({ title: "Couldn't save note", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;
     }
-    setActivities((a) => [data as Activity, ...a]);
-    setNoteDraft("");
+    setActivities((a) => [data as TimelineActivity, ...a]);
     onChanged();
   };
 
@@ -143,12 +141,10 @@ export function ContactPeekSheet({
   };
 
   const handleSent = async (result: { threadId?: string; id?: string }) => {
-    // Link the (new or existing) thread to this contact so it appears in the timeline
     if (!contact || !user || !result.threadId) {
       void reload();
       return;
     }
-    // Avoid duplicates if it's a reply to an already-linked thread
     const { data: existing } = await supabase
       .from("email_links")
       .select("id")
@@ -177,7 +173,7 @@ export function ContactPeekSheet({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col">
           {loading || !contact ? (
             <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -209,162 +205,146 @@ export function ContactPeekSheet({
                   <Button
                     size="sm"
                     disabled={!canEmail}
-                    onClick={() =>
-                      openCompose({
-                        to: contact.email!,
-                        subject: "",
-                      })
-                    }
-                    title={canEmail ? "Email this contact" : "No email on file"}
+                    onClick={() => openCompose({ to: contact.email!, subject: "" })}
                   >
                     <Send className="h-3.5 w-3.5 mr-1.5" /> New email
                   </Button>
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-auto">
-                {/* Quick info */}
-                <div className="px-6 py-4 space-y-2 text-sm border-b border-border/50">
-                  {contact.email && (
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="flex items-center gap-2 text-primary hover:underline"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      {contact.email}
-                    </a>
-                  )}
-                  {contact.phone && (
-                    <a
-                      href={`tel:${contact.phone}`}
-                      className="flex items-center gap-2 text-primary hover:underline"
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      {contact.phone}
-                    </a>
-                  )}
-                  {contact.last_contacted_at && (
-                    <div className="text-xs text-muted-foreground pt-1">
-                      Last contacted{" "}
-                      {formatDistanceToNow(new Date(contact.last_contacted_at), { addSuffix: true })}
-                    </div>
-                  )}
-                </div>
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_280px] min-h-0 overflow-hidden">
+                {/* Main column */}
+                <div className="overflow-auto">
+                  {/* Composer */}
+                  <div className="p-4">
+                    <CrmComposerTabs
+                      onSubmit={handleComposerSubmit}
+                      onSendEmail={() => openCompose({ to: contact.email!, subject: "" })}
+                      emailDisabled={!canEmail}
+                    />
+                  </div>
 
-                {/* Owner */}
-                <div className="px-6 py-4 border-b border-border/50">
-                  <OwnerPicker
-                    ownerId={contact.owner_id}
-                    onChange={async (id) => {
-                      const { error } = await supabase
-                        .from("contacts")
-                        .update({ owner_id: id })
-                        .eq("id", contact.id);
-                      if (error) {
-                        toast({ title: "Couldn't update owner", description: error.message, variant: "destructive" });
-                        return;
-                      }
-                      setContact({ ...contact, owner_id: id });
-                      onChanged();
+                  {/* Filter pills + timeline */}
+                  <div className="px-4">
+                    <ActivityFilterPills
+                      activities={activities}
+                      value={filter}
+                      onChange={setFilter}
+                    />
+                  </div>
+                  <CrmActivityTimeline
+                    activities={activities}
+                    people={people}
+                    filter={filter}
+                    onReply={(a) => {
+                      const meta = a.metadata as any;
+                      openCompose({
+                        to: contact.email!,
+                        subject: a.subject?.toLowerCase().startsWith("re:")
+                          ? a.subject
+                          : `Re: ${a.subject || ""}`,
+                        threadId: meta?.gmail_thread_id,
+                      });
                     }}
                   />
                 </div>
-                <CustomFieldsPanel
-                  contactId={contact.id}
-                  values={(contact.custom_fields || {}) as Record<string, unknown>}
-                  onSaved={(v) => setContact({ ...contact, custom_fields: v })}
-                />
 
-                {/* Log a note */}
-                <div className="px-6 py-4 border-b border-border/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <NotebookPen className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Log a note
-                    </span>
-                  </div>
-                  <Textarea
-                    value={noteDraft}
-                    onChange={(e) => setNoteDraft(e.target.value)}
-                    placeholder="What happened? (call summary, meeting notes…)"
-                    rows={3}
-                    className="text-sm"
-                  />
-                  <div className="flex justify-end mt-2">
-                    <Button size="sm" onClick={logNote} disabled={savingNote || !noteDraft.trim()}>
-                      {savingNote && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      Save note
-                    </Button>
-                  </div>
-                </div>
+                {/* Right rail */}
+                <aside className="border-l border-border/50 overflow-auto bg-muted/10">
+                  <div className="p-4 space-y-5">
+                    {/* Contact info */}
+                    <section className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Contact info
+                      </div>
+                      {contact.email && (
+                        <a
+                          href={`mailto:${contact.email}`}
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                          <span className="truncate">{contact.email}</span>
+                        </a>
+                      )}
+                      {contact.phone && (
+                        <a
+                          href={`tel:${contact.phone}`}
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          {contact.phone}
+                        </a>
+                      )}
+                      {contact.last_contacted_at && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Last contacted{" "}
+                          {formatDistanceToNow(new Date(contact.last_contacted_at), {
+                            addSuffix: true,
+                          })}
+                        </div>
+                      )}
+                    </section>
 
-                {/* Activity timeline */}
-                <div className="px-6 py-4">
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
-                    Activity
-                  </div>
-                  {activities.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      No activity yet. Log a note above or send an email to get started.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {activities.map((a) => {
-                        const meta = a.metadata as any;
-                        const threadId = meta?.gmail_thread_id as string | undefined;
-                        const isEmail = a.type === "email" && threadId;
-                        return (
-                          <div
-                            key={a.id}
-                            className="rounded-lg border border-border/40 bg-card p-3 text-sm"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[11px] uppercase tracking-wide text-muted-foreground capitalize">
-                                {a.type}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {isEmail && contact.email && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-2 text-[11px]"
-                                    onClick={() =>
-                                      openCompose({
-                                        to: contact.email!,
-                                        subject: a.subject?.toLowerCase().startsWith("re:")
-                                          ? a.subject
-                                          : `Re: ${a.subject || ""}`,
-                                        threadId,
-                                      })
-                                    }
-                                  >
-                                    <Reply className="h-3 w-3 mr-1" /> Reply
-                                  </Button>
-                                )}
-                                {isEmail && (
-                                  <Link
-                                    to={`/inbox?thread=${threadId}`}
-                                    className="text-[11px] text-muted-foreground hover:text-primary inline-flex items-center gap-0.5"
-                                    title="Open in inbox"
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                  </Link>
-                                )}
-                                <span className="text-[11px] text-muted-foreground">
-                                  {formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}
-                                </span>
-                              </div>
-                            </div>
-                            {a.subject && <div className="font-medium mb-0.5">{a.subject}</div>}
-                            {a.body && (
-                              <p className="whitespace-pre-wrap text-muted-foreground">{a.body}</p>
-                            )}
-                          </div>
+                    {/* Owner */}
+                    <section>
+                      <OwnerPicker
+                        ownerId={contact.owner_id}
+                        onChange={async (id) => {
+                          const { error } = await supabase
+                            .from("contacts")
+                            .update({ owner_id: id })
+                            .eq("id", contact.id);
+                          if (error) {
+                            toast({
+                              title: "Couldn't update owner",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setContact({ ...contact, owner_id: id });
+                          onChanged();
+                        }}
+                      />
+                    </section>
+
+                    {/* Custom fields */}
+                    <CustomFieldsPanel
+                      contactId={contact.id}
+                      values={(contact.custom_fields || {}) as Record<string, unknown>}
+                      onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                    />
+
+                    {/* Appointments */}
+                    <section>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                        Appointments
+                      </div>
+                      {(() => {
+                        const upcoming = activities.filter(
+                          (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
                         );
-                      })}
-                    </div>
-                  )}
-                </div>
+                        if (upcoming.length === 0) {
+                          return (
+                            <p className="text-xs text-muted-foreground">No upcoming meetings.</p>
+                          );
+                        }
+                        return (
+                          <ul className="space-y-1.5">
+                            {upcoming.slice(0, 5).map((m) => (
+                              <li key={m.id} className="text-xs">
+                                <div className="font-medium">{m.subject || "Meeting"}</div>
+                                <div className="text-muted-foreground">
+                                  {new Date(m.occurred_at).toLocaleString()}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
+                    </section>
+                  </div>
+                </aside>
               </div>
             </>
           )}
@@ -412,8 +392,8 @@ function CustomFieldsPanel({
     onSaved(draft);
   };
   return (
-    <div className="px-6 py-4 border-b border-border/50">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+    <section>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
         Custom fields
       </div>
       <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
@@ -424,6 +404,6 @@ function CustomFieldsPanel({
           </Button>
         </div>
       )}
-    </div>
+    </section>
   );
 }
