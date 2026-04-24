@@ -386,9 +386,33 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
 
   const groupCol = groupBy ? allCols.find(c => c.id === groupBy) : null;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflowState, setOverflowState] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+  const updateOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 1;
+    setOverflowState({
+      left: hasOverflow && el.scrollLeft > 4,
+      right: hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  }, []);
+  useEffect(() => {
+    updateOverflow();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateOverflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateOverflow, orderedCols.length, rows.length]);
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.shiftKey && scrollRef.current) scrollRef.current.scrollLeft += e.deltaY;
+  };
+  const scrollByCol = (dir: -1 | 1) => scrollRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
+
   return (
-    <div className="rounded-xl border border-border/50 overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="relative group/table rounded-xl border border-border/50 overflow-hidden">
+      <div ref={scrollRef} onScroll={updateOverflow} onWheel={onWheel} className="overflow-x-auto scrollbar-hide">
         <div className="min-w-full">
           {/* Header */}
           <div className="grid bg-muted/30 border-b border-border/50" style={{ gridTemplateColumns: gridTemplate }}>
@@ -452,6 +476,18 @@ function GenericTable({ database, rows, onEdit, onDelete, onRowUpdate, allDataba
           </div>
         </div>
       </div>
+      {overflowState.left && <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent" />}
+      {overflowState.right && <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />}
+      {overflowState.left && (
+        <button onClick={() => scrollByCol(-1)} className="absolute left-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/table:opacity-100 transition-opacity hover:bg-accent" aria-label="Scroll left">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {overflowState.right && (
+        <button onClick={() => scrollByCol(1)} className="absolute right-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-md flex items-center justify-center opacity-0 group-hover/table:opacity-100 transition-opacity hover:bg-accent" aria-label="Scroll right">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
