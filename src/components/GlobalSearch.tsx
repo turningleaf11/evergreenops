@@ -54,12 +54,15 @@ export function GlobalSearch() {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
     setLoading(true);
     const pattern = `%${q}%`;
-    const [tasks, projects, docs, profiles, announcements] = await Promise.all([
+    const [tasks, projects, docs, profiles, announcements, contacts, deals, companies] = await Promise.all([
       supabase.from("tasks").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("projects").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("documents").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("profiles").select("user_id, full_name").ilike("full_name", pattern).limit(5),
       supabase.from("announcements").select("id, title").ilike("title", pattern).limit(5),
+      supabase.from("contacts").select("id, first_name, last_name, email").or(`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern}`).limit(5),
+      supabase.from("deals").select("id, title, status").ilike("title", pattern).limit(5),
+      supabase.from("companies").select("id, name, industry").ilike("name", pattern).limit(5),
     ]);
     const r: SearchResult[] = [
       ...(tasks.data || []).map((t) => ({ id: t.id, title: t.title, type: "task" as const })),
@@ -67,6 +70,9 @@ export function GlobalSearch() {
       ...(docs.data || []).map((d) => ({ id: d.id, title: d.title, type: "document" as const })),
       ...(profiles.data || []).map((p) => ({ id: p.user_id, title: p.full_name || "Unnamed", type: "profile" as const })),
       ...(announcements.data || []).map((a) => ({ id: a.id, title: a.title, type: "announcement" as const })),
+      ...(contacts.data || []).map((c: any) => ({ id: c.id, title: `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Contact", subtitle: c.email || undefined, type: "contact" as const })),
+      ...(deals.data || []).map((d: any) => ({ id: d.id, title: d.title, subtitle: d.status, type: "deal" as const })),
+      ...(companies.data || []).map((c: any) => ({ id: c.id, title: c.name, subtitle: c.industry || undefined, type: "company" as const })),
     ];
     setResults(r);
     setOpen(r.length > 0);
