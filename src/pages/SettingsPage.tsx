@@ -35,7 +35,7 @@ const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "vi
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
 
 export default function SettingsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isPrimaryAdmin, user, refreshProfile } = useAuth();
   const workspace = useWorkspace();
   const { departments, addDepartment, updateDepartment, deleteDepartment } = useDepartments();
   const training = useTraining();
@@ -246,6 +246,34 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {isPrimaryAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" /> Vision Setup
+                </CardTitle>
+                <CardDescription>Re-run the guided AI conversation that populates your Vision Layer, Rocks, and team list.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!user) return;
+                    await supabase
+                      .from("profiles")
+                      .update({ onboarding_skipped: false, onboarding_completed_at: null, onboarding_progress: {} })
+                      .eq("user_id", user.id);
+                    await refreshProfile();
+                    window.location.href = "/onboarding";
+                  }}
+                >
+                  Run Vision Setup
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Departments Tab */}

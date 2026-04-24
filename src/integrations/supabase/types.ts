@@ -2442,6 +2442,42 @@ export type Database = {
           },
         ]
       }
+      pending_team_members: {
+        Row: {
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          invited: boolean
+          name: string
+          notes: string | null
+          role: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          invited?: boolean
+          name: string
+          notes?: string | null
+          role?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          invited?: boolean
+          name?: string
+          notes?: string | null
+          role?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       people_health_snapshots: {
         Row: {
           calculated_at: string
@@ -2708,6 +2744,9 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          onboarding_completed_at: string | null
+          onboarding_progress: Json
+          onboarding_skipped: boolean
           phone: string | null
           reports_to: string | null
           skills: string[] | null
@@ -2729,6 +2768,9 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          onboarding_completed_at?: string | null
+          onboarding_progress?: Json
+          onboarding_skipped?: boolean
           phone?: string | null
           reports_to?: string | null
           skills?: string[] | null
@@ -2750,6 +2792,9 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          onboarding_completed_at?: string | null
+          onboarding_progress?: Json
+          onboarding_skipped?: boolean
           phone?: string | null
           reports_to?: string | null
           skills?: string[] | null
