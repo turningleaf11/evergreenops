@@ -68,7 +68,7 @@ export function DealPeekSheet({
         const [{ data: st }, { data: links }, { data: acts }] = await Promise.all([
           supabase.from("pipeline_stages").select("id,name,color,is_won,is_lost").eq("pipeline_id", dealRow.pipeline_id).order("sort_order"),
           supabase.from("entity_links").select("target_id").eq("source_type", "deal").eq("source_id", dealRow.id).eq("target_type", "contact"),
-          supabase.from("crm_activities").select("id,type,subject,body,occurred_at").eq("entity_type", "deal").eq("entity_id", dealRow.id).order("occurred_at", { ascending: false }).limit(50),
+          supabase.from("crm_activities").select("id,type,subject,body,occurred_at,metadata").eq("entity_type", "deal").eq("entity_id", dealRow.id).order("occurred_at", { ascending: false }).limit(50),
         ]);
         if (!active) return;
         setStages((st as Stage[]) || []);
