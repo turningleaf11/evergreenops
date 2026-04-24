@@ -28,6 +28,18 @@ function inferKind(name: string, mime?: string): "image" | "pdf" | "video" | "au
   return "other";
 }
 
+function shouldInterceptAnchor(anchor: HTMLAnchorElement) {
+  if (anchor.classList.contains("file-attachment") || anchor.hasAttribute("data-file-attachment")) return true;
+
+  const href = anchor.getAttribute("href") || "";
+  const fileName = anchor.getAttribute("data-file-name") || anchor.textContent || href;
+
+  if (getStoragePathFromUrl(href)) return true;
+
+  const kind = inferKind(fileName, anchor.getAttribute("type") || undefined);
+  return kind === "pdf" || kind === "image" || kind === "video" || kind === "audio" || kind === "text";
+}
+
 export function FileViewerProvider({ children }: { children: React.ReactNode }) {
   const [opts, setOpts] = useState<OpenOpts | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -54,10 +66,11 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
     };
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-      const a = (e.target as HTMLElement)?.closest?.("a.file-attachment, a[data-file-attachment]") as HTMLAnchorElement | null;
+      const a = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
       if (!a) return;
       const href = a.getAttribute("href");
       if (!href || href === "#") return;
+      if (!shouldInterceptAnchor(a)) return;
       e.preventDefault();
       e.stopPropagation();
       open({ url: href, fileName: a.getAttribute("data-file-name") || a.textContent?.replace(/^📎\s*/, "") || undefined });
@@ -101,7 +114,7 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
           if (error || !data) throw new Error(error?.message || "Download failed");
           blob = data;
         } else {
-          const res = await fetch(opts.url);
+          const res = await fetch(opts.url, { credentials: "include" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           blob = await res.blob();
         }
@@ -203,7 +216,9 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
                   </div>
                 )}
                 {kind === "pdf" && (
-                  <iframe src={blobUrl} title={fileName} className="w-full h-full border-0 bg-white" />
+                  <object data={blobUrl} type="application/pdf" className="w-full h-full bg-white">
+                    <iframe src={blobUrl} title={fileName} className="w-full h-full border-0 bg-white" />
+                  </object>
                 )}
                 {kind === "video" && (
                   <div className="h-full flex items-center justify-center p-4">
