@@ -14,6 +14,7 @@ interface TableViewProps {
   statusOptions: { value: string; label: string }[];
   goals?: any[];
   projects?: any[];
+  disableGrouping?: boolean;
 }
 
 const statusRingColors: Record<string, string> = {
