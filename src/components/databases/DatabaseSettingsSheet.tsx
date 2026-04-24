@@ -219,6 +219,26 @@ export default function DatabaseSettingsSheet({ open, onOpenChange, database, wo
             </div>
           </TabsContent>
 
+          {/* FORMS */}
+          <TabsContent value="forms" className="mt-4">
+            <FormsTabPanel
+              databaseId={database.id}
+              workspaceId={workspaceId}
+              columns={database.columns}
+            />
+          </TabsContent>
+
+          {/* IMPORT / EXPORT */}
+          <TabsContent value="data" className="mt-4">
+            <ImportExportTabPanel
+              databaseId={database.id}
+              databaseTitle={database.title}
+              columns={database.columns}
+              onImported={() => onImported?.()}
+              dispatchWebhook={dispatchWebhook}
+            />
+          </TabsContent>
+
           {/* API */}
           <TabsContent value="api" className="mt-4 space-y-4">
             <div>
