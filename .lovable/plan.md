@@ -1,51 +1,42 @@
 ## Plan
 
-Restore file behavior so clicking a PDF opens the in-app viewer again, with Download and Open in new tab as secondary actions instead of redirecting away.
+1. Replace the broken PDF.js worker setup with a bundled local worker
+- Update the PDF preview component so `react-pdf` uses a worker bundled by Vite instead of the current CDN `pdf.worker.min.mjs` URL.
+- Keep the worker configuration in the same module as the PDF renderer so it is not overwritten by module load order.
+- This removes the current runtime failure that is causing every PDF to fall back to “Preview unavailable”.
 
-### What I’ll change
+2. Correct the PDF open flow so “Open in new tab” uses the real file URL
+- Adjust the viewer actions so PDFs prefer the original storage/signed URL for new-tab opening instead of the generated `blob:` URL.
+- Keep blob-based download support, since that gives reliable downloads even for protected files.
+- Preserve current in-app handling for images, video, audio, and text.
 
-1. Update the file viewer logic to stop forcing PDFs to open natively on click.
-   - Keep the modal viewer as the default for PDFs.
-   - Preserve the existing Download and Open in new tab buttons inside the viewer.
+3. Tighten file-type handling and viewer fallbacks
+- Ensure PDF detection continues to work from either MIME type or `.pdf` extension.
+- Keep DOC/DOCX and other Office formats out of iframe/object/embed preview and show the fallback actions instead.
+- Standardize the failure message to: “Preview unavailable. Download or open in new tab.” when rendering or fetching fails.
 
-2. Narrow the “open natively” fallback to only the file types that truly need it.
-   - Keep Office documents (`.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`) opening outside the app if needed.
-   - Remove PDFs from that native-open rule so they stay in-app.
+4. Verify the event interception path still routes files into the in-app modal
+- Confirm the existing click interception and `openStoredFile` event path continue to send PDFs into the modal viewer.
+- Keep the current database/file-card interactions intact while avoiding accidental full-page navigation.
 
-3. Keep link interception working across list/database contexts.
-   - Ensure `.file-attachment` links and storage-hosted file URLs still get intercepted by `FileViewerProvider`.
-   - Preserve row click behavior so file-link clicks do not accidentally trigger row navigation.
+5. Validate the full user flow after the fix
+- Confirm a PDF opens inside the modal and renders pages.
+- Confirm “Open in new tab” opens the original file in a browser tab instead of a `blob:` URL.
+- Confirm download still works.
+- Confirm unsupported document types show the clean fallback state.
 
-4. Improve the PDF preview fallback inside the modal.
-   - Show the embedded preview when the browser allows it.
-   - If a specific browser blocks embedded viewing, keep a graceful fallback message and actions inside the modal instead of auto-redirecting the user away.
+## Technical details
 
-5. Verify affected entry points.
-   - Database table file cells
-   - Record detail file links
-   - Any rich-text file attachment links that rely on the global file-viewer event/interceptor
-
-### Files involved
-
+Files to update:
+- `src/components/file-viewer/PdfPreview.tsx`
 - `src/components/file-viewer/FileViewerProvider.tsx`
-- Possibly small follow-up adjustments in:
-  - `src/lib/file-upload.ts`
-  - `src/components/DatabaseView.tsx`
-  - `src/components/DatabaseRecordDetail.tsx`
+- Possibly `src/lib/file-upload.ts` if any URL normalization is needed during testing
 
-### Technical details
-
-Current behavior is caused by `shouldOpenNatively()` in `FileViewerProvider.tsx`, which explicitly treats PDFs as native-only:
-
-```ts
-if (m === "application/pdf" || n.endsWith(".pdf")) return true;
-```
-
-That causes both direct `open()` calls and intercepted anchor clicks to run `window.open(...)` immediately. I’ll change that rule so PDFs are handled by the modal viewer again, while still allowing Office formats to bypass the viewer if needed.
-
-Inside the modal, the existing blob-based loading flow already supports:
-- authenticated/storage-backed file download
-- PDF kind detection
-- Download/Open in new tab controls
-
-So the main fix is to restore PDFs to the viewer path and keep browser-specific fallback behavior inside the modal rather than as the default click behavior.
+Key implementation details:
+- Replace:
+  - `pdfjs.GlobalWorkerOptions.workerSrc = https://cdnjs.cloudflare.com/...`
+- With a Vite-bundled worker URL pattern such as:
+  - `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()`
+  - or equivalent asset import supported by the package/version in this repo
+- Update `handleOpenNewTab()` so PDFs use `opts.url` first, while downloads can still use the blob URL.
+- Keep PDF rendering page-by-page with the existing controls: loading state, zoom, page navigation, download, and open-in-new-tab fallback.
