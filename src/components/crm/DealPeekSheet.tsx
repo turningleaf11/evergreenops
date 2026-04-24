@@ -261,6 +261,14 @@ export function DealPeekSheet({
                 </div>
               </div>
 
+              {deal && (
+                <DealCustomFieldsPanel
+                  dealId={deal.id}
+                  values={(deal.custom_fields || {}) as Record<string, unknown>}
+                  onSaved={(v) => setDeal({ ...deal, custom_fields: v })}
+                />
+              )}
+
               {/* Activity */}
               <div className="px-6 py-4">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Activity</div>
