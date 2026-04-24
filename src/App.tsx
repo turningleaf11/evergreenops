@@ -171,6 +171,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </MentionPeekProvider>
+          </FileViewerProvider>
         </BrowserRouter>
       </TooltipProvider>
       </TrainingProgressProvider>
