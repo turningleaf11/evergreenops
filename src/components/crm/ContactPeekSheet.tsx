@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 
 interface Contact {
   id: string;
@@ -22,6 +23,7 @@ interface Contact {
   notes: string;
   company_id: string | null;
   last_contacted_at: string | null;
+  custom_fields: Record<string, unknown>;
   created_at: string;
 }
 
@@ -172,6 +174,12 @@ export function ContactPeekSheet({
                 )}
               </div>
 
+              <CustomFieldsPanel
+                contactId={contact.id}
+                values={(contact.custom_fields || {}) as Record<string, unknown>}
+                onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+              />
+
               {/* Log a note */}
               <div className="px-6 py-4 border-b border-border/50">
                 <div className="flex items-center gap-2 mb-2">
@@ -242,5 +250,50 @@ export function ContactPeekSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function CustomFieldsPanel({
+  contactId,
+  values,
+  onSaved,
+}: {
+  contactId: string;
+  values: Record<string, unknown>;
+  onSaved: (v: Record<string, unknown>) => void;
+}) {
+  const { fields } = useCustomFields("contact");
+  const [draft, setDraft] = useState<Record<string, unknown>>(values);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(values), [contactId]);
+  if (fields.length === 0) return null;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(values);
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("contacts")
+      .update({ custom_fields: draft as any })
+      .eq("id", contactId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(draft);
+  };
+  return (
+    <div className="px-6 py-4 border-b border-border/50">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+        Custom fields
+      </div>
+      <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
+      {dirty && (
+        <div className="flex justify-end mt-2">
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Save
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

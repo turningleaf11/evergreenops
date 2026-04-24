@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 
 interface Deal {
   id: string;
@@ -26,6 +27,7 @@ interface Deal {
   status: string;
   lost_reason: string | null;
   description: string;
+  custom_fields: Record<string, unknown>;
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }
@@ -91,7 +93,7 @@ export function DealPeekSheet({
 
   const saveField = async (patch: Partial<Deal>) => {
     if (!deal) return;
-    const { error } = await supabase.from("deals").update(patch).eq("id", deal.id);
+    const { error } = await supabase.from("deals").update(patch as any).eq("id", deal.id);
     if (error) {
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;
@@ -259,6 +261,14 @@ export function DealPeekSheet({
                 </div>
               </div>
 
+              {deal && (
+                <DealCustomFieldsPanel
+                  dealId={deal.id}
+                  values={(deal.custom_fields || {}) as Record<string, unknown>}
+                  onSaved={(v) => setDeal({ ...deal, custom_fields: v })}
+                />
+              )}
+
               {/* Activity */}
               <div className="px-6 py-4">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Activity</div>
@@ -301,5 +311,50 @@ export function DealPeekSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DealCustomFieldsPanel({
+  dealId,
+  values,
+  onSaved,
+}: {
+  dealId: string;
+  values: Record<string, unknown>;
+  onSaved: (v: Record<string, unknown>) => void;
+}) {
+  const { fields } = useCustomFields("deal");
+  const [draft, setDraft] = useState<Record<string, unknown>>(values);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(values), [dealId]);
+  if (fields.length === 0) return null;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(values);
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("deals")
+      .update({ custom_fields: draft as any } as any)
+      .eq("id", dealId);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(draft);
+  };
+  return (
+    <div className="px-6 py-4 border-b border-border/50">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+        Custom fields
+      </div>
+      <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
+      {dirty && (
+        <div className="flex justify-end mt-2">
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Save
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

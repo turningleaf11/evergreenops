@@ -19,9 +19,10 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
+import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -116,6 +117,12 @@ export default function SettingsPage() {
       items: [
         { value: "users", icon: Users, label: "Users & Roles" },
         { value: "training", icon: GraduationCap, label: "Training" },
+      ],
+    },
+    {
+      label: "CRM",
+      items: [
+        { value: "crm_fields", icon: Briefcase, label: "Custom Fields" },
       ],
     },
     {
@@ -482,6 +489,10 @@ export default function SettingsPage() {
 
         <TabsContent value="home_widgets" className="mt-4">
           <HomeWidgetDefaultsTab />
+        </TabsContent>
+
+        <TabsContent value="crm_fields" className="mt-4">
+          <CrmCustomFieldsSettings />
         </TabsContent>
         </div>
       </Tabs>

@@ -1,13 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, FileText, ListTodo, FolderKanban, User, Megaphone, X } from "lucide-react";
+import {
+  Search,
+  FileText,
+  ListTodo,
+  FolderKanban,
+  User,
+  Megaphone,
+  X,
+  UserSquare2,
+  Briefcase,
+  Building2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "project" | "document" | "profile" | "announcement";
+  subtitle?: string;
+  type:
+    | "task"
+    | "project"
+    | "document"
+    | "profile"
+    | "announcement"
+    | "contact"
+    | "deal"
+    | "company";
 }
 
 const typeConfig = {
@@ -16,6 +36,9 @@ const typeConfig = {
   document: { icon: FileText, label: "Documents", path: () => `/docs` },
   profile: { icon: User, label: "People", path: () => `/people` },
   announcement: { icon: Megaphone, label: "Announcements", path: () => `/feed` },
+  contact: { icon: UserSquare2, label: "Contacts", path: () => `/crm/contacts` },
+  deal: { icon: Briefcase, label: "Deals", path: () => `/crm/deals` },
+  company: { icon: Building2, label: "Companies", path: () => `/crm/companies` },
 };
 
 export function GlobalSearch() {
@@ -31,12 +54,15 @@ export function GlobalSearch() {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
     setLoading(true);
     const pattern = `%${q}%`;
-    const [tasks, projects, docs, profiles, announcements] = await Promise.all([
+    const [tasks, projects, docs, profiles, announcements, contacts, deals, companies] = await Promise.all([
       supabase.from("tasks").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("projects").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("documents").select("id, title").ilike("title", pattern).limit(5),
       supabase.from("profiles").select("user_id, full_name").ilike("full_name", pattern).limit(5),
       supabase.from("announcements").select("id, title").ilike("title", pattern).limit(5),
+      supabase.from("contacts").select("id, first_name, last_name, email").or(`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern}`).limit(5),
+      supabase.from("deals").select("id, title, status").ilike("title", pattern).limit(5),
+      supabase.from("companies").select("id, name, industry").ilike("name", pattern).limit(5),
     ]);
     const r: SearchResult[] = [
       ...(tasks.data || []).map((t) => ({ id: t.id, title: t.title, type: "task" as const })),
@@ -44,6 +70,9 @@ export function GlobalSearch() {
       ...(docs.data || []).map((d) => ({ id: d.id, title: d.title, type: "document" as const })),
       ...(profiles.data || []).map((p) => ({ id: p.user_id, title: p.full_name || "Unnamed", type: "profile" as const })),
       ...(announcements.data || []).map((a) => ({ id: a.id, title: a.title, type: "announcement" as const })),
+      ...(contacts.data || []).map((c: any) => ({ id: c.id, title: `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Contact", subtitle: c.email || undefined, type: "contact" as const })),
+      ...(deals.data || []).map((d: any) => ({ id: d.id, title: d.title, subtitle: d.status, type: "deal" as const })),
+      ...(companies.data || []).map((c: any) => ({ id: c.id, title: c.name, subtitle: c.industry || undefined, type: "company" as const })),
     ];
     setResults(r);
     setOpen(r.length > 0);
@@ -106,12 +135,17 @@ export function GlobalSearch() {
                 </div>
                 {items.map((r) => (
                   <button
-                    key={r.id}
+                    key={`${r.type}-${r.id}`}
                     onClick={() => handleSelect(r)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left"
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-                    <span className="truncate">{r.title}</span>
+                    <span className="truncate flex-1">{r.title}</span>
+                    {r.subtitle && (
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[40%]">
+                        {r.subtitle}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

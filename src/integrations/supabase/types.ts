@@ -672,6 +672,7 @@ export type Database = {
           address: Json
           created_at: string
           created_by: string | null
+          custom_fields: Json
           domain: string | null
           id: string
           industry: string | null
@@ -688,6 +689,7 @@ export type Database = {
           address?: Json
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json
           domain?: string | null
           id?: string
           industry?: string | null
@@ -704,6 +706,7 @@ export type Database = {
           address?: Json
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json
           domain?: string | null
           id?: string
           industry?: string | null
@@ -724,6 +727,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          custom_fields: Json
           department_id: string | null
           email: string | null
           first_name: string
@@ -746,6 +750,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json
           department_id?: string | null
           email?: string | null
           first_name?: string
@@ -768,6 +773,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json
           department_id?: string | null
           email?: string | null
           first_name?: string
@@ -949,6 +955,59 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: []
+      }
+      crm_custom_fields: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entity_type: string
+          field_key: string
+          field_type: string
+          id: string
+          label: string
+          options: Json
+          required: boolean
+          sort_order: number
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entity_type: string
+          field_key: string
+          field_type: string
+          id?: string
+          label: string
+          options?: Json
+          required?: boolean
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string
+          field_key?: string
+          field_type?: string
+          id?: string
+          label?: string
+          options?: Json
+          required?: boolean
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_custom_fields_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_briefings: {
         Row: {
@@ -1337,6 +1396,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          custom_fields: Json
           department_id: string | null
           description: string
           expected_close_date: string | null
@@ -1359,6 +1419,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          custom_fields?: Json
           department_id?: string | null
           description?: string
           expected_close_date?: string | null
@@ -1381,6 +1442,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          custom_fields?: Json
           department_id?: string | null
           description?: string
           expected_close_date?: string | null

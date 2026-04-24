@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Plus, X, Check } from "lucide-react";
+import { Link2, Loader2, Plus, X, Check, UserPlus, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { QuickCreateDialog } from "@/components/crm/QuickCreateDialog";
 
 interface Suggestion {
   entity_type: "contact" | "deal";
@@ -58,6 +59,23 @@ export function LinkToCrm({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTab, setCreateTab] = useState<"contact" | "deal">("contact");
+
+  // Derive a sensible prefill from the first non-self participant email.
+  const primaryParticipant = useMemo(() => {
+    const e = participantEmails.find((x) => !!x);
+    if (!e) return undefined;
+    // try to derive name from the address (e.g. "first.last@..." → "First Last")
+    const local = e.split("@")[0];
+    const parts = local.split(/[._-]/).filter(Boolean);
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    return {
+      email: e,
+      firstName: parts[0] ? cap(parts[0]) : "",
+      lastName: parts.slice(1).map(cap).join(" "),
+    };
+  }, [participantEmails]);
 
   const linkedKeys = useMemo(
     () => new Set(existing.map((l) => `${l.entity_type}:${l.entity_id}`)),
@@ -317,9 +335,48 @@ export function LinkToCrm({
                 <div className="text-xs text-muted-foreground py-2 text-center">No matches</div>
               )}
             </div>
+
+            {/* Quick create */}
+            <div className="border-t border-border/40 px-3 py-2 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 gap-1"
+                onClick={() => {
+                  setCreateTab("contact");
+                  setCreateOpen(true);
+                }}
+              >
+                <UserPlus className="h-3.5 w-3.5" /> New contact
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 gap-1"
+                onClick={() => {
+                  setCreateTab("deal");
+                  setCreateOpen(true);
+                }}
+              >
+                <Briefcase className="h-3.5 w-3.5" /> New deal
+              </Button>
+            </div>
           </>
         )}
       </PopoverContent>
+
+      <QuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        workspaceId={workspaceId}
+        userId={user?.id ?? null}
+        initialTab={createTab}
+        prefill={primaryParticipant}
+        onCreated={async ({ type, id }) => {
+          // Auto-link the newly created record to this thread
+          await link(type, id);
+        }}
+      />
     </Popover>
   );
 }
