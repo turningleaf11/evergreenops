@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { LinkToCrm } from "./LinkToCrm";
+import { useAuth } from "@/contexts/AuthContext";
+
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+function extractEmails(headerVal: string | undefined): string[] {
+  if (!headerVal) return [];
+  return Array.from(headerVal.matchAll(EMAIL_RE)).map((m) => m[0].toLowerCase());
+}
 
 interface ThreadMessage {
   id: string;
