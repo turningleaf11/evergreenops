@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Copy, Trash2, RefreshCw, Plus, Send, Key, Webhook, Settings as SettingsIcon, AlertTriangle } from "lucide-react";
+import { Copy, Trash2, RefreshCw, Plus, Send, Key, Webhook, Settings as SettingsIcon, AlertTriangle, FileText, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import FormsTabPanel from "@/components/databases/FormsTabPanel";
+import ImportExportTabPanel from "@/components/databases/ImportExportTabPanel";
 
 type DB = {
   id: string;
@@ -28,6 +30,8 @@ interface Props {
   workspaceId: string;
   onSavedMeta: (patch: { title?: string; description?: string }) => void;
   onDeleted: () => void;
+  onImported?: () => void;
+  dispatchWebhook?: (event: string, row: any) => void;
 }
 
 const FUNCTIONS_BASE = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1`;
@@ -48,7 +52,7 @@ function copy(text: string, label = "Copied") {
   toast({ title: label });
 }
 
-export default function DatabaseSettingsSheet({ open, onOpenChange, database, workspaceId, onSavedMeta, onDeleted }: Props) {
+export default function DatabaseSettingsSheet({ open, onOpenChange, database, workspaceId, onSavedMeta, onDeleted, onImported, dispatchWebhook }: Props) {
   const [tab, setTab] = useState("general");
 
   // General
@@ -186,6 +190,8 @@ export default function DatabaseSettingsSheet({ open, onOpenChange, database, wo
         <Tabs value={tab} onValueChange={setTab} className="mt-4">
           <TabsList className="w-full">
             <TabsTrigger value="general" className="flex-1 text-xs">General</TabsTrigger>
+            <TabsTrigger value="forms" className="flex-1 text-xs">Forms</TabsTrigger>
+            <TabsTrigger value="data" className="flex-1 text-xs">Import/Export</TabsTrigger>
             <TabsTrigger value="api" className="flex-1 text-xs">API</TabsTrigger>
             <TabsTrigger value="webhooks" className="flex-1 text-xs">Webhooks</TabsTrigger>
           </TabsList>
