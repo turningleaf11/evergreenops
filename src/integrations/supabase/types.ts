@@ -4238,6 +4238,16 @@ export type Database = {
     }
     Functions: {
       can_use_gmail: { Args: { _user_id: string }; Returns: boolean }
+      crm_suggest_links_for_emails: {
+        Args: { _emails: string[] }
+        Returns: {
+          display_name: string
+          entity_id: string
+          entity_type: string
+          matched_email: string
+          secondary: string
+        }[]
+      }
       get_user_workspace_id: { Args: never; Returns: string }
       has_role: {
         Args: {
