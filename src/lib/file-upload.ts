@@ -28,12 +28,21 @@ export async function uploadFile(file: File): Promise<string | null> {
 export function getStoragePathFromUrl(url: string, bucket = FILES_BUCKET): string | null {
   try {
     const parsed = new URL(url);
-    const marker = `/storage/v1/object/public/${bucket}/`;
-    const start = parsed.pathname.indexOf(marker);
+    const markers = [
+      `/storage/v1/object/public/${bucket}/`,
+      `/storage/v1/object/sign/${bucket}/`,
+      `/storage/v1/object/authenticated/${bucket}/`,
+      `/storage/v1/render/image/public/${bucket}/`,
+    ];
 
-    if (start === -1) return null;
+    for (const marker of markers) {
+      const start = parsed.pathname.indexOf(marker);
+      if (start !== -1) {
+        return decodeURIComponent(parsed.pathname.slice(start + marker.length));
+      }
+    }
 
-    return decodeURIComponent(parsed.pathname.slice(start + marker.length));
+    return null;
   } catch {
     return null;
   }
