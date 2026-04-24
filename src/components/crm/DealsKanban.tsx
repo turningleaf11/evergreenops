@@ -98,6 +98,37 @@ export function DealsKanban({ search }: { search: string }) {
     return map;
   }, [deals, stages, search]);
 
+  const stageMap = useMemo(() => {
+    const m = new Map<string, Stage>();
+    stages.forEach((s) => m.set(s.id, s));
+    return m;
+  }, [stages]);
+
+  const filteredSortedDeals = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = q ? deals.filter((d) => d.title.toLowerCase().includes(q)) : [...deals];
+    const dir = sortDir === "asc" ? 1 : -1;
+    list.sort((a, b) => {
+      let av: any; let bv: any;
+      switch (sortBy) {
+        case "value": av = Number(a.value || 0); bv = Number(b.value || 0); break;
+        case "title": av = a.title.toLowerCase(); bv = b.title.toLowerCase(); break;
+        case "close": av = a.expected_close_date || ""; bv = b.expected_close_date || ""; break;
+        case "stage": av = stageMap.get(a.stage_id)?.sort_order ?? 0; bv = stageMap.get(b.stage_id)?.sort_order ?? 0; break;
+        default: av = a.id; bv = b.id;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return list;
+  }, [deals, search, sortBy, sortDir, stageMap]);
+
+  const toggleSort = (key: typeof sortBy) => {
+    if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortBy(key); setSortDir(key === "value" || key === "close" ? "desc" : "asc"); }
+  };
+
   const totals = useMemo(() => {
     const open = deals.filter((d) => d.status === "open");
     const total = open.reduce((sum, d) => sum + Number(d.value || 0), 0);
