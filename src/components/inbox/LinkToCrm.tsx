@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Plus, X, Check, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Link2, Loader2, Plus, X, Check, UserPlus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -51,11 +52,13 @@ export function LinkToCrm({
   snippet,
   workspaceId,
 }: Props) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [existing, setExisting] = useState<ExistingLink[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -92,8 +95,32 @@ export function LinkToCrm({
         ? supabase.rpc("crm_suggest_links_for_emails", { _emails: participantEmails })
         : Promise.resolve({ data: [] as Suggestion[] } as any),
     ]);
-    setExisting((links as ExistingLink[]) || []);
+    const linkRows = (links as ExistingLink[]) || [];
+    setExisting(linkRows);
     setSuggestions(((sugg as Suggestion[]) || []).filter(Boolean));
+
+    // Resolve display names for linked records
+    const contactIds = linkRows.filter((l) => l.entity_type === "contact").map((l) => l.entity_id);
+    const dealIds = linkRows.filter((l) => l.entity_type === "deal").map((l) => l.entity_id);
+    const companyIds = linkRows.filter((l) => l.entity_type === "company").map((l) => l.entity_id);
+    const [contactsRes, dealsRes, companiesRes] = await Promise.all([
+      contactIds.length
+        ? supabase.from("contacts").select("id,first_name,last_name,email").in("id", contactIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+      dealIds.length
+        ? supabase.from("deals").select("id,title").in("id", dealIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+      companyIds.length
+        ? supabase.from("companies").select("id,name").in("id", companyIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+    ]);
+    const map: Record<string, string> = {};
+    (contactsRes.data || []).forEach((c: any) => {
+      map[`contact:${c.id}`] = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Contact";
+    });
+    (dealsRes.data || []).forEach((d: any) => { map[`deal:${d.id}`] = d.title || "Deal"; });
+    (companiesRes.data || []).forEach((c: any) => { map[`company:${c.id}`] = c.name || "Company"; });
+    setNames(map);
     setLoading(false);
   };
 
@@ -203,34 +230,55 @@ export function LinkToCrm({
         {existing.length > 0 && (
           <div className="px-3 py-2 border-b border-border/40 space-y-1.5">
             <div className="text-[10px] uppercase text-muted-foreground">Linked records</div>
-            {existing.map((l) => (
-              <div
-                key={l.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-sm"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {l.entity_type}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {l.entity_id.slice(0, 8)}…
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => unlink(l.id)}
-                  disabled={busyId === l.id}
+            {existing.map((l) => {
+              const key = `${l.entity_type}:${l.entity_id}`;
+              const displayName = names[key] || `${l.entity_id.slice(0, 8)}…`;
+              const canOpen = l.entity_type === "contact" || l.entity_type === "deal";
+              const openHref =
+                l.entity_type === "contact"
+                  ? `/crm/contacts?contact=${l.entity_id}`
+                  : l.entity_type === "deal"
+                    ? `/crm/deals?deal=${l.entity_id}`
+                    : null;
+              return (
+                <div
+                  key={l.id}
+                  className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-sm"
                 >
-                  {busyId === l.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <X className="h-3 w-3" />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Badge variant="outline" className="text-[10px] capitalize shrink-0">
+                      {l.entity_type}
+                    </Badge>
+                    <span className="text-xs font-medium truncate">{displayName}</span>
+                  </div>
+                  {canOpen && openHref && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      title={`Open ${l.entity_type}`}
+                      onClick={() => { setOpen(false); navigate(openHref); }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
                   )}
-                </Button>
-              </div>
-            ))}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Unlink"
+                    onClick={() => unlink(l.id)}
+                    disabled={busyId === l.id}
+                  >
+                    {busyId === l.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
 
