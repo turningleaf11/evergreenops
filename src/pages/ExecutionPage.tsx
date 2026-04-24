@@ -205,6 +205,7 @@ export default function ExecutionPage() {
   // View states for projects and tasks tabs
   const pv = useViewState("projects");
   const tv = useViewState("tasks");
+  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "due_date" | "priority" | "project">("none");
 
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i] = await Promise.all([
