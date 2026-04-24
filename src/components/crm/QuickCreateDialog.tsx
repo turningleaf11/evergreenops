@@ -118,7 +118,7 @@ export function QuickCreateDialog({
         const { data, error } = await supabase
           .from("contacts")
           .insert({
-            workspace_id: workspaceId,
+            workspace_id: workspaceId ?? undefined,
             first_name: first.trim(),
             last_name: last.trim(),
             email: email.trim() || null,
@@ -126,8 +126,8 @@ export function QuickCreateDialog({
             title: title.trim() || null,
             created_by: userId,
             owner_id: userId,
-            custom_fields: contactCustom,
-          })
+            custom_fields: contactCustom as any,
+          } as any)
           .select("id")
           .single();
         if (error) throw error;
