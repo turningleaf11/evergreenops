@@ -322,11 +322,23 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         isFirstMessage = true;
       }
 
-      // Persist user message
+      // Assemble full strategy context (vision, rocks, scorecard, memory, etc.)
+      let strategyContext: AssembledStrategyContext | null = null;
+      try {
+        strategyContext = await assembleStrategyContext({
+          userName: profile?.full_name || user.email || "the CEO",
+          workspaceId: profile?.workspace_id ?? null,
+        });
+      } catch (ctxErr) {
+        console.error("Strategy context assembly failed:", ctxErr);
+      }
+
+      // Persist user message with context snapshot
       await supabase.from("ai_strategy_messages").insert({
         thread_id: threadId,
         role: "user",
         content: userText,
+        context_snapshot: strategyContext as any,
       });
 
       // Build last-10 history for AI memory
@@ -347,6 +359,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       await streamChat({
         messages: history,
         ceoContext: { ...data, currentPage: location.pathname },
+        strategyContext,
       }, upsertAssistant);
 
       // Persist assistant response + bump thread timestamp
