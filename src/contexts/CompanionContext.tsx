@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useCEOContext } from "@/lib/ceo-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { assembleStrategyContext, type AssembledStrategyContext } from "@/lib/strategy-context";
 import { toast } from "sonner";
 
 interface Message {
