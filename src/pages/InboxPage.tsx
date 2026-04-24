@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ComposePanel } from "@/components/inbox/ComposePanel";
 import { ThreadDetail } from "@/components/inbox/ThreadDetail";
 import { LabelManager, type EmailLabel } from "@/components/inbox/LabelManager";
+import { getSystemLabelMeta, SYSTEM_GROUP_LABELS, type SystemLabelGroup } from "@/components/inbox/gmailSystemLabels";
 
 interface ThreadSummary {
   id: string;
