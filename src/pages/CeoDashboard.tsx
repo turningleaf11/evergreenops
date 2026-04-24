@@ -222,7 +222,7 @@ export default function CeoDashboard() {
         </div>
 
         {/* 4-Tab cockpit */}
-        <Tabs defaultValue="today" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start mb-6 bg-transparent">
             <TabsTrigger value="today">Today</TabsTrigger>
             {isPrimaryAdmin && <TabsTrigger value="thisweek">This Week</TabsTrigger>}
@@ -253,13 +253,57 @@ export default function CeoDashboard() {
             </TabsContent>
           )}
 
-          {/* Big Picture Tab — placeholder */}
-          <TabsContent value="bigpicture">
-            <div className="rounded-2xl border border-border/50 bg-card/80 p-16 elevation-1 text-center">
-              <p className="text-sm text-muted-foreground italic">
-                Your strategy, vision, and big ideas live here.
-              </p>
-            </div>
+          {/* Big Picture Tab */}
+          <TabsContent value="bigpicture" className="space-y-10">
+            {/* Section 1 — Vision */}
+            <section
+              ref={visionSectionRef}
+              className={`rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1 transition-all duration-500 ${
+                visionHighlight ? "ring-2 ring-primary/60 elevation-3" : ""
+              }`}
+            >
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  Vision &amp; Long-Term Targets
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  The foundation everything else is built on.
+                </p>
+              </div>
+              <VisionAccordion
+                visionSections={visionSections}
+                visionEditing={visionEditing}
+                visionEditText={visionEditText}
+                setVisionEditText={setVisionEditText}
+                startVisionEdit={startVisionEdit}
+                saveVisionEdit={saveVisionEdit}
+                currentQuarterGoals={currentQuarterGoals}
+                isAdmin={isPrimaryAdmin}
+              />
+            </section>
+
+            {/* Section 2 — Strategy */}
+            <section className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-foreground">Strategy Items</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Active strategic priorities cascading to your teams.
+                </p>
+              </div>
+              <StrategyItemCreator />
+            </section>
+
+            {/* Section 3 — Idea Vault */}
+            <section className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-foreground">Idea Vault</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Raw thinking captured from Brain Dump. Promote when ready.
+                </p>
+              </div>
+              <IdeaVault />
+            </section>
           </TabsContent>
 
           {/* Delegation Tab */}
