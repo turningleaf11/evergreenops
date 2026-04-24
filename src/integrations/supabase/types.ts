@@ -1729,6 +1729,104 @@ export type Database = {
           },
         ]
       }
+      leadership_meeting_action_items: {
+        Row: {
+          agenda_item_id: string | null
+          assigned_to: string
+          converted_to_task_id: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          meeting_id: string
+          title: string
+        }
+        Insert: {
+          agenda_item_id?: string | null
+          assigned_to: string
+          converted_to_task_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          title: string
+        }
+        Update: {
+          agenda_item_id?: string | null
+          assigned_to?: string
+          converted_to_task_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadership_meeting_action_items_agenda_item_id_fkey"
+            columns: ["agenda_item_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_agenda_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leadership_meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "leadership_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leadership_meetings: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_date: string
+          meeting_week: string
+          overall_notes: string | null
+          rating: number | null
+          started_at: string | null
+          status: string
+          workspace_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_week?: string
+          overall_notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_week?: string
+          overall_notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadership_meetings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_research: {
         Row: {
           ai_analysis: Json | null
@@ -1879,6 +1977,62 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_agenda_items: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          description: string | null
+          discussion_notes: string | null
+          id: string
+          item_type: string
+          meeting_id: string
+          reference_id: string | null
+          reference_type: string | null
+          section: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          description?: string | null
+          discussion_notes?: string | null
+          id?: string
+          item_type?: string
+          meeting_id: string
+          reference_id?: string | null
+          reference_type?: string | null
+          section: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          description?: string | null
+          discussion_notes?: string | null
+          id?: string
+          item_type?: string
+          meeting_id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          section?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_agenda_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "leadership_meetings"
             referencedColumns: ["id"]
           },
         ]
