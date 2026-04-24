@@ -206,20 +206,34 @@ export function ContactPeekSheet({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {activities.map((a) => (
-                      <div key={a.id} className="rounded-lg border border-border/40 bg-card p-3 text-sm">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground capitalize">
-                            {a.type}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}
-                          </span>
+                    {activities.map((a) => {
+                      const threadId = (a.metadata as any)?.gmail_thread_id as string | undefined;
+                      const isEmail = a.type === "email" && threadId;
+                      return (
+                        <div key={a.id} className="rounded-lg border border-border/40 bg-card p-3 text-sm">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground capitalize">
+                              {a.type}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {isEmail && (
+                                <Link
+                                  to={`/inbox?thread=${threadId}`}
+                                  className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5"
+                                >
+                                  Open <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              )}
+                              <span className="text-[11px] text-muted-foreground">
+                                {formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                          </div>
+                          {a.subject && <div className="font-medium mb-0.5">{a.subject}</div>}
+                          {a.body && <p className="whitespace-pre-wrap text-muted-foreground">{a.body}</p>}
                         </div>
-                        {a.subject && <div className="font-medium mb-0.5">{a.subject}</div>}
-                        {a.body && <p className="whitespace-pre-wrap text-muted-foreground">{a.body}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
