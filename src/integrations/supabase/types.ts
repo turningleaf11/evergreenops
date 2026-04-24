@@ -840,6 +840,50 @@ export type Database = {
         }
         Relationships: []
       }
+      database_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          database_id: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          revoked_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          database_id: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label?: string
+          revoked_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          database_id?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          revoked_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "database_api_keys_database_id_fkey"
+            columns: ["database_id"]
+            isOneToOne: false
+            referencedRelation: "databases_meta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       database_rows: {
         Row: {
           created_at: string
@@ -912,6 +956,100 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "database_views_database_id_fkey"
+            columns: ["database_id"]
+            isOneToOne: false
+            referencedRelation: "databases_meta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      database_webhook_deliveries: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          payload: Json | null
+          response_excerpt: string | null
+          status_code: number | null
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          payload?: Json | null
+          response_excerpt?: string | null
+          status_code?: number | null
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          payload?: Json | null
+          response_excerpt?: string | null
+          status_code?: number | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "database_webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "database_webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      database_webhooks: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          database_id: string
+          direction: string
+          events: string[]
+          id: string
+          label: string
+          last_delivered_at: string | null
+          last_status: number | null
+          secret: string
+          url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          database_id: string
+          direction: string
+          events?: string[]
+          id?: string
+          label?: string
+          last_delivered_at?: string | null
+          last_status?: number | null
+          secret: string
+          url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          database_id?: string
+          direction?: string
+          events?: string[]
+          id?: string
+          label?: string
+          last_delivered_at?: string | null
+          last_status?: number | null
+          secret?: string
+          url?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "database_webhooks_database_id_fkey"
             columns: ["database_id"]
             isOneToOne: false
             referencedRelation: "databases_meta"
