@@ -126,7 +126,6 @@ export default function SettingsPage() {
     },
   ];
 
-  const [activeSection, setActiveSection] = useState("workspace");
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
