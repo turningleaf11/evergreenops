@@ -1,30 +1,98 @@
-## Plan
+## Per-list forms + CSV import/export
 
-1. Fix the list record slideout so it stays open during normal interaction.
-   - Update the list record detail sheet so opening the record does not immediately focus a title input that auto-saves on blur.
-   - Separate “editing the title” from “saving and closing the record” so a click inside the sheet no longer triggers an unintended close.
-   - Keep outside-click protection for popovers/menus, but preserve normal sheet behavior when the user intentionally closes it.
+Add two capabilities to every list (database):
 
-2. Add a clear, minimal “open record” affordance anywhere a table row can also be edited inline.
-   - Add a subtle icon-only open control for list table rows, list card/list rows, execution task tables, and execution project tables.
-   - Make that control explicitly open the full record while title cells continue to behave as inline-edit fields.
-   - Stop event propagation on the new control so it never conflicts with inline inputs, selects, assignee pickers, or row-level actions.
+1. **Forms** — generate a fillable form for any list. Each form can be **Public** (shareable link, no login) or **Internal** (workspace members only). Submissions create new rows in the list.
+2. **CSV import/export** — bulk export all rows to CSV, and bulk import rows from a CSV file with column mapping.
 
-3. Keep the interaction model consistent with existing peek rules.
-   - List/database rows continue to open in the side sheet.
-   - Tasks continue to open in the task side sheet.
-   - Projects continue to open their full page.
-   - Use the same minimal visual language across these surfaces so users can quickly recognize the “open” action.
+Both live inside the existing **List Settings** sheet (gear icon, admins only).
 
-## Files to update
-- `src/components/DatabaseRecordDetail.tsx`
-- `src/pages/DatabasesPage.tsx`
-- `src/components/DatabaseView.tsx`
-- `src/components/execution/DataTableView.tsx`
-- `src/components/execution/TableView.tsx`
+---
 
-## Technical details
-- Root cause of the disappearing list sheet: the record title is currently rendered as a live input in the sheet header, and its `onBlur` calls the page save handler, which then closes the sheet. The first click elsewhere inside the sheet causes that blur, so the sheet appears to dismiss itself.
-- The fix will make title editing intentional instead of auto-closing on blur, and only close on explicit close actions or after actions that should actually dismiss the sheet.
-- No backend or database changes are needed.
-- UI treatment will stay minimal: an icon-only open control with low visual weight, placed where it is discoverable but does not compete with inline editing.
+### 1. Forms
+
+**New table: `database_forms`**
+- `id`, `database_id`, `workspace_id`
+- `slug` (short unique URL token, e.g. `f_aB3kZ9...`)
+- `title`, `description`
+- `visibility`: `public` | `internal`
+- `fields` (jsonb) — list of `{ column_id, label, required, help_text }` so admins choose which columns appear and in what order
+- `submit_message` (thank-you text)
+- `is_active`, `created_by`, `created_at`, `updated_at`
+
+RLS:
+- Admins manage forms in their workspace.
+- Authenticated users can SELECT active forms in their workspace (for internal forms).
+- Public forms are fetched/submitted via an edge function with the service role, so no anon RLS needed.
+
+**New edge function: `list-form` (public, no JWT)**
+- `GET /list-form/{slug}` → returns form metadata + the list's column types so the renderer can build inputs. 404 if not active or not public.
+- `POST /list-form/{slug}` → validates payload against the form fields, inserts a new row into `database_rows`, fires the existing `list-webhook-dispatch` for `row.created`. Returns `{ ok: true }`.
+
+**Internal form submission**: handled client-side via the normal `database_rows` insert (already permitted by RLS for authenticated users). No edge function needed for internal forms.
+
+**UI changes**
+
+- `DatabaseSettingsSheet.tsx` — add a new **Forms** tab between API and Webhooks:
+  - List existing forms with status pill (Public / Internal), copy-link button, edit, delete.
+  - "New form" button opens an inline editor:
+    - Title, description, visibility toggle (Public / Internal)
+    - Field picker: checkbox list of the list's columns; for each selected column choose label override + required toggle; drag to reorder
+    - Submit message
+  - Public forms show a copy-link to `https://<app>/f/{slug}` and the raw edge-function URL.
+  - Internal forms show a copy-link to `https://<app>/forms/internal/{slug}`.
+
+- New page `src/pages/PublicFormPage.tsx` (route `/f/:slug`)
+  - No auth required. Renders the form by calling `list-form` GET, submits via POST. Shows submit_message on success. Brand-styled, minimal.
+
+- New page `src/pages/InternalFormPage.tsx` (route `/forms/list/:slug`)
+  - Auth-required. Fetches form via Supabase client, inserts row directly.
+
+- Add the two routes in `src/App.tsx` (the public one outside the auth gate).
+
+---
+
+### 2. CSV import / export
+
+Pure client-side, no backend changes. Use a tiny CSV helper (≈40 lines of code in `src/lib/csv.ts`) — no new dependency. Quotes/commas/newlines handled.
+
+**UI changes**
+
+- `DatabaseSettingsSheet.tsx` — add an **Import / Export** tab:
+  - **Export**: button "Download CSV". Builds CSV from current `database_rows` for this list using the list's column definitions; columns become headers; values stringified by type (dates ISO, multi-select joined with `;`, etc.). File saved as `{list-title}-{YYYY-MM-DD}.csv`.
+  - **Import**: file picker (`accept=".csv"`), parses headers, shows a **column mapping** table (CSV column → list column, with auto-match by name and "skip" option). Preview first 3 rows. "Import N rows" button inserts in batches of 100 via `supabase.from("database_rows").insert(...)`. Toast with success/error counts. Each insert fires existing `row.created` webhook dispatch.
+
+- Optional convenience: also surface a small **Export CSV** menu item directly in the list header dropdown next to Settings (not just in Settings) since export is a frequent one-click action.
+
+---
+
+### Permissions summary
+
+| Action | Who |
+|---|---|
+| Create / edit / delete forms | Admins |
+| Submit public form | Anyone with link |
+| Submit internal form | Any workspace member |
+| Export CSV | Any workspace member (read access already exists) |
+| Import CSV | Admins only (matches destructive bulk write pattern) |
+
+---
+
+### Files to create
+
+- `supabase/migrations/<timestamp>_add_database_forms.sql`
+- `supabase/functions/list-form/index.ts`
+- `src/lib/csv.ts`
+- `src/pages/PublicFormPage.tsx`
+- `src/pages/InternalFormPage.tsx`
+- `src/components/databases/FormsTabPanel.tsx` (extracted for clarity)
+- `src/components/databases/ImportExportTabPanel.tsx`
+
+### Files to edit
+
+- `src/components/databases/DatabaseSettingsSheet.tsx` — add Forms + Import/Export tabs
+- `src/App.tsx` — register `/f/:slug` (public) and `/forms/list/:slug` (internal) routes
+- `src/pages/DatabasesPage.tsx` — optional one-click Export CSV in list header menu
+- `supabase/config.toml` — register `list-form` function with `verify_jwt = false`
+
+No changes to existing tables. Existing webhook dispatch is reused so any form/import-created rows trigger outbound webhooks automatically.

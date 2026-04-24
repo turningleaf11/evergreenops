@@ -884,6 +884,54 @@ export type Database = {
           },
         ]
       }
+      database_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          database_id: string
+          description: string
+          fields: Json
+          id: string
+          is_active: boolean
+          slug: string
+          submit_message: string
+          title: string
+          updated_at: string
+          visibility: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          database_id: string
+          description?: string
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          slug: string
+          submit_message?: string
+          title?: string
+          updated_at?: string
+          visibility?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          database_id?: string
+          description?: string
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          slug?: string
+          submit_message?: string
+          title?: string
+          updated_at?: string
+          visibility?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       database_rows: {
         Row: {
           created_at: string
