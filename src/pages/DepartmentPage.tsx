@@ -671,7 +671,14 @@ export default function DepartmentPage() {
               ))}
             </div>
           ) : (
-            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No team members assigned yet</CardContent></Card>
+            <EmptyState
+              icon={Users}
+              title="No team members yet"
+              description="Assign people to this department from the People page so they show up here with the projects they own."
+              actionLabel="Go to People"
+              actionIcon={Users}
+              onAction={() => navigate("/people")}
+            />
           )}
         </TabsContent>
 

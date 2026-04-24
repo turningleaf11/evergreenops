@@ -312,10 +312,14 @@ export function IdeaVault() {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-sm text-muted-foreground">
-          <Lightbulb className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-          No ideas yet. Dump something in Brain Dump and let AI triage surface it here.
-        </div>
+        <EmptyState
+          icon={Lightbulb}
+          title="No ideas yet"
+          description="Dump something into Brain Dump and let AI triage surface it here, or capture an idea directly."
+          actionLabel="Capture Idea"
+          actionIcon={Plus}
+          onAction={() => setCaptureOpen(true)}
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map(idea => {

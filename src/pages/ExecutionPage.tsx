@@ -580,10 +580,20 @@ export default function ExecutionPage() {
             });
 
             if (filtered.length === 0) {
+              const isFiltered = goalQuarter !== "all" || goalYear !== "all" || goalDept !== "all";
               return (
-                <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
-                  No goals match these filters. Create your first goal to set direction.
-                </CardContent></Card>
+                <EmptyState
+                  icon={Target}
+                  title={isFiltered ? "No goals match these filters" : "No goals yet"}
+                  description={
+                    isFiltered
+                      ? "Try adjusting the quarter, year, or department filter — or set a new rock for this period."
+                      : "Goals are your quarterly rocks — the few outcomes that matter most. Set the direction the team rallies behind."
+                  }
+                  actionLabel="New Goal"
+                  actionIcon={Plus}
+                  onAction={() => setCreateGoalOpen(true)}
+                />
               );
             }
 

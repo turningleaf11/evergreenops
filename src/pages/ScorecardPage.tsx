@@ -347,7 +347,14 @@ export default function ScorecardPage() {
           {loading ? (
             <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
           ) : trendMetrics.length === 0 ? (
-            <Card className="p-12 text-center text-sm text-muted-foreground">No metrics to display.</Card>
+            <EmptyState
+              icon={LineChart}
+              title="No metrics to display"
+              description="Add a scorecard metric to start tracking weekly performance trends."
+              actionLabel="Add Metric"
+              actionIcon={Plus}
+              onAction={() => setCreateOpen(true)}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {trendMetrics.map(m => {
