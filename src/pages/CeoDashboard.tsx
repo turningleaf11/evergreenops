@@ -225,24 +225,17 @@ export default function CeoDashboard() {
           )}
         </div>
 
-        {/* 3-Tab cockpit */}
-        <Tabs defaultValue="braindump" className="w-full">
+        {/* 4-Tab cockpit */}
+        <Tabs defaultValue="today" className="w-full">
           <TabsList className="w-full justify-start mb-6 bg-transparent">
-            <TabsTrigger value="braindump">Brain Dump</TabsTrigger>
-            {isPrimaryAdmin && <TabsTrigger value="ideas">Idea Vault</TabsTrigger>}
+            <TabsTrigger value="today">Today</TabsTrigger>
             {isPrimaryAdmin && <TabsTrigger value="thisweek">This Week</TabsTrigger>}
-            <TabsTrigger value="command">Command</TabsTrigger>
+            <TabsTrigger value="bigpicture">Big Picture</TabsTrigger>
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
 
-          {isPrimaryAdmin && (
-            <TabsContent value="thisweek">
-              <ThisWeekTab />
-            </TabsContent>
-          )}
-
-          {/* Brain Dump Tab */}
-          <TabsContent value="braindump" className="space-y-6">
+          {/* Today Tab (formerly Brain Dump) */}
+          <TabsContent value="today" className="space-y-6">
             <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
               <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
             </div>
@@ -257,59 +250,21 @@ export default function CeoDashboard() {
             )}
           </TabsContent>
 
-          {/* Command Tab */}
-          <TabsContent value="command" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h2 className="text-xs font-medium text-muted-foreground mb-4">CEO Briefing</h2>
-                <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-                  <CeoBriefing />
-                </div>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xs font-medium text-muted-foreground mb-4">Top Priorities</h2>
-                  <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-                    <TopPriorities />
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-                  <MorningReset />
-                </div>
-              </div>
-            </div>
-
-            {/* Strategy Creator */}
-            <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-              <StrategyItemCreator />
-            </div>
-
-            {/* Review Feed */}
-            <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-              <CeoReviewFeed />
-            </div>
-
-            {/* Decision Log — collapsed accordion */}
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="decision-log" className="rounded-2xl border border-border/50 bg-card/80 px-6 elevation-1">
-                <AccordionTrigger className="text-xs font-medium text-muted-foreground py-4">
-                  Decision Log
-                </AccordionTrigger>
-                <AccordionContent>
-                  <DecisionLog />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </TabsContent>
-
-          {/* Idea Vault Tab */}
+          {/* This Week Tab */}
           {isPrimaryAdmin && (
-            <TabsContent value="ideas">
-              <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
-                <IdeaVault />
-              </div>
+            <TabsContent value="thisweek">
+              <ThisWeekTab />
             </TabsContent>
           )}
+
+          {/* Big Picture Tab — placeholder */}
+          <TabsContent value="bigpicture">
+            <div className="rounded-2xl border border-border/50 bg-card/80 p-16 elevation-1 text-center">
+              <p className="text-sm text-muted-foreground italic">
+                Your strategy, vision, and big ideas live here.
+              </p>
+            </div>
+          </TabsContent>
 
           {/* Delegation Tab */}
           <TabsContent value="delegation">
