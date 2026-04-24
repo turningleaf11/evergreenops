@@ -1,12 +1,22 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useCEOContext } from "@/lib/ceo-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface ThreadSummary {
+  id: string;
+  title: string;
+  thread_type: string;
+  status: string;
+  last_message_at: string;
+  created_at: string;
 }
 
 interface CompanionContextType {
@@ -17,6 +27,15 @@ interface CompanionContextType {
   open: boolean;
   setOpen: (v: boolean) => void;
   send: () => Promise<void>;
+  // Thread management
+  threads: ThreadSummary[];
+  activeThreadId: string | null;
+  threadsLoading: boolean;
+  selectThread: (id: string) => Promise<void>;
+  newThread: () => void;
+  renameThread: (id: string, title: string) => Promise<void>;
+  archiveThread: (id: string) => Promise<void>;
+  refreshThreads: () => Promise<void>;
 }
 
 export const CompanionContext = createContext<CompanionContextType | null>(null);
@@ -44,18 +63,195 @@ async function fetchLiveSnapshot() {
   };
 }
 
+/** Stream from ceo-chat edge function and forward each delta to onDelta */
+async function streamChat(body: any, onDelta: (chunk: string) => void) {
+  const resp = await fetch(CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: "Request failed" }));
+    if (resp.status === 429) toast.error("Rate limit exceeded. Please wait a moment and try again.");
+    else if (resp.status === 402) toast.error("AI credits exhausted. Add funds in Settings → Workspace → Usage.");
+    throw new Error(errorData.error || "Failed to get response");
+  }
+  if (!resp.body) throw new Error("No response body");
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let textBuffer = "";
+  let streamDone = false;
+
+  while (!streamDone) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    textBuffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex: number;
+    while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+      let line = textBuffer.slice(0, newlineIndex);
+      textBuffer = textBuffer.slice(newlineIndex + 1);
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+      if (line.startsWith(":") || line.trim() === "") continue;
+      if (!line.startsWith("data: ")) continue;
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === "[DONE]") { streamDone = true; break; }
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch {
+        textBuffer = line + "\n" + textBuffer;
+        break;
+      }
+    }
+  }
+
+  if (textBuffer.trim()) {
+    for (let raw of textBuffer.split("\n")) {
+      if (!raw) continue;
+      if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+      if (raw.startsWith(":") || raw.trim() === "") continue;
+      if (!raw.startsWith("data: ")) continue;
+      const jsonStr = raw.slice(6).trim();
+      if (jsonStr === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+/** Generate a 4-5 word title from the first user message via the AI gateway (non-streaming). */
+async function generateThreadTitle(firstMessage: string): Promise<string> {
+  try {
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "user",
+            content: `Summarize this opening message as a concise 4-5 word conversation title. Reply with only the title, no quotes, no punctuation at the end.\n\nMessage: "${firstMessage}"`,
+          },
+        ],
+        ceoContext: {},
+        titleOnly: true,
+      }),
+    });
+    if (!resp.ok || !resp.body) throw new Error("title gen failed");
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let title = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let i: number;
+      while ((i = buf.indexOf("\n")) !== -1) {
+        let line = buf.slice(0, i);
+        buf = buf.slice(i + 1);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (!line.startsWith("data: ")) continue;
+        const j = line.slice(6).trim();
+        if (j === "[DONE]") break;
+        try {
+          const p = JSON.parse(j);
+          const c = p.choices?.[0]?.delta?.content as string | undefined;
+          if (c) title += c;
+        } catch { /* ignore */ }
+      }
+    }
+    title = title.trim().replace(/^["']|["']$/g, "").replace(/\.$/, "");
+    // Take first 6 words max as safety
+    const words = title.split(/\s+/).slice(0, 6).join(" ");
+    return words || firstMessage.slice(0, 40);
+  } catch {
+    return firstMessage.slice(0, 40);
+  }
+}
+
 export function CompanionProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { data } = useCEOContext();
+  const { user, profile, isPrimaryAdmin } = useAuth();
   const location = useLocation();
   const greetingSent = useRef(false);
 
-  // Proactive greeting on CEO Dashboard
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [threadsLoading, setThreadsLoading] = useState(false);
+
+  const refreshThreads = useCallback(async () => {
+    if (!user?.id) return;
+    setThreadsLoading(true);
+    const { data: rows, error } = await supabase
+      .from("ai_strategy_threads")
+      .select("id,title,thread_type,status,last_message_at,created_at")
+      .eq("status", "active")
+      .order("last_message_at", { ascending: false })
+      .limit(100);
+    if (!error && rows) setThreads(rows as ThreadSummary[]);
+    setThreadsLoading(false);
+  }, [user?.id]);
+
+  // Load threads when sheet opens
   useEffect(() => {
-    if (!open || (location.pathname !== "/" && location.pathname !== "/ceo") || messages.length > 0 || greetingSent.current || loading) return;
+    if (open && isPrimaryAdmin) refreshThreads();
+  }, [open, isPrimaryAdmin, refreshThreads]);
+
+  const selectThread = useCallback(async (id: string) => {
+    setActiveThreadId(id);
+    greetingSent.current = true; // suppress morning briefing on existing threads
+    const { data: rows } = await supabase
+      .from("ai_strategy_messages")
+      .select("role,content")
+      .eq("thread_id", id)
+      .order("created_at", { ascending: true });
+    setMessages((rows || []).map((r) => ({ role: r.role as "user" | "assistant", content: r.content })));
+  }, []);
+
+  const newThread = useCallback(() => {
+    setActiveThreadId(null);
+    setMessages([]);
+    greetingSent.current = false;
+  }, []);
+
+  const renameThread = useCallback(async (id: string, title: string) => {
+    const trimmed = title.trim() || "Untitled";
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, title: trimmed } : t)));
+    await supabase.from("ai_strategy_threads").update({ title: trimmed }).eq("id", id);
+  }, []);
+
+  const archiveThread = useCallback(async (id: string) => {
+    await supabase.from("ai_strategy_threads").update({ status: "archived" }).eq("id", id);
+    setThreads((prev) => prev.filter((t) => t.id !== id));
+    if (activeThreadId === id) {
+      setActiveThreadId(null);
+      setMessages([]);
+    }
+    toast.success("Conversation archived");
+  }, [activeThreadId]);
+
+  // Proactive greeting on CEO Dashboard — only when no active thread
+  useEffect(() => {
+    if (!open || activeThreadId) return;
+    if ((location.pathname !== "/" && location.pathname !== "/ceo")) return;
+    if (messages.length > 0 || greetingSent.current || loading) return;
     greetingSent.current = true;
 
     (async () => {
@@ -74,176 +270,134 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const liveSnapshot = await fetchLiveSnapshot();
-
-        const resp = await fetch(CHAT_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
-            ceoContext: { ...data, currentPage: location.pathname },
-            liveSnapshot,
-          }),
-        });
-
-        if (!resp.ok) throw new Error("Briefing request failed");
-        if (!resp.body) throw new Error("No response body");
-
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let textBuffer = "";
-        let streamDone = false;
-
-        while (!streamDone) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          textBuffer += decoder.decode(value, { stream: true });
-
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-            let line = textBuffer.slice(0, newlineIndex);
-            textBuffer = textBuffer.slice(newlineIndex + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (line.startsWith(":") || line.trim() === "") continue;
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === "[DONE]") { streamDone = true; break; }
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-              if (content) upsertAssistant(content);
-            } catch {
-              textBuffer = line + "\n" + textBuffer;
-              break;
-            }
-          }
-        }
-
-        if (textBuffer.trim()) {
-          for (let raw of textBuffer.split("\n")) {
-            if (!raw) continue;
-            if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-            if (raw.startsWith(":") || raw.trim() === "") continue;
-            if (!raw.startsWith("data: ")) continue;
-            const jsonStr = raw.slice(6).trim();
-            if (jsonStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-              if (content) upsertAssistant(content);
-            } catch { /* ignore */ }
-          }
-        }
+        await streamChat({
+          messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
+          ceoContext: { ...data, currentPage: location.pathname },
+          liveSnapshot,
+        }, upsertAssistant);
       } catch (e) {
         console.error("Briefing error:", e);
         setMessages([{ role: "assistant", content: "Good morning. I had trouble loading your briefing — ask me anything to get started." }]);
       }
       setLoading(false);
     })();
-  }, [open, location.pathname, messages.length, loading, data]);
+  }, [open, location.pathname, messages.length, loading, data, activeThreadId]);
 
   const send = useCallback(async () => {
-    if (!input.trim() || loading) return;
-    const userMsg: Message = { role: "user", content: input.trim() };
+    if (!input.trim() || loading || !user?.id) return;
+    const userText = input.trim();
+    const userMsg: Message = { role: "user", content: userText };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    let assistantSoFar = "";
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
-      });
-    };
+    let threadId = activeThreadId;
+    let isFirstMessage = false;
 
     try {
-      // Filter out the briefing marker from message history sent to AI
-      const historyForAI = messages.map(m => ({ role: m.role, content: m.content }));
-      
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          messages: [...historyForAI, userMsg],
-          ceoContext: { ...data, currentPage: location.pathname },
-        }),
+      // Create thread on first send if none active
+      if (!threadId) {
+        const { data: created, error: tErr } = await supabase
+          .from("ai_strategy_threads")
+          .insert({
+            created_by: user.id,
+            workspace_id: profile?.workspace_id ?? null,
+            thread_type: "strategy",
+            title: "New conversation",
+          })
+          .select("id,title,thread_type,status,last_message_at,created_at")
+          .single();
+        if (tErr || !created) throw tErr || new Error("Could not create thread");
+        threadId = created.id;
+        setActiveThreadId(threadId);
+        setThreads((prev) => [created as ThreadSummary, ...prev]);
+        isFirstMessage = true;
+      }
+
+      // Persist user message
+      await supabase.from("ai_strategy_messages").insert({
+        thread_id: threadId,
+        role: "user",
+        content: userText,
       });
 
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({ error: "Request failed" }));
-        if (resp.status === 429) toast.error("Rate limit exceeded. Please wait a moment and try again.");
-        else if (resp.status === 402) toast.error("AI credits exhausted. Add funds in Settings → Workspace → Usage.");
-        throw new Error(errorData.error || "Failed to get response");
-      }
+      // Build last-10 history for AI memory
+      const history = [...messages, userMsg].slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
-      if (!resp.body) throw new Error("No response body");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let streamDone = false;
-
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") { streamDone = true; break; }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) upsertAssistant(content);
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
+      let assistantSoFar = "";
+      const upsertAssistant = (chunk: string) => {
+        assistantSoFar += chunk;
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") {
+            return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
           }
-        }
+          return [...prev, { role: "assistant", content: assistantSoFar }];
+        });
+      };
+
+      await streamChat({
+        messages: history,
+        ceoContext: { ...data, currentPage: location.pathname },
+      }, upsertAssistant);
+
+      // Persist assistant response + bump thread timestamp
+      if (assistantSoFar.trim()) {
+        await supabase.from("ai_strategy_messages").insert({
+          thread_id: threadId,
+          role: "assistant",
+          content: assistantSoFar,
+        });
+      }
+      await supabase
+        .from("ai_strategy_threads")
+        .update({ last_message_at: new Date().toISOString() })
+        .eq("id", threadId);
+
+      // Auto-title on first exchange
+      if (isFirstMessage) {
+        generateThreadTitle(userText).then(async (title) => {
+          if (!title) return;
+          await supabase.from("ai_strategy_threads").update({ title }).eq("id", threadId!);
+          setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, title } : t)));
+        });
       }
 
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split("\n")) {
-          if (!raw) continue;
-          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-          if (raw.startsWith(":") || raw.trim() === "") continue;
-          if (!raw.startsWith("data: ")) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) upsertAssistant(content);
-          } catch { /* ignore */ }
-        }
-      }
-
-      setLoading(false);
+      // Re-sort thread list with this thread on top
+      setThreads((prev) => {
+        const moved = prev.find((t) => t.id === threadId);
+        const rest = prev.filter((t) => t.id !== threadId);
+        const updated = moved ? { ...moved, last_message_at: new Date().toISOString() } : null;
+        return updated ? [updated, ...rest] : prev;
+      });
     } catch (e) {
       console.error("Companion error:", e);
       setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, data, location.pathname]);
+  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, profile?.workspace_id]);
 
   return (
-    <CompanionContext.Provider value={{ messages, input, setInput, loading, open, setOpen, send }}>
+    <CompanionContext.Provider
+      value={{
+        messages,
+        input,
+        setInput,
+        loading,
+        open,
+        setOpen,
+        send,
+        threads,
+        activeThreadId,
+        threadsLoading,
+        selectThread,
+        newThread,
+        renameThread,
+        archiveThread,
+        refreshThreads,
+      }}
+    >
       {children}
     </CompanionContext.Provider>
   );
