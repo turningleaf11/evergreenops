@@ -20,7 +20,7 @@ interface DatabaseRecordDetailProps {
   row: DatabaseRow | null;
   open: boolean;
   onClose: () => void;
-  onSave: (values: Record<string, any>) => void;
+  onSave: (values: Record<string, any>, opts?: { keepOpen?: boolean }) => void;
   onDelete?: () => void;
   allDatabases?: Database[];
   allRows?: DatabaseRow[];
