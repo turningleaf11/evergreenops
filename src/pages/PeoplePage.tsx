@@ -9,6 +9,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, Mail, Phone } from "lucide-react";
 import { PersonDetail } from "@/components/PersonDetail";
 import { OrgChart } from "@/components/OrgChart";
+import { PeopleOpsTab } from "@/components/people-ops/PeopleOpsTab";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Profile {
   user_id: string;
@@ -26,6 +28,7 @@ export default function PeoplePage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const { departments } = useDepartments();
+  const { isAdmin } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<Profile | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -72,6 +75,7 @@ export default function PeoplePage() {
         <TabsList>
           <TabsTrigger value="directory">Directory</TabsTrigger>
           <TabsTrigger value="org-chart">Org Chart</TabsTrigger>
+          {isAdmin && <TabsTrigger value="people-ops">People Ops</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="directory" className="space-y-4 mt-4">
@@ -137,6 +141,12 @@ export default function PeoplePage() {
         <TabsContent value="org-chart" className="mt-4">
           <OrgChart profiles={profiles} departments={departments} onSelect={openPerson} />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="people-ops" className="mt-4">
+            <PeopleOpsTab profiles={profiles} departments={departments} onSelect={openPerson} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <PersonDetail
