@@ -84,13 +84,17 @@ export function AiTriage({ items, profiles, onItemProcessed, onClear }: AiTriage
       } else if (item.category === "decision") {
         await supabase.from("decision_log").insert({ title: text, created_by: user?.id });
       } else if (item.category === "idea") {
-        await (supabase as any).from("idea_vault").insert({
+        const { data: ideaRow } = await (supabase as any).from("idea_vault").insert({
           title: text,
           description: item.reasoning || null,
           created_by: user?.id,
           status: "captured",
           source: "triage",
-        });
+        }).select("id").maybeSingle();
+        if (ideaRow?.id) {
+          // Fire-and-forget background enrichment
+          supabase.functions.invoke("idea-vault-enrich", { body: { ideaId: ideaRow.id } }).catch(() => {});
+        }
       }
       toast({
         title: `${item.category.charAt(0).toUpperCase() + item.category.slice(1)} created`,
