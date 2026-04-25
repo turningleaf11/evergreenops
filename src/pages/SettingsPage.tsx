@@ -496,6 +496,10 @@ export default function SettingsPage() {
         <TabsContent value="crm_fields" className="mt-4">
           <CrmCustomFieldsSettings />
         </TabsContent>
+
+        <TabsContent value="api" className="mt-4">
+          <ApiSettings />
+        </TabsContent>
         </div>
       </Tabs>
     </div>
