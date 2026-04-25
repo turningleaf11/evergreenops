@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -47,14 +47,30 @@ export function LauncherMenu() {
     setFavorites(favorites.filter((f) => f.id !== id));
   };
 
+  const closeTimer = useRef<number | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setOpen(false), 250);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Launcher">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          title="Launcher"
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        >
           <Rocket className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-2">
+      <PopoverContent align="end" className="w-72 p-2" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
         <div className="flex items-center justify-between px-2 pt-1 pb-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Launcher</span>
           {!adding && (
