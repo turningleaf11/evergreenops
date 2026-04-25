@@ -153,7 +153,7 @@ export function GlobalCreateMenu() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="h-8 w-8">
+          <Button size="icon" className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" title="Create">
             <Plus className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
