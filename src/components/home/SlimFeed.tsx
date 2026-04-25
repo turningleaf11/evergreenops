@@ -32,7 +32,7 @@ const typeMeta = {
 };
 
 export function SlimFeed() {
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
