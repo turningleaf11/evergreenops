@@ -32,9 +32,10 @@ const typeMeta = {
 };
 
 export function SlimFeed() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
   const fetchFeed = useCallback(async () => {
     const [annRes, pollRes, kudosRes, postsRes, profRes] = await Promise.all([
