@@ -88,7 +88,7 @@ async function authenticate(req: Request) {
   if (data.revoked_at) return { error: "Token has been revoked" as const };
 
   // Touch (best-effort)
-  supabase.rpc("api_token_touch", { _token_id: data.id }).then(() => {}).catch(() => {});
+  try { await supabase.rpc("api_token_touch", { _token_id: data.id }); } catch { /* best effort */ }
 
   return { supabase, workspaceId: data.workspace_id as string, tokenName: data.name as string };
 }
