@@ -19,10 +19,11 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
+import { ApiSettings } from "@/components/settings/ApiSettings";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
