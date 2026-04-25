@@ -132,6 +132,7 @@ export default function SettingsPage() {
         { value: "addons", icon: Package, label: "Add-Ons" },
         { value: "forms", icon: FileSpreadsheet, label: "Forms" },
         { value: "integrations", icon: Mail, label: "Integrations" },
+        { value: "api", icon: KeyRound, label: "API" },
       ],
     },
   ];
