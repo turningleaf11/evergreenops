@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, Loader2, Send } from "lucide-react";
+import { Heart, Loader2, Send, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
+import RichTextEditor from "@/components/RichTextEditor";
+import { GiphyPicker } from "@/components/feed/GiphyPicker";
+import { uploadFile } from "@/lib/file-upload";
 
 interface GiveKudosDialogProps {
   open: boolean;
@@ -21,12 +23,16 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
   const [toUser, setToUser] = useState("");
   const [category, setCategory] = useState("great_work");
   const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [gifUrl, setGifUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
     supabase.from("profiles").select("user_id, full_name").then(({ data }) => {
-      if (data) setPeople(data);
+      if (data) setPeople(data.filter((p) => p.user_id !== user?.id));
     });
   }, [open, user?.id]);
 
@@ -34,6 +40,19 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
     setToUser("");
     setCategory("great_work");
     setMessage("");
+    setImageUrl(null);
+    setGifUrl("");
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { toast.error("Image must be under 50MB"); return; }
+    setUploading(true);
+    const url = await uploadFile(file);
+    if (url) setImageUrl(url);
+    else toast.error("Upload failed");
+    setUploading(false);
   };
 
   const submit = async () => {
@@ -44,10 +63,16 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
     }
     setSubmitting(true);
     try {
+      // Embed media into the message HTML so existing kudos rendering picks it up,
+      // since the kudos table has no dedicated media columns.
+      let payload = message.trim();
+      if (imageUrl) payload += `<p><img src="${imageUrl}" alt="" /></p>`;
+      if (gifUrl) payload += `<p><img src="${gifUrl}" alt="GIF" /></p>`;
+
       const { error } = await supabase.from("kudos").insert({
         from_user_id: user.id,
         to_user_id: toUser,
-        message: message.trim(),
+        message: payload,
         category,
       });
       if (error) throw error;
@@ -108,13 +133,54 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
                 </Select>
               </div>
 
-              <Textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+              <RichTextEditor
+                content={message}
+                onChange={setMessage}
                 placeholder="Say something nice..."
-                rows={3}
-                className="resize-none border-border/30 text-sm"
+                borderless
+                compact
               />
+
+              {imageUrl && (
+                <div className="relative">
+                  <img src={imageUrl} alt="Uploaded" className="rounded-xl max-h-40 object-cover" />
+                  <button
+                    className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                    onClick={() => setImageUrl(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {gifUrl && (
+                <div className="relative">
+                  <img src={gifUrl} alt="GIF" className="rounded-xl max-h-40 object-cover" />
+                  <button
+                    className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                    onClick={() => setGifUrl("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-0.5 pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-muted-foreground/70 hover:text-foreground rounded-lg"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                  <span className="text-xs">Photo</span>
+                </Button>
+                <GiphyPicker onSelect={(url) => setGifUrl(url)}>
+                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground/70 hover:text-foreground rounded-lg">
+                    <span className="text-xs font-semibold">GIF</span>
+                  </Button>
+                </GiphyPicker>
+              </div>
             </div>
           </div>
         </div>
@@ -141,6 +207,8 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
             Send Kudos
           </Button>
         </div>
+
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
       </DialogContent>
     </Dialog>
   );
