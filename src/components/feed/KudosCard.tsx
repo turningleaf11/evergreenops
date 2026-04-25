@@ -34,6 +34,8 @@ interface KudosCardProps {
 export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
   const [fromName, setFromName] = useState("");
   const [toName, setToName] = useState("");
+  const [repliesExpanded, setRepliesExpanded] = useState(false);
+  const [replyCount, setReplyCount] = useState(0);
 
   useEffect(() => {
     const fetchNames = async () => {
