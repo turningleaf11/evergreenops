@@ -39,9 +39,9 @@ function LayoutInner() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <GlobalCreateMenu />
               <TimeClockButton />
               <LauncherMenu />
-              <GlobalCreateMenu />
               <RemindersBell />
               <NotificationBell />
             </div>
