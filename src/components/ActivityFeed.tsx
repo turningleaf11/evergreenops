@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -136,8 +136,17 @@ export function NotificationBell() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const closeTimer = useRef<number | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setOpen(false), 250);
+  };
+
   return (
-    <div className="relative">
+    <div className="relative" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
       <button
         onClick={() => { setOpen(!open); setCount(0); }}
         className="relative p-2 rounded-md hover:bg-muted transition-colors"
