@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 import { MessageSquare, Maximize2, Heart, Megaphone, BarChart3, Pin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { FeedComposer } from "@/components/feed/FeedComposer";
 
 const LIMIT = 5;
 
