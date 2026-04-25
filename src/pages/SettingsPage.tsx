@@ -19,10 +19,11 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
+import { ApiSettings } from "@/components/settings/ApiSettings";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -131,6 +132,7 @@ export default function SettingsPage() {
         { value: "addons", icon: Package, label: "Add-Ons" },
         { value: "forms", icon: FileSpreadsheet, label: "Forms" },
         { value: "integrations", icon: Mail, label: "Integrations" },
+        { value: "api", icon: KeyRound, label: "API" },
       ],
     },
   ];
@@ -493,6 +495,10 @@ export default function SettingsPage() {
 
         <TabsContent value="crm_fields" className="mt-4">
           <CrmCustomFieldsSettings />
+        </TabsContent>
+
+        <TabsContent value="api" className="mt-4">
+          <ApiSettings />
         </TabsContent>
         </div>
       </Tabs>

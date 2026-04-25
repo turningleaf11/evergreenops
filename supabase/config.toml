@@ -8,3 +8,10 @@ verify_jwt = false
 
 [functions.list-form]
 verify_jwt = false
+
+[functions.api-ingest]
+verify_jwt = false
+
+[functions.api-test]
+verify_jwt = false
+
