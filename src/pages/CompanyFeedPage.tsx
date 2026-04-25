@@ -53,7 +53,7 @@ export default function CompanyFeedPage() {
         <p className="text-sm text-muted-foreground">Posts, announcements, polls, and recognition</p>
       </div>
 
-      <FeedComposer onPost={fetchFeed} people={people} />
+      <FeedComposer onPost={fetchFeed} people={people} compact />
 
       {loading ? (
         <div className="space-y-4">
