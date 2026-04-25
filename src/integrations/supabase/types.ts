@@ -315,6 +315,42 @@ export type Database = {
           },
         ]
       }
+      api_tokens: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          revoked_at?: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          revoked_at?: string | null
+          token_hash?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       cadence_runs: {
         Row: {
           cadence_id: string
@@ -4415,6 +4451,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      api_token_touch: { Args: { _token_id: string }; Returns: undefined }
       can_access_contact: {
         Args: { _contact_id: string; _user_id: string }
         Returns: boolean
