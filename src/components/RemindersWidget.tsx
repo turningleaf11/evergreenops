@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -278,8 +278,17 @@ export function RemindersBell() {
     setCount(prev => Math.max(0, prev - 1));
   };
 
+  const closeTimer = useRef<number | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setOpen(false), 250);
+  };
+
   return (
-    <div className="relative">
+    <div className="relative" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
       <button
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-md hover:bg-muted transition-colors"
