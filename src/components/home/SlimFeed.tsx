@@ -50,6 +50,7 @@ export function SlimFeed() {
       const map: Record<string, string> = {};
       profRes.data.forEach((p: any) => { map[p.user_id] = p.full_name || "Teammate"; });
       setProfiles(map);
+      setPeople(profRes.data.filter((p: any) => p.user_id !== user?.id));
     }
 
     const list: FeedItem[] = [];
