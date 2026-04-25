@@ -49,7 +49,13 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
       }
     };
     fetchNames();
-  }, [kudo.from_user_id, kudo.to_user_id]);
+    supabase
+      .from("post_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("entity_type", "kudos")
+      .eq("entity_id", kudo.id)
+      .then(({ count }) => setReplyCount(count || 0));
+  }, [kudo.from_user_id, kudo.to_user_id, kudo.id]);
 
   const meta = CATEGORY_META[kudo.category] || CATEGORY_META.great_work;
   const Icon = meta.icon;
