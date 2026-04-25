@@ -131,17 +131,8 @@ export function SlimFeed() {
           </Link>
         </div>
 
-        {/* Post trigger */}
-        <Link
-          to="/feed"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors border border-border/40"
-        >
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">{initials}</AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground flex-1">What's on your mind?</span>
-          <span className="text-[10px] text-primary font-medium">Post →</span>
-        </Link>
+        {/* Inline composer — full rich text + media, same as feed page */}
+        <FeedComposer onPost={fetchFeed} people={people} compact />
 
         {items.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground text-xs">
