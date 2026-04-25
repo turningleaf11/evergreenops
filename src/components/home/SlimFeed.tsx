@@ -71,7 +71,7 @@ export function SlimFeed() {
     fetchFeed();
   }, [fetchFeed]);
 
-  const initials = (profile?.full_name || "U").split(" ").map((n) => n[0]).join("");
+  
 
   const stripHtml = (html: string | null | undefined) =>
     (html || "").replace(/<[^>]+>/g, "").trim();
