@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 import { MessageSquare, Maximize2, Heart, Megaphone, BarChart3, Pin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { FeedComposer } from "@/components/feed/FeedComposer";
 
 const LIMIT = 5;
 
@@ -32,9 +32,10 @@ const typeMeta = {
 };
 
 export function SlimFeed() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [people, setPeople] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
   const fetchFeed = useCallback(async () => {
     const [annRes, pollRes, kudosRes, postsRes, profRes] = await Promise.all([
@@ -49,6 +50,7 @@ export function SlimFeed() {
       const map: Record<string, string> = {};
       profRes.data.forEach((p: any) => { map[p.user_id] = p.full_name || "Teammate"; });
       setProfiles(map);
+      setPeople(profRes.data.filter((p: any) => p.user_id !== user?.id));
     }
 
     const list: FeedItem[] = [];
@@ -69,7 +71,7 @@ export function SlimFeed() {
     fetchFeed();
   }, [fetchFeed]);
 
-  const initials = (profile?.full_name || "U").split(" ").map((n) => n[0]).join("");
+  
 
   const stripHtml = (html: string | null | undefined) =>
     (html || "").replace(/<[^>]+>/g, "").trim();
@@ -129,17 +131,8 @@ export function SlimFeed() {
           </Link>
         </div>
 
-        {/* Post trigger */}
-        <Link
-          to="/feed"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors border border-border/40"
-        >
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">{initials}</AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground flex-1">What's on your mind?</span>
-          <span className="text-[10px] text-primary font-medium">Post →</span>
-        </Link>
+        {/* Inline composer — full rich text + media, same as feed page */}
+        <FeedComposer onPost={fetchFeed} people={people} compact />
 
         {items.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground text-xs">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, Sparkles, Star, Users, Lightbulb, Trophy } from "lucide-react";
+import { Heart, Sparkles, Star, Users, Lightbulb, Trophy, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
@@ -34,6 +34,8 @@ interface KudosCardProps {
 export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
   const [fromName, setFromName] = useState("");
   const [toName, setToName] = useState("");
+  const [repliesExpanded, setRepliesExpanded] = useState(false);
+  const [replyCount, setReplyCount] = useState(0);
 
   useEffect(() => {
     const fetchNames = async () => {
@@ -47,7 +49,13 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
       }
     };
     fetchNames();
-  }, [kudo.from_user_id, kudo.to_user_id]);
+    supabase
+      .from("post_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("entity_type", "kudos")
+      .eq("entity_id", kudo.id)
+      .then(({ count }) => setReplyCount(count || 0));
+  }, [kudo.from_user_id, kudo.to_user_id, kudo.id]);
 
   const meta = CATEGORY_META[kudo.category] || CATEGORY_META.great_work;
   const Icon = meta.icon;
@@ -137,8 +145,24 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
       </div>
 
       <div className="relative">
-        <ReactionBar entityType="kudos" entityId={kudo.id} />
-        <ReplyThread entityType="kudos" entityId={kudo.id} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <ReactionBar entityType="kudos" entityId={kudo.id} />
+          </div>
+          <button
+            onClick={() => setRepliesExpanded(!repliesExpanded)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 px-2 py-1 rounded-md transition-colors shrink-0"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span>Comment{replyCount > 0 ? ` (${replyCount})` : ""}</span>
+            {repliesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        </div>
+        {repliesExpanded && (
+          <div className="mt-3">
+            <ReplyThread entityType="kudos" entityId={kudo.id} onCountChange={setReplyCount} />
+          </div>
+        )}
       </div>
     </div>
   );
