@@ -93,7 +93,7 @@ async function authenticate(req: Request) {
   return { supabase, workspaceId: data.workspace_id as string, tokenName: data.name as string };
 }
 
-export default async function handler(req: Request, isTest = false): Promise<Response> {
+async function handler(req: Request, isTest = false): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   if (req.method === "GET") {
