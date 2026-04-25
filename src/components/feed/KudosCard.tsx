@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, Sparkles, Star, Users, Lightbulb, Trophy } from "lucide-react";
+import { Heart, Sparkles, Star, Users, Lightbulb, Trophy, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
