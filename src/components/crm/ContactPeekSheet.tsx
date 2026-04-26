@@ -1420,3 +1420,695 @@ function PreferredContactChip({
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Attio-style two-column body — left identity sidebar / right tabs
+// ═══════════════════════════════════════════════════════════════════════
+
+function ContactDetailBody({
+  contact,
+  companyName,
+  linkedDeals,
+  linkedLeads,
+  lastContacted,
+  tab,
+  setTab,
+  composeOpen,
+  composeCtx,
+  setComposeOpen,
+  setComposeCtx,
+  handleSent,
+  canEmail,
+  fullName,
+  typeColor,
+  typeLabel,
+  updateContact,
+  setContact,
+  setCompanyName,
+  onChanged,
+  linkDeal,
+  linkLead,
+  onCreateDeal,
+  onCreateLead,
+  hasCustomFields,
+}: {
+  contact: Contact;
+  companyName: string | null;
+  linkedDeals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  linkedLeads: Array<{ id: string; address: string | null; status: string | null }>;
+  lastContacted: string | null;
+  tab: EntityTabId;
+  setTab: (v: EntityTabId) => void;
+  composeOpen: boolean;
+  composeCtx: { to: string; subject: string; threadId?: string };
+  setComposeOpen: (v: boolean) => void;
+  setComposeCtx: (v: { to: string; subject: string; threadId?: string }) => void;
+  handleSent: (r: { threadId?: string; id?: string }) => void;
+  canEmail: boolean;
+  fullName: string;
+  typeColor: string;
+  typeLabel: string;
+  updateContact: (patch: Partial<Contact>) => Promise<void>;
+  setContact: (c: Contact) => void;
+  setCompanyName: (name: string | null) => void;
+  onChanged: () => void;
+  linkDeal: (dealId: string) => Promise<void>;
+  linkLead: (leadId: string) => Promise<void>;
+  onCreateDeal?: () => void;
+  onCreateLead?: () => void;
+  hasCustomFields: boolean;
+}) {
+  const initials =
+    `${contact.first_name?.[0] ?? ""}${contact.last_name?.[0] ?? ""}`.toUpperCase() ||
+    "?";
+  const isActive = contact.is_active !== false;
+  const persist = async (patch: Partial<Contact>) => {
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    setContact({ ...contact, ...patch });
+    onChanged();
+  };
+
+  const tabs: Array<{ id: EntityTabId; label: string }> = [
+    { id: "overview", label: "Overview" },
+    { id: "activity", label: "Activity" },
+    { id: "deals", label: "Deals" },
+    { id: "files", label: "Files" },
+  ];
+
+  return (
+    <div className="flex-1 grid grid-cols-1 md:grid-cols-[360px_minmax(0,1fr)] min-h-0 overflow-hidden">
+      {/* ─────────────── LEFT: Identity sidebar ─────────────── */}
+      <aside
+        className="overflow-auto bg-background border-r"
+        style={{ borderRightColor: "#F0F0F0" }}
+      >
+        <div className="p-6 space-y-5">
+          {/* Identity */}
+          <div className="space-y-3">
+            <div
+              className="h-20 w-20 rounded-full flex items-center justify-center text-white font-semibold text-2xl"
+              style={{ backgroundColor: `hsl(${typeColor})` }}
+              aria-label="Contact avatar"
+            >
+              {initials}
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-[22px] font-semibold leading-tight text-foreground break-words">
+                {fullName}
+              </h2>
+              <div className="text-[13px] text-muted-foreground">
+                {[typeLabel, companyName].filter(Boolean).join(" · ")}
+              </div>
+              <div className="text-[12px] italic text-muted-foreground/70">
+                {lastContacted ? `Last contacted ${lastContacted}` : "Never contacted"}
+              </div>
+            </div>
+          </div>
+
+          {/* Action row */}
+          <div className="flex items-center gap-1.5">
+            <ActionPill
+              icon={<Mail className="h-3.5 w-3.5" />}
+              label="Email"
+              disabled={!canEmail}
+              onClick={() => {
+                setComposeCtx({ to: contact.email!, subject: "" });
+                setComposeOpen(true);
+              }}
+            />
+            <ActionPill
+              icon={<Phone className="h-3.5 w-3.5" />}
+              label="Call"
+              disabled={!contact.phone}
+              onClick={() => {
+                if (contact.phone) window.location.href = `tel:${contact.phone}`;
+              }}
+            />
+            <ActionPill
+              icon={<Pencil className="h-3.5 w-3.5" />}
+              label="Note"
+              onClick={() => setTab("activity")}
+            />
+            <ActionPill
+              icon={<MoreHorizontal className="h-3.5 w-3.5" />}
+              label=""
+              ariaLabel="More"
+              onClick={() => {}}
+            />
+          </div>
+
+          <SidebarDivider />
+
+          {/* Contact details */}
+          <SidebarBlock label="Contact details">
+            <SidebarRow icon={<Phone className="h-4 w-4" />}>
+              <EditableLineField
+                value={contact.phone}
+                placeholder="Add phone"
+                type="tel"
+                onSave={(v) => persist({ phone: v })}
+                ariaLabel="Edit phone"
+                className="!py-0 !px-0 !-mx-0"
+              />
+            </SidebarRow>
+            <SidebarRow icon={<Mail className="h-4 w-4" />}>
+              <EditableLineField
+                value={contact.email}
+                placeholder="Add email"
+                type="email"
+                onSave={(v) => persist({ email: v })}
+                ariaLabel="Edit email"
+                className="!py-0 !px-0 !-mx-0"
+              />
+            </SidebarRow>
+            <SidebarRow icon={<Building2 className="h-4 w-4" />}>
+              <CompanyEditableLine
+                contact={contact}
+                companyName={companyName}
+                onPicked={async ({ id, name }) => {
+                  const { error } = await supabase
+                    .from("contacts")
+                    .update({ company_id: id })
+                    .eq("id", contact.id);
+                  if (error) {
+                    toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+                    return;
+                  }
+                  setContact({ ...contact, company_id: id });
+                  setCompanyName(name);
+                  onChanged();
+                }}
+                onClear={async () => {
+                  const { error } = await supabase
+                    .from("contacts")
+                    .update({ company_id: null })
+                    .eq("id", contact.id);
+                  if (error) {
+                    toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+                    return;
+                  }
+                  setContact({ ...contact, company_id: null });
+                  setCompanyName(null);
+                  onChanged();
+                }}
+              />
+            </SidebarRow>
+            <SidebarRow icon={<MapPin className="h-4 w-4" />} align="start">
+              <ContactMarketsInline
+                contact={contact}
+                onSaved={(patch) => setContact({ ...contact, ...patch })}
+                onChanged={onChanged}
+              />
+            </SidebarRow>
+          </SidebarBlock>
+
+          <SidebarDivider />
+
+          {/* Relationship notes */}
+          <SidebarBlock label="Relationship">
+            <Textarea
+              defaultValue={contact.buy_box_notes || ""}
+              onBlur={(e) => {
+                const next = e.target.value.trim() || null;
+                if ((next || "") !== (contact.buy_box_notes || "")) {
+                  void persist({ buy_box_notes: next });
+                }
+              }}
+              placeholder="Deal quality, what they buy, how they work…"
+              rows={4}
+              className="text-sm resize-none border-border/60"
+            />
+          </SidebarBlock>
+
+          <SidebarDivider />
+
+          {/* Key details */}
+          <SidebarBlock label="Key details">
+            <div className="space-y-2.5">
+              <KeyRow label="Type">
+                <ContactTypeChip
+                  value={(contact.contact_type as ContactType) || "other"}
+                  onChange={(v) => updateContact({ contact_type: v })}
+                />
+              </KeyRow>
+              <KeyRow label="Preferred">
+                <PreferredContactChip
+                  value={contact.preferred_contact_method || null}
+                  onChange={(v) =>
+                    updateContact({
+                      preferred_contact_method: v as PreferredContactMethod | null,
+                    })
+                  }
+                />
+              </KeyRow>
+              <KeyRow label="Status">
+                <button
+                  type="button"
+                  onClick={() => updateContact({ is_active: !isActive })}
+                  className="inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors"
+                >
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      isActive ? "bg-brand-mint-deep" : "bg-muted-foreground/40",
+                    )}
+                  />
+                  <span className={isActive ? "text-foreground" : "text-muted-foreground"}>
+                    {isActive ? "Active" : "Inactive"}
+                  </span>
+                </button>
+              </KeyRow>
+              <KeyRow label="Owner">
+                <OwnerPicker
+                  ownerId={contact.owner_id}
+                  onChange={(id) => updateContact({ owner_id: id })}
+                />
+              </KeyRow>
+            </div>
+          </SidebarBlock>
+
+          <SidebarDivider />
+
+          {/* Linked records */}
+          <SidebarBlock label="Linked records">
+            <LinkedRecordsRow
+              kind="deal"
+              count={linkedDeals.length}
+              items={linkedDeals.map((d) => ({ id: d.id, label: d.name }))}
+              icon={<Briefcase className="h-3.5 w-3.5" />}
+              emptyLabel="No deals yet"
+              excludeIds={linkedDeals.map((d) => d.id)}
+              onPick={(it) => linkDeal(it.id)}
+              onCreate={onCreateDeal}
+            />
+            <LinkedRecordsRow
+              kind="lead"
+              count={linkedLeads.length}
+              items={linkedLeads.map((l) => ({ id: l.id, label: l.address || "Untitled lead" }))}
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              emptyLabel="No leads yet"
+              excludeIds={linkedLeads.map((l) => l.id)}
+              onPick={(it) => linkLead(it.id)}
+              onCreate={onCreateLead}
+            />
+          </SidebarBlock>
+        </div>
+      </aside>
+
+      {/* ─────────────── RIGHT: Tabs + content ─────────────── */}
+      <div className="flex flex-col min-h-0 bg-[#F8F8F8] dark:bg-muted/10">
+        {composeOpen ? (
+          <InlineEmailComposer
+            defaultTo={composeCtx.to}
+            defaultSubject={composeCtx.subject}
+            threadId={composeCtx.threadId}
+            onClose={() => setComposeOpen(false)}
+            onSent={handleSent}
+          />
+        ) : (
+          <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
+            <EntityTabPanel value="overview" className="p-6">
+              <div className="space-y-6 max-w-3xl">
+                <OverviewCard title="Profile">
+                  <KVRow label="Source" value={(contact.custom_fields as any)?.source ?? null} />
+                  <KVRow
+                    label="Date added"
+                    value={
+                      contact.created_at
+                        ? new Date(contact.created_at).toLocaleDateString()
+                        : null
+                    }
+                  />
+                  <KVRow label="Title" value={contact.title} />
+                </OverviewCard>
+                <OverviewCard title="About">
+                  <p
+                    className={cn(
+                      "text-sm whitespace-pre-wrap",
+                      contact.notes
+                        ? "text-foreground"
+                        : "italic text-muted-foreground/70",
+                    )}
+                  >
+                    {contact.notes || "No notes yet."}
+                  </p>
+                </OverviewCard>
+                {hasCustomFields && (
+                  <OverviewCard title="Custom fields">
+                    <CustomFieldsPanel
+                      contactId={contact.id}
+                      values={(contact.custom_fields || {}) as Record<string, unknown>}
+                      onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                    />
+                  </OverviewCard>
+                )}
+              </div>
+            </EntityTabPanel>
+
+            <EntityTabPanel value="activity" className="p-6 overflow-hidden">
+              <div
+                className="h-full flex flex-col bg-card rounded-xl overflow-hidden max-w-3xl"
+                style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+              >
+                <div className="flex-1 min-h-0 flex flex-col p-5">
+                  <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
+                </div>
+              </div>
+            </EntityTabPanel>
+
+            <EntityTabPanel value="deals" className="p-6">
+              <div className="max-w-3xl">
+                {linkedDeals.length === 0 ? (
+                  <div className="rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                    <Briefcase className="h-8 w-8 mb-2 opacity-50" />
+                    <p className="font-medium text-foreground mb-1">No deals sourced yet</p>
+                    <p>Deals sourced from this contact will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-card overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                    <ul className="divide-y divide-border/40">
+                      {linkedDeals.map((d) => (
+                        <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F9F9F9] transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium truncate">{d.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {d.stage && <EntityStatusPill kind="deal_stage" value={d.stage} />}
+                            {d.status && <EntityStatusPill kind="deal_status" value={d.status} variant="outline" />}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </EntityTabPanel>
+
+            <EntityTabPanel value="files" className="p-6">
+              <div className="max-w-3xl rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                <Inbox className="h-8 w-8 mb-2 opacity-50" />
+                <p className="font-medium text-foreground mb-1">No files yet</p>
+                <p>File attachments for contacts will appear here.</p>
+              </div>
+            </EntityTabPanel>
+          </EntityTabs>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionPill({
+  icon,
+  label,
+  onClick,
+  disabled,
+  ariaLabel,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel ?? label}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-muted/60 hover:bg-muted text-foreground px-3 py-1.5 text-xs font-medium transition-colors",
+        "disabled:opacity-40 disabled:cursor-not-allowed",
+      )}
+    >
+      {icon}
+      {label && <span>{label}</span>}
+    </button>
+  );
+}
+
+function SidebarBlock({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-2.5">
+      <div
+        className="text-[11px] font-semibold uppercase text-muted-foreground"
+        style={{ letterSpacing: "0.14em" }}
+      >
+        {label}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </section>
+  );
+}
+
+function SidebarDivider() {
+  return <div className="h-px bg-[#F0F0F0]" />;
+}
+
+function SidebarRow({
+  icon,
+  children,
+  align = "center",
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  align?: "center" | "start";
+}) {
+  return (
+    <div className={cn("flex gap-2.5 min-w-0", align === "start" ? "items-start" : "items-center")}>
+      <span className={cn("text-muted-foreground shrink-0", align === "start" ? "mt-1.5" : "")}>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+function KeyRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[11px] uppercase text-muted-foreground" style={{ letterSpacing: "0.12em" }}>
+        {label}
+      </span>
+      <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+function ContactMarketsInline({
+  contact,
+  onSaved,
+  onChanged,
+}: {
+  contact: Contact;
+  onSaved: (patch: Partial<Contact>) => void;
+  onChanged: () => void;
+}) {
+  const [markets, setMarkets] = useState<string[]>(contact.markets || []);
+  const [draft, setDraft] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    setMarkets(contact.markets || []);
+  }, [contact.id]);
+
+  const persist = async (next: string[]) => {
+    const patch = { markets: next.length ? next : null };
+    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(patch);
+    onChanged();
+  };
+
+  const add = () => {
+    const v = draft.trim();
+    setDraft("");
+    setAdding(false);
+    if (!v || markets.includes(v)) return;
+    const next = [...markets, v];
+    setMarkets(next);
+    void persist(next);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {markets.length === 0 && !adding && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-sm italic text-muted-foreground/70 hover:text-foreground"
+        >
+          Add markets
+        </button>
+      )}
+      {markets.map((m) => (
+        <span
+          key={m}
+          className="inline-flex items-center gap-1 rounded-full bg-brand-azure/15 text-brand-azure font-semibold"
+          style={{ borderRadius: 100, padding: "3px 10px", fontSize: 11 }}
+        >
+          {m}
+          <button
+            type="button"
+            onClick={() => {
+              const next = markets.filter((x) => x !== m);
+              setMarkets(next);
+              void persist(next);
+            }}
+            className="opacity-60 hover:opacity-100"
+            aria-label={`Remove ${m}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      {adding ? (
+        <Input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={add}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              add();
+            } else if (e.key === "Escape") {
+              setDraft("");
+              setAdding(false);
+            }
+          }}
+          placeholder="Market"
+          className="h-6 text-xs w-24"
+        />
+      ) : markets.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5"
+        >
+          + Add
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function LinkedRecordsRow({
+  kind,
+  count,
+  items,
+  icon,
+  emptyLabel,
+  excludeIds,
+  onPick,
+  onCreate,
+}: {
+  kind: "deal" | "lead";
+  count: number;
+  items: Array<{ id: string; label: string }>;
+  icon: React.ReactNode;
+  emptyLabel: string;
+  excludeIds: string[];
+  onPick: (it: { id: string; label: string }) => void | Promise<void>;
+  onCreate?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const noun = kind === "deal" ? "Deals" : "Leads";
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => count > 0 && setExpanded((e) => !e)}
+          disabled={count === 0}
+          className={cn(
+            "inline-flex items-center gap-2 text-sm",
+            count > 0 ? "hover:text-foreground" : "text-muted-foreground cursor-default",
+          )}
+        >
+          <span className="text-muted-foreground">{icon}</span>
+          {count === 0 ? (
+            <span className="italic text-muted-foreground/70">{emptyLabel}</span>
+          ) : (
+            <span className="font-medium">
+              {count} {count === 1 ? noun.slice(0, -1) : noun}
+            </span>
+          )}
+        </button>
+        <LinkRecordPopover
+          kind={kind}
+          excludeIds={excludeIds}
+          onPick={onPick}
+          onCreate={onCreate}
+          triggerLabel={`Link ${kind}`}
+        />
+      </div>
+      {expanded && items.length > 0 && (
+        <ul className="pl-6 space-y-0.5">
+          {items.map((it) => (
+            <li
+              key={it.id}
+              className="text-[13px] text-foreground truncate py-0.5"
+              title={it.label}
+            >
+              {it.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function OverviewCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className="rounded-xl bg-card p-5"
+      style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+    >
+      <h3
+        className="text-[11px] font-semibold uppercase text-muted-foreground mb-3"
+        style={{ letterSpacing: "0.14em" }}
+      >
+        {title}
+      </h3>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
+
+function KVRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span
+        className="text-[11px] uppercase text-muted-foreground shrink-0"
+        style={{ letterSpacing: "0.12em" }}
+      >
+        {label}
+      </span>
+      <span className="text-sm text-foreground text-right min-w-0 truncate">
+        {value || <span className="italic text-muted-foreground/70">—</span>}
+      </span>
+    </div>
+  );
+}
