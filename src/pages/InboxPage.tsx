@@ -402,6 +402,40 @@ export default function InboxPage() {
       <section className={cn("flex flex-col border-r border-border/30 shrink-0", selectedId ? "w-96" : "flex-1")}>
         <div className="p-3 border-b border-border/30 flex items-center gap-2">
           <h2 className="text-sm font-semibold">{headerTitle}</h2>
+          {accounts.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Filter by account"
+                >
+                  {accountFilter === "all"
+                    ? "All accounts"
+                    : (() => {
+                        const id = accountFilter === "default" ? defaultAccount?.id : accountFilter;
+                        const a = accounts.find((x) => x.id === id);
+                        return a ? a.label || a.email : "Default";
+                      })()}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Show messages from</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setAccountFilter("all")}>
+                  <span className="text-sm">All accounts</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {accounts.map((a) => (
+                  <DropdownMenuItem key={a.id} onClick={() => setAccountFilter(a.id)}>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{a.label || a.email}</span>
+                      {a.label && <span className="text-[11px] text-muted-foreground">{a.email}</span>}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
