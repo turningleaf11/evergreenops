@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
-import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { InlineEmailComposer } from "./InlineEmailComposer";
 import { OwnerPicker } from "./PeoplePickers";
 import { type ComposerSubmit } from "./CrmComposerTabs";
 import {
