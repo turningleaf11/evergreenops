@@ -292,7 +292,7 @@ export function ComposeModal({
 
         {/* From / To / Subject */}
         <div className="px-5 space-y-2 pb-2">
-          {accounts.length > 1 && (
+          {accounts.length >= 1 && (
             <div className="flex items-center gap-2 border-b border-border/40 pb-2">
               <span className="text-xs text-muted-foreground w-12 shrink-0">From</span>
               <DropdownMenu>

@@ -132,7 +132,7 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
       {!minimized && (
         <>
           {/* From (only when 2+ accounts) */}
-          {accounts.length > 1 && (
+          {accounts.length >= 1 && (
             <div className="px-3 py-1.5 border-b border-border/40 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground w-12 shrink-0">From</span>

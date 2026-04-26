@@ -402,7 +402,7 @@ export default function InboxPage() {
       <section className={cn("flex flex-col border-r border-border/30 shrink-0", selectedId ? "w-96" : "flex-1")}>
         <div className="p-3 border-b border-border/30 flex items-center gap-2">
           <h2 className="text-sm font-semibold">{headerTitle}</h2>
-          {accounts.length > 1 && (
+          {accounts.length >= 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
