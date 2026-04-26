@@ -273,6 +273,28 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     </div>
   );
 
+  const describeCrm = (a: CrmActivity) => {
+    const actor = a.actor_id ? profiles[a.actor_id] || "Someone" : "System";
+    const subj = a.subject?.trim();
+    switch (a.type) {
+      case "email": return `${actor} sent email${subj ? `: "${subj}"` : ""}`;
+      case "call": return `${actor} logged a call${subj ? ` — ${subj}` : ""}`;
+      case "meeting": return `${actor} logged a meeting${subj ? ` — ${subj}` : ""}`;
+      case "note": return `${actor} added a note${subj ? `: ${subj}` : ""}`;
+      case "stage_change": return `${actor} ${subj || "changed stage"}`;
+      case "sms": return `${actor} sent SMS${subj ? `: ${subj}` : ""}`;
+      default: return `${actor} ${a.type.replace(/_/g, " ")}${subj ? ` — ${subj}` : ""}`;
+    }
+  };
+
+  const CrmRow = ({ a }: { a: CrmActivity }) => (
+    <div className="flex items-start gap-2 text-xs text-muted-foreground py-0.5">
+      <div className="mt-1.5 h-1 w-1 rounded-full bg-primary/50 shrink-0 ml-2" />
+      <span className="flex-1">{describeCrm(a)}</span>
+      <span className="shrink-0">{timeAgo(a.occurred_at)}</span>
+    </div>
+  );
+
   const Header = (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
