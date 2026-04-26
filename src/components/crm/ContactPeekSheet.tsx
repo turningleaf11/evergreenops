@@ -430,11 +430,16 @@ export function ContactPeekSheet({
 
                 <EntityTabPanel value="activity" className="p-0 overflow-hidden">
                   <EntityDetailLayout
-                    mainClassName="overflow-hidden p-0"
+                    mainClassName="overflow-hidden p-6"
                     mainInnerClassName="!max-w-none !space-y-0 h-full"
                     main={
-                      <div className="h-full flex flex-col bg-card">
-                        <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
+                      <div
+                        className="h-full flex flex-col bg-card rounded-xl overflow-hidden"
+                        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+                      >
+                        <div className="flex-1 min-h-0 flex flex-col p-5">
+                          <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
+                        </div>
                       </div>
                     }
                     sidebar={
