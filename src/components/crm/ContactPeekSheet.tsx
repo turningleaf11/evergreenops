@@ -288,14 +288,12 @@ export function ContactPeekSheet({
                   />
                 </div>
 
-                {/* Right rail */}
-                <aside className="border-l border-border/50 overflow-auto bg-muted/10">
-                  <div className="p-4 space-y-5">
+                {/* Right rail — integrated, same surface as page */}
+                <aside className="border-l border-border/40 overflow-auto bg-background">
+                  <div className="p-6 space-y-6">
                     {/* Contact info */}
-                    <section className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Contact info
-                      </div>
+                    <section className="space-y-3">
+                      <div className="crm-eyebrow">Contact info</div>
                       {contact.email && (
                         <a
                           href={`mailto:${contact.email}`}
@@ -363,9 +361,7 @@ export function ContactPeekSheet({
 
                     {/* Appointments */}
                     <section>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                        Appointments
-                      </div>
+                      <div className="crm-eyebrow mb-3">Appointments</div>
                       {(() => {
                         const upcoming = activities.filter(
                           (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
@@ -439,9 +435,7 @@ function CustomFieldsPanel({
   };
   return (
     <section>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Custom fields
-      </div>
+      <div className="crm-eyebrow mb-3">Custom fields</div>
       <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
       {dirty && (
         <div className="flex justify-end mt-2">
