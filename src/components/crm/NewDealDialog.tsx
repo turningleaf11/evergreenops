@@ -28,6 +28,8 @@ interface Props {
   workspaceId: string | null;
   userId: string | null;
   onCreated: () => void;
+  /** When opened from a contact, pre-select that contact as primary. */
+  defaultContactId?: string | null;
 }
 
 const contactName = (c: ContactLite) =>
@@ -40,6 +42,7 @@ export function NewDealDialog({
   workspaceId,
   userId,
   onCreated,
+  defaultContactId,
 }: Props) {
   const [title, setTitle] = useState("");
   const [value, setValue] = useState("");
@@ -70,9 +73,19 @@ export function NewDealDialog({
       const s = (st as Stage[]) || [];
       setStages(s);
       setStageId(s[0]?.id ?? "");
-      setContacts((cs as ContactLite[]) || []);
+      const cList = (cs as ContactLite[]) || [];
+      // Make sure the default contact is in the list even if outside the latest 500.
+      if (defaultContactId && !cList.some((c) => c.id === defaultContactId)) {
+        const { data: extra } = await supabase
+          .from("contacts")
+          .select("id,first_name,last_name,email")
+          .eq("id", defaultContactId)
+          .maybeSingle();
+        if (extra) cList.unshift(extra as ContactLite);
+      }
+      setContacts(cList);
     })();
-  }, [open, pipelineId]);
+  }, [open, pipelineId, defaultContactId]);
 
   useEffect(() => {
     if (!open) {
@@ -82,8 +95,11 @@ export function NewDealDialog({
       setAssociatedIds(new Set());
       setCloseDate("");
       setSearch("");
+    } else if (defaultContactId) {
+      // Pre-select the contact this dialog was opened from as primary.
+      setPrimaryId(defaultContactId);
     }
-  }, [open]);
+  }, [open, defaultContactId]);
 
   const filtered = useMemo(() => {
     if (search.trim().length < 1) return contacts.slice(0, 8);
