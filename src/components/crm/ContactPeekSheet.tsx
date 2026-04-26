@@ -372,8 +372,8 @@ export function ContactPeekSheet({
                 <ContactDealsLeadsTab deals={linkedDeals} leads={linkedLeads} />
               </EntityTabPanel>
 
-              <EntityTabPanel value="activity" className="p-4">
-                <ActivityPanel entityType="contact" entityId={contact.id} />
+              <EntityTabPanel value="activity" className="p-4 flex flex-col min-h-0">
+                <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
               </EntityTabPanel>
 
               <EntityTabPanel value="files">
