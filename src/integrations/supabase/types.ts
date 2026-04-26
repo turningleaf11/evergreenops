@@ -2366,6 +2366,8 @@ export type Database = {
           connected_by: string | null
           email: string
           id: string
+          is_default: boolean
+          label: string | null
           refresh_token_secret_id: string
           revoked_at: string | null
           updated_at: string
@@ -2376,6 +2378,8 @@ export type Database = {
           connected_by?: string | null
           email: string
           id?: string
+          is_default?: boolean
+          label?: string | null
           refresh_token_secret_id: string
           revoked_at?: string | null
           updated_at?: string
@@ -2386,6 +2390,8 @@ export type Database = {
           connected_by?: string | null
           email?: string
           id?: string
+          is_default?: boolean
+          label?: string | null
           refresh_token_secret_id?: string
           revoked_at?: string | null
           updated_at?: string
@@ -2520,6 +2526,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      help_articles: {
+        Row: {
+          body_md: string
+          category: string
+          created_at: string
+          id: string
+          published: boolean
+          slug: string
+          sort_order: number
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body_md?: string
+          category?: string
+          created_at?: string
+          id?: string
+          published?: boolean
+          slug: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body_md?: string
+          category?: string
+          created_at?: string
+          id?: string
+          published?: boolean
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       idea_vault: {
         Row: {
@@ -5020,6 +5065,10 @@ export type Database = {
       }
       is_deal_team_member: {
         Args: { _deal_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_developer_workspace_admin: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       is_primary_admin: { Args: { _user_id: string }; Returns: boolean }
