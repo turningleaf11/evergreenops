@@ -50,6 +50,7 @@ import {
 } from "./_shell";
 import { cn } from "@/lib/utils";
 import { LinkRecordPopover } from "./LinkRecordPopover";
+import { EditableLineField } from "./EditableLineField";
 
 interface Contact {
   id: string;
