@@ -129,6 +129,19 @@ export function LinkRecordPopover({
             </ul>
           )}
         </div>
+        {onCreate && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+              onCreate();
+            }}
+            className="w-full text-left px-3 py-2 text-xs font-medium text-primary border-t hover:bg-muted/60 flex items-center gap-1"
+          >
+            <Plus className="h-3 w-3" /> Create new {kind}
+          </button>
+        )}
       </PopoverContent>
     </Popover>
   );
