@@ -1515,12 +1515,21 @@ function ContactDetailBody({
             >
               {initials}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <h2 className="text-[22px] font-semibold leading-tight text-foreground break-words">
                 {fullName}
               </h2>
-              <div className="text-[13px] text-muted-foreground">
-                {[typeLabel, companyName].filter(Boolean).join(" · ")}
+              <div className="flex items-center gap-2 flex-wrap">
+                <ContactTypeChip
+                  value={(contact.contact_type as ContactType) || "other"}
+                  onChange={(v) => updateContact({ contact_type: v })}
+                />
+                {companyName && (
+                  <>
+                    <span className="text-muted-foreground/50 text-xs">·</span>
+                    <span className="text-[13px] text-muted-foreground truncate">{companyName}</span>
+                  </>
+                )}
               </div>
               <div className="text-[12px] italic text-muted-foreground/70">
                 {lastContacted ? `Last contacted ${lastContacted}` : "Never contacted"}
