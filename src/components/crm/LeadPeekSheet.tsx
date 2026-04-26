@@ -392,10 +392,10 @@ export function LeadPeekSheet({
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] min-h-0 overflow-hidden">
-              {/* Left rail */}
-              <aside className="border-r border-border/50 overflow-auto bg-muted/10">
-                <div className="p-4 space-y-6">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-0 overflow-hidden bg-background">
+              {/* Left rail — same surface as main, just an inset divider */}
+              <aside className="overflow-auto md:border-r md:border-border/40">
+                <div className="p-6 space-y-8">
                   {/* DETAILS */}
                   <section className="space-y-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
