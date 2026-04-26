@@ -38,7 +38,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { OwnerPicker } from "./PeoplePickers";
-import { TEMPERATURE_META, FollowUpPicker } from "./FollowUpPicker";
+import { FollowUpPicker } from "./FollowUpPicker";
 import {
   CrmActivityTimeline,
   type TimelineActivity,
