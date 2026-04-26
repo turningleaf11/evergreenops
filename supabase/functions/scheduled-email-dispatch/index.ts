@@ -20,6 +20,7 @@ interface ScheduledRow {
   thread_id: string | null;
   in_reply_to: string | null;
   attempts: number;
+  account_id: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -39,17 +40,18 @@ Deno.serve(async (req) => {
 
   if (queryError) return json({ error: queryError.message }, 500);
 
-  // Cache resolved Gmail accounts per workspace within this run.
+  // Cache resolved Gmail accounts per (workspace, account_id) within this run.
   const accessTokenCache = new Map<string, { token: string; from: string } | null>();
 
   const results: Array<{ id: string; status: string; error?: string }> = [];
 
   for (const row of (due || []) as ScheduledRow[]) {
     try {
-      let acct = accessTokenCache.get(row.workspace_id);
+      const cacheKey = `${row.workspace_id}::${row.account_id ?? 'default'}`;
+      let acct = accessTokenCache.get(cacheKey);
       if (acct === undefined) {
-        acct = await resolveWorkspaceGmail(admin, row.workspace_id);
-        accessTokenCache.set(row.workspace_id, acct);
+        acct = await resolveWorkspaceGmail(admin, row.workspace_id, row.account_id);
+        accessTokenCache.set(cacheKey, acct);
       }
       if (!acct) {
         await markFailed(admin, row, 'Workspace Gmail not connected', true);
@@ -101,13 +103,21 @@ async function markFailed(
 async function resolveWorkspaceGmail(
   admin: any,
   workspaceId: string,
+  accountId: string | null,
 ): Promise<{ token: string; from: string } | null> {
-  const { data: account } = await admin
+  // Prefer the specific account if provided; otherwise the workspace default;
+  // otherwise the oldest connected account (back-compat).
+  let query = admin
     .from('gmail_workspace_account')
     .select('email, refresh_token_secret_id')
     .eq('workspace_id', workspaceId)
-    .is('revoked_at', null)
-    .maybeSingle();
+    .is('revoked_at', null);
+  if (accountId) {
+    query = query.eq('id', accountId);
+  } else {
+    query = query.order('is_default', { ascending: false }).order('connected_at', { ascending: true });
+  }
+  const { data: account } = await query.limit(1).maybeSingle();
   if (!account) return null;
 
   const { data: tok } = await admin
