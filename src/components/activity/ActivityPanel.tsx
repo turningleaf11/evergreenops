@@ -38,7 +38,19 @@ interface ActivityEvent {
   created_at: string;
 }
 
+interface CrmActivity {
+  id: string;
+  type: string;
+  subject: string | null;
+  body: string | null;
+  occurred_at: string;
+  actor_id: string | null;
+  metadata: Record<string, any> | null;
+}
+
 type FilterMode = "all" | "comments" | "activity";
+
+const CRM_ENTITY_TYPES = new Set(["contact", "deal", "lead", "company"]);
 
 interface Props {
   entityType: string;
@@ -56,11 +68,29 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [crmActs, setCrmActs] = useState<CrmActivity[]>([]);
+  const isCrmEntity = CRM_ENTITY_TYPES.has(entityType);
+
   const fetchAll = useCallback(async () => {
-    const [{ data: c }, { data: e }] = await Promise.all([
+    const queries: any[] = [
       supabase.from("comments").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }),
       supabase.from("entity_activity").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }).limit(100),
-    ]);
+    ];
+    if (isCrmEntity) {
+      queries.push(
+        supabase.from("crm_activities")
+          .select("id,type,subject,body,occurred_at,actor_id,metadata")
+          .eq("entity_type", entityType)
+          .eq("entity_id", entityId)
+          .order("occurred_at", { ascending: true })
+          .limit(200)
+      );
+    }
+    const results = await Promise.all(queries);
+    const c = results[0].data;
+    const e = results[1].data;
+    const ca = isCrmEntity ? results[2].data : [];
+
     const normalizedC = ((c as any[]) || []).map((x) => ({
       ...x,
       attachments: Array.isArray(x.attachments) ? x.attachments : [],
@@ -68,10 +98,12 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     })) as Comment[];
     setComments(normalizedC);
     setEvents((e as ActivityEvent[]) || []);
+    setCrmActs((ca as CrmActivity[]) || []);
 
     const ids = new Set<string>();
     normalizedC.forEach((c) => ids.add(c.author_id));
     ((e as ActivityEvent[]) || []).forEach((ev) => { if (ev.actor_id) ids.add(ev.actor_id); });
+    ((ca as CrmActivity[]) || []).forEach((a) => { if (a.actor_id) ids.add(a.actor_id); });
     if (ids.size > 0) {
       const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", Array.from(ids));
       if (profs) {
@@ -80,7 +112,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
         setProfiles(map);
       }
     }
-  }, [entityType, entityId]);
+  }, [entityType, entityId, isCrmEntity]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -90,6 +122,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       .channel(`activity-${entityType}-${entityId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [entityType, entityId, fetchAll]);
@@ -127,12 +160,13 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   const stream = useMemo(() => {
     const topComments = comments.filter((c) => !c.parent_id).map((c) => ({ kind: "comment" as const, at: c.created_at, comment: c }));
     const evs = events.map((e) => ({ kind: "event" as const, at: e.created_at, event: e }));
-    let merged: Array<typeof topComments[number] | typeof evs[number]> = [];
+    const crm = crmActs.map((a) => ({ kind: "crm" as const, at: a.occurred_at, crm: a }));
+    let merged: Array<typeof topComments[number] | typeof evs[number] | typeof crm[number]> = [];
     if (filter === "comments") merged = topComments;
-    else if (filter === "activity") merged = evs;
-    else merged = [...topComments, ...evs];
+    else if (filter === "activity") merged = [...evs, ...crm];
+    else merged = [...topComments, ...evs, ...crm];
     return merged.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  }, [comments, events, filter]);
+  }, [comments, events, crmActs, filter]);
 
   const repliesFor = (id: string) => comments.filter((c) => c.parent_id === id);
 
@@ -239,6 +273,28 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     </div>
   );
 
+  const describeCrm = (a: CrmActivity) => {
+    const actor = a.actor_id ? profiles[a.actor_id] || "Someone" : "System";
+    const subj = a.subject?.trim();
+    switch (a.type) {
+      case "email": return `${actor} sent email${subj ? `: "${subj}"` : ""}`;
+      case "call": return `${actor} logged a call${subj ? ` — ${subj}` : ""}`;
+      case "meeting": return `${actor} logged a meeting${subj ? ` — ${subj}` : ""}`;
+      case "note": return `${actor} added a note${subj ? `: ${subj}` : ""}`;
+      case "stage_change": return `${actor} ${subj || "changed stage"}`;
+      case "sms": return `${actor} sent SMS${subj ? `: ${subj}` : ""}`;
+      default: return `${actor} ${a.type.replace(/_/g, " ")}${subj ? ` — ${subj}` : ""}`;
+    }
+  };
+
+  const CrmRow = ({ a }: { a: CrmActivity }) => (
+    <div className="flex items-start gap-2 text-xs text-muted-foreground py-0.5">
+      <div className="mt-1.5 h-1 w-1 rounded-full bg-primary/50 shrink-0 ml-2" />
+      <span className="flex-1">{describeCrm(a)}</span>
+      <span className="shrink-0">{timeAgo(a.occurred_at)}</span>
+    </div>
+  );
+
   const Header = (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
@@ -267,11 +323,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       {stream.length === 0 && (
         <p className="text-sm text-muted-foreground">No activity yet.</p>
       )}
-      {stream.map((item) =>
-        item.kind === "comment"
-          ? <CommentCard key={`c-${item.comment.id}`} c={item.comment} />
-          : <EventRow key={`e-${item.event.id}`} e={item.event} />
-      )}
+      {stream.map((item) => {
+        if (item.kind === "comment") return <CommentCard key={`c-${item.comment.id}`} c={item.comment} />;
+        if (item.kind === "event") return <EventRow key={`e-${item.event.id}`} e={item.event} />;
+        return <CrmRow key={`a-${item.crm.id}`} a={item.crm} />;
+      })}
     </div>
   );
 
