@@ -10,7 +10,6 @@ import {
   Archive,
   ArrowRight,
   Send,
-  Pencil,
   MoreHorizontal,
   NotebookPen,
   Users,
