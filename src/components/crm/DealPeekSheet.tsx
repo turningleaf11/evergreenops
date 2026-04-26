@@ -511,40 +511,87 @@ export function DealPeekSheet({
               <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto">
-                  <div className="p-4">
-                    <CrmComposerTabs
-                      onSubmit={handleComposerSubmit}
-                      onSendEmail={startNewEmail}
-                      emailDisabled={contacts.filter((c) => c.email).length === 0}
-                    />
-                  </div>
-                  <div className="px-4">
-                    <ActivityFilterPills
-                      activities={activities}
-                      value={filter}
-                      onChange={setFilter}
-                    />
-                  </div>
-                  <CrmActivityTimeline
-                    activities={activities}
-                    people={people}
-                    filter={filter}
-                    onReply={(a) => {
-                      const meta = a.metadata as any;
-                      const recipient = primaryContact?.email;
-                      if (!recipient) {
-                        toast({ title: "No primary contact email", variant: "destructive" });
-                        return;
-                      }
-                      openCompose({
-                        to: recipient,
-                        subject: a.subject?.toLowerCase().startsWith("re:")
-                          ? a.subject
-                          : `Re: ${a.subject || ""}`,
-                        threadId: meta?.gmail_thread_id,
-                      });
-                    }}
-                  />
+                  <Tabs defaultValue="overview" className="w-full">
+                    <div className="px-4 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                      <TabsList className="bg-transparent p-0 h-auto gap-1">
+                        <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+                        <TabsTrigger value="underwriting" className="text-xs">Underwriting</TabsTrigger>
+                        <TabsTrigger value="broker" className="text-xs">Broker Comms</TabsTrigger>
+                        <TabsTrigger value="activity" className="text-xs">Activity</TabsTrigger>
+                        <TabsTrigger value="files" className="text-xs">Files</TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value="overview" className="p-4 mt-0">
+                      <DealOverviewPanel
+                        deal={deal as any}
+                        workspaceId={deal.workspace_id}
+                        onSave={async (patch) => { await saveField(patch as any); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="underwriting" className="p-4 mt-0">
+                      <DealUnderwritingTab
+                        deal={deal as any}
+                        onChanged={() => { void reload(); onChanged(); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="broker" className="p-4 mt-0">
+                      <DealBrokerCommsTab
+                        dealId={deal.id}
+                        workspaceId={deal.workspace_id}
+                        initialFeedback={deal.broker_feedback}
+                        initialEntries={
+                          activities
+                            .filter((a) => a.type === "broker_feedback")
+                            .map((a) => ({ id: a.id, body: a.body || "", occurred_at: a.occurred_at }))
+                        }
+                        onChanged={() => { void reload(); onChanged(); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="activity" className="mt-0">
+                      <div className="p-4">
+                        <CrmComposerTabs
+                          onSubmit={handleComposerSubmit}
+                          onSendEmail={startNewEmail}
+                          emailDisabled={contacts.filter((c) => c.email).length === 0}
+                        />
+                      </div>
+                      <div className="px-4">
+                        <ActivityFilterPills
+                          activities={activities}
+                          value={filter}
+                          onChange={setFilter}
+                        />
+                      </div>
+                      <CrmActivityTimeline
+                        activities={activities}
+                        people={people}
+                        filter={filter}
+                        onReply={(a) => {
+                          const meta = a.metadata as any;
+                          const recipient = primaryContact?.email;
+                          if (!recipient) {
+                            toast({ title: "No primary contact email", variant: "destructive" });
+                            return;
+                          }
+                          openCompose({
+                            to: recipient,
+                            subject: a.subject?.toLowerCase().startsWith("re:")
+                              ? a.subject
+                              : `Re: ${a.subject || ""}`,
+                            threadId: meta?.gmail_thread_id,
+                          });
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="files" className="p-4 mt-0">
+                      <DealFilesTab dealId={deal.id} workspaceId={deal.workspace_id} />
+                    </TabsContent>
+                  </Tabs>
                 </div>
 
                 {/* Right rail */}
