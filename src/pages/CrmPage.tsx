@@ -24,7 +24,7 @@ export default function CrmPage() {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
-  const initialTab: Tab = (["leads", "contacts", "companies", "deals"] as Tab[]).includes(
+  const initialTab: Tab = (["leads", "contacts", "companies", "deals", "transactions"] as Tab[]).includes(
     params.tab as Tab,
   )
     ? (params.tab as Tab)
