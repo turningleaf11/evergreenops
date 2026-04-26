@@ -492,7 +492,7 @@ export function DealPeekSheet({
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={() => toast({ title: "Coming next", description: "Transaction creation wires up in the next prompt." })}
+                        onClick={() => setNewTxOpen(true)}
                       >
                         Create Transaction →
                       </Button>
