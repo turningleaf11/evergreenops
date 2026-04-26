@@ -149,7 +149,7 @@ export function InlineEmailComposer({
 
       {/* Body */}
       <div className="flex-1 min-h-0 px-4 py-3 overflow-auto">
-        <RichTextEditor value={body} onChange={setBody} placeholder="Write your message…" />
+        <RichTextEditor content={body} onChange={setBody} placeholder="Write your message…" borderless compact />
         {attachments.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {attachments.map((a, i) => (
