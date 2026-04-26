@@ -21,8 +21,12 @@ import {
   MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  EntitySheetShell,
+  EntitySheetHeader,
+  EntityIdentityStrip,
+} from "./_shell";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
