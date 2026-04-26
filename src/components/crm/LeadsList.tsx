@@ -40,7 +40,27 @@ interface Lead {
   notes: string;
   owner_id: string | null;
   created_at: string;
+  buy_box_fit?: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_type?: string | null;
+  asking_price?: number | null;
+  units?: number | null;
+  source_contact_id?: string | null;
+  has_om?: boolean;
+  has_t12?: boolean;
+  has_rent_roll?: boolean;
+  disqualification_reason?: string | null;
+  converted_deal_id?: string | null;
 }
+
+const BUY_BOX_BORDER: Record<string, string> = {
+  yes: "border-l-emerald-500",
+  maybe: "border-l-amber-400",
+  no: "border-l-red-500",
+  unchecked: "border-l-muted-foreground/20",
+};
 
 const TEMPS: Array<"cold" | "warm" | "hot"> = ["cold", "warm", "hot"];
 
