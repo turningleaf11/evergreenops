@@ -48,6 +48,7 @@ import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { DocChecklist } from "./DocChecklist";
 import { BuyBoxButtons, BUY_BOX_META, type BuyBoxFit } from "./BuyBoxButtons";
 import { LeadFilesTab } from "./LeadFilesTab";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactPicker } from "./ContactPicker";
 
 export interface Lead {
@@ -649,10 +650,10 @@ export function LeadPeekSheet({
                 <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 flex flex-col min-h-0">
                   <TabsList className="h-10 bg-transparent rounded-none border-b border-border/50 px-4 justify-start gap-1 w-full">
                     <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5">
-                      <NotebookPen className="h-3.5 w-3.5" /> Notes
+                      <NotebookPen className="h-3.5 w-3.5" /> Activity
                     </TabsTrigger>
                     <TabsTrigger value="activity" className="data-[state=active]:bg-muted gap-1.5">
-                      <CalendarIcon className="h-3.5 w-3.5" /> Activity
+                      <CalendarIcon className="h-3.5 w-3.5" /> Planned
                     </TabsTrigger>
                     <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5">
                       <Mail className="h-3.5 w-3.5" /> Email
@@ -662,36 +663,9 @@ export function LeadPeekSheet({
                     </TabsTrigger>
                   </TabsList>
 
-                  {/* NOTES TAB */}
-                  <TabsContent value="notes" className="flex-1 overflow-auto m-0 p-4 space-y-4">
-                    <div className="rounded-lg border border-border/50 bg-card p-3">
-                      <textarea
-                        value={noteDraft}
-                        onChange={(e) => setNoteDraft(e.target.value)}
-                        placeholder="Click here to add a note…"
-                        rows={3}
-                        className="w-full bg-transparent outline-none text-sm resize-none placeholder:text-muted-foreground"
-                      />
-                      {noteDraft.trim() && (
-                        <div className="flex justify-end pt-2 border-t border-border/40 mt-2">
-                          <Button size="sm" onClick={addNote}>
-                            Save note
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-
-                    <PlannedSection
-                      planned={planned}
-                      planType={planType}
-                      planSubject={planSubject}
-                      setPlanType={setPlanType}
-                      setPlanSubject={setPlanSubject}
-                      onChoosePreset={(k) => planActivity(presetDate(k))}
-                      onCustom={(iso) => planActivity(new Date(iso))}
-                    />
-
-                    <DoneSection done={done} people={people} />
+                  {/* ACTIVITY (NOTES + COMMENTS + EVENTS) TAB */}
+                  <TabsContent value="notes" className="flex-1 overflow-hidden m-0 p-4">
+                    <ActivityPanel entityType="lead" entityId={lead.id} hideHeader />
                   </TabsContent>
 
                   {/* ACTIVITY TAB */}
