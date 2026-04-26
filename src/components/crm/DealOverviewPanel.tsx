@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -85,36 +85,15 @@ export function DealOverviewPanel({
       <section className="crm-card space-y-4">
         <h3 className="crm-eyebrow">Property</h3>
         <div>
-          <Label className="crm-field-label">Address</Label>
-          <Input
-            value={draft.property_address ?? ""}
-            onChange={(e) => setDraft({ ...draft, property_address: e.target.value })}
-            onBlur={() => blur({ property_address: draft.property_address })}
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label className="crm-field-label">City</Label>
+          <Label className="crm-field-label">Property Address</Label>
+          <div className="relative">
+            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              value={draft.property_city ?? ""}
-              onChange={(e) => setDraft({ ...draft, property_city: e.target.value })}
-              onBlur={() => blur({ property_city: draft.property_city })}
-            />
-          </div>
-          <div>
-            <Label className="crm-field-label">State</Label>
-            <Input
-              value={draft.property_state ?? ""}
-              onChange={(e) => setDraft({ ...draft, property_state: e.target.value })}
-              onBlur={() => blur({ property_state: draft.property_state })}
-            />
-          </div>
-          <div>
-            <Label className="crm-field-label">Zip</Label>
-            <Input
-              value={draft.property_zip ?? ""}
-              onChange={(e) => setDraft({ ...draft, property_zip: e.target.value })}
-              onBlur={() => blur({ property_zip: draft.property_zip })}
+              value={draft.property_address ?? ""}
+              placeholder="Full property address"
+              className="pl-8"
+              onChange={(e) => setDraft({ ...draft, property_address: e.target.value })}
+              onBlur={() => blur({ property_address: draft.property_address })}
             />
           </div>
         </div>
