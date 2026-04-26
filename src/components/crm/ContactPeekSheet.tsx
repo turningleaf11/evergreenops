@@ -80,7 +80,7 @@ export function ContactPeekSheet({
   const [loading, setLoading] = useState(false);
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
-  const [filter, setFilter] = useState("all");
+  const [tab, setTab] = useState<EntityTabId>("overview");
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeCtx, setComposeCtx] = useState<{ to: string; subject: string; threadId?: string }>({
