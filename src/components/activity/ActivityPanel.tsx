@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle } from "lucide-react";
+import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer";
@@ -306,6 +306,43 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     const Icon = cfg.icon;
     const actor = a.actor_id ? profiles[a.actor_id] || "Someone" : "System";
 
+    const [expanded, setExpanded] = useState(false);
+    const [thread, setThread] = useState<any[] | null>(null);
+    const [loadingThread, setLoadingThread] = useState(false);
+    const [openMsgIdx, setOpenMsgIdx] = useState<number | null>(null);
+
+    const loadThread = useCallback(async () => {
+      if (!threadId || thread || loadingThread) return;
+      setLoadingThread(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("gmail-get-thread", {
+          method: "GET" as any,
+          // pass via query string
+        } as any);
+        // functions.invoke doesn't easily support query strings — use direct fetch
+        const url = `${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/gmail-get-thread?id=${encodeURIComponent(threadId)}`;
+        const { data: { session } } = await supabase.auth.getSession();
+        const r = await fetch(url, {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j?.error || "Failed");
+        const msgs = j.messages || [];
+        setThread(msgs);
+        setOpenMsgIdx(msgs.length ? msgs.length - 1 : null);
+      } catch (e: any) {
+        toast.error(e?.message || "Couldn't load email thread");
+      } finally {
+        setLoadingThread(false);
+      }
+    }, [threadId, thread, loadingThread]);
+
+    const toggleExpand = () => {
+      const next = !expanded;
+      setExpanded(next);
+      if (next && isEmail && threadId && !thread) loadThread();
+    };
+
     // Compact one-liner for non-email/non-note CRM activities
     if (!isEmail && a.type !== "note" && a.type !== "call" && a.type !== "meeting") {
       return (
@@ -317,13 +354,27 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       );
     }
 
+    const fromHeader = (m: any) => m?.headers?.from || "";
+    const toHeader = (m: any) => m?.headers?.to || "";
+    const dateHeader = (m: any) => {
+      const d = m?.headers?.date ? new Date(m.headers.date) : (m?.internalDate ? new Date(Number(m.internalDate)) : null);
+      return d ? d.toLocaleString() : "";
+    };
+
     return (
       <div className="flex gap-3">
         <div className={cn("h-7 w-7 shrink-0 rounded-full flex items-center justify-center", cfg.bg)}>
           <Icon className={cn("h-3.5 w-3.5", cfg.fg)} />
         </div>
-        <div className="min-w-0 flex-1 rounded-lg border border-border/40 bg-card p-3">
-          <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="min-w-0 flex-1 rounded-lg border border-border/40 bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={toggleExpand}
+            className="w-full text-left p-3 hover:bg-muted/40 transition-colors flex items-start gap-2"
+          >
+            <div className="mt-0.5 shrink-0 text-muted-foreground">
+              {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium leading-tight truncate">
                 {a.subject?.trim() || (isEmail ? "(no subject)" : a.type)}
@@ -331,9 +382,14 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {actor} · {timeAgo(a.occurred_at)}
               </div>
+              {!expanded && a.body && (
+                <p className="whitespace-pre-wrap text-xs text-muted-foreground line-clamp-2 mt-1">
+                  {a.body}
+                </p>
+              )}
             </div>
             {isEmail && (
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                 {threadId && onReplyEmail && (
                   <Button
                     size="sm"
@@ -347,19 +403,88 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                 {threadId && (
                   <Link
                     to={`/inbox?thread=${threadId}`}
-                    className="text-muted-foreground hover:text-primary inline-flex items-center"
+                    className="text-muted-foreground hover:text-primary inline-flex items-center px-1"
                     title="Open in inbox"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Link>
                 )}
               </div>
             )}
-          </div>
-          {a.body && (
-            <p className="whitespace-pre-wrap text-sm text-muted-foreground line-clamp-6">
-              {a.body}
-            </p>
+          </button>
+
+          {expanded && (
+            <div className="border-t border-border/40 bg-background">
+              {!isEmail && a.body && (
+                <p className="whitespace-pre-wrap text-sm text-foreground p-3">
+                  {a.body}
+                </p>
+              )}
+              {isEmail && loadingThread && (
+                <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading thread…
+                </div>
+              )}
+              {isEmail && !loadingThread && thread && thread.length === 0 && (
+                <div className="p-4 text-xs text-muted-foreground">
+                  No messages found in this thread.
+                </div>
+              )}
+              {isEmail && !loadingThread && thread && thread.length > 0 && (
+                <div className="divide-y divide-border/40">
+                  {thread.map((m, idx) => {
+                    const open = openMsgIdx === idx;
+                    return (
+                      <div key={m.id || idx} className="text-sm">
+                        <button
+                          type="button"
+                          onClick={() => setOpenMsgIdx(open ? null : idx)}
+                          className="w-full flex items-start justify-between gap-2 p-3 text-left hover:bg-muted/40"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium truncate">{fromHeader(m) || "Unknown sender"}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              to {toHeader(m) || "—"}
+                            </div>
+                            {!open && m.snippet && (
+                              <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{m.snippet}</div>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground shrink-0">{dateHeader(m)}</div>
+                        </button>
+                        {open && (
+                          <div className="px-3 pb-3">
+                            {m.bodyHtml ? (
+                              <div
+                                className="text-sm prose prose-sm max-w-none dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: m.bodyHtml }}
+                              />
+                            ) : (
+                              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
+                                {m.bodyText || m.snippet || ""}
+                              </pre>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {onReplyEmail && threadId && (
+                    <div className="p-2 flex justify-end bg-muted/20">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
+                      >
+                        <Reply className="h-3 w-3 mr-1" /> Reply
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
