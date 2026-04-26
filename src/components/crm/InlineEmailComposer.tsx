@@ -89,7 +89,8 @@ export function InlineEmailComposer({
 
   const handleAttach = async (file: File) => {
     try {
-      const { url } = await uploadFile(file, "email-attachments");
+      const url = await uploadFile(file);
+      if (!url) throw new Error("Upload failed");
       setAttachments((a) => [...a, { name: file.name, url }]);
     } catch (e: any) {
       toast.error(e.message ?? "Upload failed");
