@@ -588,7 +588,16 @@ function ContactSidebar({
         }
       >
         {deals.length === 0 ? (
-          <EntityEmpty>No deals linked.</EntityEmpty>
+          onLinkDeal ? (
+            <LinkRecordPopover
+              kind="deal"
+              excludeIds={[]}
+              onPick={(it) => onLinkDeal(it.id)}
+              triggerLabel="Link deal"
+            />
+          ) : (
+            <EntityEmpty>No deals linked.</EntityEmpty>
+          )
         ) : (
           <ul className="space-y-1.5">
             {deals.slice(0, 5).map((d) => (
