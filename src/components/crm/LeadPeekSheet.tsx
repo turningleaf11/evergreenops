@@ -397,10 +397,8 @@ export function LeadPeekSheet({
               <aside className="overflow-auto md:border-r md:border-border/40">
                 <div className="p-6 space-y-8">
                   {/* DETAILS */}
-                  <section className="space-y-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Details
-                    </div>
+                  <section className="space-y-4">
+                    <div className="crm-eyebrow">Details</div>
 
                     {/* Temperature */}
                     <div className="flex items-center gap-2">
@@ -464,11 +462,9 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* PERSON */}
-                  <section className="space-y-2">
+                  <section className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Person
-                      </div>
+                      <div className="crm-eyebrow">Person</div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-sm font-medium">
@@ -501,10 +497,10 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* ORGANIZATION */}
-                  <section className="space-y-2">
+                  <section className="space-y-3">
                     <button
                       onClick={() => setShowOrg((v) => !v)}
-                      className="flex items-center justify-between w-full text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      className="flex items-center justify-between w-full crm-eyebrow"
                     >
                       <span>Organization</span>
                       {showOrg ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -521,8 +517,8 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* PROPERTY */}
-                  <section className="space-y-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <section className="crm-card-muted space-y-3">
+                    <div className="crm-eyebrow flex items-center gap-1.5">
                       <Home className="h-3 w-3" /> Property
                     </div>
                     <FieldRow icon="📍">
@@ -624,10 +620,8 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* SOURCE */}
-                  <section className="space-y-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Source
-                    </div>
+                  <section className="space-y-3">
+                    <div className="crm-eyebrow">Source</div>
                     <ContactPicker
                       value={lead.source_contact_id ?? null}
                       onChange={(id, c) => {
