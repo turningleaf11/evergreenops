@@ -1135,3 +1135,365 @@ function ContactDealsLeadsTab({
   );
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// New "view-first" presentation components
+// ───────────────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="text-[12px] font-semibold uppercase text-muted-foreground mb-3"
+      style={{ letterSpacing: "0.12em" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ContactDetailsBlock({
+  contact,
+  companyName,
+  onChange,
+  onCompanyChange,
+  onChanged,
+}: {
+  contact: Contact;
+  companyName: string | null;
+  onChange: (patch: Partial<Contact>) => void;
+  onCompanyChange: (name: string | null) => void;
+  onChanged: () => void;
+}) {
+  const persist = async (patch: Partial<Contact>) => {
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onChange(patch);
+    onChanged();
+  };
+
+  return (
+    <section>
+      <SectionLabel>Contact details</SectionLabel>
+      <div className="-mx-2">
+        <EditableLineField
+          icon={<Phone className="h-4 w-4" />}
+          value={contact.phone}
+          placeholder="No phone added"
+          type="tel"
+          onSave={(v) => persist({ phone: v })}
+          ariaLabel="Edit phone"
+        />
+        <EditableLineField
+          icon={<Mail className="h-4 w-4" />}
+          value={contact.email}
+          placeholder="No email added"
+          type="email"
+          onSave={(v) => persist({ email: v })}
+          ariaLabel="Edit email"
+        />
+        <CompanyEditableLine
+          contact={contact}
+          companyName={companyName}
+          onPicked={async ({ id, name }) => {
+            const { error } = await supabase
+              .from("contacts")
+              .update({ company_id: id })
+              .eq("id", contact.id);
+            if (error) {
+              toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+              return;
+            }
+            onChange({ company_id: id });
+            onCompanyChange(name);
+            onChanged();
+          }}
+          onClear={async () => {
+            const { error } = await supabase
+              .from("contacts")
+              .update({ company_id: null })
+              .eq("id", contact.id);
+            if (error) {
+              toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+              return;
+            }
+            onChange({ company_id: null });
+            onCompanyChange(null);
+            onChanged();
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ContactNotesBlock({
+  contact,
+  onSaved,
+  onChanged,
+}: {
+  contact: Contact;
+  onSaved: (patch: Partial<Contact>) => void;
+  onChanged: () => void;
+}) {
+  return (
+    <section>
+      <SectionLabel>Notes</SectionLabel>
+      <div className="-mx-2">
+        <EditableLineField
+          value={contact.buy_box_notes}
+          placeholder="Add notes about this contact — deal quality, how they work, what they buy…"
+          multiline
+          onSave={async (v) => {
+            const patch = { buy_box_notes: v };
+            const { error } = await supabase
+              .from("contacts")
+              .update(patch as any)
+              .eq("id", contact.id);
+            if (error) {
+              toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+              return;
+            }
+            onSaved(patch);
+            onChanged();
+          }}
+          ariaLabel="Edit notes"
+        />
+      </div>
+    </section>
+  );
+}
+
+function CompanyEditableLine({
+  contact,
+  companyName,
+  onPicked,
+  onClear,
+}: {
+  contact: Contact;
+  companyName: string | null;
+  onPicked: (c: { id: string; name: string }) => Promise<void>;
+  onClear: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      let q = supabase.from("companies").select("id,name").order("name").limit(25);
+      if (query.trim()) q = q.ilike("name", `%${query.trim()}%`);
+      const { data } = await q;
+      if (!active) return;
+      setResults(((data as any[]) || []) as Array<{ id: string; name: string }>);
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [open, query]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="group w-full text-left flex items-start gap-3 px-2 py-2 -mx-0 rounded-md transition-colors hover:bg-[hsl(var(--muted)/0.6)]"
+          aria-label="Edit company"
+        >
+          <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+          <span
+            className={cn(
+              "flex-1 min-w-0 text-sm",
+              companyName ? "text-foreground" : "italic text-muted-foreground/70",
+            )}
+          >
+            {companyName || "No company added"}
+          </span>
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground/0 group-hover:text-muted-foreground/70 transition-colors shrink-0 mt-1" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-0">
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search companies…"
+              className="h-8 pl-7 text-sm"
+            />
+          </div>
+        </div>
+        <div className="max-h-64 overflow-auto py-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+            </div>
+          ) : results.length === 0 ? (
+            <div className="px-3 py-6 text-xs text-muted-foreground text-center">
+              No matches.
+            </div>
+          ) : (
+            results.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={async () => {
+                  await onPicked(c);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/60 truncate"
+              >
+                {c.name}
+              </button>
+            ))
+          )}
+          {contact.company_id && (
+            <button
+              type="button"
+              onClick={async () => {
+                await onClear();
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:text-destructive border-t mt-1 pt-2"
+            >
+              Clear company
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ContactTypeChip({
+  value,
+  onChange,
+}: {
+  value: ContactType;
+  onChange: (v: ContactType) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const color = CONTACT_TYPE_COLOR[value];
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="group inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors -mx-1 px-1 py-0.5 rounded hover:bg-[hsl(var(--muted)/0.6)]"
+          aria-label="Change type"
+        >
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: `hsl(${color})` }}
+          />
+          <span className="text-foreground">{CONTACT_TYPE_LABEL[value]}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 p-1">
+        {CONTACT_TYPES.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => {
+              onChange(t);
+              setOpen(false);
+            }}
+            className={cn(
+              "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-muted/60",
+              t === value && "bg-muted/40",
+            )}
+          >
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: `hsl(${CONTACT_TYPE_COLOR[t]})` }}
+            />
+            {CONTACT_TYPE_LABEL[t]}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function PreferredContactChip({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const iconFor = (m: string | null) => {
+    switch (m) {
+      case "email":
+        return <Mail className="h-3.5 w-3.5" />;
+      case "phone":
+      case "call":
+        return <Phone className="h-3.5 w-3.5" />;
+      case "text":
+      case "sms":
+        return <MessageSquare className="h-3.5 w-3.5" />;
+      default:
+        return <Smartphone className="h-3.5 w-3.5" />;
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="group inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors -mx-1 px-1 py-0.5 rounded hover:bg-[hsl(var(--muted)/0.6)]"
+          aria-label="Change preferred contact"
+        >
+          {value ? (
+            <>
+              <span className="text-muted-foreground">{iconFor(value)}</span>
+              <span className="text-foreground capitalize">Prefers {value}</span>
+            </>
+          ) : (
+            <span className="italic text-muted-foreground/70">Not set</span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 p-1">
+        <button
+          type="button"
+          onClick={() => {
+            onChange(null);
+            setOpen(false);
+          }}
+          className="w-full text-left px-2 py-1.5 rounded text-sm italic text-muted-foreground hover:bg-muted/60"
+        >
+          Not set
+        </button>
+        {PREFERRED_CONTACT_METHODS.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => {
+              onChange(m);
+              setOpen(false);
+            }}
+            className={cn(
+              "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-sm capitalize hover:bg-muted/60",
+              m === value && "bg-muted/40",
+            )}
+          >
+            <span className="text-muted-foreground">{iconFor(m)}</span>
+            {m}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
