@@ -1857,17 +1857,6 @@ function ContactDetailBody({
           <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
             <EntityTabPanel value="overview" className="p-6">
               <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="Quick stats">
-                  <KVRow
-                    label="Date added"
-                    value={
-                      contact.created_at
-                        ? new Date(contact.created_at).toLocaleDateString()
-                        : null
-                    }
-                  />
-                  <KVRow label="Title" value={contact.title} />
-                </OverviewCard>
                 <OverviewCard title="About">
                   <p
                     className={cn(
