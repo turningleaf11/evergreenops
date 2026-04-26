@@ -189,7 +189,6 @@ export function DealOverviewPanel({
               setDraft({ ...draft, source_contact_id: id });
               blur({ source_contact_id: id });
             }}
-            workspaceId={workspaceId}
           />
         </div>
 
