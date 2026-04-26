@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Users, Building2, Briefcase, Plus, Search, Inbox } from "lucide-react";
+import { Users, Building2, Briefcase, Plus, Search, Inbox, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,8 +13,9 @@ import { LeadsList } from "@/components/crm/LeadsList";
 import { ContactPeekSheet } from "@/components/crm/ContactPeekSheet";
 import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
+import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
 
-type Tab = "leads" | "contacts" | "companies" | "deals";
+type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
 
 export default function CrmPage() {
   const navigate = useNavigate();
