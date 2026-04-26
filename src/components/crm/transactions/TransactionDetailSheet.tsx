@@ -292,8 +292,9 @@ export function TransactionDetailSheet({
                           setActualNetInput(tx.estimated_net?.toString() || "");
                           setCloseOpen(true);
                         }}
+                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-10 px-5"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Closed
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark as Closed
                       </Button>
                     )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
@@ -303,13 +304,11 @@ export function TransactionDetailSheet({
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-auto p-6 space-y-6">
+              <div className="flex-1 overflow-auto p-6 space-y-8">
                 {/* SECTION 2 — KEY DATES */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Key dates
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Key dates</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <DateCard
                       label="Contract Date"
                       value={tx.contract_date}
@@ -336,17 +335,16 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 3 — KEY PEOPLE */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Key people
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Key people</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
                       const id = tx[roleKey];
                       const contact = people.find((p) => p.id === id);
                       return (
                         <PersonCard
                           key={roleKey}
+                          roleKey={roleKey}
                           label={ROLE_LABELS[roleKey]}
                           contact={contact || null}
                           onPick={(newId) => saveField({ [roleKey]: newId } as any)}
@@ -357,59 +355,30 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 4 — CHECKLIST */}
-                <section className="space-y-3">
+                <section className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Closing checklist
-                    </h3>
+                    <h3 className="crm-eyebrow">Closing checklist</h3>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {progress} of {total} complete
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all"
+                      className="h-full bg-brand-mint transition-all"
                       style={{ width: `${progressPct}%` }}
                     />
                   </div>
-                  <ul className="space-y-1 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
+                  <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
                     {items.map((item) => (
-                      <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
-                        <button
-                          onClick={() => toggleItem(item)}
-                          className="shrink-0 mt-0.5"
-                        >
-                          {item.is_complete ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              "text-sm",
-                              item.is_complete && "line-through text-muted-foreground",
-                            )}
-                          >
-                            {item.label}
-                          </div>
-                          {item.is_complete && item.completed_at && (
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              Completed {formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}
-                            </div>
-                          )}
-                        </div>
-                        <Input
-                          type="date"
-                          value={item.due_date ?? ""}
-                          onChange={(e) => setItemDueDate(item.id, e.target.value || null)}
-                          className="h-7 text-xs w-[140px] shrink-0"
-                        />
-                      </li>
+                      <ChecklistRow
+                        key={item.id}
+                        item={item}
+                        onToggle={() => toggleItem(item)}
+                        onSetDue={(v) => setItemDueDate(item.id, v)}
+                      />
                     ))}
                     {items.length === 0 && (
-                      <li className="px-3 py-6 text-center text-xs text-muted-foreground">
+                      <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">
                         No checklist items.
                       </li>
                     )}
