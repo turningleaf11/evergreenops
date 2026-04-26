@@ -510,6 +510,8 @@ export function ContactPeekSheet({
                         setContact={setContact}
                         onLinkDeal={linkDeal}
                         onLinkLead={linkLead}
+                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
+                        onCreateLead={() => setCreateLeadOpen(true)}
                       />
                     }
                   />
