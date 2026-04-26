@@ -21,12 +21,15 @@ export function EntityTabs({
   onValueChange,
   hide = [],
   className,
+  actions,
   children,
 }: {
   value: EntityTabId;
   onValueChange: (v: EntityTabId) => void;
   hide?: EntityTabId[];
   className?: string;
+  /** Right-aligned actions rendered inline with the tab strip. */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const order: EntityTabId[] = ["overview", "deals", "activity", "files", "more"];
@@ -38,7 +41,7 @@ export function EntityTabs({
       onValueChange={(v) => onValueChange(v as EntityTabId)}
       className={cn("flex-1 flex flex-col min-h-0", className)}
     >
-      <div className="px-6 border-b border-border/50 bg-background sticky top-0 z-10">
+      <div className="px-6 border-b border-border/50 bg-background sticky top-0 z-10 flex items-center justify-between gap-3">
         <TabsList className="h-11 bg-transparent rounded-none p-0 gap-1 justify-start">
           {visible.map((t) => (
             <TabsTrigger
@@ -50,6 +53,7 @@ export function EntityTabs({
             </TabsTrigger>
           ))}
         </TabsList>
+        {actions && <div className="flex items-center gap-1 shrink-0">{actions}</div>}
       </div>
       {children}
     </Tabs>
