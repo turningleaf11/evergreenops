@@ -290,8 +290,37 @@ export function ComposeModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* To / Subject */}
+        {/* From / To / Subject */}
         <div className="px-5 space-y-2 pb-2">
+          {accounts.length > 1 && (
+            <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+              <span className="text-xs text-muted-foreground w-12 shrink-0">From</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 text-sm py-1 hover:text-primary transition-colors">
+                    <span className="truncate max-w-[420px]">
+                      {activeAccount?.label
+                        ? `${activeAccount.label} · ${activeAccount.email}`
+                        : activeAccount?.email}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  {accounts.map((a) => (
+                    <DropdownMenuItem key={a.id} onClick={() => setAccountId(a.id)}>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{a.label || a.email}</span>
+                        {a.label && (
+                          <span className="text-[11px] text-muted-foreground">{a.email}</span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           <div className="flex items-center gap-2 border-b border-border/40 pb-2">
             <span className="text-xs text-muted-foreground w-12 shrink-0">To</span>
             <input
