@@ -1,10 +1,11 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-export type EntityTabId = "overview" | "activity" | "files" | "more";
+export type EntityTabId = "overview" | "deals" | "activity" | "files" | "more";
 
 export const ENTITY_TAB_LABELS: Record<EntityTabId, string> = {
   overview: "Overview",
+  deals: "Deals",
   activity: "Activity",
   files: "Files",
   more: "More",
