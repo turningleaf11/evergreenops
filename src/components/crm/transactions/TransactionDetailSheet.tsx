@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
   Check,
+  CheckCircle2,
   Trash2,
   Mail,
   Phone,
@@ -519,22 +520,28 @@ function DateCard({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card p-3 space-y-1.5",
-        emphasized ? "border-primary/30 bg-primary/5" : "border-border/50",
+        "rounded-xl bg-card p-5 space-y-2 border transition-shadow",
+        emphasized
+          ? "border-brand-azure/30 lg:col-span-2 p-6"
+          : "border-border/40",
       )}
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
     >
-      <div className={cn("text-[10px] uppercase tracking-wide text-muted-foreground", emphasized && "text-primary")}>
-        {label}
+      <div className="crm-eyebrow flex items-center gap-1.5">
+        <CalendarIcon className="h-3 w-3" /> {label}
       </div>
       <Input
         type="date"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className={cn("h-8 text-sm bg-transparent border-0 px-0", emphasized && "text-base font-semibold")}
+        className={cn(
+          "bg-transparent border-0 px-0 h-9 text-base font-medium",
+          emphasized && "text-lg font-semibold",
+        )}
       />
       <div
         className={cn(
-          "inline-block text-[10px] px-1.5 py-0.5 rounded border",
+          "inline-block text-xs font-medium px-2 py-0.5 rounded-full border",
           countdownClass ?? "text-muted-foreground bg-muted/40 border-border/40",
         )}
       >
@@ -544,24 +551,37 @@ function DateCard({
   );
 }
 
+const ROLE_ICONS: Record<RoleKey, any> = {
+  buyer_contact_id: User,
+  title_contact_id: FileText,
+  attorney_contact_id: Scale,
+  lender_contact_id: Banknote,
+};
+
 function PersonCard({
+  roleKey,
   label,
   contact,
   onPick,
 }: {
+  roleKey: RoleKey;
   label: string;
   contact: ContactDetail | null;
   onPick: (id: string | null) => void;
 }) {
+  const Icon = ROLE_ICONS[roleKey] || User;
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-3 space-y-2">
+    <div
+      className="rounded-xl bg-card p-5 space-y-3 border border-border/40"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-          {label}
-        </span>
+        <div className="crm-eyebrow flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5" /> {label}
+        </div>
         {contact?.contact_type && (
           <Badge
-            className="text-[9px] border-transparent"
+            className="text-[10px] border-transparent"
             style={{
               backgroundColor: `hsl(${contactTypeColor(contact.contact_type)} / 0.15)`,
               color: `hsl(${contactTypeColor(contact.contact_type)})`,
@@ -572,10 +592,10 @@ function PersonCard({
         )}
       </div>
       {contact ? (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <a
             href={`/crm/contacts?contact=${contact.id}`}
-            className="text-sm font-medium hover:text-primary inline-flex items-center gap-1"
+            className="text-sm font-medium hover:text-brand-azure inline-flex items-center gap-1"
           >
             {`${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || "Unnamed"}
             <ExternalLink className="h-3 w-3" />
@@ -583,7 +603,7 @@ function PersonCard({
           {contact.email && (
             <a
               href={`mailto:${contact.email}`}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-azure"
             >
               <Mail className="h-3 w-3" /> {contact.email}
             </a>
@@ -591,14 +611,14 @@ function PersonCard({
           {contact.phone && (
             <a
               href={`tel:${contact.phone}`}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-azure"
             >
               <Phone className="h-3 w-3" /> {contact.phone}
             </a>
           )}
           <button
             onClick={() => onPick(null)}
-            className="text-[10px] text-muted-foreground hover:text-destructive"
+            className="text-[11px] text-muted-foreground hover:text-destructive"
           >
             Remove
           </button>
@@ -611,6 +631,70 @@ function PersonCard({
         />
       )}
     </div>
+  );
+}
+
+function ChecklistRow({
+  item,
+  onToggle,
+  onSetDue,
+}: {
+  item: ChecklistItem;
+  onToggle: () => void;
+  onSetDue: (v: string | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <li className="px-3 py-3">
+      <div className="flex items-start gap-3">
+        <button
+          onClick={onToggle}
+          className={cn(
+            "shrink-0 mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+            item.is_complete
+              ? "bg-brand-mint border-brand-mint text-white"
+              : "border-muted-foreground/40 hover:border-brand-mint",
+          )}
+          aria-label={item.is_complete ? "Mark incomplete" : "Mark complete"}
+        >
+          {item.is_complete && <Check className="h-3 w-3" strokeWidth={3} />}
+        </button>
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="min-w-0 flex-1 text-left"
+        >
+          <div
+            className={cn(
+              "text-sm",
+              item.is_complete && "line-through text-muted-foreground",
+            )}
+          >
+            {item.label}
+          </div>
+          {item.is_complete && item.completed_at && (
+            <div className="text-[11px] text-muted-foreground italic mt-0.5">
+              Completed {formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}
+            </div>
+          )}
+          {!item.is_complete && item.due_date && !expanded && (
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Due {item.due_date}
+            </div>
+          )}
+        </button>
+      </div>
+      {expanded && (
+        <div className="mt-3 pl-8 flex items-center gap-2">
+          <Label className="text-[11px] text-muted-foreground">Due date</Label>
+          <Input
+            type="date"
+            value={item.due_date ?? ""}
+            onChange={(e) => onSetDue(e.target.value || null)}
+            className="h-7 text-xs w-[160px]"
+          />
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -627,7 +711,7 @@ function MoneyField({
   useEffect(() => setDraft(value?.toString() ?? ""), [value]);
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="crm-field-label">{label}</Label>
       <Input
         type="number"
         value={draft}
@@ -636,7 +720,7 @@ function MoneyField({
           const n = draft === "" ? null : Number(draft);
           if (n !== value) onSave(n);
         }}
-        className="h-8 text-sm tabular-nums"
+        className="h-9 text-sm tabular-nums"
       />
     </div>
   );
