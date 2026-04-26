@@ -23,6 +23,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { NewLeadDialog } from "./NewLeadDialog";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
 import { FollowUpPicker, TEMPERATURE_META } from "./FollowUpPicker";
+import { LeadPeekSheet } from "./LeadPeekSheet";
 
 interface Lead {
   id: string;
@@ -52,6 +53,7 @@ export function LeadsList({ search }: { search: string }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [tempFilter, setTempFilter] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
 
@@ -96,6 +98,7 @@ export function LeadsList({ search }: { search: string }) {
 
   const updateLead = async (id: string, patch: Partial<Lead>) => {
     setLeads((arr) => arr.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    setOpenLead((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
     const { error } = await supabase.from("leads").update(patch as any).eq("id", id);
     if (error) {
       toast({ title: "Couldn't update lead", description: error.message, variant: "destructive" });
@@ -188,11 +191,18 @@ export function LeadsList({ search }: { search: string }) {
             const isConverted = l.status === "converted";
             const isArchived = l.status === "archived";
             return (
-              <div key={l.id} className="px-4 py-3 hover:bg-muted/20 transition-colors">
+              <div
+                key={l.id}
+                onClick={() => setOpenLead(l)}
+                className="px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer"
+              >
                 <div className="flex items-start gap-3">
                   {/* Temp chip */}
                   <button
-                    onClick={() => !isConverted && !isArchived && cycleTemp(l)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isConverted && !isArchived) cycleTemp(l);
+                    }}
                     disabled={isConverted || isArchived}
                     className={cn(
                       "shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium",
@@ -233,12 +243,20 @@ export function LeadsList({ search }: { search: string }) {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                       {l.email && (
-                        <a href={`mailto:${l.email}`} className="inline-flex items-center gap-1 hover:text-primary">
+                        <a
+                          href={`mailto:${l.email}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                        >
                           <Mail className="h-3 w-3" /> {l.email}
                         </a>
                       )}
                       {l.phone && (
-                        <a href={`tel:${l.phone}`} className="inline-flex items-center gap-1 hover:text-primary">
+                        <a
+                          href={`tel:${l.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                        >
                           <Phone className="h-3 w-3" /> {l.phone}
                         </a>
                       )}
@@ -253,7 +271,10 @@ export function LeadsList({ search }: { search: string }) {
 
                   {/* Actions */}
                   {!isConverted && !isArchived && (
-                    <div className="shrink-0 flex items-center gap-1">
+                    <div
+                      className="shrink-0 flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <FollowUpPicker
                         value={l.next_action_at}
                         onChange={(iso) => updateLead(l.id, { next_action_at: iso })}
@@ -286,7 +307,10 @@ export function LeadsList({ search }: { search: string }) {
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs"
-                      onClick={() => navigate(`/crm/deals?deal=${(l as any).converted_deal_id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/crm/deals?deal=${(l as any).converted_deal_id}`);
+                      }}
                     >
                       Open deal
                     </Button>
@@ -315,6 +339,21 @@ export function LeadsList({ search }: { search: string }) {
           setConvertLead(null);
           setRefreshKey((k) => k + 1);
           toast({ title: "Lead converted to deal" });
+          navigate(`/crm/deals?deal=${dealId}`);
+        }}
+      />
+
+      <LeadPeekSheet
+        lead={openLead}
+        leads={filtered}
+        onClose={() => setOpenLead(null)}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+        onConvert={(l) => setConvertLead(l)}
+        onArchive={archive}
+        onUpdate={updateLead}
+        onOpenLead={(l) => setOpenLead(l)}
+        onOpenDeal={(dealId) => {
+          setOpenLead(null);
           navigate(`/crm/deals?deal=${dealId}`);
         }}
       />
