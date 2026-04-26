@@ -228,9 +228,11 @@ export function ContactPeekSheet({
     ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || "Untitled contact"
     : "";
 
-  const upcomingMeetings = activities.filter(
-    (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
-  );
+  const lastContacted = contact?.last_contacted_at
+    ? formatDistanceToNow(new Date(contact.last_contacted_at), { addSuffix: true })
+    : null;
+
+  const hasCustomFields = !!(contact?.custom_fields && Object.keys(contact.custom_fields).length > 0);
 
   return (
     <>
@@ -244,7 +246,32 @@ export function ContactPeekSheet({
           <>
             <EntitySheetHeader
               title={fullName}
-              subtitle={contact.title || undefined}
+              subtitle={
+                <div className="flex items-center gap-3 flex-wrap mt-1">
+                  {contact.title && (
+                    <span className="text-xs text-muted-foreground">{contact.title}</span>
+                  )}
+                  {contact.email && (
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate max-w-[220px]">{contact.email}</span>
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Phone className="h-3 w-3" />
+                      {contact.phone}
+                    </a>
+                  )}
+                </div>
+              }
+              titleClassName="text-xl font-semibold"
               onClose={onClose}
               actions={
                 <Button
@@ -285,83 +312,60 @@ export function ContactPeekSheet({
               pills={
                 <>
                   <EntityStatusPill kind="contact_type" value={contact.contact_type ?? "other"} />
-                  <EntityStatusPill kind="contact_status" value={contact.status} variant="outline" />
                   {contact.is_active === false && (
                     <EntityStatusPill kind="contact_status" value="inactive" variant="outline" />
                   )}
                 </>
               }
               chips={
-                <>
-                  {contact.email && (
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="inline-flex items-center gap-1 hover:text-primary"
-                    >
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[180px]">{contact.email}</span>
-                    </a>
-                  )}
-                  {contact.phone && (
-                    <a
-                      href={`tel:${contact.phone}`}
-                      className="inline-flex items-center gap-1 hover:text-primary"
-                    >
-                      <Phone className="h-3 w-3" />
-                      {contact.phone}
-                    </a>
-                  )}
-                  {contact.last_contacted_at && (
-                    <span>
-                      Last contacted{" "}
-                      {formatDistanceToNow(new Date(contact.last_contacted_at), {
-                        addSuffix: true,
-                      })}
-                    </span>
-                  )}
-                </>
+                lastContacted ? <span>Last contacted {lastContacted}</span> : null
               }
             />
 
             <EntityTabs value={tab} onValueChange={setTab}>
               <EntityTabPanel value="overview">
-                <div className="space-y-6 max-w-2xl">
-                  <section>
-                    <EntitySectionHeader>Details</EntitySectionHeader>
-                    <ContactDetailsPanel
-                      contact={contact}
-                      onSaved={(patch) => setContact({ ...contact, ...patch })}
-                      onChanged={onChanged}
-                    />
-                  </section>
+                <div className="space-y-7">
+                  <ContactInfoGrid
+                    contact={contact}
+                    companyName={companyName}
+                    onSaved={(patch) => setContact({ ...contact, ...patch })}
+                    onChanged={onChanged}
+                  />
 
-                  <section>
-                    <EntitySectionHeader>Custom fields</EntitySectionHeader>
-                    <CustomFieldsPanel
-                      contactId={contact.id}
-                      values={(contact.custom_fields || {}) as Record<string, unknown>}
-                      onSaved={(v) => setContact({ ...contact, custom_fields: v })}
-                    />
-                  </section>
+                  <ContactRelationshipNotes
+                    contact={contact}
+                    onSaved={(patch) => setContact({ ...contact, ...patch })}
+                    onChanged={onChanged}
+                  />
 
-                  <section>
-                    <EntitySectionHeader>Upcoming meetings</EntitySectionHeader>
-                    {upcomingMeetings.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No upcoming meetings.</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {upcomingMeetings.slice(0, 5).map((m) => (
-                          <li key={m.id} className="text-xs">
-                            <div className="font-medium">{m.subject || "Meeting"}</div>
-                            <div className="text-muted-foreground">
-                              {new Date(m.occurred_at).toLocaleString()}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
+                  <ContactMarketsSection
+                    contact={contact}
+                    onSaved={(patch) => setContact({ ...contact, ...patch })}
+                    onChanged={onChanged}
+                  />
+
+                  <ContactLinkedActivity
+                    deals={linkedDeals}
+                    leads={linkedLeads}
+                    lastContacted={lastContacted}
+                    onViewAll={() => setTab("deals")}
+                  />
+
+                  {hasCustomFields && (
+                    <section>
+                      <EntitySectionHeader>Custom fields</EntitySectionHeader>
+                      <CustomFieldsPanel
+                        contactId={contact.id}
+                        values={(contact.custom_fields || {}) as Record<string, unknown>}
+                        onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                      />
+                    </section>
+                  )}
                 </div>
+              </EntityTabPanel>
+
+              <EntityTabPanel value="deals">
+                <ContactDealsLeadsTab deals={linkedDeals} leads={linkedLeads} />
               </EntityTabPanel>
 
               <EntityTabPanel value="activity" className="p-4">
