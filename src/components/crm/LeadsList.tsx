@@ -53,6 +53,7 @@ export function LeadsList({ search }: { search: string }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [tempFilter, setTempFilter] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
 
