@@ -524,10 +524,8 @@ function ContactDetailsPanel({
   };
 
   return (
-    <section className="space-y-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Details
-      </div>
+    <section className="space-y-6">
+      <div className="crm-eyebrow">Details</div>
 
       <div>
         <Label className="text-[11px] text-muted-foreground">Type</Label>
@@ -596,9 +594,12 @@ function ContactDetailsPanel({
           </Button>
         </div>
         {markets.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-1.5 mt-2">
             {markets.map((m) => (
-              <Badge key={m} variant="secondary" className="gap-1 text-[10px]">
+              <span
+                key={m}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-azure/10 text-brand-azure"
+              >
                 {m}
                 <button
                   type="button"
@@ -607,7 +608,7 @@ function ContactDetailsPanel({
                 >
                   <X className="h-3 w-3" />
                 </button>
-              </Badge>
+              </span>
             ))}
           </div>
         )}
