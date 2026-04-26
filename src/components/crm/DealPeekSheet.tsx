@@ -880,6 +880,29 @@ export function DealPeekSheet({
           setCreateOpen(false);
         }}
       />
+
+      {deal && (
+        <NewTransactionDialog
+          open={newTxOpen}
+          onOpenChange={setNewTxOpen}
+          prefillFromDeal={{
+            dealId: deal.id,
+            property_address: deal.property_address || deal.title,
+            property_city: deal.property_city,
+            property_state: deal.property_state,
+            property_type: deal.property_type,
+            units: deal.units,
+            asking_price: deal.asking_price ?? deal.value,
+            source_contact_id: deal.source_contact_id,
+            expected_close_date: deal.expected_close_date,
+          }}
+          defaultLane="portfolio"
+          onCreated={() => {
+            toast({ title: "Transaction created", description: "View it in the Transactions tab." });
+            onChanged();
+          }}
+        />
+      )}
     </>
   );
 }
