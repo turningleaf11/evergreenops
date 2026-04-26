@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ interface Props {
   workspaceId: string | null;
   userId: string | null;
   onCreated: () => void;
+  /** When opened from a contact, pre-select that contact as the source. */
+  defaultContactId?: string | null;
 }
 
 const PROPERTY_TYPES = [
@@ -34,7 +36,7 @@ const PROPERTY_TYPES = [
   "Other",
 ];
 
-export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreated }: Props) {
+export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreated, defaultContactId }: Props) {
   const [name, setName] = useState("");
   const [temperature, setTemperature] = useState("warm");
   const [sourceContactId, setSourceContactId] = useState<string | null>(null);
@@ -60,6 +62,13 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
     setPropType(""); setUnits(""); setBeds(""); setBaths(""); setSqft("");
     setAskingPrice(""); setCapRate(""); setGrossIncome(""); setNoi("");
   };
+
+  // Pre-select source contact when opened from a contact context.
+  useEffect(() => {
+    if (open && defaultContactId) {
+      setSourceContactId(defaultContactId);
+    }
+  }, [open, defaultContactId]);
 
   const submit = async () => {
     if (!userId) return;

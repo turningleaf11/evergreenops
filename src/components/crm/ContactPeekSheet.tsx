@@ -75,6 +75,7 @@ interface Contact {
   buy_box_notes: string | null;
   markets: string[] | null;
   is_active: boolean;
+  source: string | null;
 }
 
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
@@ -131,7 +132,7 @@ export function ContactPeekSheet({
     let active = true;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: acts }, { data: p }, { data: deals }, { data: leads }] = await Promise.all([
+      const [{ data: c }, { data: acts }, { data: p }, { data: directDeals }, { data: linkedDealRows }, { data: directLeads }, { data: linkedLeadRows }] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", contactId).maybeSingle(),
         supabase
           .from("crm_activities")
@@ -143,24 +144,61 @@ export function ContactPeekSheet({
         supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500),
         supabase
           .from("deals")
-          .select("id,name,stage,status,primary_contact_id,source_contact_id")
+          .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
           .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
           .order("created_at", { ascending: false })
-          .limit(25),
+          .limit(50),
+        supabase
+          .from("entity_links")
+          .select("source_id, deals:source_id(id,title,stage_id,status)")
+          .eq("source_type", "deal")
+          .eq("target_type", "contact")
+          .eq("target_id", contactId)
+          .limit(50),
         supabase
           .from("leads")
-          .select("id,address_line1,status,source_contact_id,created_at")
+          .select("id,property_address,status,source_contact_id,created_at")
           .eq("source_contact_id", contactId)
           .order("created_at", { ascending: false })
-          .limit(25),
+          .limit(50),
+        supabase
+          .from("entity_links")
+          .select("source_id, leads:source_id(id,property_address,status)")
+          .eq("source_type", "lead")
+          .eq("target_type", "contact")
+          .eq("target_id", contactId)
+          .limit(50),
       ]);
       if (!active) return;
       const contactRow = (c as Contact) || null;
       setContact(contactRow);
       setActivities((acts as TimelineActivity[]) || []);
       setPeople((p as Person[]) || []);
-      setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
-      setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+
+      // Merge deals from direct FKs and entity_links, dedupe by id
+      const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+      ((directDeals as any[]) || []).forEach((d) => {
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+      });
+      ((linkedDealRows as any[]) || []).forEach((row) => {
+        const d = row.deals;
+        if (d && !dealMap.has(d.id)) {
+          dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+        }
+      });
+      setLinkedDeals(Array.from(dealMap.values()));
+
+      const leadMap = new Map<string, { id: string; address: string | null; status: string | null }>();
+      ((directLeads as any[]) || []).forEach((l) => {
+        leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+      });
+      ((linkedLeadRows as any[]) || []).forEach((row) => {
+        const l = row.leads;
+        if (l && !leadMap.has(l.id)) {
+          leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+        }
+      });
+      setLinkedLeads(Array.from(leadMap.values()));
 
       if (contactRow?.company_id) {
         const { data: comp } = await supabase
@@ -283,47 +321,99 @@ export function ContactPeekSheet({
     onChanged();
   };
 
+  const refreshLinkedDeals = async () => {
+    if (!contactId) return;
+    const [{ data: directDeals }, { data: linkedDealRows }] = await Promise.all([
+      supabase
+        .from("deals")
+        .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
+        .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("entity_links")
+        .select("source_id, deals:source_id(id,title,stage_id,status)")
+        .eq("source_type", "deal")
+        .eq("target_type", "contact")
+        .eq("target_id", contactId)
+        .limit(50),
+    ]);
+    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+    ((directDeals as any[]) || []).forEach((d) =>
+      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status }),
+    );
+    ((linkedDealRows as any[]) || []).forEach((row) => {
+      const d = row.deals;
+      if (d && !dealMap.has(d.id)) {
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+      }
+    });
+    setLinkedDeals(Array.from(dealMap.values()));
+  };
+
+  const refreshLinkedLeads = async () => {
+    if (!contactId) return;
+    const [{ data: directLeads }, { data: linkedLeadRows }] = await Promise.all([
+      supabase
+        .from("leads")
+        .select("id,property_address,status,source_contact_id,created_at")
+        .eq("source_contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("entity_links")
+        .select("source_id, leads:source_id(id,property_address,status)")
+        .eq("source_type", "lead")
+        .eq("target_type", "contact")
+        .eq("target_id", contactId)
+        .limit(50),
+    ]);
+    const leadMap = new Map<string, { id: string; address: string | null; status: string | null }>();
+    ((directLeads as any[]) || []).forEach((l) =>
+      leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status }),
+    );
+    ((linkedLeadRows as any[]) || []).forEach((row) => {
+      const l = row.leads;
+      if (l && !leadMap.has(l.id)) {
+        leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+      }
+    });
+    setLinkedLeads(Array.from(leadMap.values()));
+  };
+
   const linkDeal = async (dealId: string) => {
-    if (!contact) return;
-    const { error } = await supabase
-      .from("deals")
-      .update({ source_contact_id: contact.id })
-      .eq("id", dealId);
+    if (!contact || !user) return;
+    const { error } = await supabase.from("entity_links").insert({
+      source_type: "deal",
+      source_id: dealId,
+      target_type: "contact",
+      target_id: contact.id,
+      created_by: user.id,
+    });
     if (error) {
       toast({ title: "Couldn't link deal", description: error.message, variant: "destructive" });
       return;
     }
-    const { data: d } = await supabase
-      .from("deals")
-      .select("id,title,status")
-      .eq("id", dealId)
-      .maybeSingle();
-    if (d) {
-      const row = d as any;
-      setLinkedDeals((prev) => [{ id: row.id, name: row.title, stage: null, status: row.status }, ...prev]);
-    }
+    await refreshLinkedDeals();
     onChanged();
   };
 
   const linkLead = async (leadId: string) => {
-    if (!contact) return;
-    const { error } = await supabase
-      .from("leads")
-      .update({ source_contact_id: contact.id })
-      .eq("id", leadId);
+    if (!contact || !user) return;
+    // Leads can be linked via source_contact_id (single) or entity_links (many).
+    // Use entity_links to match the multi-contact pattern used by deals.
+    const { error } = await supabase.from("entity_links").insert({
+      source_type: "lead",
+      source_id: leadId,
+      target_type: "contact",
+      target_id: contact.id,
+      created_by: user.id,
+    });
     if (error) {
       toast({ title: "Couldn't link lead", description: error.message, variant: "destructive" });
       return;
     }
-    const { data: l } = await supabase
-      .from("leads")
-      .select("id,property_address,status")
-      .eq("id", leadId)
-      .maybeSingle();
-    if (l) {
-      const row = l as any;
-      setLinkedLeads((prev) => [{ id: row.id, address: row.property_address, status: row.status }, ...prev]);
-    }
+    await refreshLinkedLeads();
     onChanged();
   };
 
@@ -373,16 +463,10 @@ export function ContactPeekSheet({
           pipelineId={defaultPipelineId}
           workspaceId={contact.workspace_id}
           userId={user?.id ?? null}
+          defaultContactId={contact.id}
           onCreated={async () => {
             setCreateDealOpen(false);
-            // Refresh linked deals — re-fetch where this contact is primary or source.
-            const { data: deals } = await supabase
-              .from("deals")
-              .select("id,name,stage,status,primary_contact_id,source_contact_id")
-              .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`)
-              .order("created_at", { ascending: false })
-              .limit(25);
-            setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
+            await refreshLinkedDeals();
             onChanged();
           }}
         />
@@ -394,15 +478,10 @@ export function ContactPeekSheet({
           onOpenChange={setCreateLeadOpen}
           workspaceId={contact.workspace_id}
           userId={user?.id ?? null}
+          defaultContactId={contact.id}
           onCreated={async () => {
             setCreateLeadOpen(false);
-            const { data: leads } = await supabase
-              .from("leads")
-              .select("id,address_line1,status,source_contact_id,created_at")
-              .eq("source_contact_id", contact.id)
-              .order("created_at", { ascending: false })
-              .limit(25);
-            setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+            await refreshLinkedLeads();
             onChanged();
           }}
         />
@@ -1747,6 +1826,20 @@ function ContactDetailBody({
               onCreate={onCreateLead}
             />
           </SidebarBlock>
+
+          {/* Meta — small muted footer with the date added and source */}
+          <div className="pt-2 flex items-end justify-end">
+            <div className="text-right text-[11px] text-muted-foreground/70 leading-snug space-y-0.5">
+              {contact.created_at && (
+                <div>
+                  Added {new Date(contact.created_at).toLocaleDateString()}
+                </div>
+              )}
+              {contact.source && (
+                <div className="capitalize">via {contact.source}</div>
+              )}
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -1764,17 +1857,6 @@ function ContactDetailBody({
           <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
             <EntityTabPanel value="overview" className="p-6">
               <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="Quick stats">
-                  <KVRow
-                    label="Date added"
-                    value={
-                      contact.created_at
-                        ? new Date(contact.created_at).toLocaleDateString()
-                        : null
-                    }
-                  />
-                  <KVRow label="Title" value={contact.title} />
-                </OverviewCard>
                 <OverviewCard title="About">
                   <p
                     className={cn(
