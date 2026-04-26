@@ -37,6 +37,8 @@ export function AppSidebar() {
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
   const { resolvedTheme, setTheme } = useTheme();
+  const isDevWorkspace = useIsDeveloperWorkspace();
+  const showDeveloper = isDevWorkspace && isPrimaryAdmin;
 
   const timeClockEnabled = useAddonEnabled("time-clock");
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
@@ -260,6 +262,14 @@ export function AppSidebar() {
             {isAdmin && (
               <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
                 <Settings className="h-3.5 w-3.5" />
+              </NavLink>
+            )}
+            <NavLink to="/help" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Help & docs">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </NavLink>
+            {showDeveloper && (
+              <NavLink to="/settings/developer" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Developer">
+                <Code2 className="h-3.5 w-3.5" />
               </NavLink>
             )}
             <button
