@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
-  CheckCircle2,
-  Circle,
+  Check,
   Trash2,
   Mail,
   Phone,
   ExternalLink,
+  User,
+  FileText,
+  Scale,
+  Banknote,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
