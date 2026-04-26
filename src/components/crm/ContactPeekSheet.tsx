@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone, Send } from "lucide-react";
+import { Loader2, Mail, Phone, Send, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -16,6 +27,15 @@ import {
   ActivityFilterPills,
   type TimelineActivity,
 } from "./CrmActivityTimeline";
+import {
+  CONTACT_TYPES,
+  CONTACT_TYPE_LABEL,
+  PREFERRED_CONTACT_METHODS,
+  contactTypeColor,
+  contactTypeLabel,
+  type ContactType,
+  type PreferredContactMethod,
+} from "./contactTypes";
 
 interface Contact {
   id: string;
@@ -32,6 +52,11 @@ interface Contact {
   last_contacted_at: string | null;
   custom_fields: Record<string, unknown>;
   created_at: string;
+  contact_type: string | null;
+  preferred_contact_method: string | null;
+  buy_box_notes: string | null;
+  markets: string[] | null;
+  is_active: boolean;
 }
 
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
