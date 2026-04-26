@@ -192,9 +192,6 @@ export function ContactPeekSheet({
 
   const isOpen = !!contactId;
   const canEmail = !!contact?.email;
-
-  const isOpen = !!contactId;
-  const canEmail = !!contact?.email;
   const fullName = contact
     ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || "Untitled contact"
     : "";
