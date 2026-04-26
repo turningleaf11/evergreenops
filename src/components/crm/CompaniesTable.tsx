@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Building2, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { CompanyPeekSheet } from "./CompanyPeekSheet";
 
 interface Company {
   id: string;
@@ -14,18 +15,21 @@ interface Company {
 export function CompaniesTable({ search }: { search: string }) {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const reload = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("companies")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setCompanies((data as Company[]) || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("companies")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      setCompanies((data as Company[]) || []);
-      setLoading(false);
-    })();
+    void reload();
   }, []);
 
   const filtered = useMemo(() => {
@@ -58,40 +62,50 @@ export function CompaniesTable({ search }: { search: string }) {
   }
 
   return (
-    <div className="px-6 py-4">
-      <div className="rounded-xl border border-border/50 overflow-hidden bg-card">
-        <div className="grid grid-cols-[2fr_1.5fr_1.5fr_2fr] px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/50 bg-muted/30">
-          <div>Name</div>
-          <div>Domain</div>
-          <div>Industry</div>
-          <div>Website</div>
-        </div>
-        {filtered.map((c) => (
-          <div
-            key={c.id}
-            className="grid grid-cols-[2fr_1.5fr_1.5fr_2fr] items-center px-3 py-2 text-sm border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors"
-          >
-            <div className="font-medium truncate">{c.name}</div>
-            <div className="text-muted-foreground truncate">{c.domain || "—"}</div>
-            <div className="text-muted-foreground truncate">{c.industry || "—"}</div>
-            <div className="truncate">
-              {c.website ? (
-                <a
-                  href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  <Globe className="h-3 w-3" />
-                  {c.website}
-                </a>
-              ) : (
-                <span className="text-muted-foreground/60">—</span>
-              )}
-            </div>
+    <>
+      <div className="px-6 py-4">
+        <div className="rounded-xl border border-border/50 overflow-hidden bg-card">
+          <div className="grid grid-cols-[2fr_1.5fr_1.5fr_2fr] px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/50 bg-muted/30">
+            <div>Name</div>
+            <div>Domain</div>
+            <div>Industry</div>
+            <div>Website</div>
           </div>
-        ))}
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setOpenId(c.id)}
+              className="w-full text-left grid grid-cols-[2fr_1.5fr_1.5fr_2fr] items-center px-3 py-2 text-sm border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors"
+            >
+              <div className="font-medium truncate">{c.name}</div>
+              <div className="text-muted-foreground truncate">{c.domain || "—"}</div>
+              <div className="text-muted-foreground truncate">{c.industry || "—"}</div>
+              <div className="truncate">
+                {c.website ? (
+                  <a
+                    href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <Globe className="h-3 w-3" />
+                    {c.website}
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground/60">—</span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+
+      <CompanyPeekSheet
+        companyId={openId}
+        onClose={() => setOpenId(null)}
+        onChanged={reload}
+      />
+    </>
   );
 }
