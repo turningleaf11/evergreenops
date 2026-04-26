@@ -442,12 +442,18 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
             </div>
             {isEmail && (
               <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                {threadId && onReplyEmail && (
+                {threadId && (
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-6 px-2 text-[11px]"
-                    onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
+                    onClick={() => {
+                      if (!expanded) {
+                        setExpanded(true);
+                        if (!thread) loadThread();
+                      }
+                      setReplyOpen(true);
+                    }}
                   >
                     <Reply className="h-3 w-3 mr-1" /> Reply
                   </Button>
