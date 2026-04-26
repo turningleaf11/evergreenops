@@ -959,9 +959,7 @@ function DealCustomFieldsPanel({
   };
   return (
     <section>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Custom fields
-      </div>
+      <div className="crm-eyebrow mb-3">Custom fields</div>
       <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
       {dirty && (
         <div className="flex justify-end mt-2">
