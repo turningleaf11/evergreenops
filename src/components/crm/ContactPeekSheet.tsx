@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
-import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { InlineEmailComposer } from "./InlineEmailComposer";
 import { OwnerPicker } from "./PeoplePickers";
 import { type ComposerSubmit } from "./CrmComposerTabs";
 import {
@@ -310,6 +310,15 @@ export function ContactPeekSheet({
               }
             />
 
+            {composeOpen ? (
+              <InlineEmailComposer
+                defaultTo={composeCtx.to}
+                defaultSubject={composeCtx.subject}
+                threadId={composeCtx.threadId}
+                onClose={() => setComposeOpen(false)}
+                onSent={handleSent}
+              />
+            ) : (
             <EntityTabs
               value={tab}
               onValueChange={setTab}
@@ -384,18 +393,10 @@ export function ContactPeekSheet({
                 </div>
               </EntityTabPanel>
             </EntityTabs>
+            )}
           </>
         )}
       </EntitySheetShell>
-
-      <ComposeModal
-        open={composeOpen}
-        onOpenChange={setComposeOpen}
-        defaultTo={composeCtx.to}
-        defaultSubject={composeCtx.subject}
-        threadId={composeCtx.threadId}
-        onSent={handleSent}
-      />
     </>
   );
 }
