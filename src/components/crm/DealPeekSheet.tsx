@@ -537,13 +537,23 @@ export function DealPeekSheet({
                 {/* Main column */}
                 <div className="overflow-auto">
                   <Tabs defaultValue="overview" className="w-full">
-                    <div className="px-4 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
-                      <TabsList className="bg-transparent p-0 h-auto gap-1">
-                        <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-                        <TabsTrigger value="underwriting" className="text-xs">Underwriting</TabsTrigger>
-                        <TabsTrigger value="broker" className="text-xs">Broker Comms</TabsTrigger>
-                        <TabsTrigger value="activity" className="text-xs">Activity</TabsTrigger>
-                        <TabsTrigger value="files" className="text-xs">Files</TabsTrigger>
+                    <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                      <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
+                        {[
+                          { v: "overview", label: "Overview" },
+                          { v: "underwriting", label: "Underwriting" },
+                          { v: "broker", label: "Broker Comms" },
+                          { v: "activity", label: "Activity" },
+                          { v: "files", label: "Files" },
+                        ].map((t) => (
+                          <TabsTrigger
+                            key={t.v}
+                            value={t.v}
+                            className="text-[15px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
+                          >
+                            {t.label}
+                          </TabsTrigger>
+                        ))}
                       </TabsList>
                     </div>
 
