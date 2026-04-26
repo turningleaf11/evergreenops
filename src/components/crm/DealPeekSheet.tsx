@@ -490,12 +490,10 @@ export function DealPeekSheet({
                     <div className="flex items-center gap-2 flex-wrap pt-1">
                       {currentStage && (
                         <Badge
-                          variant="outline"
-                          className="text-[10px]"
-                          style={{
-                            borderColor: `hsl(${currentStage.color})`,
-                            color: `hsl(${currentStage.color})`,
-                          }}
+                          className={cn(
+                            "text-[10px] capitalize",
+                            stageBadgeClass(currentStage.name),
+                          )}
                         >
                           {currentStage.name}
                         </Badge>
@@ -512,8 +510,8 @@ export function DealPeekSheet({
                     {currentStage?.name === "Under Contract" && (
                       <Button
                         size="sm"
-                        variant="default"
                         onClick={() => setNewTxOpen(true)}
+                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
                       >
                         Create Transaction →
                       </Button>
