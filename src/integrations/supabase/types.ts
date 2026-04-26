@@ -2531,6 +2531,56 @@ export type Database = {
           },
         ]
       }
+      lead_files: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          lead_id: string
+          mime_type: string | null
+          name: string
+          size_bytes: number | null
+          storage_path: string | null
+          uploaded_by: string | null
+          url: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id: string
+          mime_type?: string | null
+          name: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id?: string
+          mime_type?: string | null
+          name?: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_files_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leadership_meeting_action_items: {
         Row: {
           agenda_item_id: string | null
