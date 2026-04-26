@@ -32,8 +32,8 @@ export function EntitySheetShell({
 }) {
   const widthClass =
     width === "wide"
-      ? "w-full sm:max-w-5xl sm:min-w-[640px]"
-      : "w-full sm:max-w-2xl sm:min-w-[520px]";
+      ? "w-full sm:max-w-[1100px] sm:min-w-[900px]"
+      : "w-full sm:max-w-[960px] sm:min-w-[900px]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
