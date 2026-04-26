@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 });
 
 async function markFailed(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   row: ScheduledRow,
   error: string,
   terminal: boolean,
@@ -99,7 +99,7 @@ async function markFailed(
 }
 
 async function resolveWorkspaceGmail(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   workspaceId: string,
 ): Promise<{ token: string; from: string } | null> {
   const { data: account } = await admin
