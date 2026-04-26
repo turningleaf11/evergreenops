@@ -95,39 +95,40 @@ Deno.serve(async (req) => {
     workspaceId = ws?.id || null;
   }
 
-  // Determine "since" — last successful sync
-  const { data: lastSync } = await supabase
-    .from("meetings")
-    .select("synced_at")
-    .order("synced_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  const since = lastSync?.synced_at;
-
-  // Fetch from Fathom
-  const url = new URL(`${FATHOM_BASE}/meetings`);
-  if (since) url.searchParams.set("since", since);
-  url.searchParams.set("limit", "50");
-
-  let fathomMeetings: FathomMeeting[] = [];
+  // Fetch from Fathom (paginate via next_cursor; idempotent upsert handles dedupe)
+  let fathomMeetings: any[] = [];
+  let cursor: string | null = null;
+  const MAX_PAGES = 20;
   try {
-    const resp = await fetch(url.toString(), {
-      headers: {
-        "X-Api-Key": FATHOM_API_KEY,
-        "Authorization": `Bearer ${FATHOM_API_KEY}`,
-        "Accept": "application/json",
-      },
-    });
-    if (!resp.ok) {
-      const body = await resp.text();
-      return new Response(JSON.stringify({
-        error: `Fathom API ${resp.status}`,
-        details: body.slice(0, 500),
-        hint: "Verify FATHOM_API_KEY and that your Fathom plan exposes the API."
-      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const url = new URL(`${FATHOM_BASE}/meetings`);
+      url.searchParams.set("limit", "50");
+      if (cursor) url.searchParams.set("cursor", cursor);
+
+      const resp = await fetch(url.toString(), {
+        headers: {
+          "X-Api-Key": FATHOM_API_KEY,
+          "Authorization": `Bearer ${FATHOM_API_KEY}`,
+          "Accept": "application/json",
+        },
+      });
+      if (!resp.ok) {
+        const body = await resp.text();
+        return new Response(JSON.stringify({
+          error: `Fathom API ${resp.status}`,
+          details: body.slice(0, 500),
+          hint: "Verify FATHOM_API_KEY and that your Fathom plan exposes the API.",
+        }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const json = await resp.json();
+      const items: any[] = Array.isArray(json)
+        ? json
+        : (json.items || json.meetings || json.data || json.results || []);
+      fathomMeetings.push(...items);
+      cursor = json.next_cursor || null;
+      if (!cursor || items.length === 0) break;
     }
-    const json = await resp.json();
-    fathomMeetings = Array.isArray(json) ? json : (json.meetings || json.data || json.results || []);
+    console.log(`[fathom-sync] fetched ${fathomMeetings.length} meetings`);
   } catch (e) {
     return new Response(JSON.stringify({ error: `Fathom fetch failed: ${(e as Error).message}` }), {
       status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
