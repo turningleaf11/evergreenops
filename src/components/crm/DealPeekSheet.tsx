@@ -477,67 +477,71 @@ export function DealPeekSheet({
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col">
-          {loading || !deal ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : (
-            <>
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <SheetTitle className="text-xl flex items-center gap-2">
-                      <Briefcase className="h-5 w-5 text-primary" />
-                      <span className="truncate">{deal.title}</span>
-                    </SheetTitle>
-                    <div className="flex items-center gap-2 flex-wrap pt-1">
-                      {currentStage && (
-                        <Badge
-                          className={cn(
-                            "text-[10px] capitalize",
-                            stageBadgeClass(currentStage.name),
-                          )}
-                        >
-                          {currentStage.name}
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {deal.status}
-                      </Badge>
-                      <span className="text-sm font-medium ml-1">
-                        {formatMoney(Number(deal.value || 0), deal.currency)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {currentStage?.name === "Under Contract" && (
-                      <Button
-                        size="sm"
-                        onClick={() => setNewTxOpen(true)}
-                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
-                      >
-                        Create Transaction →
-                      </Button>
-                    )}
+      <EntitySheetShell
+        open={isOpen}
+        onOpenChange={(v) => !v && onClose()}
+        loading={loading || !deal}
+        width="wide"
+      >
+        {deal && (
+          <>
+            <EntitySheetHeader
+              title={deal.title}
+              titleClassName="text-xl"
+              leading={<Briefcase className="h-5 w-5 text-primary" />}
+              onClose={onClose}
+              actions={
+                <>
+                  {currentStage?.name === "Under Contract" && (
                     <Button
                       size="sm"
-                      onClick={startNewEmail}
-                      disabled={contacts.filter((c) => c.email).length === 0}
+                      onClick={() => setNewTxOpen(true)}
+                      className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
                     >
-                      <Send className="h-3.5 w-3.5 mr-1.5" /> Email
+                      Create Transaction →
                     </Button>
-                    {canManage && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </SheetHeader>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={startNewEmail}
+                    disabled={contacts.filter((c) => c.email).length === 0}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-1.5" /> Email
+                  </Button>
+                  {canManage && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                </>
+              }
+            />
+            <EntityIdentityStrip
+              pills={
+                <>
+                  {currentStage && (
+                    <Badge
+                      className={cn(
+                        "text-[10px] capitalize",
+                        stageBadgeClass(currentStage.name),
+                      )}
+                    >
+                      {currentStage.name}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {deal.status}
+                  </Badge>
+                </>
+              }
+              rightSlot={
+                <span className="text-sm font-medium">
+                  {formatMoney(Number(deal.value || 0), deal.currency)}
+                </span>
+              }
+            />
 
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto">
                   <Tabs defaultValue="overview" className="w-full">
