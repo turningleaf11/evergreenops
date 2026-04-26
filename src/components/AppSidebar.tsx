@@ -3,7 +3,9 @@ import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase,
+  HelpCircle, Code2,
 } from "lucide-react";
+import { useIsDeveloperWorkspace } from "@/lib/developer";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { NavLink } from "@/components/NavLink";

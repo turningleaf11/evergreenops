@@ -34,6 +34,8 @@ import InboxPage from "./pages/InboxPage";
 import CrmPage from "./pages/CrmPage";
 import MeetingsPage from "./pages/MeetingsPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
+import DeveloperPage from "./pages/DeveloperPage";
+import HelpPage from "./pages/HelpPage";
 import ScorecardPage from "./pages/ScorecardPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
@@ -162,6 +164,8 @@ const App = () => (
                 <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/scorecard" element={<ScorecardPage />} />
                 <Route path="/settings/integrations/gmail" element={<IntegrationsGmailPage />} />
+                <Route path="/settings/developer" element={<DeveloperPage />} />
+                <Route path="/help" element={<HelpPage />} />
 
                 {/* Add-Ons */}
                 <Route path="/time-clock" element={<TimeClockPage />} />
