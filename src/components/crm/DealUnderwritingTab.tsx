@@ -141,51 +141,52 @@ export function DealUnderwritingTab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* QUICK UNDERWRITE */}
-      <section className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+      <section className="crm-card space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Quick Underwrite</h3>
+          <h3 className="crm-eyebrow">Quick Underwrite</h3>
           <span className="text-[10px] text-muted-foreground">70% rule</span>
         </div>
 
         <div>
-          <Label className="text-xs">Quick ARV</Label>
+          <Label className="crm-field-label">Quick ARV</Label>
           <Input type="number" value={arv} onChange={(e) => setArv(e.target.value)} placeholder="0" />
         </div>
         <div>
-          <Label className="text-xs">Repair estimate</Label>
+          <Label className="crm-field-label">Repair estimate</Label>
           <Input type="number" value={repairs} onChange={(e) => setRepairs(e.target.value)} placeholder="0" />
         </div>
 
-        <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
+        <div className="rounded-xl bg-muted/40 p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">MAO</span>
             <span className="font-semibold tabular-nums">{fmtMoney(mao)}</span>
           </div>
-          <div className="text-[10px] text-muted-foreground italic">ARV × 0.70 − Repairs</div>
-          <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
+          <div className="text-[11px] text-muted-foreground italic">ARV × 0.70 − Repairs</div>
+          <div className="flex items-center justify-between text-sm pt-2 border-t border-border/40">
             <span className="text-muted-foreground">Asking</span>
             <span className="tabular-nums">{fmtMoney(askingN || null)}</span>
           </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Spread (Asking − MAO)</span>
-            <span
+          <div className="space-y-1 pt-2">
+            <div className="crm-field-label">Spread (Asking − MAO)</div>
+            <div
               className={cn(
-                "font-semibold tabular-nums",
-                spread != null && spread < 0 && "text-emerald-600",
-                spread != null && spread > 0 && "text-red-600",
+                "text-2xl font-semibold tabular-nums",
+                spread != null && spread < 0 && "text-brand-mint",
+                spread != null && spread > 0 && "text-brand-coral",
+                spread == null && "text-muted-foreground",
               )}
             >
               {fmtMoney(spread)}
-            </span>
-          </div>
-          <div className="text-[10px] text-muted-foreground italic">
-            Negative spread = below MAO (good)
+            </div>
+            <div className="text-[11px] text-muted-foreground italic">
+              Negative spread = below MAO (good)
+            </div>
           </div>
         </div>
 
-        <Button size="sm" className="w-full" onClick={saveQuick} disabled={savingQuick}>
+        <Button size="sm" className="w-full bg-brand-azure hover:bg-brand-azure/90 text-white" onClick={saveQuick} disabled={savingQuick}>
           {savingQuick && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
           Run Quick Underwrite
         </Button>
@@ -194,7 +195,7 @@ export function DealUnderwritingTab({
       {/* FULL UNDERWRITE */}
       <section
         className={cn(
-          "rounded-xl border border-border/50 bg-card p-4 space-y-3 relative",
+          "crm-card space-y-4 relative",
           !quickDone && "opacity-60 pointer-events-none",
         )}
       >
@@ -205,24 +206,24 @@ export function DealUnderwritingTab({
             </span>
           </div>
         )}
-        <h3 className="text-sm font-semibold">Full Underwrite</h3>
+        <h3 className="crm-eyebrow">Full Underwrite</h3>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs">Gross income</Label>
+            <Label className="crm-field-label">Gross income</Label>
             <Input type="number" value={grossIncome} onChange={(e) => setGrossIncome(e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">Vacancy %</Label>
+            <Label className="crm-field-label">Vacancy %</Label>
             <Input type="number" value={vacancy} onChange={(e) => setVacancy(e.target.value)} />
           </div>
           <div className="col-span-2">
-            <Label className="text-xs">Operating expenses</Label>
+            <Label className="crm-field-label">Operating expenses</Label>
             <Input type="number" value={opex} onChange={(e) => setOpex(e.target.value)} />
           </div>
         </div>
 
-        <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-xs">
+        <div className="rounded-xl bg-muted/40 p-4 space-y-1.5 text-sm">
           <Row label="Vacancy loss" value={fmtMoney(vacancyLoss || null)} />
           <Row label="EGI (GI − vacancy)" value={fmtMoney(egi || null)} />
           <Row label="NOI (EGI − OpEx)" value={fmtMoney(noi || null)} bold />
@@ -232,22 +233,22 @@ export function DealUnderwritingTab({
           <Row label="Price / Sqft" value={pricePerSqft ? `$${pricePerSqft.toFixed(2)}` : "—"} />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/40">
           <div className="col-span-2">
-            <Label className="text-xs">Final offer amount</Label>
+            <Label className="crm-field-label">Final offer amount</Label>
             <Input type="number" value={finalOffer} onChange={(e) => setFinalOffer(e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">LOI date</Label>
+            <Label className="crm-field-label">LOI date</Label>
             <Input type="date" value={loiDate} onChange={(e) => setLoiDate(e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">LOI amount</Label>
+            <Label className="crm-field-label">LOI amount</Label>
             <Input type="number" value={loiAmount} onChange={(e) => setLoiAmount(e.target.value)} />
           </div>
         </div>
 
-        <Button size="sm" className="w-full" onClick={saveFull} disabled={savingFull}>
+        <Button size="sm" className="w-full bg-brand-azure hover:bg-brand-azure/90 text-white" onClick={saveFull} disabled={savingFull}>
           {savingFull && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
           Save Full Underwrite
         </Button>
