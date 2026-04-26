@@ -20,6 +20,7 @@ export function EntitySheetHeader({
   actions,
   leading,
   className,
+  titleClassName,
 }: {
   title: string;
   subtitle?: React.ReactNode;
@@ -33,6 +34,8 @@ export function EntitySheetHeader({
   /** Optional leading element (icon) next to the title. */
   leading?: React.ReactNode;
   className?: string;
+  /** Override the default title typography (e.g. larger size for primary entities). */
+  titleClassName?: string;
 }) {
   const showNav = !!(onPrev || onNext);
   return (
