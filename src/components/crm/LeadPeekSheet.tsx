@@ -10,7 +10,6 @@ import {
   Archive,
   ArrowRight,
   Send,
-  Pencil,
   MoreHorizontal,
   NotebookPen,
   Users,
@@ -39,7 +38,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { OwnerPicker } from "./PeoplePickers";
-import { TEMPERATURE_META, FollowUpPicker } from "./FollowUpPicker";
+import { FollowUpPicker } from "./FollowUpPicker";
 import {
   CrmActivityTimeline,
   type TimelineActivity,
@@ -94,7 +93,7 @@ interface PersonLite {
   avatar_url?: string | null;
 }
 
-const TEMPS: Array<"cold" | "warm" | "hot"> = ["cold", "warm", "hot"];
+// temperature labels removed from peek; field still exists in schema
 const PLAN_TYPES = [
   { value: "call", label: "Call", icon: Phone },
   { value: "meeting", label: "Meeting", icon: Users },
@@ -243,16 +242,9 @@ export function LeadPeekSheet({
     );
   }
 
-  const meta = TEMPERATURE_META[lead.temperature] || TEMPERATURE_META.warm;
   const isConverted = lead.status === "converted";
   const isArchived = lead.status === "archived";
   const convertedDealId = (lead as any).converted_deal_id as string | undefined;
-
-  const cycleTemp = () => {
-    if (isConverted || isArchived) return;
-    const i = TEMPS.indexOf(lead.temperature as any);
-    onUpdate(lead.id, { temperature: TEMPS[(i + 1) % TEMPS.length] });
-  };
 
   const addNote = async () => {
     const body = noteDraft.trim();
@@ -368,10 +360,10 @@ export function LeadPeekSheet({
               </div>
               <div className="ml-2 min-w-0">
                 <div className="text-base font-semibold truncate">
-                  {lead.company_name || lead.name || "Untitled lead"}
+                  {lead.name || lead.property_address || "Untitled lead"}
                 </div>
-                {lead.company_name && lead.name && (
-                  <div className="text-xs text-muted-foreground truncate">{lead.name}</div>
+                {lead.property_address && lead.name && (
+                  <div className="text-xs text-muted-foreground truncate">{lead.property_address}</div>
                 )}
               </div>
             </div>
@@ -397,77 +389,10 @@ export function LeadPeekSheet({
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-0 overflow-hidden bg-background">
               {/* Left rail — same surface as main, just an inset divider */}
               <aside className="overflow-auto md:border-r md:border-border/40">
-                <div className="p-6 space-y-8">
-                  {/* DETAILS */}
-                  <section className="space-y-4">
-                    <div className="crm-eyebrow">Details</div>
-
-                    {/* Temperature */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-5 flex justify-center">🏷</span>
-                      <button
-                        onClick={cycleTemp}
-                        disabled={isConverted || isArchived}
-                        className={cn(
-                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase",
-                          meta.bg,
-                          meta.fg,
-                          !isConverted && !isArchived && "cursor-pointer hover:ring-2 hover:ring-current/30",
-                        )}
-                        title="Click to cycle"
-                      >
-                        <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                        {meta.label}
-                      </button>
-                    </div>
-
-                    {/* Owner */}
-                    <div>
-                      <OwnerPicker
-                        ownerId={lead.owner_id}
-                        onChange={(id) => onUpdate(lead.id, { owner_id: id })}
-                      />
-                    </div>
-
-                    {/* Source */}
-                    <DetailRow icon="⬇" label="Source">
-                      <InlineText
-                        value={lead.source}
-                        placeholder="Add source"
-                        onSave={(v) => onUpdate(lead.id, { source: v })}
-                      />
-                    </DetailRow>
-
-                    {/* Next action */}
-                    <DetailRow icon={<Clock className="h-3.5 w-3.5" />} label="Next follow up">
-                      <FollowUpPicker
-                        value={lead.next_action_at}
-                        onChange={(iso) => onUpdate(lead.id, { next_action_at: iso })}
-                        trigger={
-                          <button className="text-sm text-left hover:text-primary truncate">
-                            {lead.next_action_at
-                              ? format(new Date(lead.next_action_at), "MMM d, h:mma")
-                              : (
-                                <span className="text-muted-foreground italic">Not scheduled</span>
-                              )}
-                          </button>
-                        }
-                      />
-                    </DetailRow>
-
-                    {/* Created */}
-                    <DetailRow icon={<CalendarIcon className="h-3.5 w-3.5" />} label="Added">
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(lead.created_at), "MMM d, yyyy")}
-                      </span>
-                    </DetailRow>
-                  </section>
-
+                <div className="p-6 space-y-4">
                   {/* PERSON */}
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="crm-eyebrow">Person</div>
-                    </div>
+                  <section className="crm-card space-y-3">
+                    <div className="crm-eyebrow">Person</div>
                     <div className="space-y-2">
                       <div className="text-sm font-medium">
                         <InlineText
@@ -499,7 +424,7 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* ORGANIZATION */}
-                  <section className="space-y-3">
+                  <section className="crm-card space-y-3">
                     <button
                       onClick={() => setShowOrg((v) => !v)}
                       className="flex items-center justify-between w-full crm-eyebrow"
@@ -519,7 +444,7 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* PROPERTY */}
-                  <section className="crm-card-muted space-y-3">
+                  <section className="crm-card space-y-3">
                     <div className="crm-eyebrow flex items-center gap-1.5">
                       <Home className="h-3 w-3" /> Property
                     </div>
@@ -604,9 +529,42 @@ export function LeadPeekSheet({
                     />
                   </section>
 
-                  {/* SOURCE */}
-                  <section className="space-y-3">
+                  {/* OWNER + NEXT FOLLOW UP */}
+                  <section className="crm-card space-y-4">
+                    <div className="crm-eyebrow">Assignment</div>
+                    <div>
+                      <OwnerPicker
+                        ownerId={lead.owner_id}
+                        onChange={(id) => onUpdate(lead.id, { owner_id: id })}
+                      />
+                    </div>
+                    <DetailRow icon={<Clock className="h-3.5 w-3.5" />} label="Next follow up">
+                      <FollowUpPicker
+                        value={lead.next_action_at}
+                        onChange={(iso) => onUpdate(lead.id, { next_action_at: iso })}
+                        trigger={
+                          <button className="text-sm text-left hover:text-primary truncate">
+                            {lead.next_action_at
+                              ? format(new Date(lead.next_action_at), "MMM d, h:mma")
+                              : (
+                                <span className="text-muted-foreground italic">Not scheduled</span>
+                              )}
+                          </button>
+                        }
+                      />
+                    </DetailRow>
+                  </section>
+
+                  {/* SOURCE + ADDED (bottom) */}
+                  <section className="crm-card space-y-4">
                     <div className="crm-eyebrow">Source</div>
+                    <DetailRow icon="⬇" label="Source">
+                      <InlineText
+                        value={lead.source}
+                        placeholder="Add source"
+                        onSave={(v) => onUpdate(lead.id, { source: v })}
+                      />
+                    </DetailRow>
                     <ContactPicker
                       value={lead.source_contact_id ?? null}
                       onChange={(id, c) => {
@@ -621,6 +579,11 @@ export function LeadPeekSheet({
                       }}
                       placeholder="Who sent this?"
                     />
+                    <DetailRow icon={<CalendarIcon className="h-3.5 w-3.5" />} label="Added">
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(lead.created_at), "MMM d, yyyy")}
+                      </span>
+                    </DetailRow>
                   </section>
                 </div>
               </aside>
@@ -856,22 +819,29 @@ function InlineText({
     <div className="group flex items-center gap-1 min-w-0">
       {value ? (
         link ? (
-          <a href={link} className="text-primary hover:underline truncate">
+          <a href={link} className="text-primary hover:underline truncate flex-1">
             {value}
           </a>
         ) : (
-          <span className="truncate">{value}</span>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="truncate text-left flex-1 hover:bg-muted/40 rounded px-1 -mx-1 cursor-text"
+            title="Click to edit"
+          >
+            {value}
+          </button>
         )
       ) : (
-        <span className="text-muted-foreground italic">{placeholder}</span>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-muted-foreground italic flex-1 text-left hover:bg-muted/40 rounded px-1 -mx-1 cursor-text"
+          title="Click to edit"
+        >
+          {placeholder}
+        </button>
       )}
-      <button
-        onClick={() => setEditing(true)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground p-0.5 rounded"
-        title="Edit"
-      >
-        <Pencil className="h-3 w-3" />
-      </button>
     </div>
   );
 }
