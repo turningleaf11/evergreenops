@@ -634,6 +634,14 @@ export function LeadPeekSheet({
                       }}
                     />
                   </TabsContent>
+                  {/* FILES TAB */}
+                  <TabsContent value="files" className="flex-1 overflow-auto m-0 p-4">
+                    <LeadFilesTab
+                      leadId={lead.id}
+                      workspaceId={lead.workspace_id}
+                      onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
+                    />
+                  </TabsContent>
                 </Tabs>
               </div>
             </div>
