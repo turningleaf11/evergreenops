@@ -486,7 +486,7 @@ function ContactInfoGrid({
   }, [contact.id]);
 
   const updateField = async (patch: Partial<Contact>) => {
-    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", contact.id);
     if (error) {
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
       return;
