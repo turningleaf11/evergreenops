@@ -51,7 +51,7 @@ export function EntityTabs<V extends string = EntityTabId>({
   return (
     <Tabs
       value={value}
-      onValueChange={(v) => onValueChange(v)}
+      onValueChange={(v) => onValueChange(v as V)}
       className={cn("flex-1 flex flex-col min-h-0", className)}
     >
       <div className="px-6 border-b border-border/50 bg-background flex items-center justify-between gap-3 shrink-0">
