@@ -1,54 +1,57 @@
-# Fix: Gmail send fails with "Edge Function returned non-2xx"
+# Plan: Multi-Gmail, Developer Page, Help Center, OAuth Fix
 
-## What's actually wrong
+## Status: PARTIAL — backend done, UI pending
 
-The edge function logs show the real error:
+### ✅ Completed in this turn
 
-```
-ERROR refresh failed { "error": "invalid_grant",
-  "error_description": "Token has been expired or revoked." }
-```
+**Database (migration applied & live):**
+- `gmail_workspace_account` got `label` (nickname) and `is_default` (only one per workspace).
+- Backfilled existing accounts as default.
+- New `help_articles` table with RLS — anyone signed in can read published articles, only Evergreen HQ admins (you) can edit/create/delete. Seeded 5 starter articles (Getting started, Connecting Gmail, Inviting team members, CRM basics, Scorecards).
+- New `is_developer_workspace_admin(uuid)` SQL helper, hardcoded to Evergreen HQ workspace ID `2a918558-69fa-4d12-9b2d-fe59e0823997`.
 
-Your Gmail OAuth refresh token has been revoked by Google (this happens when a Google account password changes, the app is removed from "Apps with access", the token sits unused for 6 months, etc.). The app can't send mail until you reconnect Gmail in **Settings → Integrations → Gmail**.
+**Edge functions (deployed):**
+- `_shared/gmail.ts` — supports per-account targeting via `account_id` (query / body / `X-Gmail-Account-Id` header). Falls back to workspace default. New `listWorkspaceGmailAccounts` and `buildContextForAccount` helpers for fan-out.
+- `gmail-oauth-callback` — connecting a new email creates a NEW account row (not an upsert that overwrites). Re-authing the same email rotates its token in place. First account auto-marked default.
+- `gmail-disconnect` — accepts `{ account_id }` to remove one specific account; if none provided, removes all (back-compat). Auto-promotes a new default if you remove the current one.
+- `gmail-send` — accepts `account_id` to choose which mailbox to send from. Returns the source account in the response.
+- `gmail-list-threads` — supports `?account_id=all` to fan out across every connected account and merge results sorted by date. Each thread tagged with `account_id` / `account_email` / `account_label`.
+- `gmail-debug-refresh` (NEW) — developer-only endpoint that force-refreshes a specific account's Google access token. Server-side gated to Evergreen HQ admins.
 
-The bad UX is that the user sees a generic "Edge Function returned a non-2xx status code" toast with no indication of what to do. We'll fix that.
+### ⏳ Remaining work (next turn)
 
-## Changes
+**Multi-Gmail UI** (functional but not yet exposed):
+- `useGmailAccess` hook updated to expose `accounts[]` and `defaultAccount`.
+- Still needed:
+  - `IntegrationsGmailPage` — list multiple accounts, "Connect another", inline label rename, default radio, per-account disconnect.
+  - `ComposeModal` / `ComposePanel` — "From" dropdown that passes `account_id`.
+  - `InboxPage` — "From: All accounts ▾" filter + per-thread account indicator when 2+ accounts connected.
 
-### 1. `supabase/functions/_shared/gmail.ts` — return a clear, recognizable error
+**Developer page** (gating + page):
+- `src/lib/developer.ts` with `DEVELOPER_WORKSPACE_ID` constant + `useIsDeveloperWorkspace` hook.
+- `/settings/developer` route + guard in `App.tsx`.
+- `DeveloperPage` with: system info, Gmail accounts debug panel (calls `gmail-debug-refresh`), edge function shortcuts.
+- Sidebar "Developer" link gated on `useIsDeveloperWorkspace`.
 
-When `refreshAccessToken` returns null (Google rejected the refresh token), return:
-- HTTP **401** (not 500 — this is an auth problem, not a server bug)
-- Body: `{ error: "gmail_reauth_required", message: "Your Gmail connection has expired. Please reconnect your Gmail account." }`
+**Help Center:**
+- `/help` route.
+- `HelpPage` with category sidebar + markdown viewer (`react-markdown`).
+- `ArticleEditor` for admins (you).
+- "Contact support" → `mailto:` button. Need your support email.
+- Add `HelpCircle` to `AppSidebar` `SidebarFooter`.
 
-### 2. `src/components/inbox/ComposeModal.tsx` — friendly error + reconnect CTA
+**Docs:**
+- `docs/gmail-oauth-setup.md` — Phase 1 (Test users) checklist + Phase 2 (Google verification submission) prep.
 
-In the `send()` handler, when the invoke returns an error:
-- Try to parse the function's response body. If `error === "gmail_reauth_required"` (or the message mentions reauth/expired), show a **destructive toast** with:
-  - Title: "Gmail reconnect required"
-  - Description: "Your Gmail connection expired. Reconnect to keep sending."
-  - Action button: "Reconnect" → navigates to `/settings/integrations/gmail`
-- Otherwise show the existing generic error toast.
+### Action you need to take TODAY (Phase 1 OAuth fix)
 
-Apply the same treatment in `ComposePanel.tsx` (the inbox composer uses the same edge function).
+Independent of the code work — go do this now to unblock yourself:
+1. Google Cloud Console → APIs & Services → OAuth consent screen.
+2. Add your email under **Test users**. Save.
+3. Confirm Gmail API is enabled (APIs & Services → Library).
+4. Retry **Settings → Integrations → Gmail → Connect Gmail**.
 
-### 3. No DB / no schema changes
+### Open question
 
-The user's existing `gmail_workspace_account` row stays as-is; reconnecting through the existing OAuth flow will overwrite the stored refresh token.
-
-## What the user needs to do after this ships
-
-1. Open **Settings → Integrations → Gmail**
-2. Click **Disconnect** (if shown) then **Connect Gmail**
-3. Approve the Google OAuth consent screen
-4. Try sending the email from the Lead again
-
-The code change makes step 1 obvious; the actual reconnection has to be done by the user since only they can complete Google's OAuth flow.
-
-## Files touched
-
-- `supabase/functions/_shared/gmail.ts` (1 small return change + redeploy)
-- `src/components/inbox/ComposeModal.tsx` (error parsing + reconnect toast)
-- `src/components/inbox/ComposePanel.tsx` (same)
-
-Edge function `gmail-send` will be redeployed automatically since it imports the shared helper.
+What's the support email address for the help center "Contact support" button?
+(I'll plug it into `src/lib/developer.ts` next turn.)

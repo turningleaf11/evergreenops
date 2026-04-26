@@ -10,15 +10,22 @@ interface SendBody {
   threadId?: string;
   inReplyTo?: string;
   references?: string;
+  // NEW: which connected Gmail account to send from. Optional — defaults to
+  // the workspace's default account.
+  account_id?: string;
+  accountId?: string;
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  const { ctx, error } = await getGmailContext(req);
-  if (error) return json(error.body, error.status);
 
+  // Parse body up-front so we can pick the account before resolving context.
   const body: SendBody = await req.json();
   if (!body.to || !body.subject) return json({ error: 'to and subject required' }, 400);
+  const targetAccount = body.account_id ?? body.accountId;
+
+  const { ctx, error } = await getGmailContext(req, { accountId: targetAccount });
+  if (error) return json(error.body, error.status);
 
   const headers: string[] = [
     `From: ${ctx!.email}`,
@@ -45,7 +52,13 @@ Deno.serve(async (req) => {
   });
   if (!r.ok) return json({ error: await r.text() }, r.status);
   const sent: any = await r.json();
-  return json({ id: sent.id, threadId: sent.threadId, sent_by_user_id: ctx!.userId });
+  return json({
+    id: sent.id,
+    threadId: sent.threadId,
+    sent_by_user_id: ctx!.userId,
+    sent_from_account_id: ctx!.accountId,
+    sent_from_email: ctx!.email,
+  });
 });
 
 function json(body: unknown, status = 200) {

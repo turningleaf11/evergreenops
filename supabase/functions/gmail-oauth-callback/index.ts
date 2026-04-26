@@ -129,27 +129,36 @@ async function completeConnection(code: string, parsed: OAuthStatePayload) {
 
   const userInfo: { email: string } = await userInfoRes.json();
 
-  const { data: existingTok } = await admin
-    .from('gmail_tokens')
-    .select('id')
+  // Multi-account behavior:
+  //  - If this same Gmail address is already connected (active) for the
+  //    workspace, we treat this as a re-auth: rotate its refresh token and
+  //    keep its `is_default` / `label`.
+  //  - Otherwise we add it as a NEW account. If it's the workspace's first
+  //    active account, mark it default automatically.
+  const { data: existingAccount } = await admin
+    .from('gmail_workspace_account')
+    .select('id, refresh_token_secret_id, is_default')
     .eq('workspace_id', parsed.w)
+    .eq('email', userInfo.email)
+    .is('revoked_at', null)
     .maybeSingle();
 
-  let tokenRowId: string;
-  if (existingTok) {
-    tokenRowId = existingTok.id;
-    const { error } = await admin
+  if (existingAccount) {
+    // Rotate the token in place
+    const { error: tokErr } = await admin
       .from('gmail_tokens')
-      .update({
-        refresh_token: tokens.refresh_token,
-        scopes: tokens.scope ?? null,
-      })
-      .eq('id', tokenRowId);
-    if (error) {
+      .update({ refresh_token: tokens.refresh_token, scopes: tokens.scope ?? null })
+      .eq('id', existingAccount.refresh_token_secret_id);
+    if (tokErr) {
       return { ok: false as const, status: 500, error: 'Failed to update Gmail token' };
     }
+    await admin
+      .from('gmail_workspace_account')
+      .update({ connected_at: new Date().toISOString(), connected_by: parsed.u })
+      .eq('id', existingAccount.id);
   } else {
-    const { data: inserted, error } = await admin
+    // Brand new account for this workspace
+    const { data: insertedTok, error: tokErr } = await admin
       .from('gmail_tokens')
       .insert({
         workspace_id: parsed.w,
@@ -158,22 +167,28 @@ async function completeConnection(code: string, parsed: OAuthStatePayload) {
       })
       .select('id')
       .single();
-    if (error) {
+    if (tokErr) {
       return { ok: false as const, status: 500, error: 'Failed to store Gmail token' };
     }
-    tokenRowId = inserted.id;
-  }
 
-  const { error: upsertError } = await admin.from('gmail_workspace_account').upsert({
-    workspace_id: parsed.w,
-    email: userInfo.email,
-    refresh_token_secret_id: tokenRowId,
-    connected_by: parsed.u,
-    connected_at: new Date().toISOString(),
-    revoked_at: null,
-  }, { onConflict: 'workspace_id' });
-  if (upsertError) {
-    return { ok: false as const, status: 500, error: 'Failed to save workspace Gmail account' };
+    // First active account for this workspace?  -> default
+    const { count: activeCount } = await admin
+      .from('gmail_workspace_account')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', parsed.w)
+      .is('revoked_at', null);
+
+    const { error: insertErr } = await admin.from('gmail_workspace_account').insert({
+      workspace_id: parsed.w,
+      email: userInfo.email,
+      refresh_token_secret_id: insertedTok.id,
+      connected_by: parsed.u,
+      connected_at: new Date().toISOString(),
+      is_default: (activeCount ?? 0) === 0,
+    });
+    if (insertErr) {
+      return { ok: false as const, status: 500, error: 'Failed to save workspace Gmail account' };
+    }
   }
 
   await admin.from('gmail_access_rules').upsert({
