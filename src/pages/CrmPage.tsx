@@ -98,20 +98,20 @@ export default function CrmPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
         <div className="px-6 pt-3 border-b border-border/50">
           <TabsList className="h-9 bg-transparent p-0 gap-1">
-            <TabsTrigger value="leads" className="data-[state=active]:bg-muted gap-1.5">
-              <Inbox className="h-3.5 w-3.5" /> Leads
-            </TabsTrigger>
             <TabsTrigger value="contacts" className="data-[state=active]:bg-muted gap-1.5">
               <Users className="h-3.5 w-3.5" /> Contacts
             </TabsTrigger>
-            <TabsTrigger value="companies" className="data-[state=active]:bg-muted gap-1.5">
-              <Building2 className="h-3.5 w-3.5" /> Companies
+            <TabsTrigger value="leads" className="data-[state=active]:bg-muted gap-1.5">
+              <Inbox className="h-3.5 w-3.5" /> Leads
             </TabsTrigger>
             <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
               <Briefcase className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Transactions
+            </TabsTrigger>
+            <TabsTrigger value="companies" className="data-[state=active]:bg-muted gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> Companies
             </TabsTrigger>
           </TabsList>
         </div>
