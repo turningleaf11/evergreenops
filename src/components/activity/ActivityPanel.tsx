@@ -312,8 +312,6 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     const [loadingThread, setLoadingThread] = useState(false);
     const [openMsgIdx, setOpenMsgIdx] = useState<number | null>(null);
     const [replyOpen, setReplyOpen] = useState(false);
-    const [replyText, setReplyText] = useState("");
-    const [sendingReply, setSendingReply] = useState(false);
 
     const lastMsg = thread && thread.length ? thread[thread.length - 1] : null;
     const replyTo = (() => {
@@ -326,40 +324,6 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       return s.toLowerCase().startsWith("re:") ? s : `Re: ${s}`.trim();
     })();
     const inReplyToHeader = lastMsg?.headers?.["message-id"] as string | undefined;
-
-    const sendReply = async () => {
-      if (!replyText.trim() || !threadId) return;
-      if (!replyTo) {
-        toast.error("Couldn't determine recipient");
-        return;
-      }
-      setSendingReply(true);
-      const html = replyText
-        .split("\n")
-        .map((l) => `<div>${l ? l.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "<br/>"}</div>`)
-        .join("");
-      const { error } = await supabase.functions.invoke("gmail-send", {
-        body: {
-          to: replyTo,
-          subject: replySubject,
-          body: html,
-          threadId,
-          inReplyTo: inReplyToHeader,
-        },
-      });
-      setSendingReply(false);
-      if (error) {
-        const handled = await handleGmailInvokeError(error);
-        if (!handled) toast.error(error.message || "Failed to send");
-        return;
-      }
-      toast.success("Reply sent");
-      setReplyText("");
-      setReplyOpen(false);
-      // Refetch thread so the new message shows
-      setThread(null);
-      setTimeout(() => loadThread(), 400);
-    };
 
 
     const loadThread = useCallback(async () => {
