@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,9 @@ interface ThreadSummary {
   messageCount: number;
   unread: boolean;
   labelIds: string[];
+  account_id?: string;
+  account_email?: string;
+  account_label?: string | null;
 }
 
 const FOLDERS = [
@@ -30,8 +34,9 @@ const FOLDERS = [
 ];
 
 export default function InboxPage() {
-  const { loading: accessLoading, connected, hasAccess, isAdmin } = useGmailAccess();
+  const { loading: accessLoading, connected, hasAccess, isAdmin, accounts, defaultAccount } = useGmailAccess();
   const [folder, setFolder] = useState("inbox");
+  const [accountFilter, setAccountFilter] = useState<string>("default"); // 'default' | 'all' | <account_id>
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +103,11 @@ export default function InboxPage() {
     setLoading(true);
     const params = new URLSearchParams({ folder });
     if (search) params.set("q", search);
+    if (accountFilter === "all") {
+      params.set("account_id", "all");
+    } else if (accountFilter !== "default") {
+      params.set("account_id", accountFilter);
+    }
     const { data, error } = await supabase.functions.invoke(`gmail-list-threads?${params}`, {
       method: "GET",
     } as any);
@@ -108,7 +118,7 @@ export default function InboxPage() {
   useEffect(() => {
     if (hasAccess) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAccess, folder]);
+  }, [hasAccess, folder, accountFilter]);
 
   const headerTitle = useMemo(() => {
     if (activeLabel?.startsWith("db:")) {
@@ -392,6 +402,40 @@ export default function InboxPage() {
       <section className={cn("flex flex-col border-r border-border/30 shrink-0", selectedId ? "w-96" : "flex-1")}>
         <div className="p-3 border-b border-border/30 flex items-center gap-2">
           <h2 className="text-sm font-semibold">{headerTitle}</h2>
+          {accounts.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Filter by account"
+                >
+                  {accountFilter === "all"
+                    ? "All accounts"
+                    : (() => {
+                        const id = accountFilter === "default" ? defaultAccount?.id : accountFilter;
+                        const a = accounts.find((x) => x.id === id);
+                        return a ? a.label || a.email : "Default";
+                      })()}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Show messages from</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setAccountFilter("all")}>
+                  <span className="text-sm">All accounts</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {accounts.map((a) => (
+                  <DropdownMenuItem key={a.id} onClick={() => setAccountFilter(a.id)}>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{a.label || a.email}</span>
+                      {a.label && <span className="text-[11px] text-muted-foreground">{a.email}</span>}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -448,7 +492,7 @@ export default function InboxPage() {
           ) : (
             visibleThreads.map((t) => (
               <button
-                key={t.id}
+                key={`${t.account_id ?? "_"}_${t.id}`}
                 onClick={() => setSelectedId(t.id)}
                 className={cn(
                   "w-full text-left px-3 py-2.5 border-b border-border/20 hover:bg-muted/40 transition-colors",
@@ -461,7 +505,14 @@ export default function InboxPage() {
                   <span className="text-[10px] text-muted-foreground shrink-0">{shortDate(t.date)}</span>
                 </div>
                 <div className="text-xs truncate">{t.subject}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{t.snippet}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-muted-foreground truncate flex-1">{t.snippet}</div>
+                  {accountFilter === "all" && t.account_email && (
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 bg-muted px-1.5 py-0.5 rounded shrink-0">
+                      {t.account_label || t.account_email.split("@")[0]}
+                    </span>
+                  )}
+                </div>
               </button>
             ))
           )}
