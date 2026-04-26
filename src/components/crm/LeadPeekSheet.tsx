@@ -856,22 +856,29 @@ function InlineText({
     <div className="group flex items-center gap-1 min-w-0">
       {value ? (
         link ? (
-          <a href={link} className="text-primary hover:underline truncate">
+          <a href={link} className="text-primary hover:underline truncate flex-1">
             {value}
           </a>
         ) : (
-          <span className="truncate">{value}</span>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="truncate text-left flex-1 hover:bg-muted/40 rounded px-1 -mx-1 cursor-text"
+            title="Click to edit"
+          >
+            {value}
+          </button>
         )
       ) : (
-        <span className="text-muted-foreground italic">{placeholder}</span>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-muted-foreground italic flex-1 text-left hover:bg-muted/40 rounded px-1 -mx-1 cursor-text"
+          title="Click to edit"
+        >
+          {placeholder}
+        </button>
       )}
-      <button
-        onClick={() => setEditing(true)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground p-0.5 rounded"
-        title="Edit"
-      >
-        <Pencil className="h-3 w-3" />
-      </button>
     </div>
   );
 }

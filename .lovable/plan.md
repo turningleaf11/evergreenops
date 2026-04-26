@@ -1,114 +1,54 @@
-# Unified "Activity" Panel + Rich Composer Everywhere
+# Lead detail polish: name title, card sidebar, no-pencil auto-save
 
-Replace every "Comments" / "Notes" / "Activity" surface with a single ClickUp-style **Activity** panel: a chronological feed that interleaves system events with user comments, anchored by a feature-rich composer at the bottom.
+Three small, scoped changes to `src/components/crm/LeadPeekSheet.tsx` (and one tiny CSS tweak). No data changes, no schema changes.
 
-## What you'll see
+## 1. Header title = property/lead name, address as subtitle
 
-```text
-┌─────────────────────────────────────────┐
-│ Activity                  🔍 🔔 ▼ filter│   header (title + filter chip)
-├─────────────────────────────────────────┤
-│ • You created this lead    Jan 4, 3:05p │
-│ › Show more                             │
-│ • You changed status → Hot   Jan 5      │
-│                                         │
-│ [Avatar] Sam · 2h ago                   │
-│   Got the OM, looks promising. @Mia     │   threaded comment
-│   📎 OM_2025.pdf                        │
-│   ❤️ 2   💬 Reply                       │
-│                                         │
-│ • Mia uploaded T12.xlsx     1h ago      │
-├─────────────────────────────────────────┤
-│ Write a comment…                        │   rich composer
-│ + 📎 @ GIF 😊 🎥 🎤 ☑ 📄 🖼      ➤ ▾   │
-└─────────────────────────────────────────┘
-```
+Currently the header shows `company_name || lead.name` as title and the lead name as subtitle.
 
-- **One stream**: comments + system events sorted by time. Filter chip toggles **All / Comments / Activity**.
-- **Composer (single component, used everywhere)**:
-  - TipTap-powered rich text (bold, italic, lists, links)
-  - `@` mentions — people (clickable, opens person peek)
-  - `/` slash menu — same one used in Docs (text/heading/checklist/quote/code/divider/image/file/AI actions)
-  - Attach file, image, GIF (existing GiphyPicker), emoji picker
-  - Voice note recording (reuse the MediaRecorder logic from `ReplyThread`)
-  - Submit on ⌘/Ctrl+Enter; Shift+Enter for newline
-- **Replies**: threaded under each comment, reactions on every comment (existing `CommentReactions`).
+Change to:
+- **Title** = `lead.name` (e.g. "Wisteria RV Park")
+- **Subtitle** = `lead.property_address` (e.g. "1234 Cypress Way, Tampa, FL")
 
-## Where it goes (all entity detail surfaces)
+If there's no name, fall back to property_address; if neither, "Untitled lead".
 
-The unified `<ActivityPanel entityType=… entityId=… />` replaces:
+## 2. Remove the cold/warm/hot labels
 
-| Surface | File | Current |
-|---|---|---|
-| Project chat rail | `ProjectChatRail.tsx` | `CommentsSection` |
-| Task peek | `TaskPeek.tsx` | `CommentsSection` |
-| Goal peek | `GoalPeek.tsx` | `CommentsSection` + `EntityActivity` |
-| Issues page detail | `IssuesPage.tsx` | `CommentsSection` |
-| Department page detail | `DepartmentPage.tsx` | `CommentsSection` |
-| Generic detail drawer | `DetailDrawer.tsx` | `CommentsSection` |
-| Database record detail | `DatabaseRecordDetail.tsx` | `CommentsSection` |
-| CRM Lead peek | `LeadPeekSheet.tsx` | (mixed today) |
-| CRM Deal peek | `DealPeekSheet.tsx` | `CrmActivityTimeline` + Broker Comms tab |
-| CRM Contact peek | `ContactPeekSheet.tsx` | timeline |
-| CRM Transaction detail | `TransactionDetailSheet.tsx` | timeline |
+- Delete the temperature pill button row from the Details section.
+- Remove the now-unused `TEMPS`, `cycleTemp`, and `meta`/`TEMPERATURE_META` reference inside the lead peek (the constant is still imported elsewhere from `FollowUpPicker`, so we just stop using it locally).
+- Field stays in the schema (no migration). Existing values remain untouched.
 
-CRM "Activity" tabs collapse into the single Activity panel. **Broker Comms tab is removed** (per your call) — broker feedback becomes regular Activity comments.
+## 3. Move Source and Added to the bottom of the left rail
 
-Personal Notes (Scratchpad) stays as a standalone doc editor — it isn't an entity activity stream — but its editor already has `/` and `@`, so no change needed there.
+Reorder the left-rail sections to:
 
-## Technical plan
+1. **Person** card (name, email, phone)
+2. **Organization** card (collapsible, company name)
+3. **Property** card (address, type, units, beds/baths, sqft, pricing) — already its own card
+4. **Owner / Next follow up** card (the two interactive controls left from "Details")
+5. **Source / Added** card (lead source text + source contact picker + created date) — **moved to the bottom**
 
-### 1. New component: `src/components/activity/ActivityPanel.tsx`
-Props: `entityType`, `entityId`, `hideHeader?`, `defaultFilter?`.
-- Fetches `comments` + `entity_activity` for the entity, merges & sorts by timestamp.
-- Renders system events as compact one-liners (icon + actor + verb + time) using the existing `describeAction` mapping (extended with CRM verbs like `stage_changed`, `buy_box_set`, `lead_converted`).
-- Renders comments as full cards with avatar, attachments, reactions, replies.
-- Filter chip in header: All / Comments / Activity.
-- Realtime subscribe to both tables so the feed updates live.
-- Composer pinned at bottom (matches the screenshot layout you sent).
+## 4. Sidebar sections become distinct cards
 
-### 2. New composer: `src/components/activity/ActivityComposer.tsx`
-A TipTap-based input replacing `RichCommentInput`. Extensions:
-- `StarterKit`, `Link`, `Image`
-- `MentionExtension` (existing) for `@` people
-- `SlashCommands` (existing — same one Docs uses) for `/`
-- New small toolbar row below the editor with: attach file, image, GIF (opens existing `GiphyPicker`), emoji (use `emoji-picker-react` or a small native picker), voice (port `MediaRecorder` logic out of `ReplyThread`), send button.
-- Saves to `comments` table with `content` (HTML), `attachments`, `mentions`, plus two new columns: `gif_url`, `audio_url` (mirrors `post_replies`).
+Wrap each left-rail section in the existing `.crm-card` utility (rounded-xl, padded, subtle border + shadow) instead of running them together as plain stacked sections. Property card already uses `crm-card-muted`; convert it to plain `crm-card` for visual consistency, and bump the gap between cards to 16px (`space-y-4`).
 
-### 3. Schema migration
-Add to `comments` table:
-- `gif_url text`
-- `audio_url text`
-- `content_html text` (keep existing `content` for plaintext fallback / search)
+Result: each card visibly stands alone like a stack of small cards down the rail.
 
-Backfill is unnecessary — old comments keep working.
+## 5. Remove the edit pencil — text fields are click-to-edit
 
-### 4. Activity event coverage
-Make sure every important state change writes to `entity_activity` so the unified stream is complete. Audit and add where missing:
-- CRM lead: `created`, `status_changed`, `buy_box_set`, `converted_to_deal`, `file_uploaded`
-- CRM deal: `created`, `stage_changed`, `under_contract`, `file_uploaded`
-- CRM transaction: `created`, `checklist_item_completed`, `closed`
-- Tasks/Projects/Goals/Issues: ensure `status_changed`, `assigned`, `priority_changed`, `file_uploaded` all log
+In the local `InlineText` component:
+- Remove the `Pencil` icon button (and its lucide import).
+- The displayed value (or italic placeholder) becomes the click target itself. Click anywhere on the value to enter edit mode; Enter or blur saves (already implemented); Escape cancels (already implemented).
+- Hover affordance: subtle muted background on hover so users discover the click target.
 
-### 5. Migrate call sites
-Swap every `<CommentsSection .../>` and standalone `<EntityActivity .../>` for `<ActivityPanel entityType=… entityId=… hideHeader />`. Rename the section header label to **"Activity"** in every parent (rail, peek, drawer, tab).
+This applies automatically to every field already using `InlineText` (lead name, email, phone, company, source, property address). `NumField`, `Select`, and the contact picker already auto-save with no pencil — no change needed.
 
-For CRM peeks: remove the separate "Activity" tab and either (a) keep a slim Activity tab that renders `ActivityPanel`, or (b) make Activity the default tab. **Recommendation: dedicated Activity tab**, since CRM peeks already use tabs.
+## Files touched
 
-For Deal peek: delete the Broker Comms tab and `DealBrokerCommsTab.tsx`. Leave the `broker_feedback` table intact (no destructive migration) but stop reading/writing to it from the UI.
+- `src/components/crm/LeadPeekSheet.tsx` — header title, sidebar reorder + cards, temperature removed, `InlineText` simplified
+- (Optional, no CSS change needed — reuses existing `.crm-card` utility)
 
-### 6. Files removed/deprecated
-- `src/components/CommentsSection.tsx` → replaced by `ActivityPanel`
-- `src/components/EntityActivity.tsx` → folded into `ActivityPanel`
-- `src/components/shared/RichCommentInput.tsx` → replaced by `ActivityComposer`
-- `src/components/crm/DealBrokerCommsTab.tsx` → removed
+## Out of scope
 
-### 7. Polish
-- Header matches your screenshot: **"Activity"** title, search/bell/filter icons on the right.
-- Composer chrome matches: rounded card, icon row across the bottom, send button on the right with a small dropdown caret for "Send & resolve" / "Send" (future-proof, hidden for v1).
-- Consistent across all surfaces (rail, peek, drawer, tab) — single component, no per-surface variants.
-
-## Out of scope for this pass
-- Email-style "Send" variations beyond plain comment
-- Notifications routing for new activity types (already handled by existing notification system where wired)
-- Migrating existing `broker_feedback` rows into `comments` (table preserved as-is)
+- Deal peek sidebar — same treatment can be applied later if you want consistency, but you only asked about Leads.
+- Schema/data — `temperature` column stays; no migration.
