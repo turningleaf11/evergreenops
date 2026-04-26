@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Send, X, Minus, Maximize2, Paperclip } from "lucide-react";
+import { Loader2, Send, X, Minus, Maximize2, Paperclip, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
 import { handleGmailInvokeError } from "@/lib/gmail-error";
 import { cn } from "@/lib/utils";
+import { useGmailAccess } from "@/hooks/useGmailAccess";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   open: boolean;
@@ -21,6 +28,7 @@ interface Props {
 }
 
 export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defaultSubject = "", defaultBody = "", threadId, inReplyTo }: Props) {
+  const { accounts, defaultAccount } = useGmailAccess();
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState(defaultBody);
@@ -28,6 +36,7 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
+  const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,8 +44,11 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
       setTo(defaultTo);
       setSubject(defaultSubject);
       setBody(defaultBody);
+      setAccountId(defaultAccount?.id ?? null);
     }
-  }, [open, defaultTo, defaultSubject, defaultBody]);
+  }, [open, defaultTo, defaultSubject, defaultBody, defaultAccount?.id]);
+
+  const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
 
   if (!open) return null;
 
@@ -52,7 +64,7 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
         attachments.map(a => `<a href="${a.url}">${a.name}</a>`).join("<br/>") + `</div>`;
     }
     const { error } = await supabase.functions.invoke("gmail-send", {
-      body: { to, subject, body: html, threadId, inReplyTo },
+      body: { to, subject, body: html, threadId, inReplyTo, account_id: accountId ?? undefined },
     });
     setSending(false);
     if (error) {
