@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Activity, Filter, MessageSquare, Reply, Trash2, Check } from "lucide-react";
+import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer";
 import { AttachmentChips, type CommentAttachment } from "@/components/shared/RichCommentInput";
@@ -57,9 +58,10 @@ interface Props {
   entityId: string;
   hideHeader?: boolean;
   defaultFilter?: FilterMode;
+  onReplyEmail?: (info: { threadId: string; subject: string }) => void;
 }
 
-export default function ActivityPanel({ entityType, entityId, hideHeader = false, defaultFilter = "all" }: Props) {
+export default function ActivityPanel({ entityType, entityId, hideHeader = false, defaultFilter = "all", onReplyEmail }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -287,13 +289,82 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     }
   };
 
-  const CrmRow = ({ a }: { a: CrmActivity }) => (
-    <div className="flex items-start gap-2 text-xs text-muted-foreground py-0.5">
-      <div className="mt-1.5 h-1 w-1 rounded-full bg-primary/50 shrink-0 ml-2" />
-      <span className="flex-1">{describeCrm(a)}</span>
-      <span className="shrink-0">{timeAgo(a.occurred_at)}</span>
-    </div>
-  );
+  const CRM_ICON: Record<string, { icon: any; bg: string; fg: string }> = {
+    email: { icon: Mail, bg: "bg-amber-100", fg: "text-amber-700" },
+    note: { icon: NotebookPen, bg: "bg-blue-100", fg: "text-blue-700" },
+    call: { icon: Phone, bg: "bg-violet-100", fg: "text-violet-700" },
+    meeting: { icon: Users, bg: "bg-emerald-100", fg: "text-emerald-700" },
+    sms: { icon: MessageSquare, bg: "bg-sky-100", fg: "text-sky-700" },
+    stage_change: { icon: ArrowRightCircle, bg: "bg-muted", fg: "text-muted-foreground" },
+  };
+
+  const CrmRow = ({ a }: { a: CrmActivity }) => {
+    const meta = (a.metadata || {}) as any;
+    const threadId = meta.gmail_thread_id as string | undefined;
+    const isEmail = a.type === "email";
+    const cfg = CRM_ICON[a.type] || CRM_ICON.note;
+    const Icon = cfg.icon;
+    const actor = a.actor_id ? profiles[a.actor_id] || "Someone" : "System";
+
+    // Compact one-liner for non-email/non-note CRM activities
+    if (!isEmail && a.type !== "note" && a.type !== "call" && a.type !== "meeting") {
+      return (
+        <div className="flex items-start gap-2 text-xs text-muted-foreground py-0.5">
+          <div className="mt-1.5 h-1 w-1 rounded-full bg-primary/50 shrink-0 ml-2" />
+          <span className="flex-1">{describeCrm(a)}</span>
+          <span className="shrink-0">{timeAgo(a.occurred_at)}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-3">
+        <div className={cn("h-7 w-7 shrink-0 rounded-full flex items-center justify-center", cfg.bg)}>
+          <Icon className={cn("h-3.5 w-3.5", cfg.fg)} />
+        </div>
+        <div className="min-w-0 flex-1 rounded-lg border border-border/40 bg-card p-3">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium leading-tight truncate">
+                {a.subject?.trim() || (isEmail ? "(no subject)" : a.type)}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {actor} · {timeAgo(a.occurred_at)}
+              </div>
+            </div>
+            {isEmail && (
+              <div className="flex items-center gap-1 shrink-0">
+                {threadId && onReplyEmail && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
+                  >
+                    <Reply className="h-3 w-3 mr-1" /> Reply
+                  </Button>
+                )}
+                {threadId && (
+                  <Link
+                    to={`/inbox?thread=${threadId}`}
+                    className="text-muted-foreground hover:text-primary inline-flex items-center"
+                    title="Open in inbox"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+          {a.body && (
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground line-clamp-6">
+              {a.body}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const Header = (
     <div className="flex items-center justify-between mb-3">
