@@ -197,6 +197,22 @@ export function LeadPeekSheet({
       setActivities((acts as TimelineActivity[]) || []);
       setPeople((p as PersonLite[]) || []);
       setLoading(false);
+
+      // load source contact name
+      if (lead.source_contact_id) {
+        const { data: c } = await supabase
+          .from("contacts")
+          .select("first_name,last_name,email")
+          .eq("id", lead.source_contact_id)
+          .maybeSingle();
+        if (active && c) {
+          setSourceContactName(
+            `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
+          );
+        }
+      } else if (active) {
+        setSourceContactName(null);
+      }
     })();
     return () => {
       active = false;
