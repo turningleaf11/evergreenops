@@ -353,7 +353,7 @@ export function LeadPeekSheet({
                   <span
                     className={cn(
                       "inline-flex items-center font-semibold text-[11px]",
-                      buyBoxMeta.badgeClass,
+                      buyBoxMeta.bg,
                     )}
                     style={{ borderRadius: 100, padding: "3px 10px" }}
                   >
