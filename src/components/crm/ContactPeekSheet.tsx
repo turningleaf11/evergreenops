@@ -48,6 +48,7 @@ import {
   type EntityTabId,
 } from "./_shell";
 import { cn } from "@/lib/utils";
+import { LinkRecordPopover } from "./LinkRecordPopover";
 
 interface Contact {
   id: string;
