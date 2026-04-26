@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, ChevronLeft, Loader2, Unplug } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Mail, ChevronLeft, Loader2, Unplug, Plus, Star, Pencil, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -23,11 +25,21 @@ interface Member {
   email: string | null;
 }
 
+interface GmailAccountRow {
+  id: string;
+  email: string;
+  label: string | null;
+  is_default: boolean;
+  connected_at: string;
+}
+
 export default function IntegrationsGmailPage() {
   const { isAdmin, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [account, setAccount] = useState<{ email: string; connected_at: string } | null>(null);
+  const [accounts, setAccounts] = useState<GmailAccountRow[]>([]);
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
   const [rules, setRules] = useState<AccessRules>({
     allow_all_admins: true,
     allow_all_members: false,
@@ -39,12 +51,21 @@ export default function IntegrationsGmailPage() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: acc }, { data: rulesRow }, { data: profiles }] = await Promise.all([
-      supabase.from("gmail_workspace_account").select("email, connected_at").is("revoked_at", null).maybeSingle(),
+    const [{ data: accs }, { data: rulesRow }, { data: profiles }] = await Promise.all([
+      supabase
+        .from("gmail_workspace_account")
+        .select("id, email, label, is_default, connected_at")
+        .is("revoked_at", null)
+        .order("is_default", { ascending: false })
+        .order("connected_at", { ascending: true }),
       supabase.from("gmail_access_rules").select("*").maybeSingle(),
-      supabase.from("profiles").select("user_id, full_name, email").eq("workspace_id", profile?.workspace_id ?? "").order("full_name"),
+      supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .eq("workspace_id", profile?.workspace_id ?? "")
+        .order("full_name"),
     ]);
-    setAccount(acc);
+    setAccounts((accs ?? []) as GmailAccountRow[]);
     if (rulesRow) {
       setRules({
         allow_all_admins: rulesRow.allow_all_admins,
@@ -74,14 +95,54 @@ export default function IntegrationsGmailPage() {
     }
   };
 
-  const disconnect = async () => {
-    if (!confirm("Disconnect Gmail? All workspace members will lose access to the team inbox.")) return;
-    const { error } = await supabase.functions.invoke("gmail-disconnect");
+  const disconnect = async (accountId: string, email: string) => {
+    if (!confirm(`Disconnect ${email}? Members will lose access to that mailbox.`)) return;
+    const { error } = await supabase.functions.invoke("gmail-disconnect", {
+      body: { account_id: accountId },
+    });
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Gmail disconnected");
-      setAccount(null);
+      toast.success("Disconnected");
+      load();
+    }
+  };
+
+  const setDefault = async (accountId: string) => {
+    // Two-step: clear current default, then set new — keeps the partial unique index happy.
+    await supabase
+      .from("gmail_workspace_account")
+      .update({ is_default: false })
+      .eq("is_default", true)
+      .is("revoked_at", null);
+    const { error } = await supabase
+      .from("gmail_workspace_account")
+      .update({ is_default: true })
+      .eq("id", accountId);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Default account updated");
+      load();
+    }
+  };
+
+  const startEditLabel = (a: GmailAccountRow) => {
+    setEditingLabelId(a.id);
+    setLabelDraft(a.label ?? "");
+  };
+
+  const saveLabel = async (accountId: string) => {
+    const value = labelDraft.trim() || null;
+    const { error } = await supabase
+      .from("gmail_workspace_account")
+      .update({ label: value })
+      .eq("id", accountId);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setEditingLabelId(null);
+      load();
     }
   };
 
@@ -148,49 +209,102 @@ export default function IntegrationsGmailPage() {
         </div>
         <div>
           <h1 className="text-xl font-semibold">Gmail Integration</h1>
-          <p className="text-sm text-muted-foreground">Connect a Gmail mailbox for the entire workspace.</p>
+          <p className="text-sm text-muted-foreground">
+            Connect one or more Gmail mailboxes for the workspace.
+          </p>
         </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Connection</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Connected accounts</CardTitle>
+          <Button onClick={connect} disabled={connecting} size="sm">
+            {connecting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Connect Gmail
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
-          ) : account ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">{account.email}</div>
-                <div className="text-xs text-muted-foreground">
-                  Connected {new Date(account.connected_at).toLocaleDateString()}
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={disconnect}>
-                <Unplug className="h-3.5 w-3.5 mr-1.5" />
-                Disconnect
-              </Button>
-            </div>
+          ) : accounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No Gmail accounts connected yet.</p>
           ) : (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">No Gmail account connected.</p>
-              <Button onClick={connect} disabled={connecting}>
-                {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                Connect Gmail
-              </Button>
-            </div>
+            <ul className="space-y-2">
+              {accounts.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2.5 hover:bg-muted/30 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {editingLabelId === a.id ? (
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <Input
+                            autoFocus
+                            value={labelDraft}
+                            onChange={(e) => setLabelDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveLabel(a.id);
+                              if (e.key === "Escape") setEditingLabelId(null);
+                            }}
+                            placeholder="Nickname (e.g. Sales)"
+                            className="h-7 text-sm max-w-[240px]"
+                          />
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveLabel(a.id)}>
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditLabel(a)}
+                          className="text-sm font-medium hover:text-primary inline-flex items-center gap-1.5 group"
+                        >
+                          {a.label || a.email}
+                          <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      )}
+                      {a.is_default && (
+                        <Badge variant="outline" className="text-[10px]">
+                          <Star className="h-2.5 w-2.5 mr-0.5 fill-current" /> Default
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {a.label ? `${a.email} · ` : ""}
+                      Connected {new Date(a.connected_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-3 shrink-0">
+                    {!a.is_default && (
+                      <Button variant="ghost" size="sm" onClick={() => setDefault(a.id)}>
+                        Make default
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => disconnect(a.id, a.email)}>
+                      <Unplug className="h-3.5 w-3.5 mr-1" />
+                      Disconnect
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>
 
-      {account && (
+      {accounts.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Access</CardTitle>
-            <CardDescription>Choose who can use the team mailbox.</CardDescription>
+            <CardDescription>
+              Choose who can use the team mailboxes. Rules apply to all connected accounts.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="flex items-center justify-between">
