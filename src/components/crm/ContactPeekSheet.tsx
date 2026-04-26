@@ -393,18 +393,10 @@ export function ContactPeekSheet({
                 </div>
               </EntityTabPanel>
             </EntityTabs>
+            )}
           </>
         )}
       </EntitySheetShell>
-
-      <ComposeModal
-        open={composeOpen}
-        onOpenChange={setComposeOpen}
-        defaultTo={composeCtx.to}
-        defaultSubject={composeCtx.subject}
-        threadId={composeCtx.threadId}
-        onSent={handleSent}
-      />
     </>
   );
 }
