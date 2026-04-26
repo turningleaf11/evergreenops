@@ -1775,24 +1775,6 @@ function ContactDetailBody({
 
           <SidebarDivider />
 
-          {/* Relationship notes */}
-          <SidebarBlock label="Relationship">
-            <Textarea
-              defaultValue={contact.buy_box_notes || ""}
-              onBlur={(e) => {
-                const next = e.target.value.trim() || null;
-                if ((next || "") !== (contact.buy_box_notes || "")) {
-                  void persist({ buy_box_notes: next });
-                }
-              }}
-              placeholder="Deal quality, what they buy, how they work…"
-              rows={4}
-              className="text-sm resize-none border-border/60"
-            />
-          </SidebarBlock>
-
-          <SidebarDivider />
-
           {/* Owner */}
           <SidebarBlock label="Owner">
             <OwnerPicker
