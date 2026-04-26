@@ -42,6 +42,7 @@ import {
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NewTransactionDialog } from "./transactions/NewTransactionDialog";
 import { DealOverviewPanel } from "./DealOverviewPanel";
 import { DealUnderwritingTab } from "./DealUnderwritingTab";
 import { DealBrokerCommsTab } from "./DealBrokerCommsTab";
