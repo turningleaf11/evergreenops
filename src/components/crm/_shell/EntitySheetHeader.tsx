@@ -72,7 +72,7 @@ export function EntitySheetHeader({
         )}
         {leading && <div className="mt-1 shrink-0">{leading}</div>}
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold leading-tight truncate">{title}</h2>
+          <h2 className={cn("text-lg font-semibold leading-tight truncate", titleClassName)}>{title}</h2>
           {subtitle && (
             <div className="text-xs text-muted-foreground truncate mt-0.5">{subtitle}</div>
           )}
