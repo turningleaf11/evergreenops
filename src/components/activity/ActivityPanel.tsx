@@ -38,7 +38,19 @@ interface ActivityEvent {
   created_at: string;
 }
 
+interface CrmActivity {
+  id: string;
+  type: string;
+  subject: string | null;
+  body: string | null;
+  occurred_at: string;
+  actor_id: string | null;
+  metadata: Record<string, any> | null;
+}
+
 type FilterMode = "all" | "comments" | "activity";
+
+const CRM_ENTITY_TYPES = new Set(["contact", "deal", "lead", "company"]);
 
 interface Props {
   entityType: string;
