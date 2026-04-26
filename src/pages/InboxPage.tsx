@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight } from "lucide-react";
+import { Mail, Inbox, Send, Star, FileText, Loader2, RefreshCw, Pencil, Tag, Settings2, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,9 @@ interface ThreadSummary {
   messageCount: number;
   unread: boolean;
   labelIds: string[];
+  account_id?: string;
+  account_email?: string;
+  account_label?: string | null;
 }
 
 const FOLDERS = [
@@ -30,8 +34,9 @@ const FOLDERS = [
 ];
 
 export default function InboxPage() {
-  const { loading: accessLoading, connected, hasAccess, isAdmin } = useGmailAccess();
+  const { loading: accessLoading, connected, hasAccess, isAdmin, accounts, defaultAccount } = useGmailAccess();
   const [folder, setFolder] = useState("inbox");
+  const [accountFilter, setAccountFilter] = useState<string>("default"); // 'default' | 'all' | <account_id>
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [loading, setLoading] = useState(false);
