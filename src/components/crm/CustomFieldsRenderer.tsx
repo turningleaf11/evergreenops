@@ -176,6 +176,11 @@ export function CustomFieldsRenderer({ fields, values, onChange, compact }: Rend
                   );
                 })}
               </div>
+            ) : f.field_type === "tags" ? (
+              <TagsInput
+                value={Array.isArray(v) ? (v as string[]) : []}
+                onChange={(next) => set(f.field_key, next)}
+              />
             ) : null}
           </div>
         );
