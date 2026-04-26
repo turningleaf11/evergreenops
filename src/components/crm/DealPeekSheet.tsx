@@ -31,6 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { QuickCreateDialog } from "./QuickCreateDialog";
