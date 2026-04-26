@@ -321,7 +321,7 @@ export function ContactPeekSheet({
             ) : (
             <EntityTabs
               value={tab}
-              onValueChange={setTab}
+              onValueChange={(v) => setTab(v)}
               hide={["more"]}
               actions={
                 <Button
