@@ -492,7 +492,7 @@ export default function InboxPage() {
           ) : (
             visibleThreads.map((t) => (
               <button
-                key={t.id}
+                key={`${t.account_id ?? "_"}_${t.id}`}
                 onClick={() => setSelectedId(t.id)}
                 className={cn(
                   "w-full text-left px-3 py-2.5 border-b border-border/20 hover:bg-muted/40 transition-colors",
@@ -505,7 +505,14 @@ export default function InboxPage() {
                   <span className="text-[10px] text-muted-foreground shrink-0">{shortDate(t.date)}</span>
                 </div>
                 <div className="text-xs truncate">{t.subject}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{t.snippet}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-muted-foreground truncate flex-1">{t.snippet}</div>
+                  {accountFilter === "all" && t.account_email && (
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 bg-muted px-1.5 py-0.5 rounded shrink-0">
+                      {t.account_label || t.account_email.split("@")[0]}
+                    </span>
+                  )}
+                </div>
               </button>
             ))
           )}
