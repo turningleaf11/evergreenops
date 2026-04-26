@@ -367,21 +367,6 @@ export function ContactPeekSheet({
                   >
                     {contact.is_active === false ? "Inactive" : "Active"}
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canEmail}
-                    onClick={() => {
-                      setComposeCtx({ to: contact.email!, subject: "" });
-                      setComposeOpen(true);
-                    }}
-                    className="h-8 gap-1.5"
-                  >
-                    <Send className="h-3.5 w-3.5" /> Email
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                  </Button>
                 </>
               }
             />
@@ -399,6 +384,25 @@ export function ContactPeekSheet({
                 value={tab}
                 onValueChange={(v) => setTab(v)}
                 hide={["deals", "more"]}
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!canEmail}
+                      onClick={() => {
+                        setComposeCtx({ to: contact.email!, subject: "" });
+                        setComposeOpen(true);
+                      }}
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Send className="h-3.5 w-3.5" /> Email
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                }
               >
                 <EntityTabPanel value="overview" className="p-0 overflow-hidden">
                   <EntityDetailLayout
