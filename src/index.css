@@ -51,6 +51,15 @@
     --warning-foreground: 0 0% 100%;
     --info: 200 98% 39%;
     --info-foreground: 0 0% 100%;
+
+    /* Brand palette (CRM polish) */
+    --brand-azure: 230 64% 54%;        /* #3E54D3 */
+    --brand-mint: 165 67% 52%;         /* #2FDAAA */
+    --brand-mint-deep: 165 67% 38%;
+    --brand-tangerine: 19 100% 71%;    /* #FFA16F */
+    --brand-coral: 350 83% 58%;        /* #ED3B5B */
+    --brand-violet: 258 56% 60%;
+    --brand-purple-muted: 245 16% 65%; /* #9896B8 */
   }
 
   .dark {
@@ -97,6 +106,15 @@
     --warning-foreground: 0 0% 100%;
     --info: 200 98% 35%;
     --info-foreground: 0 0% 100%;
+
+    /* Brand palette (CRM polish) */
+    --brand-azure: 230 64% 60%;
+    --brand-mint: 165 67% 52%;
+    --brand-mint-deep: 165 67% 38%;
+    --brand-tangerine: 19 100% 71%;
+    --brand-coral: 350 83% 60%;
+    --brand-violet: 258 56% 65%;
+    --brand-purple-muted: 245 16% 65%;
   }
 }
 
