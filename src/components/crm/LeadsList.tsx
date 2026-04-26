@@ -172,24 +172,6 @@ export function LeadsList({ search }: { search: string }) {
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Open</div>
             <div className="font-semibold">{counts.total}</div>
           </div>
-          {TEMPS.map((t) => {
-            const meta = TEMPERATURE_META[t];
-            const active = tempFilter.has(t);
-            return (
-              <button
-                key={t}
-                onClick={() => toggleTempFilter(t)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors",
-                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50",
-                )}
-              >
-                <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
-                {meta.label}
-                <span className="opacity-60">({counts[t]})</span>
-              </button>
-            );
-          })}
         </div>
         <div className="flex items-center gap-2">
           <Button
