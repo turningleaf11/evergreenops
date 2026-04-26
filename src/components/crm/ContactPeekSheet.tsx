@@ -66,13 +66,6 @@ interface Contact {
 
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
 
-const STATUS_COLOR: Record<string, string> = {
-  lead: "210 70% 50%",
-  active: "142 76% 36%",
-  customer: "262 70% 55%",
-  lost: "0 70% 50%",
-};
-
 export function ContactPeekSheet({
   contactId,
   onClose,
