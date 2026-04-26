@@ -658,12 +658,10 @@ function FieldCell({
 
 function ContactInfoGrid({
   contact,
-  companyName,
   onSaved,
   onChanged,
 }: {
   contact: Contact;
-  companyName: string | null;
   onSaved: (patch: Partial<Contact>) => void;
   onChanged: () => void;
 }) {
@@ -690,7 +688,7 @@ function ContactInfoGrid({
   };
 
   return (
-    <section>
+    <section className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
       <EntitySectionHeader>Contact info</EntitySectionHeader>
       <div className="grid grid-cols-2 gap-x-6 gap-y-5">
         <FieldCell label="Phone">
@@ -699,7 +697,7 @@ function ContactInfoGrid({
               {contact.phone}
             </a>
           ) : (
-            <span className="text-muted-foreground">—</span>
+            <EntityEmpty>—</EntityEmpty>
           )}
         </FieldCell>
 
@@ -712,15 +710,7 @@ function ContactInfoGrid({
               {contact.email}
             </a>
           ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
-        </FieldCell>
-
-        <FieldCell label="Company">
-          {companyName ? (
-            <span>{companyName}</span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
+            <EntityEmpty>—</EntityEmpty>
           )}
         </FieldCell>
 
