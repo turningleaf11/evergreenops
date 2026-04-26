@@ -601,15 +601,15 @@ export function DealPeekSheet({
                 {/* Right rail */}
                 <aside className="border-l border-border/40 overflow-auto bg-background">
                   <div className="p-6 space-y-8">
-                    {/* Quick edit fields */}
+                    {/* DEAL INFO */}
                     <section className="space-y-4">
-                      <div className="crm-eyebrow">Deal details</div>
+                      <div className="crm-eyebrow">Deal info</div>
                       <div>
                         <Label className="crm-field-label">Stage</Label>
                         <select
                           value={deal.stage_id}
                           onChange={(e) => saveField({ stage_id: e.target.value } as any)}
-                          className="w-full text-sm h-8 rounded-md border border-input bg-background px-2 mt-1"
+                          className="w-full text-sm h-9 rounded-md border border-input bg-background px-2 mt-1"
                         >
                           {stages.map((s) => (
                             <option key={s.id} value={s.id}>{s.name}</option>
@@ -617,42 +617,38 @@ export function DealPeekSheet({
                         </select>
                       </div>
                       <div>
-                        <Label className="crm-field-label">Value</Label>
-                        <Input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => {
-                            const n = Number(editValue) || 0;
-                            if (n !== deal.value) saveField({ value: n } as any);
+                        <Label className="crm-field-label">Assigned to</Label>
+                        <OwnerPicker
+                          ownerId={deal.owner_id}
+                          onChange={async (id) => {
+                            await saveField({ owner_id: id } as any);
                           }}
-                          className="h-8 text-sm mt-1"
                         />
                       </div>
                       <div>
-                        <Label className="crm-field-label">Expected close</Label>
-                        <Input
-                          type="date"
-                          value={editClose ?? ""}
-                          onChange={(e) => setEditClose(e.target.value)}
-                          onBlur={() => {
-                            if (editClose !== (deal.expected_close_date ?? "")) {
-                              saveField({ expected_close_date: editClose || null } as any);
-                            }
-                          }}
-                          className="h-8 text-sm mt-1"
+                        <Label className="crm-field-label">Source contact</Label>
+                        <ContactPicker
+                          value={deal.source_contact_id}
+                          onChange={(id) => saveField({ source_contact_id: id } as any)}
+                          placeholder="Who sent this?"
                         />
                       </div>
-                    </section>
-
-                    {/* Owner */}
-                    <section>
-                      <OwnerPicker
-                        ownerId={deal.owner_id}
-                        onChange={async (id) => {
-                          await saveField({ owner_id: id } as any);
-                        }}
-                      />
+                      <div>
+                        <Label className="crm-field-label">Disposition strategy</Label>
+                        <select
+                          value={deal.disposition_strategy ?? ""}
+                          onChange={(e) =>
+                            saveField({ disposition_strategy: e.target.value || null } as any)
+                          }
+                          className="w-full text-sm h-9 rounded-md border border-input bg-background px-2 mt-1"
+                        >
+                          <option value="">Choose a strategy</option>
+                          <option value="buy_hold">Buy &amp; Hold</option>
+                          <option value="assign">Assign</option>
+                          <option value="double_close">Double Close</option>
+                          <option value="pass">Pass</option>
+                        </select>
+                      </div>
                     </section>
 
                     {/* Team members (Collaborators) */}
@@ -740,7 +736,7 @@ export function DealPeekSheet({
                           </div>
                         </div>
                       ) : (
-                        <p className="text-[11px] text-muted-foreground mb-2">No primary contact.</p>
+                        <p className="text-[11px] text-muted-foreground italic mb-2">No primary contact.</p>
                       )}
                       {associatedContacts.map((c) => (
                         <div key={c.id} className="rounded-md border border-border/40 bg-card p-2 mb-1">
@@ -773,37 +769,6 @@ export function DealPeekSheet({
                       ))}
                     </section>
 
-                    {/* Custom fields */}
-                    <DealCustomFieldsPanel
-                      dealId={deal.id}
-                      values={(deal.custom_fields || {}) as Record<string, unknown>}
-                      onSaved={(v) => setDeal({ ...deal, custom_fields: v })}
-                    />
-
-                    {/* Appointments */}
-                    <section>
-                      <div className="crm-eyebrow mb-3">Appointments</div>
-                      {(() => {
-                        const upcoming = activities.filter(
-                          (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
-                        );
-                        if (upcoming.length === 0) {
-                          return <p className="text-xs text-muted-foreground">No upcoming meetings.</p>;
-                        }
-                        return (
-                          <ul className="space-y-1.5">
-                            {upcoming.slice(0, 5).map((m) => (
-                              <li key={m.id} className="text-xs">
-                                <div className="font-medium">{m.subject || "Meeting"}</div>
-                                <div className="text-muted-foreground">
-                                  {new Date(m.occurred_at).toLocaleString()}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        );
-                      })()}
-                    </section>
                   </div>
                 </aside>
               </div>
