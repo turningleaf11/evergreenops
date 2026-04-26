@@ -23,6 +23,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { NewLeadDialog } from "./NewLeadDialog";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
 import { FollowUpPicker, TEMPERATURE_META } from "./FollowUpPicker";
+import { LeadPeekSheet } from "./LeadPeekSheet";
 
 interface Lead {
   id: string;
