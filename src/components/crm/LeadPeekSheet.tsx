@@ -368,10 +368,10 @@ export function LeadPeekSheet({
               </div>
               <div className="ml-2 min-w-0">
                 <div className="text-base font-semibold truncate">
-                  {lead.company_name || lead.name || "Untitled lead"}
+                  {lead.name || lead.property_address || "Untitled lead"}
                 </div>
-                {lead.company_name && lead.name && (
-                  <div className="text-xs text-muted-foreground truncate">{lead.name}</div>
+                {lead.property_address && lead.name && (
+                  <div className="text-xs text-muted-foreground truncate">{lead.property_address}</div>
                 )}
               </div>
             </div>
