@@ -213,6 +213,15 @@ export function ContactPeekSheet({
                     </SheetTitle>
                     <div className="flex items-center gap-2 flex-wrap pt-1">
                       <Badge
+                        className="text-[10px] border-transparent"
+                        style={{
+                          backgroundColor: `hsl(${contactTypeColor(contact.contact_type)} / 0.15)`,
+                          color: `hsl(${contactTypeColor(contact.contact_type)})`,
+                        }}
+                      >
+                        {contactTypeLabel(contact.contact_type)}
+                      </Badge>
+                      <Badge
                         variant="outline"
                         className="text-[10px] capitalize"
                         style={{
@@ -222,6 +231,11 @@ export function ContactPeekSheet({
                       >
                         {contact.status}
                       </Badge>
+                      {contact.is_active === false && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Inactive
+                        </Badge>
+                      )}
                       {contact.title && (
                         <span className="text-xs text-muted-foreground">{contact.title}</span>
                       )}
