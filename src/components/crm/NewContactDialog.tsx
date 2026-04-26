@@ -1,11 +1,27 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  CONTACT_TYPES,
+  CONTACT_TYPE_LABEL,
+  PREFERRED_CONTACT_METHODS,
+  type ContactType,
+  type PreferredContactMethod,
+} from "./contactTypes";
 
 interface Props {
   open: boolean;
@@ -21,6 +37,11 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [title, setTitle] = useState("");
+  const [contactType, setContactType] = useState<ContactType>("other");
+  const [preferredMethod, setPreferredMethod] = useState<PreferredContactMethod | "">("");
+  const [buyBox, setBuyBox] = useState("");
+  const [markets, setMarkets] = useState<string[]>([]);
+  const [marketDraft, setMarketDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
@@ -29,6 +50,18 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
     setEmail("");
     setPhone("");
     setTitle("");
+    setContactType("other");
+    setPreferredMethod("");
+    setBuyBox("");
+    setMarkets([]);
+    setMarketDraft("");
+  };
+
+  const addMarket = () => {
+    const v = marketDraft.trim();
+    if (!v) return;
+    if (!markets.includes(v)) setMarkets([...markets, v]);
+    setMarketDraft("");
   };
 
   const submit = async () => {
@@ -45,6 +78,10 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
       email: email.trim() || null,
       phone: phone.trim() || null,
       title: title.trim() || null,
+      contact_type: contactType,
+      preferred_contact_method: preferredMethod || null,
+      buy_box_notes: buyBox.trim() || null,
+      markets: markets.length ? markets : null,
       created_by: userId,
       owner_id: userId,
     });
@@ -60,7 +97,7 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New contact</DialogTitle>
         </DialogHeader>
@@ -89,6 +126,92 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
               <Input value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Type</Label>
+              <Select value={contactType} onValueChange={(v) => setContactType(v as ContactType)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTACT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {CONTACT_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Preferred contact method</Label>
+              <Select
+                value={preferredMethod || "_none"}
+                onValueChange={(v) =>
+                  setPreferredMethod(v === "_none" ? "" : (v as PreferredContactMethod))
+                }
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">—</SelectItem>
+                  {PREFERRED_CONTACT_METHODS.map((m) => (
+                    <SelectItem key={m} value={m} className="capitalize">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Buy box / notes</Label>
+            <Textarea
+              rows={3}
+              value={buyBox}
+              onChange={(e) => setBuyBox(e.target.value)}
+              placeholder="Criteria, price range, geographies, etc."
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Markets</Label>
+            <div className="flex gap-2">
+              <Input
+                value={marketDraft}
+                onChange={(e) => setMarketDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    addMarket();
+                  }
+                }}
+                placeholder="Add a market (e.g. Tampa) and press Enter"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={addMarket}>
+                Add
+              </Button>
+            </div>
+            {markets.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {markets.map((m) => (
+                  <Badge key={m} variant="secondary" className="gap-1">
+                    {m}
+                    <button
+                      type="button"
+                      onClick={() => setMarkets(markets.filter((x) => x !== m))}
+                      className="hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
