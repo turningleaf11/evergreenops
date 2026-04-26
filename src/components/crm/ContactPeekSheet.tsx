@@ -381,13 +381,15 @@ export function ContactPeekSheet({
                 <EntityTabPanel value="overview" className="p-0 overflow-hidden">
                   <EntityDetailLayout
                     main={
-                      <>
-                        <ContactInfoGrid
+                      <div className="space-y-7">
+                        <ContactDetailsBlock
                           contact={contact}
-                          onSaved={(patch) => setContact({ ...contact, ...patch })}
+                          companyName={companyName}
+                          onChange={(patch) => setContact({ ...contact, ...patch })}
+                          onCompanyChange={(name) => setCompanyName(name)}
                           onChanged={onChanged}
                         />
-                        <ContactRelationshipNotes
+                        <ContactNotesBlock
                           contact={contact}
                           onSaved={(patch) => setContact({ ...contact, ...patch })}
                           onChanged={onChanged}
@@ -398,16 +400,16 @@ export function ContactPeekSheet({
                           onChanged={onChanged}
                         />
                         {hasCustomFields && (
-                          <div className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                            <EntitySectionHeader>Custom fields</EntitySectionHeader>
+                          <section>
+                            <SectionLabel>Custom fields</SectionLabel>
                             <CustomFieldsPanel
                               contactId={contact.id}
                               values={(contact.custom_fields || {}) as Record<string, unknown>}
                               onSaved={(v) => setContact({ ...contact, custom_fields: v })}
                             />
-                          </div>
+                          </section>
                         )}
-                      </>
+                      </div>
                     }
                     sidebar={
                       <ContactSidebar
