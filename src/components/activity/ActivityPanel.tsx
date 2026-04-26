@@ -323,11 +323,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       {stream.length === 0 && (
         <p className="text-sm text-muted-foreground">No activity yet.</p>
       )}
-      {stream.map((item) =>
-        item.kind === "comment"
-          ? <CommentCard key={`c-${item.comment.id}`} c={item.comment} />
-          : <EventRow key={`e-${item.event.id}`} e={item.event} />
-      )}
+      {stream.map((item) => {
+        if (item.kind === "comment") return <CommentCard key={`c-${item.comment.id}`} c={item.comment} />;
+        if (item.kind === "event") return <EventRow key={`e-${item.event.id}`} e={item.event} />;
+        return <CrmRow key={`a-${item.crm.id}`} a={item.crm} />;
+      })}
     </div>
   );
 
