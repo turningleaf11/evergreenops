@@ -41,6 +41,11 @@ import {
   ActivityFilterPills,
   type TimelineActivity,
 } from "./CrmActivityTimeline";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DealOverviewPanel } from "./DealOverviewPanel";
+import { DealUnderwritingTab } from "./DealUnderwritingTab";
+import { DealBrokerCommsTab } from "./DealBrokerCommsTab";
+import { DealFilesTab } from "./DealFilesTab";
 
 interface Deal {
   id: string;
@@ -59,6 +64,36 @@ interface Deal {
   lost_reason: string | null;
   description: string;
   custom_fields: Record<string, unknown>;
+  // Portfolio fields
+  property_address: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_zip: string | null;
+  property_type: string | null;
+  units: number | null;
+  sqft: number | null;
+  asking_price: number | null;
+  seller_stated_value: number | null;
+  source_contact_id: string | null;
+  lead_id: string | null;
+  disposition_strategy: string | null;
+  // Underwriting
+  quick_arv: number | null;
+  repair_estimate: number | null;
+  mao: number | null;
+  spread: number | null;
+  gross_income: number | null;
+  vacancy_rate: number | null;
+  effective_gross_income: number | null;
+  operating_expenses: number | null;
+  noi: number | null;
+  our_value: number | null;
+  our_cap_rate: number | null;
+  price_per_unit: number | null;
+  price_per_sqft: number | null;
+  loi_date: string | null;
+  loi_amount: number | null;
+  broker_feedback: string | null;
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite {
@@ -453,6 +488,15 @@ export function DealPeekSheet({
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    {currentStage?.name === "Under Contract" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => toast({ title: "Coming next", description: "Transaction creation wires up in the next prompt." })}
+                      >
+                        Create Transaction →
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={startNewEmail}
@@ -472,40 +516,87 @@ export function DealPeekSheet({
               <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto">
-                  <div className="p-4">
-                    <CrmComposerTabs
-                      onSubmit={handleComposerSubmit}
-                      onSendEmail={startNewEmail}
-                      emailDisabled={contacts.filter((c) => c.email).length === 0}
-                    />
-                  </div>
-                  <div className="px-4">
-                    <ActivityFilterPills
-                      activities={activities}
-                      value={filter}
-                      onChange={setFilter}
-                    />
-                  </div>
-                  <CrmActivityTimeline
-                    activities={activities}
-                    people={people}
-                    filter={filter}
-                    onReply={(a) => {
-                      const meta = a.metadata as any;
-                      const recipient = primaryContact?.email;
-                      if (!recipient) {
-                        toast({ title: "No primary contact email", variant: "destructive" });
-                        return;
-                      }
-                      openCompose({
-                        to: recipient,
-                        subject: a.subject?.toLowerCase().startsWith("re:")
-                          ? a.subject
-                          : `Re: ${a.subject || ""}`,
-                        threadId: meta?.gmail_thread_id,
-                      });
-                    }}
-                  />
+                  <Tabs defaultValue="overview" className="w-full">
+                    <div className="px-4 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                      <TabsList className="bg-transparent p-0 h-auto gap-1">
+                        <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+                        <TabsTrigger value="underwriting" className="text-xs">Underwriting</TabsTrigger>
+                        <TabsTrigger value="broker" className="text-xs">Broker Comms</TabsTrigger>
+                        <TabsTrigger value="activity" className="text-xs">Activity</TabsTrigger>
+                        <TabsTrigger value="files" className="text-xs">Files</TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value="overview" className="p-4 mt-0">
+                      <DealOverviewPanel
+                        deal={deal as any}
+                        workspaceId={deal.workspace_id}
+                        onSave={async (patch) => { await saveField(patch as any); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="underwriting" className="p-4 mt-0">
+                      <DealUnderwritingTab
+                        deal={deal as any}
+                        onChanged={() => { void reload(); onChanged(); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="broker" className="p-4 mt-0">
+                      <DealBrokerCommsTab
+                        dealId={deal.id}
+                        workspaceId={deal.workspace_id}
+                        initialFeedback={deal.broker_feedback}
+                        initialEntries={
+                          activities
+                            .filter((a) => a.type === "broker_feedback")
+                            .map((a) => ({ id: a.id, body: a.body || "", occurred_at: a.occurred_at }))
+                        }
+                        onChanged={() => { void reload(); onChanged(); }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="activity" className="mt-0">
+                      <div className="p-4">
+                        <CrmComposerTabs
+                          onSubmit={handleComposerSubmit}
+                          onSendEmail={startNewEmail}
+                          emailDisabled={contacts.filter((c) => c.email).length === 0}
+                        />
+                      </div>
+                      <div className="px-4">
+                        <ActivityFilterPills
+                          activities={activities}
+                          value={filter}
+                          onChange={setFilter}
+                        />
+                      </div>
+                      <CrmActivityTimeline
+                        activities={activities}
+                        people={people}
+                        filter={filter}
+                        onReply={(a) => {
+                          const meta = a.metadata as any;
+                          const recipient = primaryContact?.email;
+                          if (!recipient) {
+                            toast({ title: "No primary contact email", variant: "destructive" });
+                            return;
+                          }
+                          openCompose({
+                            to: recipient,
+                            subject: a.subject?.toLowerCase().startsWith("re:")
+                              ? a.subject
+                              : `Re: ${a.subject || ""}`,
+                            threadId: meta?.gmail_thread_id,
+                          });
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="files" className="p-4 mt-0">
+                      <DealFilesTab dealId={deal.id} workspaceId={deal.workspace_id} />
+                    </TabsContent>
+                  </Tabs>
                 </div>
 
                 {/* Right rail */}

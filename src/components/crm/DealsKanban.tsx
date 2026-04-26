@@ -34,7 +34,16 @@ interface Deal {
   primary_contact_id: string | null;
   expected_close_date: string | null;
   created_at?: string;
+  property_address?: string | null;
+  property_type?: string | null;
+  asking_price?: number | null;
+  owner_id?: string | null;
+  source_contact_id?: string | null;
+  stage_entered_at?: string | null;
 }
+
+interface PersonLite { user_id: string; full_name: string | null; avatar_url: string | null }
+interface ContactLite { id: string; first_name: string | null; last_name: string | null }
 
 interface Pipeline {
   id: string;
@@ -54,6 +63,8 @@ export function DealsKanban({ search }: { search: string }) {
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [people, setPeople] = useState<PersonLite[]>([]);
+  const [sourceContacts, setSourceContacts] = useState<ContactLite[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
@@ -71,6 +82,8 @@ export function DealsKanban({ search }: { search: string }) {
       setPipelines(list);
       const def = list.find((p) => p.is_default) || list[0];
       setActivePipelineId(def?.id ?? null);
+      const { data: ps } = await supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500);
+      setPeople((ps as PersonLite[]) || []);
       setLoading(false);
     })();
   }, []);
@@ -83,7 +96,20 @@ export function DealsKanban({ search }: { search: string }) {
         supabase.from("deals").select("*").eq("pipeline_id", activePipelineId).order("created_at", { ascending: false }),
       ]);
       setStages((st as Stage[]) || []);
-      setDeals((dl as Deal[]) || []);
+      const dealRows = (dl as Deal[]) || [];
+      setDeals(dealRows);
+      const contactIds = Array.from(
+        new Set(dealRows.map((d) => d.source_contact_id).filter(Boolean) as string[]),
+      );
+      if (contactIds.length) {
+        const { data: cs } = await supabase
+          .from("contacts")
+          .select("id,first_name,last_name")
+          .in("id", contactIds);
+        setSourceContacts((cs as ContactLite[]) || []);
+      } else {
+        setSourceContacts([]);
+      }
     })();
   }, [activePipelineId, refreshKey]);
 
@@ -282,27 +308,73 @@ export function DealsKanban({ search }: { search: string }) {
                 <span className="text-[10px] text-muted-foreground shrink-0">{items.length}</span>
               </div>
               <div className="p-2 space-y-2 flex-1">
-                {items.map((d) => (
-                  <div
-                    key={d.id}
-                    draggable
-                    onDragStart={() => setDraggingId(d.id)}
-                    onDragEnd={() => { setDraggingId(null); setHoverStageId(null); }}
-                    onClick={() => setOpenDealId(d.id)}
-                    className={cn(
-                      "rounded-lg border border-border/40 bg-card p-2.5 text-xs hover:shadow-sm hover:border-border transition-all cursor-pointer",
-                      draggingId === d.id && "opacity-40"
-                    )}
-                  >
-                    <p className="font-medium text-sm leading-snug line-clamp-2 mb-1">{d.title}</p>
-                    <div className="flex items-center justify-between text-muted-foreground">
-                      <span>{formatMoney(Number(d.value || 0), d.currency)}</span>
-                      {d.expected_close_date && (
-                        <span className="text-[10px]">{new Date(d.expected_close_date).toLocaleDateString()}</span>
+                {items.map((d) => {
+                  const owner = people.find((p) => p.user_id === d.owner_id);
+                  const sourceContact = sourceContacts.find((c) => c.id === d.source_contact_id);
+                  const sourceName = sourceContact
+                    ? `${sourceContact.first_name ?? ""} ${sourceContact.last_name ?? ""}`.trim()
+                    : null;
+                  const enteredAt = d.stage_entered_at ? new Date(d.stage_entered_at) : null;
+                  const days = enteredAt
+                    ? Math.floor((Date.now() - enteredAt.getTime()) / 86400000)
+                    : 0;
+                  const daysClass =
+                    days >= 7
+                      ? "text-red-600 bg-red-500/10 border-red-500/30"
+                      : days >= 3
+                      ? "text-amber-600 bg-amber-400/15 border-amber-400/30"
+                      : "text-muted-foreground bg-muted/40 border-border/40";
+                  const headline = d.property_address?.trim() || d.title;
+                  const ownerInitials = owner?.full_name
+                    ? owner.full_name.split(" ").map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase()
+                    : null;
+                  return (
+                    <div
+                      key={d.id}
+                      draggable
+                      onDragStart={() => setDraggingId(d.id)}
+                      onDragEnd={() => { setDraggingId(null); setHoverStageId(null); }}
+                      onClick={() => setOpenDealId(d.id)}
+                      className={cn(
+                        "rounded-lg border border-border/40 bg-card p-2.5 text-xs hover:shadow-sm hover:border-border transition-all cursor-pointer space-y-1.5",
+                        draggingId === d.id && "opacity-40"
                       )}
+                    >
+                      <p className="font-medium text-sm leading-snug line-clamp-2">{headline}</p>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="font-medium text-foreground tabular-nums">
+                          {formatMoney(Number(d.asking_price || d.value || 0), d.currency)}
+                        </span>
+                        {d.property_type && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                            {d.property_type}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {ownerInitials ? (
+                            owner?.avatar_url ? (
+                              <img src={owner.avatar_url} className="h-5 w-5 rounded-full" alt={owner.full_name ?? ""} />
+                            ) : (
+                              <div className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[9px] font-semibold flex items-center justify-center shrink-0">
+                                {ownerInitials}
+                              </div>
+                            )
+                          ) : (
+                            <div className="h-5 w-5 rounded-full bg-muted shrink-0" />
+                          )}
+                          {sourceName && (
+                            <span className="text-[10px] text-muted-foreground truncate">via {sourceName}</span>
+                          )}
+                        </div>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border tabular-nums shrink-0", daysClass)}>
+                          {days}d
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {items.length === 0 && (
                   <div className="text-[11px] text-muted-foreground/60 text-center py-4">Drop here</div>
                 )}
