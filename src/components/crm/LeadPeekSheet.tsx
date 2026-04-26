@@ -1072,3 +1072,54 @@ function DoneSection({
     </section>
   );
 }
+
+function NumField({
+  label,
+  value,
+  step,
+  onSave,
+}: {
+  label: string;
+  value: number | null;
+  step?: string;
+  onSave: (n: number | null) => Promise<void> | void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value !== null ? String(value) : "");
+  useEffect(() => setDraft(value !== null ? String(value) : ""), [value]);
+
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      {editing ? (
+        <Input
+          autoFocus
+          type="number"
+          step={step}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            setEditing(false);
+            const n = draft.trim() === "" ? null : Number(draft);
+            if ((n ?? null) !== (value ?? null)) onSave(n);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") {
+              setDraft(value !== null ? String(value) : "");
+              setEditing(false);
+            }
+          }}
+          className="h-6 w-24 text-xs"
+        />
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="text-foreground hover:text-primary"
+        >
+          {value !== null ? value.toLocaleString() : <span className="text-muted-foreground italic">—</span>}
+        </button>
+      )}
+    </div>
+  );
+}
