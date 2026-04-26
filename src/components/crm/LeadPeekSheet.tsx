@@ -693,52 +693,22 @@ export function LeadPeekSheet({
           )}
 
           {/* Footer */}
-          <div className="border-t border-border/50 px-4 py-3 flex items-center justify-between gap-2 bg-background">
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                <MoreHorizontal className="h-4 w-4" />
+          {!isArchived && !isConverted && (
+            <div className="border-t border-border/50 px-4 py-2 flex items-center justify-end gap-2 bg-background">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  onArchive(lead);
+                  onClose();
+                }}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                Archive
               </Button>
-              {!isArchived && !isConverted && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  title="Archive"
-                  onClick={() => {
-                    onArchive(lead);
-                    onClose();
-                  }}
-                >
-                  <Archive className="h-4 w-4" />
-                </Button>
-              )}
             </div>
-            {isConverted && convertedDealId && onOpenDeal ? (
-              <Button
-                onClick={() => onOpenDeal(convertedDealId)}
-                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl"
-              >
-                Open deal
-              </Button>
-            ) : (
-              <Button
-                disabled={
-                  isConverted ||
-                  isArchived ||
-                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
-                }
-                onClick={() => onConvert(lead)}
-                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl disabled:opacity-50"
-                title={
-                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
-                    ? "Mark as Fits Buy Box or Maybe to enable conversion"
-                    : undefined
-                }
-              >
-                Convert to Deal <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-            )}
-          </div>
+          )}
       </EntitySheetShell>
 
       <ComposeModal
