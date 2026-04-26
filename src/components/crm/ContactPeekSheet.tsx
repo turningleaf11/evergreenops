@@ -1788,15 +1788,14 @@ function ContactDetailBody({
                     {contact.notes || "No notes yet."}
                   </p>
                 </OverviewCard>
-                {hasCustomFields && (
-                  <OverviewCard title="Custom fields">
-                    <CustomFieldsPanel
-                      contactId={contact.id}
-                      values={(contact.custom_fields || {}) as Record<string, unknown>}
-                      onSaved={(v) => setContact({ ...contact, custom_fields: v })}
-                    />
-                  </OverviewCard>
-                )}
+                <OverviewCard title="Profile">
+                  <CustomFieldsPanel
+                    contactId={contact.id}
+                    contactType={contact.contact_type}
+                    values={(contact.custom_fields || {}) as Record<string, unknown>}
+                    onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                  />
+                </OverviewCard>
               </div>
             </EntityTabPanel>
 
