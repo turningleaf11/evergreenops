@@ -342,6 +342,21 @@ export function LeadsList({ search }: { search: string }) {
           navigate(`/crm/deals?deal=${dealId}`);
         }}
       />
+
+      <LeadPeekSheet
+        lead={openLead}
+        leads={filtered}
+        onClose={() => setOpenLead(null)}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+        onConvert={(l) => setConvertLead(l)}
+        onArchive={archive}
+        onUpdate={updateLead}
+        onOpenLead={(l) => setOpenLead(l)}
+        onOpenDeal={(dealId) => {
+          setOpenLead(null);
+          navigate(`/crm/deals?deal=${dealId}`);
+        }}
+      />
     </div>
   );
 }
