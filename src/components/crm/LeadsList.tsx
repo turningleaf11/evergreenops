@@ -346,13 +346,15 @@ export function LeadsList({ search }: { search: string }) {
                           </Button>
                         }
                       />
-                      <Button
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => setConvertLead(l)}
-                      >
-                        Qualify <ArrowRight className="h-3 w-3" />
-                      </Button>
+                      {(l.buy_box_fit === "yes" || l.buy_box_fit === "maybe") && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => setConvertLead(l)}
+                        >
+                          Convert to Deal <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
