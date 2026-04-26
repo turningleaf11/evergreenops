@@ -533,6 +533,8 @@ function ContactSidebar({
   setContact,
   onLinkDeal,
   onLinkLead,
+  onCreateDeal,
+  onCreateLead,
 }: {
   contact: Contact;
   companyName: string | null;
@@ -544,6 +546,8 @@ function ContactSidebar({
   setContact: (c: Contact) => void;
   onLinkDeal?: (dealId: string) => Promise<void> | void;
   onLinkLead?: (leadId: string) => Promise<void> | void;
+  onCreateDeal?: () => void;
+  onCreateLead?: () => void;
 }) {
   return (
     <>
