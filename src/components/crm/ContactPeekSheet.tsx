@@ -310,6 +310,15 @@ export function ContactPeekSheet({
               }
             />
 
+            {composeOpen ? (
+              <InlineEmailComposer
+                defaultTo={composeCtx.to}
+                defaultSubject={composeCtx.subject}
+                threadId={composeCtx.threadId}
+                onClose={() => setComposeOpen(false)}
+                onSent={handleSent}
+              />
+            ) : (
             <EntityTabs
               value={tab}
               onValueChange={setTab}
