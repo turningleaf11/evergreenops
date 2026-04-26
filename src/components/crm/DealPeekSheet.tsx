@@ -52,6 +52,7 @@ import { DealOverviewPanel } from "./DealOverviewPanel";
 import { DealUnderwritingTab } from "./DealUnderwritingTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { DealFilesTab } from "./DealFilesTab";
+import { ContactPicker } from "./ContactPicker";
 
 interface Deal {
   id: string;
