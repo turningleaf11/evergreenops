@@ -486,7 +486,16 @@ export function DealPeekSheet({
         {deal && (
           <>
             <EntitySheetHeader
-              title={deal.title}
+              title={
+                deal.property_address?.trim() ||
+                deal.title ||
+                "Untitled deal"
+              }
+              subtitle={
+                [deal.property_city, deal.property_state]
+                  .filter(Boolean)
+                  .join(", ") || undefined
+              }
               titleClassName="text-xl"
               leading={<Briefcase className="h-5 w-5 text-primary" />}
               onClose={onClose}
@@ -522,22 +531,22 @@ export function DealPeekSheet({
                   {currentStage && (
                     <Badge
                       className={cn(
-                        "text-[10px] capitalize",
+                        "text-[11px] capitalize font-semibold border-transparent",
                         stageBadgeClass(currentStage.name),
                       )}
+                      style={{ borderRadius: 100, padding: "3px 10px" }}
                     >
                       {currentStage.name}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {deal.status}
-                  </Badge>
                 </>
               }
               rightSlot={
-                <span className="text-sm font-medium">
-                  {formatMoney(Number(deal.value || 0), deal.currency)}
-                </span>
+                deal.asking_price != null ? (
+                  <span className="text-sm font-semibold tabular-nums">
+                    {formatMoney(Number(deal.asking_price), deal.currency)}
+                  </span>
+                ) : null
               }
             />
 
