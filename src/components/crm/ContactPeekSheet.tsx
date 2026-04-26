@@ -613,6 +613,7 @@ function ContactSidebar({
               kind="deal"
               excludeIds={deals.map((d) => d.id)}
               onPick={(it) => onLinkDeal(it.id)}
+              onCreate={onCreateDeal}
             />
           ) : undefined
         }
@@ -623,6 +624,7 @@ function ContactSidebar({
               kind="deal"
               excludeIds={[]}
               onPick={(it) => onLinkDeal(it.id)}
+              onCreate={onCreateDeal}
               triggerLabel="Link deal"
             />
           ) : (
@@ -651,6 +653,7 @@ function ContactSidebar({
               kind="lead"
               excludeIds={leads.map((l) => l.id)}
               onPick={(it) => onLinkLead(it.id)}
+              onCreate={onCreateLead}
             />
           ) : undefined
         }
@@ -661,6 +664,7 @@ function ContactSidebar({
               kind="lead"
               excludeIds={[]}
               onPick={(it) => onLinkLead(it.id)}
+              onCreate={onCreateLead}
               triggerLabel="Link lead"
             />
           ) : (
