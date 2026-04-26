@@ -14,8 +14,12 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  EntitySheetShell,
+  EntitySheetHeader,
+  EntityIdentityStrip,
+} from "../_shell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -238,79 +242,80 @@ export function TransactionDetailSheet({
 
   return (
     <>
-      <Sheet open={isOpenSheet} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent side="right" className="w-full sm:max-w-3xl p-0 flex flex-col">
-          {loading || !tx ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : (
-            <>
-              {/* SECTION 1 — HEADER */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <SheetTitle className="text-xl truncate">
-                      {tx.property_address || "Untitled property"}
-                    </SheetTitle>
-                    <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                      <Badge
-                        className="text-[10px] border-transparent"
-                        style={{
-                          backgroundColor: `hsl(${TX_LANE_COLOR[tx.lane]} / 0.15)`,
-                          color: `hsl(${TX_LANE_COLOR[tx.lane]})`,
-                        }}
-                      >
-                        {TX_LANE_LABEL[tx.lane]}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px]"
-                        style={{
-                          borderColor: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
-                          color: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
-                        }}
-                      >
-                        {TX_TYPE_LABEL[tx.transaction_type]}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] capitalize"
-                        style={{
-                          borderColor: `hsl(${TX_STATUS_COLOR[tx.status]})`,
-                          color: `hsl(${TX_STATUS_COLOR[tx.status]})`,
-                        }}
-                      >
-                        {tx.status}
-                      </Badge>
-                      {[tx.property_city, tx.property_state].filter(Boolean).length > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          {[tx.property_city, tx.property_state].filter(Boolean).join(", ")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {tx.status !== "closed" && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setActualNetInput(tx.estimated_net?.toString() || "");
-                          setCloseOpen(true);
-                        }}
-                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-10 px-5"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark as Closed
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+      <EntitySheetShell
+        open={isOpenSheet}
+        onOpenChange={(v) => !v && onClose()}
+        loading={loading || !tx}
+        width="wide"
+      >
+        {tx && (
+          <>
+            <EntitySheetHeader
+              title={tx.property_address || "Untitled property"}
+              subtitle={
+                [tx.property_city, tx.property_state].filter(Boolean).length > 0
+                  ? [tx.property_city, tx.property_state].filter(Boolean).join(", ")
+                  : undefined
+              }
+              titleClassName="text-xl"
+              onClose={onClose}
+              actions={
+                <>
+                  {tx.status !== "closed" && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setActualNetInput(tx.estimated_net?.toString() || "");
+                        setCloseOpen(true);
+                      }}
+                      className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-9 px-4"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark as Closed
                     </Button>
-                  </div>
-                </div>
-              </SheetHeader>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </>
+              }
+            />
+            <EntityIdentityStrip
+              pills={
+                <>
+                  <Badge
+                    className="text-[10px] border-transparent"
+                    style={{
+                      backgroundColor: `hsl(${TX_LANE_COLOR[tx.lane]} / 0.15)`,
+                      color: `hsl(${TX_LANE_COLOR[tx.lane]})`,
+                    }}
+                  >
+                    {TX_LANE_LABEL[tx.lane]}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px]"
+                    style={{
+                      borderColor: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
+                      color: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
+                    }}
+                  >
+                    {TX_TYPE_LABEL[tx.transaction_type]}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] capitalize"
+                    style={{
+                      borderColor: `hsl(${TX_STATUS_COLOR[tx.status]})`,
+                      color: `hsl(${TX_STATUS_COLOR[tx.status]})`,
+                    }}
+                  >
+                    {tx.status}
+                  </Badge>
+                </>
+              }
+            />
 
-              <div className="flex-1 overflow-auto p-6 space-y-8">
+            <div className="flex-1 overflow-auto p-6 space-y-8">
                 {/* SECTION 2 — KEY DATES */}
                 <section className="space-y-3">
                   <h3 className="crm-eyebrow">Key dates</h3>
@@ -463,8 +468,7 @@ export function TransactionDetailSheet({
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+      </EntitySheetShell>
 
       {/* Mark as closed dialog */}
       <Dialog open={closeOpen} onOpenChange={setCloseOpen}>

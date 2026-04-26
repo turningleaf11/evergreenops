@@ -21,8 +21,12 @@ import {
   MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  EntitySheetShell,
+  EntitySheetHeader,
+  EntityIdentityStrip,
+} from "./_shell";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -236,9 +240,9 @@ export function LeadPeekSheet({
 
   if (!lead) {
     return (
-      <Sheet open={false} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent />
-      </Sheet>
+      <EntitySheetShell open={false} onOpenChange={(v) => !v && onClose()} width="wide">
+        <div />
+      </EntitySheetShell>
     );
   }
 
@@ -319,68 +323,38 @@ export function LeadPeekSheet({
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-5xl p-0 flex flex-col gap-0"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/50">
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={onClose}
-                title="Close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <div className="flex flex-col">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-7"
-                  disabled={!prevLead}
-                  onClick={() => prevLead && onOpenLead(prevLead)}
-                  title="Previous lead"
-                >
-                  <ChevronUp className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-7"
-                  disabled={!nextLead}
-                  onClick={() => nextLead && onOpenLead(nextLead)}
-                  title="Next lead"
-                >
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="ml-2 min-w-0">
-                <div className="text-base font-semibold truncate">
-                  {lead.name || lead.property_address || "Untitled lead"}
-                </div>
-                {lead.property_address && lead.name && (
-                  <div className="text-xs text-muted-foreground truncate">{lead.property_address}</div>
+      <EntitySheetShell
+        open={isOpen}
+        onOpenChange={(v) => !v && onClose()}
+        loading={loading}
+        width="wide"
+      >
+          <EntitySheetHeader
+            title={lead.name || lead.property_address || "Untitled lead"}
+            subtitle={
+              lead.property_address && lead.name ? lead.property_address : undefined
+            }
+            titleClassName="text-base"
+            onClose={onClose}
+            onPrev={prevLead ? () => onOpenLead(prevLead) : undefined}
+            onNext={nextLead ? () => onOpenLead(nextLead) : undefined}
+            prevDisabled={!prevLead}
+            nextDisabled={!nextLead}
+            actions={
+              <>
+                {isConverted && (
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Converted
+                  </Badge>
                 )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isConverted && (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                  <CheckCircle2 className="h-3 w-3 mr-1" /> Converted
-                </Badge>
-              )}
-              {isArchived && (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Archived
-                </Badge>
-              )}
-            </div>
-          </div>
-
+                {isArchived && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Archived
+                  </Badge>
+                )}
+              </>
+            }
+          />
           {loading ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -733,8 +707,7 @@ export function LeadPeekSheet({
               </Button>
             )}
           </div>
-        </SheetContent>
-      </Sheet>
+      </EntitySheetShell>
 
       <ComposeModal
         open={composeOpen}
