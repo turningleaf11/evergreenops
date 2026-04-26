@@ -156,7 +156,16 @@ export function LeadsList({ search }: { search: string }) {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Stats + filters */}
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">Leads Inbox</h2>
+          <p className="text-xs text-muted-foreground">
+            Portfolio deal flow — OMs, T12s, and rent rolls coming in from brokers and wholesalers.
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="flex items-center gap-6 text-sm">
           <div>
