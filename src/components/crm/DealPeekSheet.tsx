@@ -648,7 +648,7 @@ export function DealPeekSheet({
                         </select>
                       </div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Value</Label>
+                        <Label className="crm-field-label">Value</Label>
                         <Input
                           type="number"
                           value={editValue}
@@ -661,7 +661,7 @@ export function DealPeekSheet({
                         />
                       </div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Expected close</Label>
+                        <Label className="crm-field-label">Expected close</Label>
                         <Input
                           type="date"
                           value={editClose ?? ""}
