@@ -22,7 +22,7 @@ export const ENTITY_TAB_LABELS: Record<EntityTabId, string> = {
  * Active tab gets a brand-azure 2px underline + medium weight.
  * The bar always has a bottom border separating it from content below.
  */
-export function EntityTabs({
+export function EntityTabs<V extends string = EntityTabId>({
   value,
   onValueChange,
   hide = [],
@@ -31,11 +31,11 @@ export function EntityTabs({
   actions,
   children,
 }: {
-  value: string;
-  onValueChange: (v: string) => void;
+  value: V;
+  onValueChange: (v: V) => void;
   hide?: EntityTabId[];
   /** Optional custom tab list. When provided, overrides the default enum. */
-  tabs?: Array<{ id: string; label: string }>;
+  tabs?: Array<{ id: V; label: string }>;
   className?: string;
   /** Right-aligned actions rendered inline with the tab strip. */
   actions?: React.ReactNode;
