@@ -659,11 +659,14 @@ export type Database = {
       comments: {
         Row: {
           attachments: Json
+          audio_url: string | null
           author_id: string
           content: string
+          content_html: string | null
           created_at: string
           entity_id: string
           entity_type: string
+          gif_url: string | null
           id: string
           mentions: string[]
           parent_id: string | null
@@ -671,11 +674,14 @@ export type Database = {
         }
         Insert: {
           attachments?: Json
+          audio_url?: string | null
           author_id: string
           content?: string
+          content_html?: string | null
           created_at?: string
           entity_id: string
           entity_type: string
+          gif_url?: string | null
           id?: string
           mentions?: string[]
           parent_id?: string | null
@@ -683,11 +689,14 @@ export type Database = {
         }
         Update: {
           attachments?: Json
+          audio_url?: string | null
           author_id?: string
           content?: string
+          content_html?: string | null
           created_at?: string
           entity_id?: string
           entity_type?: string
+          gif_url?: string | null
           id?: string
           mentions?: string[]
           parent_id?: string | null

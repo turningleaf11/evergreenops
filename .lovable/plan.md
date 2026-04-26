@@ -1,107 +1,114 @@
-# CRM Visual Polish Pass
+# Unified "Activity" Panel + Rich Composer Everywhere
 
-A purely visual/spacing refinement of the existing CRM module. **No data, no schema, no behavior changes** — every click, query, save, and route stays identical. Only Tailwind classes, layout structure, and a few new design-token utilities change.
+Replace every "Comments" / "Notes" / "Activity" surface with a single ClickUp-style **Activity** panel: a chronological feed that interleaves system events with user comments, anchored by a feature-rich composer at the bottom.
 
-## Design tokens (added to `src/index.css` + `tailwind.config.ts`)
+## What you'll see
 
-Centralize the brand palette referenced in the spec so we never sprinkle raw hex into components.
-
-```css
-/* index.css — :root and .dark */
---brand-azure: 230 64% 54%;     /* #3E54D3 */
---brand-mint:  165 67% 52%;     /* #2FDAAA */
---brand-tangerine: 19 100% 71%; /* #FFA16F */
---brand-coral: 350 83% 58%;     /* #ED3B5B */
---brand-violet: 258 56% 60%;
---brand-purple-muted: 245 16% 65%; /* #9896B8 */
-
-/* Section eyebrow heading utility */
-.crm-eyebrow { @apply text-[11px] font-semibold uppercase text-muted-foreground; letter-spacing: 0.12em; }
-.crm-field-label { @apply text-xs text-muted-foreground mb-1; }
-.crm-card { @apply rounded-xl bg-card p-6; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.crm-card-muted { @apply rounded-xl bg-muted/30 p-6; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.crm-section-stack > * + * { margin-top: 32px; }
-.crm-field-stack > * + * { margin-top: 16px; }
+```text
+┌─────────────────────────────────────────┐
+│ Activity                  🔍 🔔 ▼ filter│   header (title + filter chip)
+├─────────────────────────────────────────┤
+│ • You created this lead    Jan 4, 3:05p │
+│ › Show more                             │
+│ • You changed status → Hot   Jan 5      │
+│                                         │
+│ [Avatar] Sam · 2h ago                   │
+│   Got the OM, looks promising. @Mia     │   threaded comment
+│   📎 OM_2025.pdf                        │
+│   ❤️ 2   💬 Reply                       │
+│                                         │
+│ • Mia uploaded T12.xlsx     1h ago      │
+├─────────────────────────────────────────┤
+│ Write a comment…                        │   rich composer
+│ + 📎 @ GIF 😊 🎥 🎤 ☑ 📄 🖼      ➤ ▾   │
+└─────────────────────────────────────────┘
 ```
 
-Tailwind config: extend `colors.brand = { azure, mint, tangerine, coral, violet, purpleMuted }` so we can write `bg-brand-mint`, `text-brand-azure`, `border-brand-azure`, etc.
+- **One stream**: comments + system events sorted by time. Filter chip toggles **All / Comments / Activity**.
+- **Composer (single component, used everywhere)**:
+  - TipTap-powered rich text (bold, italic, lists, links)
+  - `@` mentions — people (clickable, opens person peek)
+  - `/` slash menu — same one used in Docs (text/heading/checklist/quote/code/divider/image/file/AI actions)
+  - Attach file, image, GIF (existing GiphyPicker), emoji picker
+  - Voice note recording (reuse the MediaRecorder logic from `ReplyThread`)
+  - Submit on ⌘/Ctrl+Enter; Shift+Enter for newline
+- **Replies**: threaded under each comment, reactions on every comment (existing `CommentReactions`).
 
-## Global rules applied everywhere in CRM
+## Where it goes (all entity detail surfaces)
 
-- All cards/panels: `rounded-xl` (12px), `p-6` (24px), elevation-1 shadow (no flat 1px borders).
-- Section headings → `.crm-eyebrow`.
-- Body text base → `text-sm` (14px); field labels → `.crm-field-label`.
-- Empty/placeholder text → `italic text-muted-foreground`.
-- Major sections separated by `space-y-8` (32px); fields within a section by `space-y-4` (16px).
+The unified `<ActivityPanel entityType=… entityId=… />` replaces:
 
-## 1. Lead Detail View — `LeadPeekSheet.tsx` (+ `DocChecklist.tsx`, `BuyBoxButtons.tsx`)
+| Surface | File | Current |
+|---|---|---|
+| Project chat rail | `ProjectChatRail.tsx` | `CommentsSection` |
+| Task peek | `TaskPeek.tsx` | `CommentsSection` |
+| Goal peek | `GoalPeek.tsx` | `CommentsSection` + `EntityActivity` |
+| Issues page detail | `IssuesPage.tsx` | `CommentsSection` |
+| Department page detail | `DepartmentPage.tsx` | `CommentsSection` |
+| Generic detail drawer | `DetailDrawer.tsx` | `CommentsSection` |
+| Database record detail | `DatabaseRecordDetail.tsx` | `CommentsSection` |
+| CRM Lead peek | `LeadPeekSheet.tsx` | (mixed today) |
+| CRM Deal peek | `DealPeekSheet.tsx` | `CrmActivityTimeline` + Broker Comms tab |
+| CRM Contact peek | `ContactPeekSheet.tsx` | timeline |
+| CRM Transaction detail | `TransactionDetailSheet.tsx` | timeline |
 
-- Remove the hard `border-r` between left rail and main content; replace with a single shared background and a subtle inset divider so it reads as one record.
-- Wrap **Property** fields (address/city/state/zip/type/units/beds/baths/sqft) in a `.crm-card-muted` group with the eyebrow "PROPERTY".
-- **DocChecklist.tsx**: replace `<Checkbox>` rows with three pill toggle buttons (`rounded-full px-4 py-2`, full-width on mobile, inline on desktop). Inactive: `bg-muted text-muted-foreground`. Active: `bg-brand-mint text-white` + leading `<Check />` icon.
-- **BuyBoxButtons.tsx**: enlarge to `h-[52px] w-full rounded-xl text-sm font-medium`. Active states:
-  - Fits → `bg-brand-mint text-white`
-  - Maybe → `bg-brand-tangerine text-white`
-  - Pass → `bg-brand-coral text-white`
-  - Inactive → `bg-muted/50 text-foreground hover:bg-muted`
-- Footer **"Convert to Deal →"** button → `bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl`, anchored bottom-right.
+CRM "Activity" tabs collapse into the single Activity panel. **Broker Comms tab is removed** (per your call) — broker feedback becomes regular Activity comments.
 
-## 2. Contact Detail View — `ContactPeekSheet.tsx` (+ `contactTypes.ts`)
+Personal Notes (Scratchpad) stays as a standalone doc editor — it isn't an entity activity stream — but its editor already has `/` and `@`, so no change needed there.
 
-- Update `CONTACT_TYPE_COLOR` HSL values to match brand palette (azure / mint / muted-purple / tangerine / gray); badges already consume this map.
-- Right "Contact Info" sidebar: drop the box border; use the same page background + a single `border-l border-border/50` divider so it reads integrated.
-- Sidebar field groups → wrapped in `space-y-6` (24px between groups), each with `.crm-field-label` above the value.
-- **Markets**: render each tag as a chip → `inline-flex items-center px-2.5 py-1 rounded-full bg-brand-azure/10 text-brand-azure text-xs font-medium`.
+## Technical plan
 
-## 3. Deal Detail View — `DealPeekSheet.tsx` (+ `DealOverviewPanel.tsx`, `DealUnderwritingTab.tsx`)
+### 1. New component: `src/components/activity/ActivityPanel.tsx`
+Props: `entityType`, `entityId`, `hideHeader?`, `defaultFilter?`.
+- Fetches `comments` + `entity_activity` for the entity, merges & sorts by timestamp.
+- Renders system events as compact one-liners (icon + actor + verb + time) using the existing `describeAction` mapping (extended with CRM verbs like `stage_changed`, `buy_box_set`, `lead_converted`).
+- Renders comments as full cards with avatar, attachments, reactions, replies.
+- Filter chip in header: All / Comments / Activity.
+- Realtime subscribe to both tables so the feed updates live.
+- Composer pinned at bottom (matches the screenshot layout you sent).
 
-- **TabsList**: increase to `h-11`, tabs `text-[15px] font-medium`, active tab gets a `border-b-2 border-brand-azure` underline (replace current pill-style active state).
-- **Stage badge** in header → color map by stage:
-  ```
-  buy_box_check    → bg-muted text-muted-foreground
-  quick_underwrite → bg-brand-azure/15 text-brand-azure
-  broker_feedback  → bg-brand-tangerine/20 text-brand-tangerine
-  deep_underwrite  → bg-brand-azure/15 text-brand-azure
-  loi_sent         → bg-brand-violet/15 text-brand-violet
-  due_diligence    → bg-brand-tangerine/20 text-brand-tangerine
-  under_contract   → bg-brand-mint/20 text-brand-mint
-  closed           → bg-emerald-700/15 text-emerald-700
-  dead             → bg-brand-coral/15 text-brand-coral
-  ```
-- **Pricing block** (Overview): Asking price + Seller-stated value rendered at `text-lg font-semibold` (18px) with `.crm-field-label` above each.
-- **Spread** in Underwriting tab: large `text-2xl font-semibold tabular-nums`, color `text-brand-mint` if positive (good for buyer), `text-brand-coral` if negative.
-- Right sidebar (Stage / Owner / Team / Contacts): `.crm-section-stack` for 32px between sections, eyebrow headings, more breathing room.
+### 2. New composer: `src/components/activity/ActivityComposer.tsx`
+A TipTap-based input replacing `RichCommentInput`. Extensions:
+- `StarterKit`, `Link`, `Image`
+- `MentionExtension` (existing) for `@` people
+- `SlashCommands` (existing — same one Docs uses) for `/`
+- New small toolbar row below the editor with: attach file, image, GIF (opens existing `GiphyPicker`), emoji (use `emoji-picker-react` or a small native picker), voice (port `MediaRecorder` logic out of `ReplyThread`), send button.
+- Saves to `comments` table with `content` (HTML), `attachments`, `mentions`, plus two new columns: `gif_url`, `audio_url` (mirrors `post_replies`).
 
-## 4. Transaction Detail View — `TransactionDetailSheet.tsx`
+### 3. Schema migration
+Add to `comments` table:
+- `gif_url text`
+- `audio_url text`
+- `content_html text` (keep existing `content` for plaintext fallback / search)
 
-- **KEY DATES**: switch from inline rows to a 4-card grid (`grid-cols-2 lg:grid-cols-4 gap-4`). Each card = `.crm-card` with eyebrow label, large date value, and (for Closing) a countdown chip:
-  - `> 14 days` → `bg-brand-mint/15 text-brand-mint`
-  - `7–14 days` → `bg-brand-tangerine/20 text-brand-tangerine`
-  - `< 7 days`  → `bg-brand-coral/15 text-brand-coral`
-  - Closing card spans 2 cols on desktop (`lg:col-span-2`), `p-7`, slightly larger date typography.
-- **KEY PEOPLE**: 4 cards (Buyer / Title Agent / Attorney / Lender) in a `grid-cols-2 lg:grid-cols-4 gap-4`. Each card = icon (User/FileText/Scale/Banknote) + eyebrow label + embedded `<ContactPicker>`.
-- **CLOSING CHECKLIST**:
-  - Progress bar at top → `bg-brand-mint` fill on `bg-muted` track, `h-2 rounded-full`, with completed/total count.
-  - Each row: circular toggle (`h-5 w-5 rounded-full border-2`), filled `bg-brand-mint border-brand-mint` with white check when complete.
-  - Completed label → `line-through text-muted-foreground`.
-  - Date pickers collapsed by default; row click expands to reveal the picker (use existing local `expandedId` state pattern; no data change).
-- **"Mark as Closed"** button → `bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-10 px-5`.
+Backfill is unnecessary — old comments keep working.
 
-## Files touched
+### 4. Activity event coverage
+Make sure every important state change writes to `entity_activity` so the unified stream is complete. Audit and add where missing:
+- CRM lead: `created`, `status_changed`, `buy_box_set`, `converted_to_deal`, `file_uploaded`
+- CRM deal: `created`, `stage_changed`, `under_contract`, `file_uploaded`
+- CRM transaction: `created`, `checklist_item_completed`, `closed`
+- Tasks/Projects/Goals/Issues: ensure `status_changed`, `assigned`, `priority_changed`, `file_uploaded` all log
 
-- `src/index.css` — brand HSL tokens + crm utility classes
-- `tailwind.config.ts` — register `brand.*` color aliases
-- `src/components/crm/contactTypes.ts` — point HSL values to brand tokens
-- `src/components/crm/LeadPeekSheet.tsx`
-- `src/components/crm/DocChecklist.tsx`
-- `src/components/crm/BuyBoxButtons.tsx`
-- `src/components/crm/ContactPeekSheet.tsx`
-- `src/components/crm/DealPeekSheet.tsx`
-- `src/components/crm/DealOverviewPanel.tsx`
-- `src/components/crm/DealUnderwritingTab.tsx`
-- `src/components/crm/transactions/TransactionDetailSheet.tsx`
+### 5. Migrate call sites
+Swap every `<CommentsSection .../>` and standalone `<EntityActivity .../>` for `<ActivityPanel entityType=… entityId=… hideHeader />`. Rename the section header label to **"Activity"** in every parent (rail, peek, drawer, tab).
 
-## Out of scope (unchanged)
+For CRM peeks: remove the separate "Activity" tab and either (a) keep a slim Activity tab that renders `ActivityPanel`, or (b) make Activity the default tab. **Recommendation: dedicated Activity tab**, since CRM peeks already use tabs.
 
-- Database, RLS, queries, mutations, routes, dialog flows, kanban DnD, conversions, activity logging, file uploads.
-- List/table views (`LeadsList`, `ContactsTable`, `DealsKanban`, `TransactionsList`) — only badge color updates flow into them automatically via `contactTypes.ts` and the new stage color map; no layout changes there unless you want them too (let me know).
+For Deal peek: delete the Broker Comms tab and `DealBrokerCommsTab.tsx`. Leave the `broker_feedback` table intact (no destructive migration) but stop reading/writing to it from the UI.
+
+### 6. Files removed/deprecated
+- `src/components/CommentsSection.tsx` → replaced by `ActivityPanel`
+- `src/components/EntityActivity.tsx` → folded into `ActivityPanel`
+- `src/components/shared/RichCommentInput.tsx` → replaced by `ActivityComposer`
+- `src/components/crm/DealBrokerCommsTab.tsx` → removed
+
+### 7. Polish
+- Header matches your screenshot: **"Activity"** title, search/bell/filter icons on the right.
+- Composer chrome matches: rounded card, icon row across the bottom, send button on the right with a small dropdown caret for "Send & resolve" / "Send" (future-proof, hidden for v1).
+- Consistent across all surfaces (rail, peek, drawer, tab) — single component, no per-surface variants.
+
+## Out of scope for this pass
+- Email-style "Send" variations beyond plain comment
+- Notifications routing for new activity types (already handled by existing notification system where wired)
+- Migrating existing `broker_feedback` rows into `comments` (table preserved as-is)
