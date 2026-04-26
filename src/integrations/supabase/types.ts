@@ -1018,12 +1018,15 @@ export type Database = {
       }
       crm_custom_fields: {
         Row: {
+          contact_type: string | null
           created_at: string
           created_by: string | null
           entity_type: string
           field_key: string
           field_type: string
           id: string
+          is_deletable: boolean
+          is_template: boolean
           label: string
           options: Json
           required: boolean
@@ -1032,12 +1035,15 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          contact_type?: string | null
           created_at?: string
           created_by?: string | null
           entity_type: string
           field_key: string
           field_type: string
           id?: string
+          is_deletable?: boolean
+          is_template?: boolean
           label: string
           options?: Json
           required?: boolean
@@ -1046,12 +1052,15 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          contact_type?: string | null
           created_at?: string
           created_by?: string | null
           entity_type?: string
           field_key?: string
           field_type?: string
           id?: string
+          is_deletable?: boolean
+          is_template?: boolean
           label?: string
           options?: Json
           required?: boolean
