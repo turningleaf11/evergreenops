@@ -707,8 +707,7 @@ export function LeadPeekSheet({
               </Button>
             )}
           </div>
-        </SheetContent>
-      </Sheet>
+      </EntitySheetShell>
 
       <ComposeModal
         open={composeOpen}
