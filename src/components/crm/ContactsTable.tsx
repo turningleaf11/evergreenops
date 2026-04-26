@@ -1,23 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Maximize2, Mail, Phone, Trash2, MoreHorizontal, Filter } from "lucide-react";
+import { Loader2, Maximize2, Trash2, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
@@ -49,13 +42,6 @@ interface CompanyLite {
   name: string;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  lead: "210 70% 50%",
-  active: "142 76% 36%",
-  customer: "262 70% 55%",
-  lost: "0 70% 50%",
-};
-
 interface Props {
   search: string;
   refreshKey: number;
@@ -63,12 +49,42 @@ interface Props {
   onChanged: () => void;
 }
 
+const TYPE_PILLS: { key: string; label: string }[] = [
+  { key: "all", label: "All Types" },
+  ...CONTACT_TYPES.map((t) => ({ key: t, label: CONTACT_TYPE_LABEL[t] })),
+];
+
+const STATUS_PILLS = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "inactive", label: "Inactive" },
+];
+
+function initials(first: string, last: string, email: string | null) {
+  const f = (first || "").trim();
+  const l = (last || "").trim();
+  if (f || l) return `${f[0] ?? ""}${l[0] ?? ""}`.toUpperCase() || "?";
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "?";
+}
+
+// Stable pastel avatar bg from id
+function avatarBg(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+  return `hsl(${h} 45% 88%)`;
+}
+function avatarFg(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+  return `hsl(${h} 50% 32%)`;
+}
+
 export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<CompanyLite[]>([]);
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [methodFilter, setMethodFilter] = useState<string>("all");
   const [activeFilter, setActiveFilter] = useState<string>("active");
 
   useEffect(() => {
@@ -103,7 +119,6 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
     const q = search.trim().toLowerCase();
     return contacts.filter((c) => {
       if (typeFilter !== "all" && (c.contact_type || "other") !== typeFilter) return false;
-      if (methodFilter !== "all" && (c.preferred_contact_method || "") !== methodFilter) return false;
       if (activeFilter === "active" && c.is_active === false) return false;
       if (activeFilter === "inactive" && c.is_active !== false) return false;
       if (!q) return true;
@@ -116,7 +131,7 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
         (c.markets ?? []).some((m) => m.toLowerCase().includes(q))
       );
     });
-  }, [contacts, search, typeFilter, methodFilter, activeFilter]);
+  }, [contacts, search, typeFilter, activeFilter]);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("contacts").delete().eq("id", id);
@@ -128,64 +143,49 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
     onChanged();
   };
 
-  const filtersActive =
-    typeFilter !== "all" || methodFilter !== "all" || activeFilter !== "active";
-
   return (
-    <div className="px-6 py-4">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Filter className="h-3.5 w-3.5" /> Filters
+    <div className="px-6 py-5">
+      {/* Filter pill bar */}
+      <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {TYPE_PILLS.map((p) => {
+            const isActive = typeFilter === p.key;
+            return (
+              <button
+                key={p.key}
+                onClick={() => setTypeFilter(p.key)}
+                className={cn(
+                  "h-7 px-3 rounded-full text-[11px] font-semibold transition-colors border",
+                  isActive
+                    ? "bg-brand-azure text-white border-brand-azure"
+                    : "bg-card text-muted-foreground border-border/60 hover:bg-muted/50",
+                )}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="h-8 w-[150px] text-xs">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {CONTACT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {CONTACT_TYPE_LABEL[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={methodFilter} onValueChange={setMethodFilter}>
-          <SelectTrigger className="h-8 w-[170px] text-xs">
-            <SelectValue placeholder="Preferred method" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any method</SelectItem>
-            <SelectItem value="email">Email</SelectItem>
-            <SelectItem value="phone">Phone</SelectItem>
-            <SelectItem value="text">Text</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={activeFilter} onValueChange={setActiveFilter}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-          </SelectContent>
-        </Select>
-        {filtersActive && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => {
-              setTypeFilter("all");
-              setMethodFilter("all");
-              setActiveFilter("active");
-            }}
-          >
-            Clear
-          </Button>
-        )}
+        <div className="h-5 w-px bg-border/60 hidden md:block" />
+        <div className="flex items-center gap-1.5">
+          {STATUS_PILLS.map((p) => {
+            const isActive = activeFilter === p.key;
+            return (
+              <button
+                key={p.key}
+                onClick={() => setActiveFilter(p.key)}
+                className={cn(
+                  "h-7 px-3 rounded-full text-[11px] font-semibold transition-colors border",
+                  isActive
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-border/60 hover:bg-muted/50",
+                )}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {filtered.length} {filtered.length === 1 ? "contact" : "contacts"}
         </div>
@@ -201,102 +201,133 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
           <p>Try clearing filters or adding a new contact.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden bg-card">
-          <div className="grid grid-cols-[2fr_1.2fr_1.8fr_1.3fr_1.3fr_1fr_1.1fr_40px] px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/50 bg-muted/30">
+        <div
+          className="rounded-xl bg-card overflow-hidden"
+          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid hsl(var(--border) / 0.5)" }}
+        >
+          <div className="grid grid-cols-[2.4fr_1fr_1.4fr_1.6fr_1.1fr_40px] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20">
             <div>Name</div>
             <div>Type</div>
-            <div>Email</div>
-            <div>Phone</div>
             <div>Company</div>
-            <div>Status</div>
+            <div>Markets</div>
             <div>Last contact</div>
             <div />
           </div>
           {filtered.map((c) => {
-            const name = `${c.first_name} ${c.last_name}`.trim() || "Untitled contact";
-            const colorVar = STATUS_COLOR[c.status] || "220 12% 60%";
+            const fullName =
+              `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Untitled contact";
             const typeColor = contactTypeColor(c.contact_type);
+            const markets = c.markets ?? [];
+            const company = c.company_id ? companyMap.get(c.company_id) ?? null : null;
             return (
               <div
                 key={c.id}
-                className="group grid grid-cols-[2fr_1.2fr_1.8fr_1.3fr_1.3fr_1fr_1.1fr_40px] items-center px-3 py-2 text-sm border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors"
+                onClick={() => onOpen(c.id)}
+                className="group grid grid-cols-[2.4fr_1fr_1.4fr_1.6fr_1.1fr_40px] items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-1 min-w-0">
-                  <button
-                    onClick={() => onOpen(c.id)}
-                    className="font-medium text-left truncate hover:underline flex-1 min-w-0"
+                {/* NAME */}
+                <div className="flex items-center gap-3 min-w-0 pr-3">
+                  <div
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                    style={{ backgroundColor: avatarBg(c.id), color: avatarFg(c.id) }}
                   >
-                    {name}
-                    {c.is_active === false && (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        inactive
-                      </span>
+                    {initials(c.first_name, c.last_name, c.email)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold truncate text-foreground leading-tight">
+                      {fullName}
+                      {c.is_active === false && (
+                        <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                          inactive
+                        </span>
+                      )}
+                    </div>
+                    {c.email ? (
+                      <div className="text-[12px] text-muted-foreground truncate leading-tight">
+                        {c.email}
+                      </div>
+                    ) : (
+                      <div className="text-[12px] italic text-muted-foreground/60 leading-tight">
+                        no email
+                      </div>
                     )}
-                  </button>
+                  </div>
                   <button
-                    onClick={() => onOpen(c.id)}
-                    className="shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(c.id);
+                    }}
+                    className="shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-opacity opacity-0 group-hover:opacity-100"
                     title="Open contact"
                   >
                     <Maximize2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
+
+                {/* TYPE */}
                 <div>
-                  <Badge
-                    className="text-[10px] border-transparent"
+                  <span
+                    className="inline-flex items-center font-semibold"
                     style={{
                       backgroundColor: `hsl(${typeColor} / 0.15)`,
                       color: `hsl(${typeColor})`,
+                      borderRadius: 100,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "3px 10px",
                     }}
                   >
                     {contactTypeLabel(c.contact_type)}
-                  </Badge>
+                  </span>
                 </div>
-                <div className="truncate min-w-0">
-                  {c.email ? (
-                    <a
-                      href={`mailto:${c.email}`}
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      <Mail className="h-3 w-3" />
-                      {c.email}
-                    </a>
+
+                {/* COMPANY */}
+                <div className="truncate min-w-0 pr-2">
+                  {company ? (
+                    <span className="text-[13px] text-foreground truncate">{company}</span>
                   ) : (
-                    <span className="text-muted-foreground/60">—</span>
+                    <span className="italic text-muted-foreground/60 text-[13px]">—</span>
                   )}
                 </div>
-                <div className="truncate min-w-0">
-                  {c.phone ? (
-                    <a href={`tel:${c.phone}`} className="text-primary hover:underline inline-flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {c.phone}
-                    </a>
+
+                {/* MARKETS */}
+                <div className="flex items-center gap-1 min-w-0 pr-2">
+                  {markets.length === 0 ? (
+                    <span className="italic text-muted-foreground/60 text-[13px]">—</span>
                   ) : (
-                    <span className="text-muted-foreground/60">—</span>
+                    <>
+                      {markets.slice(0, 2).map((m) => (
+                        <span
+                          key={m}
+                          className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-muted/60 text-foreground/80 truncate max-w-[110px]"
+                        >
+                          {m}
+                        </span>
+                      ))}
+                      {markets.length > 2 && (
+                        <span className="text-[11px] text-muted-foreground font-medium shrink-0">
+                          +{markets.length - 2}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
-                <div className="truncate min-w-0 text-muted-foreground">
-                  {c.company_id ? companyMap.get(c.company_id) ?? "—" : <span className="text-muted-foreground/60">—</span>}
+
+                {/* LAST CONTACT */}
+                <div className="text-[12px] text-muted-foreground">
+                  {c.last_contacted_at ? (
+                    formatDistanceToNow(new Date(c.last_contacted_at), { addSuffix: true })
+                  ) : (
+                    <span className="italic text-muted-foreground/60">—</span>
+                  )}
                 </div>
-                <div>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] capitalize"
-                    style={{ borderColor: `hsl(${colorVar})`, color: `hsl(${colorVar})` }}
-                  >
-                    {c.status}
-                  </Badge>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {c.last_contacted_at
-                    ? formatDistanceToNow(new Date(c.last_contacted_at), { addSuffix: true })
-                    : "—"}
-                </div>
-                <div className="flex justify-end">
+
+                {/* MENU */}
+                <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-opacity opacity-0 group-hover:opacity-100"
                         title="More"
                       >
                         <MoreHorizontal className="h-3.5 w-3.5" />
