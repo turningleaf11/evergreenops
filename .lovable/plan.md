@@ -1,71 +1,50 @@
-# Unify CRM detail sheets
+## Why nothing is syncing
 
-Goal: Leads, Contacts, Deals, Transactions, and Companies detail sheets read as siblings — same shell, same identity strip, same tabs, same status pills — without changing what they do.
+I called the live Fathom API with your stored `FATHOM_API_KEY` and confirmed the account has 1 meeting available. I also called the deployed `fathom-sync` edge function — it returns `{ "fetched": 0, "synced": 0 }`. The cause is that the edge function was written against a guessed Fathom schema that doesn't match the real API.
 
-## Approach
-
-Build a small set of shared layout primitives, then refactor each existing sheet to render through them. Functionality, data, fields, and behaviors stay 1:1 with today.
-
-## Shared primitives (new files in `src/components/crm/_shell/`)
-
-1. `EntitySheetShell.tsx` — opinionated `Sheet` + `SheetContent` wrapper. Fixed width, fixed padding, scroll behavior, loading state.
-2. `EntitySheetHeader.tsx` — title, subtitle, prev/next arrows (optional via prop), close button, action menu slot. Same typography on every entity.
-3. `EntityIdentityStrip.tsx` — single horizontal row directly under the header, in fixed order: `Owner picker → Status pill → contextual chips slot`.
-4. `EntityStatusPill.tsx` — one badge component reading from a shared color registry so Lead temperature, Contact type, Deal stage, Transaction lane, and Company tier all render identically.
-5. `EntitySectionHeader.tsx` — uppercase tracker label used between sections inside tabs.
-6. `EntityTabs.tsx` — wrapper around shadcn `Tabs` with a fixed list style and consistent active-tab treatment.
-
-## Standard tab set (every entity)
-
-Every detail sheet uses the same four tabs in the same order:
-
-```text
-Overview · Activity · Files · More
+Real Fathom response (verified):
+```
+GET https://api.fathom.ai/external/v1/meetings
+{
+  "items": [ { "recording_id": 139825347, "title": "...", "scheduled_start_time": "...",
+               "recording_start_time": "...", "share_url": "...", "url": "...",
+               "default_summary": null, "transcript": null, "action_items": null,
+               "calendar_invitees": [...], "recorded_by": { "email": "..." } } ],
+  "next_cursor": null,
+  "limit": 10
+}
 ```
 
-- `Overview` — entity-specific fields (today's main body content, restyled with `EntitySectionHeader`).
-- `Activity` — `CrmActivityTimeline` + composer (whichever composer the entity already uses).
-- `Files` — entity's existing files panel; for entities without one yet (Contact, Transaction, Company) show a clean empty state, no new functionality.
-- `More` — entity-specific extras that don't fit elsewhere (e.g. Deal Underwriting, Lead BuyBox/DocChecklist, Transaction key-dates detail). Hidden when empty.
+Bugs in current `supabase/functions/fathom-sync/index.ts`:
 
-## Per-entity refactor (visual only)
+1. Response unwrapping looks for `meetings` / `data` / `results` — Fathom uses **`items`**. Falls through to `[]`, so `fetched: 0`.
+2. ID extraction uses `m.id || m.meeting_id`. Fathom's identifier is **`recording_id`** (number). Even if items were unwrapped, every row would be skipped as "no id".
+3. Summary mapping misses **`default_summary`**.
+4. Host email is at **`recorded_by.email`**, not a top-level `host_email`.
+5. Attendees field is **`calendar_invitees`**, not `invitees`/`attendees`.
+6. Started-at: `recording_start_time` is missing from the field list (only `scheduled_start_time` is checked).
+7. The `since` filter is built from `meetings.synced_at` (when we last synced), not from the newest meeting time. After one successful sync this becomes "now", which would hide future meetings if Fathom honored it. Safer to omit `since` entirely (upsert is idempotent) and rely on `recording_id` conflict.
+8. No pagination. Fathom returns `next_cursor`; we should follow it so accounts with >limit meetings sync fully. (Not blocking your case since you only have 1, but worth fixing now.)
 
-For each sheet, replace its current shell + header + identity row with the shared primitives, then move existing body content into the standard tabs. No fields added, removed, or renamed.
+## Fix
 
-- `LeadPeekSheet` — drop custom header/X/arrows, move BuyBox + DocChecklist into `More`, keep Properties content in Overview.
-- `ContactPeekSheet` — wrap existing single-scroll body into Overview tab, lift composer into Activity tab.
-- `DealPeekSheet` — keep existing tabs but rename/reorder to standard set; Underwriting moves into `More`.
-- `TransactionDetailSheet` — wrap existing scroll into Overview; key-dates strip stays at top of Overview.
-- `CompanyPeekSheet` (new file) — built directly on the primitives. Pulls fields already shown in `CompaniesTable` row + a minimal Activity tab. Wired into `CompaniesTable` row click. No new backend.
+Rewrite the mapper and fetch loop in `supabase/functions/fathom-sync/index.ts`:
 
-## Color & status alignment
+- Unwrap `json.items` (keep the existing fallbacks as belt-and-suspenders).
+- `fathom_id = String(m.recording_id ?? m.id ?? m.meeting_id ?? '')`.
+- `started_at = m.recording_start_time ?? m.scheduled_start_time ?? m.started_at ?? null`.
+- `summary = m.default_summary ?? m.summary ?? m.ai_summary ?? null`.
+- `host_email = m.recorded_by?.email ?? m.host_email ?? null`.
+- `attendees = m.calendar_invitees ?? m.attendees ?? m.invitees ?? []`.
+- `recording_url = m.share_url ?? m.url ?? m.recording_url ?? null` (already close, just reorder so `share_url` wins).
+- Compute `duration_seconds` from `recording_end_time - recording_start_time` when not explicitly provided.
+- Drop the `since` query param (idempotent upsert handles dedupe). Add a small pagination loop that follows `next_cursor` until empty or a sane safety cap (e.g., 20 pages).
+- Log `fetched` and `synced` counts on the server for future debugging.
 
-Create `src/components/crm/_shell/statusRegistry.ts` consolidating today's scattered color maps (`STATUS_COLOR` in Contact, `TX_LANE_COLOR`/`TX_STATUS_COLOR` in Transactions, `TEMPERATURE_META` in Leads, deal stage colors). Existing colors are preserved — just moved to one file so `EntityStatusPill` can render them uniformly.
+No DB schema changes. No client changes. After redeploy, the user clicks "Sync from Fathom" on `/meetings` and the existing recording will appear; future ones will sync on each click.
 
-## What does NOT change
+## Verification
 
-- No data model or query changes.
-- No edge function changes.
-- No new fields, no removed fields.
-- No change to dialogs (NewLead, NewContact, NewDeal, NewTransaction).
-- No change to list/kanban pages.
-- No routing changes.
-
-## Technical notes
-
-- All primitives use semantic Tailwind tokens (no hard-coded colors).
-- Keep current file names for the four existing sheets so imports don't break; refactor in place.
-- Tabs default to `Overview` on open for every entity (matches Deal today).
-- Header prev/next arrows only render when the parent passes `onPrev`/`onNext` (Lead has them today; others can opt in later).
-- `EntitySheetShell` width: `w-full sm:max-w-[640px]` standardized across all five.
-
-## Rollout order
-
-1. Build primitives + status registry.
-2. Refactor `ContactPeekSheet` first (simplest, validates the primitives).
-3. Refactor `TransactionDetailSheet`.
-4. Refactor `DealPeekSheet`.
-5. Refactor `LeadPeekSheet` (most custom chrome, biggest diff).
-6. Build `CompanyPeekSheet` and wire into `CompaniesTable`.
-
-Each step is independently shippable and visually verifiable.
+1. Redeploy `fathom-sync`.
+2. Call it via the test endpoint and confirm `fetched >= 1, synced >= 1`.
+3. Open Meetings page → Recordings tab → confirm the row, share URL, host, and recording link render.
