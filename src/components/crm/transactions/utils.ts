@@ -3,10 +3,10 @@ export const TX_LANE_LABEL: Record<string, string> = {
   portfolio: "Portfolio",
 };
 
-// HSL tokens — azure for wholesale, mint for portfolio
+// Brand-aligned HSL tokens
 export const TX_LANE_COLOR: Record<string, string> = {
-  wholesale: "210 90% 55%", // azure blue
-  portfolio: "160 65% 45%", // tropical mint
+  wholesale: "var(--brand-azure)",
+  portfolio: "var(--brand-mint)",
 };
 
 export const TX_TYPE_LABEL: Record<string, string> = {
@@ -16,15 +16,15 @@ export const TX_TYPE_LABEL: Record<string, string> = {
 };
 
 export const TX_TYPE_COLOR: Record<string, string> = {
-  assign: "270 60% 55%",
-  double_close: "30 90% 55%",
-  buy: "200 70% 45%",
+  assign: "var(--brand-violet)",
+  double_close: "var(--brand-tangerine)",
+  buy: "var(--brand-azure)",
 };
 
 export const TX_STATUS_COLOR: Record<string, string> = {
-  active: "210 70% 50%",
-  closed: "142 76% 36%",
-  cancelled: "0 0% 50%",
+  active: "var(--brand-azure)",
+  closed: "var(--brand-mint-deep)",
+  cancelled: "220 10% 50%",
 };
 
 export const fmtMoney = (n: number | null | undefined) =>
@@ -46,9 +46,9 @@ export function daysBetween(target: string | null | undefined): number | null {
 
 export function closingCountdownClass(days: number | null): string {
   if (days == null) return "text-muted-foreground bg-muted/40 border-border/40";
-  if (days < 7) return "text-red-600 bg-red-500/10 border-red-500/30";
-  if (days < 14) return "text-amber-600 bg-amber-400/15 border-amber-400/30";
-  return "text-emerald-600 bg-emerald-500/10 border-emerald-500/30";
+  if (days < 7) return "text-brand-coral bg-brand-coral/10 border-brand-coral/30";
+  if (days <= 14) return "text-brand-tangerine bg-brand-tangerine/15 border-brand-tangerine/30";
+  return "text-brand-mint-deep bg-brand-mint/15 border-brand-mint/30";
 }
 
 export function fmtCountdown(days: number | null): string {
