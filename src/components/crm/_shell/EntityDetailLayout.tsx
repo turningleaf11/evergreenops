@@ -17,10 +17,16 @@ export function EntityDetailLayout({
   main,
   sidebar,
   className,
+  mainClassName,
+  mainInnerClassName,
 }: {
   main: React.ReactNode;
   sidebar: React.ReactNode;
   className?: string;
+  /** Override classes on the scrolling main container (e.g. remove overflow for pinned composer). */
+  mainClassName?: string;
+  /** Override classes on the inner content wrapper inside the main column. */
+  mainInnerClassName?: string;
 }) {
   return (
     <div
@@ -29,8 +35,8 @@ export function EntityDetailLayout({
         className,
       )}
     >
-      <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10 p-6">
-        <div className="space-y-4 max-w-3xl">{main}</div>
+      <div className={cn("overflow-auto bg-[#F8F8F8] dark:bg-muted/10 p-6", mainClassName)}>
+        <div className={cn("space-y-4 max-w-3xl", mainInnerClassName)}>{main}</div>
       </div>
       <aside className="overflow-auto border-l border-border/50 bg-background">
         <div className="p-5 space-y-5">{sidebar}</div>
