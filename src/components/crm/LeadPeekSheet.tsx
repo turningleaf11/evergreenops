@@ -243,16 +243,9 @@ export function LeadPeekSheet({
     );
   }
 
-  const meta = TEMPERATURE_META[lead.temperature] || TEMPERATURE_META.warm;
   const isConverted = lead.status === "converted";
   const isArchived = lead.status === "archived";
   const convertedDealId = (lead as any).converted_deal_id as string | undefined;
-
-  const cycleTemp = () => {
-    if (isConverted || isArchived) return;
-    const i = TEMPS.indexOf(lead.temperature as any);
-    onUpdate(lead.id, { temperature: TEMPS[(i + 1) % TEMPS.length] });
-  };
 
   const addNote = async () => {
     const body = noteDraft.trim();
