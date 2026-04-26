@@ -505,41 +505,20 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                           </Button>
                         </div>
                       ) : (
-                        <div className="p-3 space-y-2">
-                          <div className="text-[11px] text-muted-foreground">
-                            Reply to <span className="font-medium text-foreground">{replyTo || "—"}</span>
-                          </div>
-                          <Textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder="Write a reply…"
-                            rows={4}
-                            className="resize-y text-sm bg-background"
-                            autoFocus
+                        <div className="bg-background">
+                          <InlineEmailComposer
+                            defaultTo={replyTo}
+                            defaultSubject={replySubject}
+                            threadId={threadId}
+                            inReplyTo={inReplyToHeader}
+                            onClose={() => setReplyOpen(false)}
+                            onSent={() => {
+                              setReplyOpen(false);
+                              // Refresh thread so the new message appears
+                              setThread(null);
+                              setTimeout(() => loadThread(), 500);
+                            }}
                           />
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 text-xs"
-                              onClick={() => { setReplyOpen(false); setReplyText(""); }}
-                              disabled={sendingReply}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={sendReply}
-                              disabled={sendingReply || !replyText.trim() || !replyTo}
-                            >
-                              {sendingReply ? (
-                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending…</>
-                              ) : (
-                                <><Reply className="h-3 w-3 mr-1" /> Send reply</>
-                              )}
-                            </Button>
-                          </div>
                         </div>
                       )}
                     </div>
