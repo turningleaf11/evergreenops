@@ -1632,6 +1632,36 @@ function ContactDetailBody({
                 onChanged={onChanged}
               />
             </SidebarRow>
+            <SidebarRow icon={<MessageSquare className="h-4 w-4" />}>
+              <PreferredContactChip
+                value={contact.preferred_contact_method || null}
+                onChange={(v) =>
+                  updateContact({
+                    preferred_contact_method: v as PreferredContactMethod | null,
+                  })
+                }
+              />
+            </SidebarRow>
+            <SidebarRow
+              icon={
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full inline-block",
+                    isActive ? "bg-brand-mint-deep" : "bg-muted-foreground/40",
+                  )}
+                />
+              }
+            >
+              <button
+                type="button"
+                onClick={() => updateContact({ is_active: !isActive })}
+                className="text-sm hover:text-foreground transition-colors"
+              >
+                <span className={isActive ? "text-foreground" : "text-muted-foreground"}>
+                  {isActive ? "Active" : "Inactive"}
+                </span>
+              </button>
+            </SidebarRow>
           </SidebarBlock>
 
           <SidebarDivider />
@@ -1654,49 +1684,12 @@ function ContactDetailBody({
 
           <SidebarDivider />
 
-          {/* Key details */}
-          <SidebarBlock label="Key details">
-            <div className="space-y-2.5">
-              <KeyRow label="Type">
-                <ContactTypeChip
-                  value={(contact.contact_type as ContactType) || "other"}
-                  onChange={(v) => updateContact({ contact_type: v })}
-                />
-              </KeyRow>
-              <KeyRow label="Preferred">
-                <PreferredContactChip
-                  value={contact.preferred_contact_method || null}
-                  onChange={(v) =>
-                    updateContact({
-                      preferred_contact_method: v as PreferredContactMethod | null,
-                    })
-                  }
-                />
-              </KeyRow>
-              <KeyRow label="Status">
-                <button
-                  type="button"
-                  onClick={() => updateContact({ is_active: !isActive })}
-                  className="inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors"
-                >
-                  <span
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      isActive ? "bg-brand-mint-deep" : "bg-muted-foreground/40",
-                    )}
-                  />
-                  <span className={isActive ? "text-foreground" : "text-muted-foreground"}>
-                    {isActive ? "Active" : "Inactive"}
-                  </span>
-                </button>
-              </KeyRow>
-              <KeyRow label="Owner">
-                <OwnerPicker
-                  ownerId={contact.owner_id}
-                  onChange={(id) => updateContact({ owner_id: id })}
-                />
-              </KeyRow>
-            </div>
+          {/* Owner */}
+          <SidebarBlock label="Owner">
+            <OwnerPicker
+              ownerId={contact.owner_id}
+              onChange={(id) => updateContact({ owner_id: id })}
+            />
           </SidebarBlock>
 
           <SidebarDivider />
