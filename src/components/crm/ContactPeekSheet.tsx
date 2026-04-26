@@ -439,7 +439,164 @@ function CustomFieldsPanel({
   );
 }
 
-function ContactDetailsPanel({
+// ───────────────────────────────────────────────────────────────────────
+// Overview sub-sections
+// ───────────────────────────────────────────────────────────────────────
+
+function FieldCell({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+        {label}
+      </div>
+      <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+function ContactInfoGrid({
+  contact,
+  companyName,
+  onSaved,
+  onChanged,
+}: {
+  contact: Contact;
+  companyName: string | null;
+  onSaved: (patch: Partial<Contact>) => void;
+  onChanged: () => void;
+}) {
+  const [contactType, setContactType] = useState<ContactType>(
+    (contact.contact_type as ContactType) || "other",
+  );
+  const [method, setMethod] = useState<string>(contact.preferred_contact_method || "");
+  const [isActive, setIsActive] = useState<boolean>(contact.is_active !== false);
+
+  useEffect(() => {
+    setContactType((contact.contact_type as ContactType) || "other");
+    setMethod(contact.preferred_contact_method || "");
+    setIsActive(contact.is_active !== false);
+  }, [contact.id]);
+
+  const updateField = async (patch: Partial<Contact>) => {
+    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(patch);
+    onChanged();
+  };
+
+  return (
+    <section>
+      <EntitySectionHeader>Contact info</EntitySectionHeader>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+        <FieldCell label="Phone">
+          {contact.phone ? (
+            <a href={`tel:${contact.phone}`} className="hover:text-primary transition-colors">
+              {contact.phone}
+            </a>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </FieldCell>
+
+        <FieldCell label="Email">
+          {contact.email ? (
+            <a
+              href={`mailto:${contact.email}`}
+              className="hover:text-primary transition-colors break-all"
+            >
+              {contact.email}
+            </a>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </FieldCell>
+
+        <FieldCell label="Company">
+          {companyName ? (
+            <span>{companyName}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </FieldCell>
+
+        <FieldCell label="Type">
+          <Select
+            value={contactType}
+            onValueChange={(v) => {
+              const next = v as ContactType;
+              setContactType(next);
+              void updateField({ contact_type: next });
+            }}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTACT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {CONTACT_TYPE_LABEL[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldCell>
+
+        <FieldCell label="Preferred contact">
+          <Select
+            value={method || "_none"}
+            onValueChange={(v) => {
+              const next = v === "_none" ? "" : v;
+              setMethod(next);
+              void updateField({
+                preferred_contact_method: (next || null) as PreferredContactMethod | null,
+              });
+            }}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">—</SelectItem>
+              {PREFERRED_CONTACT_METHODS.map((m) => (
+                <SelectItem key={m} value={m} className="capitalize">
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldCell>
+
+        <FieldCell label="Active">
+          <div className="flex items-center h-8">
+            <Switch
+              checked={isActive}
+              onCheckedChange={(next) => {
+                setIsActive(next);
+                void updateField({ is_active: next });
+              }}
+            />
+            <span className="ml-2 text-xs text-muted-foreground">
+              {isActive ? "Active" : "Inactive"}
+            </span>
+          </div>
+        </FieldCell>
+      </div>
+    </section>
+  );
+}
+
+function ContactRelationshipNotes({
   contact,
   onSaved,
   onChanged,
@@ -448,47 +605,18 @@ function ContactDetailsPanel({
   onSaved: (patch: Partial<Contact>) => void;
   onChanged: () => void;
 }) {
-  const [contactType, setContactType] = useState<ContactType>(
-    (contact.contact_type as ContactType) || "other",
-  );
-  const [method, setMethod] = useState<string>(contact.preferred_contact_method || "");
   const [buyBox, setBuyBox] = useState<string>(contact.buy_box_notes || "");
-  const [markets, setMarkets] = useState<string[]>(contact.markets || []);
-  const [marketDraft, setMarketDraft] = useState("");
-  const [isActive, setIsActive] = useState<boolean>(contact.is_active !== false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setContactType((contact.contact_type as ContactType) || "other");
-    setMethod(contact.preferred_contact_method || "");
     setBuyBox(contact.buy_box_notes || "");
-    setMarkets(contact.markets || []);
-    setIsActive(contact.is_active !== false);
   }, [contact.id]);
 
-  const dirty =
-    contactType !== ((contact.contact_type as ContactType) || "other") ||
-    method !== (contact.preferred_contact_method || "") ||
-    buyBox !== (contact.buy_box_notes || "") ||
-    JSON.stringify(markets) !== JSON.stringify(contact.markets || []) ||
-    isActive !== (contact.is_active !== false);
-
-  const addMarket = () => {
-    const v = marketDraft.trim();
-    if (!v) return;
-    if (!markets.includes(v)) setMarkets([...markets, v]);
-    setMarketDraft("");
-  };
+  const dirty = buyBox !== (contact.buy_box_notes || "");
 
   const save = async () => {
     setSaving(true);
-    const patch = {
-      contact_type: contactType,
-      preferred_contact_method: (method || null) as PreferredContactMethod | null,
-      buy_box_notes: buyBox.trim() || null,
-      markets: markets.length ? markets : null,
-      is_active: isActive,
-    };
+    const patch = { buy_box_notes: buyBox.trim() || null };
     const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
     setSaving(false);
     if (error) {
@@ -499,124 +627,260 @@ function ContactDetailsPanel({
     onChanged();
   };
 
-  const quickToggleActive = async (next: boolean) => {
-    setIsActive(next);
-    const { error } = await supabase
-      .from("contacts")
-      .update({ is_active: next })
-      .eq("id", contact.id);
-    if (error) {
-      toast({ title: "Couldn't update", description: error.message, variant: "destructive" });
-      setIsActive(!next);
-      return;
-    }
-    onSaved({ is_active: next });
-    onChanged();
-  };
-
   return (
-    <section className="space-y-6">
-      <div className="crm-eyebrow">Details</div>
-
-      <div>
-        <Label className="text-[11px] text-muted-foreground">Type</Label>
-        <Select value={contactType} onValueChange={(v) => setContactType(v as ContactType)}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CONTACT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {CONTACT_TYPE_LABEL[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="text-[11px] text-muted-foreground">Preferred contact method</Label>
-        <Select
-          value={method || "_none"}
-          onValueChange={(v) => setMethod(v === "_none" ? "" : v)}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="—" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_none">—</SelectItem>
-            {PREFERRED_CONTACT_METHODS.map((m) => (
-              <SelectItem key={m} value={m} className="capitalize">
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="text-[11px] text-muted-foreground">Buy box / notes</Label>
-        <Textarea
-          rows={3}
-          value={buyBox}
-          onChange={(e) => setBuyBox(e.target.value)}
-          className="text-xs"
-          placeholder="Criteria, price range, geographies, etc."
-        />
-      </div>
-
-      <div>
-        <Label className="text-[11px] text-muted-foreground">Markets</Label>
-        <div className="flex gap-1.5">
-          <Input
-            value={marketDraft}
-            onChange={(e) => setMarketDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === ",") {
-                e.preventDefault();
-                addMarket();
-              }
-            }}
-            className="h-8 text-xs"
-            placeholder="Add market…"
-          />
-          <Button type="button" size="sm" variant="outline" onClick={addMarket}>
-            Add
-          </Button>
-        </div>
-        {markets.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {markets.map((m) => (
-              <span
-                key={m}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-azure/10 text-brand-azure"
-              >
-                {m}
-                <button
-                  type="button"
-                  onClick={() => setMarkets(markets.filter((x) => x !== m))}
-                  className="hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between pt-1">
-        <Label className="text-xs">Active</Label>
-        <Switch checked={isActive} onCheckedChange={quickToggleActive} />
-      </div>
-
-      {dirty && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Save details
-          </Button>
+    <section>
+      <EntitySectionHeader>Relationship notes</EntitySectionHeader>
+      <Textarea
+        rows={4}
+        value={buyBox}
+        onChange={(e) => setBuyBox(e.target.value)}
+        onBlur={() => { if (dirty) void save(); }}
+        className="text-sm resize-none"
+        placeholder="What do they buy? How do they work? Deal quality notes…"
+      />
+      {saving && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
+          <Loader2 className="h-3 w-3 animate-spin" /> Saving…
         </div>
       )}
     </section>
   );
 }
+
+function ContactMarketsSection({
+  contact,
+  onSaved,
+  onChanged,
+}: {
+  contact: Contact;
+  onSaved: (patch: Partial<Contact>) => void;
+  onChanged: () => void;
+}) {
+  const [markets, setMarkets] = useState<string[]>(contact.markets || []);
+  const [marketDraft, setMarketDraft] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    setMarkets(contact.markets || []);
+  }, [contact.id]);
+
+  const persist = async (next: string[]) => {
+    const patch = { markets: next.length ? next : null };
+    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(patch);
+    onChanged();
+  };
+
+  const addMarket = () => {
+    const v = marketDraft.trim();
+    if (!v) {
+      setAdding(false);
+      return;
+    }
+    if (markets.includes(v)) {
+      setMarketDraft("");
+      setAdding(false);
+      return;
+    }
+    const next = [...markets, v];
+    setMarkets(next);
+    setMarketDraft("");
+    setAdding(false);
+    void persist(next);
+  };
+
+  const removeMarket = (m: string) => {
+    const next = markets.filter((x) => x !== m);
+    setMarkets(next);
+    void persist(next);
+  };
+
+  return (
+    <section>
+      <EntitySectionHeader>Markets</EntitySectionHeader>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {markets.map((m) => (
+          <span
+            key={m}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-azure text-white"
+          >
+            {m}
+            <button
+              type="button"
+              onClick={() => removeMarket(m)}
+              className="opacity-70 hover:opacity-100"
+              aria-label={`Remove ${m}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        {adding ? (
+          <Input
+            autoFocus
+            value={marketDraft}
+            onChange={(e) => setMarketDraft(e.target.value)}
+            onBlur={addMarket}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addMarket();
+              } else if (e.key === "Escape") {
+                setMarketDraft("");
+                setAdding(false);
+              }
+            }}
+            className="h-7 text-xs w-32"
+            placeholder="Market name"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+          >
+            + Add market
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ContactLinkedActivity({
+  deals,
+  leads,
+  lastContacted,
+  onViewAll,
+}: {
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  leads: Array<{ id: string; address: string | null; status: string | null }>;
+  lastContacted: string | null;
+  onViewAll: () => void;
+}) {
+  const hasAny = deals.length > 0 || leads.length > 0 || !!lastContacted;
+  return (
+    <section>
+      <EntitySectionHeader>Linked activity</EntitySectionHeader>
+      {!hasAny ? (
+        <p className="text-xs text-muted-foreground">No linked deals or leads yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {deals.length > 0 && (
+            <li className="flex items-start gap-2.5 text-sm">
+              <Briefcase className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">
+                  {deals.length} deal{deals.length === 1 ? "" : "s"} sourced
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {deals.slice(0, 3).map((d) => d.name).join(" · ")}
+                </div>
+              </div>
+            </li>
+          )}
+          {leads.length > 0 && (
+            <li className="flex items-start gap-2.5 text-sm">
+              <Sparkles className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">
+                  {leads.length} lead{leads.length === 1 ? "" : "s"} sent
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {leads.slice(0, 3).map((l) => l.address || "Untitled").join(" · ")}
+                </div>
+              </div>
+            </li>
+          )}
+          {lastContacted && (
+            <li className="flex items-start gap-2.5 text-sm">
+              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">Last contacted</div>
+                <div className="text-xs text-muted-foreground">{lastContacted}</div>
+              </div>
+            </li>
+          )}
+        </ul>
+      )}
+      {(deals.length > 0 || leads.length > 0) && (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="mt-3 text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+        >
+          View all <ExternalLink className="h-3 w-3" />
+        </button>
+      )}
+    </section>
+  );
+}
+
+function ContactDealsLeadsTab({
+  deals,
+  leads,
+}: {
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  leads: Array<{ id: string; address: string | null; status: string | null }>;
+}) {
+  if (deals.length === 0 && leads.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground">
+        <Briefcase className="h-8 w-8 mb-2 opacity-50" />
+        <p className="font-medium text-foreground mb-1">No linked deals or leads</p>
+        <p>Deals and leads associated with this contact will appear here.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-7">
+      <section>
+        <EntitySectionHeader>Deals ({deals.length})</EntitySectionHeader>
+        {deals.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No deals yet.</p>
+        ) : (
+          <ul className="divide-y divide-border/50 rounded-md border border-border/50">
+            {deals.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium truncate">{d.name}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {d.stage && <EntityStatusPill kind="deal_stage" value={d.stage} />}
+                  {d.status && <EntityStatusPill kind="deal_status" value={d.status} variant="outline" />}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <EntitySectionHeader>Leads ({leads.length})</EntitySectionHeader>
+        {leads.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No leads yet.</p>
+        ) : (
+          <ul className="divide-y divide-border/50 rounded-md border border-border/50">
+            {leads.map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium truncate">{l.address || "Untitled lead"}</span>
+                </div>
+                {l.status && (
+                  <EntityStatusPill kind="lead_status" value={l.status} variant="outline" />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
