@@ -72,7 +72,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   const isCrmEntity = CRM_ENTITY_TYPES.has(entityType);
 
   const fetchAll = useCallback(async () => {
-    const queries: Promise<any>[] = [
+    const queries: any[] = [
       supabase.from("comments").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }),
       supabase.from("entity_activity").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }).limit(100),
     ];
