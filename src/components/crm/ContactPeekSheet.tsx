@@ -176,6 +176,21 @@ export function ContactPeekSheet({
     return () => { active = false; };
   }, [contactId]);
 
+  // Load the default pipeline once so we can offer "+ Create new deal" from this sheet.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("pipelines")
+        .select("id")
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (active) setDefaultPipelineId((data as any)?.id ?? null);
+    })();
+    return () => { active = false; };
+  }, []);
+
   const handleComposerSubmit = async (payload: ComposerSubmit) => {
     if (!contact || !user) return;
     let subject = "";
