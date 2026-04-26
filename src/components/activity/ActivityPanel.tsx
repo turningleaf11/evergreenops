@@ -528,16 +528,57 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                       </div>
                     );
                   })}
-                  {onReplyEmail && threadId && (
-                    <div className="p-2 flex justify-end bg-muted/20">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
-                      >
-                        <Reply className="h-3 w-3 mr-1" /> Reply
-                      </Button>
+                  {threadId && (
+                    <div className="bg-muted/20 border-t border-border/40">
+                      {!replyOpen ? (
+                        <div className="p-2 flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setReplyOpen(true)}
+                          >
+                            <Reply className="h-3 w-3 mr-1" /> Reply
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-2">
+                          <div className="text-[11px] text-muted-foreground">
+                            Reply to <span className="font-medium text-foreground">{replyTo || "—"}</span>
+                          </div>
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write a reply…"
+                            rows={4}
+                            className="resize-y text-sm bg-background"
+                            autoFocus
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs"
+                              onClick={() => { setReplyOpen(false); setReplyText(""); }}
+                              disabled={sendingReply}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={sendReply}
+                              disabled={sendingReply || !replyText.trim() || !replyTo}
+                            >
+                              {sendingReply ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending…</>
+                              ) : (
+                                <><Reply className="h-3 w-3 mr-1" /> Send reply</>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
