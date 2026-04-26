@@ -145,7 +145,8 @@ export function LeadPeekSheet({
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [people, setPeople] = useState<PersonLite[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"notes" | "activity" | "email">("notes");
+  const [tab, setTab] = useState<"notes" | "activity" | "email" | "files">("notes");
+  const [sourceContactName, setSourceContactName] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [planType, setPlanType] = useState<string>("call");
   const [planSubject, setPlanSubject] = useState("");
