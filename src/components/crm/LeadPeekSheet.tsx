@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   Clock,
   Calendar as CalendarIcon,
+  Paperclip,
+  Home,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -42,6 +44,10 @@ import {
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { DocChecklist } from "./DocChecklist";
+import { BuyBoxButtons, BUY_BOX_META, type BuyBoxFit } from "./BuyBoxButtons";
+import { LeadFilesTab } from "./LeadFilesTab";
+import { ContactPicker } from "./ContactPicker";
 
 export interface Lead {
   id: string;
@@ -58,6 +64,26 @@ export interface Lead {
   notes: string;
   owner_id: string | null;
   created_at: string;
+  buy_box_fit?: string | null;
+  disqualification_reason?: string | null;
+  has_om?: boolean;
+  has_t12?: boolean;
+  has_rent_roll?: boolean;
+  source_contact_id?: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_zip?: string | null;
+  property_type?: string | null;
+  units?: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  asking_price?: number | null;
+  listed_cap_rate?: number | null;
+  gross_income?: number | null;
+  noi?: number | null;
+  converted_deal_id?: string | null;
 }
 
 interface PersonLite {
