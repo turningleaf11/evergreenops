@@ -1764,8 +1764,7 @@ function ContactDetailBody({
           <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
             <EntityTabPanel value="overview" className="p-6">
               <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="Profile">
-                  <KVRow label="Source" value={(contact.custom_fields as any)?.source ?? null} />
+                <OverviewCard title="Quick stats">
                   <KVRow
                     label="Date added"
                     value={
