@@ -63,6 +63,13 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
     setAskingPrice(""); setCapRate(""); setGrossIncome(""); setNoi("");
   };
 
+  // Pre-select source contact when opened from a contact context.
+  useEffect(() => {
+    if (open && defaultContactId) {
+      setSourceContactId(defaultContactId);
+    }
+  }, [open, defaultContactId]);
+
   const submit = async () => {
     if (!userId) return;
     const inferredName = name.trim() || address.trim() || "Untitled property lead";
