@@ -96,6 +96,9 @@ export function ContactPeekSheet({
   const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null }>>([]);
   const [linkedLeads, setLinkedLeads] = useState<Array<{ id: string; address: string | null; status: string | null }>>([]);
   const [tab, setTab] = useState<EntityTabId>("overview");
+  const [createDealOpen, setCreateDealOpen] = useState(false);
+  const [createLeadOpen, setCreateLeadOpen] = useState(false);
+  const [defaultPipelineId, setDefaultPipelineId] = useState<string | null>(null);
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeCtx, setComposeCtx] = useState<{ to: string; subject: string; threadId?: string }>({
