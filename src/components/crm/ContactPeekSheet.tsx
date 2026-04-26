@@ -241,79 +241,81 @@ export function ContactPeekSheet({
 
   const hasCustomFields = !!(contact?.custom_fields && Object.keys(contact.custom_fields).length > 0);
 
+  const typeColor = CONTACT_TYPE_COLOR[(contact?.contact_type as ContactType) || "other"];
+  const typeLabel = CONTACT_TYPE_LABEL[(contact?.contact_type as ContactType) || "other"];
+
+  const subtitleParts: string[] = [];
+  if (companyName) subtitleParts.push(companyName);
+  if (contact?.contact_type) subtitleParts.push(typeLabel);
+
+  const updateContact = async (patch: Partial<Contact>) => {
+    if (!contact) return;
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    setContact({ ...contact, ...patch });
+    onChanged();
+  };
+
   return (
     <>
       <EntitySheetShell
         open={isOpen}
         onOpenChange={(v) => !v && onClose()}
         loading={loading || !contact}
-        width="default"
+        width="wide"
       >
         {contact && (
           <>
             <EntitySheetHeader
               title={fullName}
-              subtitle={
-                <div className="flex items-center gap-3 flex-wrap mt-1">
-                  {contact.title && (
-                    <span className="text-xs text-muted-foreground">{contact.title}</span>
-                  )}
-                  {contact.email && (
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[220px]">{contact.email}</span>
-                    </a>
-                  )}
-                  {contact.phone && (
-                    <a
-                      href={`tel:${contact.phone}`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      <Phone className="h-3 w-3" />
-                      {contact.phone}
-                    </a>
-                  )}
-                </div>
-              }
-              titleClassName="text-xl font-semibold"
+              subtitle={subtitleParts.length ? subtitleParts.join(" · ") : undefined}
+              titleClassName="text-[20px] font-semibold"
               onClose={onClose}
-            />
-
-            <EntityIdentityStrip
-              owner={
-                <OwnerPicker
-                  ownerId={contact.owner_id}
-                  onChange={async (id) => {
-                    const { error } = await supabase
-                      .from("contacts")
-                      .update({ owner_id: id })
-                      .eq("id", contact.id);
-                    if (error) {
-                      toast({
-                        title: "Couldn't update owner",
-                        description: error.message,
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    setContact({ ...contact, owner_id: id });
-                    onChanged();
-                  }}
-                />
-              }
-              pills={
+              actions={
                 <>
-                  <EntityStatusPill kind="contact_type" value={contact.contact_type ?? "other"} />
-                  {contact.is_active === false && (
-                    <EntityStatusPill kind="contact_status" value="inactive" variant="outline" />
-                  )}
+                  <Badge
+                    className="border-transparent font-semibold"
+                    style={{
+                      backgroundColor: `hsl(${typeColor} / 0.15)`,
+                      color: `hsl(${typeColor})`,
+                      borderRadius: 100,
+                      padding: "3px 10px",
+                      fontSize: 11,
+                    }}
+                  >
+                    {typeLabel}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "font-semibold",
+                      contact.is_active === false
+                        ? "text-muted-foreground border-muted-foreground/40"
+                        : "text-brand-mint-deep border-brand-mint/40 bg-brand-mint/10",
+                    )}
+                    style={{ borderRadius: 100, padding: "3px 10px", fontSize: 11 }}
+                  >
+                    {contact.is_active === false ? "Inactive" : "Active"}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!canEmail}
+                    onClick={() => {
+                      setComposeCtx({ to: contact.email!, subject: "" });
+                      setComposeOpen(true);
+                    }}
+                    className="h-8 gap-1.5"
+                  >
+                    <Send className="h-3.5 w-3.5" /> Email
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                 </>
-              }
-              chips={
-                lastContacted ? <span>Last contacted {lastContacted}</span> : null
               }
             />
 
@@ -326,80 +328,103 @@ export function ContactPeekSheet({
                 onSent={handleSent}
               />
             ) : (
-            <EntityTabs
-              value={tab}
-              onValueChange={(v) => setTab(v)}
-              hide={["more"]}
-              actions={
-                <Button
-                  size="sm"
-                  disabled={!canEmail}
-                  onClick={() => {
-                    setComposeCtx({ to: contact.email!, subject: "" });
-                    setComposeOpen(true);
-                  }}
-                >
-                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
-                </Button>
-              }
-            >
-              <EntityTabPanel value="overview">
-                <div className="space-y-7">
-                  <ContactInfoGrid
-                    contact={contact}
-                    companyName={companyName}
-                    onSaved={(patch) => setContact({ ...contact, ...patch })}
-                    onChanged={onChanged}
-                  />
-
-                  <ContactRelationshipNotes
-                    contact={contact}
-                    onSaved={(patch) => setContact({ ...contact, ...patch })}
-                    onChanged={onChanged}
-                  />
-
-                  <ContactMarketsSection
-                    contact={contact}
-                    onSaved={(patch) => setContact({ ...contact, ...patch })}
-                    onChanged={onChanged}
-                  />
-
-                  <ContactLinkedActivity
-                    deals={linkedDeals}
-                    leads={linkedLeads}
-                    lastContacted={lastContacted}
-                    onViewAll={() => setTab("deals")}
-                  />
-
-                  {hasCustomFields && (
-                    <section>
-                      <EntitySectionHeader>Custom fields</EntitySectionHeader>
-                      <CustomFieldsPanel
-                        contactId={contact.id}
-                        values={(contact.custom_fields || {}) as Record<string, unknown>}
-                        onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+              <EntityTabs
+                value={tab}
+                onValueChange={(v) => setTab(v)}
+                hide={["deals", "more"]}
+              >
+                <EntityTabPanel value="overview" className="p-0 overflow-hidden">
+                  <EntityDetailLayout
+                    main={
+                      <>
+                        <ContactInfoGrid
+                          contact={contact}
+                          onSaved={(patch) => setContact({ ...contact, ...patch })}
+                          onChanged={onChanged}
+                        />
+                        <ContactRelationshipNotes
+                          contact={contact}
+                          onSaved={(patch) => setContact({ ...contact, ...patch })}
+                          onChanged={onChanged}
+                        />
+                        <ContactMarketsSection
+                          contact={contact}
+                          onSaved={(patch) => setContact({ ...contact, ...patch })}
+                          onChanged={onChanged}
+                        />
+                        {hasCustomFields && (
+                          <div className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                            <EntitySectionHeader>Custom fields</EntitySectionHeader>
+                            <CustomFieldsPanel
+                              contactId={contact.id}
+                              values={(contact.custom_fields || {}) as Record<string, unknown>}
+                              onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                            />
+                          </div>
+                        )}
+                      </>
+                    }
+                    sidebar={
+                      <ContactSidebar
+                        contact={contact}
+                        companyName={companyName}
+                        deals={linkedDeals}
+                        leads={linkedLeads}
+                        lastContacted={lastContacted}
+                        onUpdate={updateContact}
+                        onChanged={onChanged}
+                        setContact={setContact}
                       />
-                    </section>
-                  )}
-                </div>
-              </EntityTabPanel>
+                    }
+                  />
+                </EntityTabPanel>
 
-              <EntityTabPanel value="deals">
-                <ContactDealsLeadsTab deals={linkedDeals} leads={linkedLeads} />
-              </EntityTabPanel>
+                <EntityTabPanel value="activity" className="p-0 overflow-hidden">
+                  <EntityDetailLayout
+                    main={
+                      <div className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                        <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
+                      </div>
+                    }
+                    sidebar={
+                      <ContactSidebar
+                        contact={contact}
+                        companyName={companyName}
+                        deals={linkedDeals}
+                        leads={linkedLeads}
+                        lastContacted={lastContacted}
+                        onUpdate={updateContact}
+                        onChanged={onChanged}
+                        setContact={setContact}
+                      />
+                    }
+                  />
+                </EntityTabPanel>
 
-              <EntityTabPanel value="activity" className="p-4 flex flex-col min-h-0">
-                <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
-              </EntityTabPanel>
-
-              <EntityTabPanel value="files">
-                <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground">
-                  <Inbox className="h-8 w-8 mb-2 opacity-50" />
-                  <p className="font-medium text-foreground mb-1">No files yet</p>
-                  <p>File attachments for contacts will appear here.</p>
-                </div>
-              </EntityTabPanel>
-            </EntityTabs>
+                <EntityTabPanel value="files" className="p-0 overflow-hidden">
+                  <EntityDetailLayout
+                    main={
+                      <div className="rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                        <Inbox className="h-8 w-8 mb-2 opacity-50" />
+                        <p className="font-medium text-foreground mb-1">No files yet</p>
+                        <p>File attachments for contacts will appear here.</p>
+                      </div>
+                    }
+                    sidebar={
+                      <ContactSidebar
+                        contact={contact}
+                        companyName={companyName}
+                        deals={linkedDeals}
+                        leads={linkedLeads}
+                        lastContacted={lastContacted}
+                        onUpdate={updateContact}
+                        onChanged={onChanged}
+                        setContact={setContact}
+                      />
+                    }
+                  />
+                </EntityTabPanel>
+              </EntityTabs>
             )}
           </>
         )}
@@ -407,6 +432,163 @@ export function ContactPeekSheet({
     </>
   );
 }
+
+// ───────────────────────────────────────────────────────────────────────
+// Right sidebar — Assignment / Status / Key Details / Linked Records
+// ───────────────────────────────────────────────────────────────────────
+function ContactSidebar({
+  contact,
+  companyName,
+  deals,
+  leads,
+  lastContacted,
+  onUpdate,
+  onChanged,
+  setContact,
+}: {
+  contact: Contact;
+  companyName: string | null;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  leads: Array<{ id: string; address: string | null; status: string | null }>;
+  lastContacted: string | null;
+  onUpdate: (patch: Partial<Contact>) => Promise<void>;
+  onChanged: () => void;
+  setContact: (c: Contact) => void;
+}) {
+  return (
+    <>
+      <EntitySidebarSection title="Assignment">
+        <OwnerPicker
+          ownerId={contact.owner_id}
+          onChange={async (id) => {
+            await onUpdate({ owner_id: id });
+          }}
+        />
+      </EntitySidebarSection>
+
+      <EntitySidebarSection title="Status">
+        <EntitySidebarField label="Type">
+          <Select
+            value={(contact.contact_type as ContactType) || "other"}
+            onValueChange={(v) => onUpdate({ contact_type: v })}
+          >
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTACT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {CONTACT_TYPE_LABEL[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </EntitySidebarField>
+        <EntitySidebarField label="Active">
+          <div className="flex items-center gap-2 h-9">
+            <Switch
+              checked={contact.is_active !== false}
+              onCheckedChange={(next) => onUpdate({ is_active: next })}
+            />
+            <span className="text-xs text-muted-foreground">
+              {contact.is_active !== false ? "Active" : "Inactive"}
+            </span>
+          </div>
+        </EntitySidebarField>
+      </EntitySidebarSection>
+
+      <EntitySidebarSection title="Key details">
+        <EntitySidebarField label="Preferred contact">
+          <Select
+            value={contact.preferred_contact_method || "_none"}
+            onValueChange={(v) =>
+              onUpdate({
+                preferred_contact_method:
+                  v === "_none" ? null : (v as PreferredContactMethod),
+              })
+            }
+          >
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">—</SelectItem>
+              {PREFERRED_CONTACT_METHODS.map((m) => (
+                <SelectItem key={m} value={m} className="capitalize">
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </EntitySidebarField>
+        <EntitySidebarField label="Markets">
+          {contact.markets && contact.markets.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {contact.markets.slice(0, 6).map((m) => (
+                <span
+                  key={m}
+                  className="inline-flex items-center px-2.5 py-1 rounded-full bg-brand-azure/15 text-brand-azure font-semibold"
+                  style={{ fontSize: 11 }}
+                >
+                  {m}
+                </span>
+              ))}
+              {contact.markets.length > 6 && (
+                <span className="text-[11px] text-muted-foreground self-center">
+                  +{contact.markets.length - 6}
+                </span>
+              )}
+            </div>
+          ) : (
+            <EntityEmpty>—</EntityEmpty>
+          )}
+        </EntitySidebarField>
+        {lastContacted && (
+          <EntitySidebarField label="Last contacted">
+            <span className="text-sm">{lastContacted}</span>
+          </EntitySidebarField>
+        )}
+      </EntitySidebarSection>
+
+      <EntitySidebarSection title={`Linked deals (${deals.length})`}>
+        {deals.length === 0 ? (
+          <EntityEmpty>No deals linked.</EntityEmpty>
+        ) : (
+          <ul className="space-y-1.5">
+            {deals.slice(0, 5).map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40 text-sm min-w-0"
+              >
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate flex-1">{d.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </EntitySidebarSection>
+
+      <EntitySidebarSection title={`Linked leads (${leads.length})`}>
+        {leads.length === 0 ? (
+          <EntityEmpty>No leads linked.</EntityEmpty>
+        ) : (
+          <ul className="space-y-1.5">
+            {leads.slice(0, 5).map((l) => (
+              <li
+                key={l.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40 text-sm min-w-0"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate flex-1">{l.address || "Untitled lead"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </EntitySidebarSection>
+    </>
+  );
+}
+
 
 function CustomFieldsPanel({
   contactId,
