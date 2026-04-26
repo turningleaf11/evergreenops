@@ -34,7 +34,16 @@ interface Deal {
   primary_contact_id: string | null;
   expected_close_date: string | null;
   created_at?: string;
+  property_address?: string | null;
+  property_type?: string | null;
+  asking_price?: number | null;
+  owner_id?: string | null;
+  source_contact_id?: string | null;
+  stage_entered_at?: string | null;
 }
+
+interface PersonLite { user_id: string; full_name: string | null; avatar_url: string | null }
+interface ContactLite { id: string; first_name: string | null; last_name: string | null }
 
 interface Pipeline {
   id: string;
