@@ -273,18 +273,6 @@ export function ContactPeekSheet({
               }
               titleClassName="text-xl font-semibold"
               onClose={onClose}
-              actions={
-                <Button
-                  size="sm"
-                  disabled={!canEmail}
-                  onClick={() => {
-                    setComposeCtx({ to: contact.email!, subject: "" });
-                    setComposeOpen(true);
-                  }}
-                >
-                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
-                </Button>
-              }
             />
 
             <EntityIdentityStrip
