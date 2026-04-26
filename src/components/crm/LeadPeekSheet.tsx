@@ -643,6 +643,8 @@ export function LeadPeekSheet({
                       placeholder="Who sent this?"
                     />
                   </section>
+                </div>
+              </aside>
 
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
