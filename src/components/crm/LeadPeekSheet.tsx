@@ -519,8 +519,130 @@ export function LeadPeekSheet({
                       </FieldRow>
                     )}
                   </section>
-                </div>
-              </aside>
+
+                  {/* PROPERTY */}
+                  <section className="space-y-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Home className="h-3 w-3" /> Property
+                    </div>
+                    <FieldRow icon="📍">
+                      <InlineText
+                        value={lead.property_address ?? null}
+                        placeholder="Address"
+                        onSave={(v) => onUpdate(lead.id, { property_address: v } as any)}
+                      />
+                    </FieldRow>
+                    <div className="grid grid-cols-3 gap-1">
+                      <InlineText
+                        value={lead.property_city ?? null}
+                        placeholder="City"
+                        onSave={(v) => onUpdate(lead.id, { property_city: v } as any)}
+                      />
+                      <InlineText
+                        value={lead.property_state ?? null}
+                        placeholder="ST"
+                        onSave={(v) => onUpdate(lead.id, { property_state: v } as any)}
+                      />
+                      <InlineText
+                        value={lead.property_zip ?? null}
+                        placeholder="Zip"
+                        onSave={(v) => onUpdate(lead.id, { property_zip: v } as any)}
+                      />
+                    </div>
+                    <DetailRow icon="🏷" label="Type">
+                      <Select
+                        value={lead.property_type ?? ""}
+                        onValueChange={(v) =>
+                          onUpdate(lead.id, { property_type: v || null } as any)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            "SFR",
+                            "SFR Portfolio",
+                            "MF Small (2-4)",
+                            "MF Large (5+)",
+                            "Mixed Use",
+                            "Commercial",
+                            "Land",
+                            "Other",
+                          ].map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </DetailRow>
+                    <div className="grid grid-cols-3 gap-1 text-xs">
+                      <NumField
+                        label="Units"
+                        value={lead.units ?? null}
+                        onSave={(n) => onUpdate(lead.id, { units: n } as any)}
+                      />
+                      <NumField
+                        label="Beds"
+                        value={lead.beds ?? null}
+                        onSave={(n) => onUpdate(lead.id, { beds: n } as any)}
+                      />
+                      <NumField
+                        label="Baths"
+                        value={lead.baths ?? null}
+                        step="0.5"
+                        onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
+                      />
+                    </div>
+                    <NumField
+                      label="Sqft"
+                      value={lead.sqft ?? null}
+                      onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
+                    />
+                    <NumField
+                      label="Asking price ($)"
+                      value={lead.asking_price ?? null}
+                      onSave={(n) => onUpdate(lead.id, { asking_price: n } as any)}
+                    />
+                    <NumField
+                      label="Cap rate (%)"
+                      value={lead.listed_cap_rate ?? null}
+                      step="0.01"
+                      onSave={(n) => onUpdate(lead.id, { listed_cap_rate: n } as any)}
+                    />
+                    <NumField
+                      label="Gross income ($)"
+                      value={lead.gross_income ?? null}
+                      onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
+                    />
+                    <NumField
+                      label="NOI ($)"
+                      value={lead.noi ?? null}
+                      onSave={(n) => onUpdate(lead.id, { noi: n } as any)}
+                    />
+                  </section>
+
+                  {/* SOURCE */}
+                  <section className="space-y-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Source
+                    </div>
+                    <ContactPicker
+                      value={lead.source_contact_id ?? null}
+                      onChange={(id, c) => {
+                        onUpdate(lead.id, { source_contact_id: id } as any);
+                        setSourceContactName(
+                          c
+                            ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
+                                c.email ||
+                                null
+                            : null,
+                        );
+                      }}
+                      placeholder="Who sent this?"
+                    />
+                  </section>
 
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
