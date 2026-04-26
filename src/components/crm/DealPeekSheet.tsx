@@ -483,6 +483,15 @@ export function DealPeekSheet({
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    {currentStage?.name === "Under Contract" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => toast({ title: "Coming next", description: "Transaction creation wires up in the next prompt." })}
+                      >
+                        Create Transaction →
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={startNewEmail}
