@@ -521,6 +521,48 @@ export function ContactPeekSheet({
           </>
         )}
       </EntitySheetShell>
+
+      {contact && defaultPipelineId && (
+        <NewDealDialog
+          open={createDealOpen}
+          onOpenChange={setCreateDealOpen}
+          pipelineId={defaultPipelineId}
+          workspaceId={contact.workspace_id}
+          userId={user?.id ?? null}
+          onCreated={async () => {
+            setCreateDealOpen(false);
+            // Refresh linked deals — re-fetch where this contact is primary or source.
+            const { data: deals } = await supabase
+              .from("deals")
+              .select("id,name,stage,status,primary_contact_id,source_contact_id")
+              .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`)
+              .order("created_at", { ascending: false })
+              .limit(25);
+            setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
+            onChanged();
+          }}
+        />
+      )}
+
+      {contact && (
+        <NewLeadDialog
+          open={createLeadOpen}
+          onOpenChange={setCreateLeadOpen}
+          workspaceId={contact.workspace_id}
+          userId={user?.id ?? null}
+          onCreated={async () => {
+            setCreateLeadOpen(false);
+            const { data: leads } = await supabase
+              .from("leads")
+              .select("id,address_line1,status,source_contact_id,created_at")
+              .eq("source_contact_id", contact.id)
+              .order("created_at", { ascending: false })
+              .limit(25);
+            setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+            onChanged();
+          }}
+        />
+      )}
     </>
   );
 }
