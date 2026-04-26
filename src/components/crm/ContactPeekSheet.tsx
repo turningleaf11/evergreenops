@@ -321,47 +321,99 @@ export function ContactPeekSheet({
     onChanged();
   };
 
+  const refreshLinkedDeals = async () => {
+    if (!contactId) return;
+    const [{ data: directDeals }, { data: linkedDealRows }] = await Promise.all([
+      supabase
+        .from("deals")
+        .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
+        .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("entity_links")
+        .select("source_id, deals:source_id(id,title,stage_id,status)")
+        .eq("source_type", "deal")
+        .eq("target_type", "contact")
+        .eq("target_id", contactId)
+        .limit(50),
+    ]);
+    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+    ((directDeals as any[]) || []).forEach((d) =>
+      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status }),
+    );
+    ((linkedDealRows as any[]) || []).forEach((row) => {
+      const d = row.deals;
+      if (d && !dealMap.has(d.id)) {
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+      }
+    });
+    setLinkedDeals(Array.from(dealMap.values()));
+  };
+
+  const refreshLinkedLeads = async () => {
+    if (!contactId) return;
+    const [{ data: directLeads }, { data: linkedLeadRows }] = await Promise.all([
+      supabase
+        .from("leads")
+        .select("id,property_address,status,source_contact_id,created_at")
+        .eq("source_contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("entity_links")
+        .select("source_id, leads:source_id(id,property_address,status)")
+        .eq("source_type", "lead")
+        .eq("target_type", "contact")
+        .eq("target_id", contactId)
+        .limit(50),
+    ]);
+    const leadMap = new Map<string, { id: string; address: string | null; status: string | null }>();
+    ((directLeads as any[]) || []).forEach((l) =>
+      leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status }),
+    );
+    ((linkedLeadRows as any[]) || []).forEach((row) => {
+      const l = row.leads;
+      if (l && !leadMap.has(l.id)) {
+        leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+      }
+    });
+    setLinkedLeads(Array.from(leadMap.values()));
+  };
+
   const linkDeal = async (dealId: string) => {
-    if (!contact) return;
-    const { error } = await supabase
-      .from("deals")
-      .update({ source_contact_id: contact.id })
-      .eq("id", dealId);
+    if (!contact || !user) return;
+    const { error } = await supabase.from("entity_links").insert({
+      source_type: "deal",
+      source_id: dealId,
+      target_type: "contact",
+      target_id: contact.id,
+      created_by: user.id,
+    });
     if (error) {
       toast({ title: "Couldn't link deal", description: error.message, variant: "destructive" });
       return;
     }
-    const { data: d } = await supabase
-      .from("deals")
-      .select("id,title,status")
-      .eq("id", dealId)
-      .maybeSingle();
-    if (d) {
-      const row = d as any;
-      setLinkedDeals((prev) => [{ id: row.id, name: row.title, stage: null, status: row.status }, ...prev]);
-    }
+    await refreshLinkedDeals();
     onChanged();
   };
 
   const linkLead = async (leadId: string) => {
-    if (!contact) return;
-    const { error } = await supabase
-      .from("leads")
-      .update({ source_contact_id: contact.id })
-      .eq("id", leadId);
+    if (!contact || !user) return;
+    // Leads can be linked via source_contact_id (single) or entity_links (many).
+    // Use entity_links to match the multi-contact pattern used by deals.
+    const { error } = await supabase.from("entity_links").insert({
+      source_type: "lead",
+      source_id: leadId,
+      target_type: "contact",
+      target_id: contact.id,
+      created_by: user.id,
+    });
     if (error) {
       toast({ title: "Couldn't link lead", description: error.message, variant: "destructive" });
       return;
     }
-    const { data: l } = await supabase
-      .from("leads")
-      .select("id,property_address,status")
-      .eq("id", leadId)
-      .maybeSingle();
-    if (l) {
-      const row = l as any;
-      setLinkedLeads((prev) => [{ id: row.id, address: row.property_address, status: row.status }, ...prev]);
-    }
+    await refreshLinkedLeads();
     onChanged();
   };
 
