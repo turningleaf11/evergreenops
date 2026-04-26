@@ -210,6 +210,31 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* ── CRM polish utilities ── */
+  .crm-eyebrow {
+    @apply text-[11px] font-semibold uppercase text-muted-foreground;
+    letter-spacing: 0.12em;
+  }
+  .crm-field-label {
+    @apply text-xs text-muted-foreground mb-1 block;
+  }
+  .crm-card {
+    @apply rounded-xl bg-card p-6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid hsl(var(--border) / 0.4);
+  }
+  .crm-card-muted {
+    @apply rounded-xl p-6;
+    background-color: hsl(var(--muted) / 0.4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+  .crm-section-stack > * + * { margin-top: 32px; }
+  .crm-field-stack > * + * { margin-top: 16px; }
+  .crm-empty {
+    @apply italic text-muted-foreground;
+  }
 }
 
 @keyframes subtleGlow {
