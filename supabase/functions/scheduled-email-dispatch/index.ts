@@ -1,10 +1,12 @@
-// Sends scheduled emails whose send_at <= now() via the user's connected Gmail.
-// Triggered by pg_cron every minute (no JWT verification — cron-driven).
+// Sends scheduled emails whose send_at <= now() using the workspace Gmail account.
+// Cron-driven (verify_jwt = false). Mirrors the auth model used by gmail-send.
 import { corsHeaders } from 'https://esm.sh/@supabase/supabase-js@2.95.0/cors';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID');
+const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET');
 
 interface ScheduledRow {
   id: string;
@@ -35,35 +37,27 @@ Deno.serve(async (req) => {
     .order('send_at', { ascending: true })
     .limit(25);
 
-  if (queryError) {
-    return json({ error: queryError.message }, 500);
-  }
+  if (queryError) return json({ error: queryError.message }, 500);
+
+  // Cache resolved Gmail accounts per workspace within this run.
+  const accessTokenCache = new Map<string, { token: string; from: string } | null>();
 
   const results: Array<{ id: string; status: string; error?: string }> = [];
 
   for (const row of (due || []) as ScheduledRow[]) {
     try {
-      // Fetch the sender's Gmail tokens (managed by gmail-* edge functions).
-      const { data: tokens } = await admin
-        .from('gmail_tokens')
-        .select('user_email')
-        .eq('user_id', row.user_id)
-        .maybeSingle();
-
-      if (!tokens) {
-        await admin
-          .from('scheduled_emails')
-          .update({
-            status: 'failed',
-            error: 'No connected Gmail account for sender',
-            attempts: row.attempts + 1,
-          })
-          .eq('id', row.id);
+      let acct = accessTokenCache.get(row.workspace_id);
+      if (acct === undefined) {
+        acct = await resolveWorkspaceGmail(admin, row.workspace_id);
+        accessTokenCache.set(row.workspace_id, acct);
+      }
+      if (!acct) {
+        await markFailed(admin, row, 'Workspace Gmail not connected', true);
         results.push({ id: row.id, status: 'failed', error: 'no_gmail' });
         continue;
       }
 
-      const sendRes = await sendViaGmail(admin, row);
+      const sendRes = await sendViaGmail(acct.token, acct.from, row);
       if (sendRes.ok) {
         await admin
           .from('scheduled_emails')
@@ -76,25 +70,11 @@ Deno.serve(async (req) => {
           .eq('id', row.id);
         results.push({ id: row.id, status: 'sent' });
       } else {
-        await admin
-          .from('scheduled_emails')
-          .update({
-            status: row.attempts + 1 >= 3 ? 'failed' : 'pending',
-            error: sendRes.error,
-            attempts: row.attempts + 1,
-          })
-          .eq('id', row.id);
+        await markFailed(admin, row, sendRes.error, row.attempts + 1 >= 3);
         results.push({ id: row.id, status: 'failed', error: sendRes.error });
       }
     } catch (e) {
-      await admin
-        .from('scheduled_emails')
-        .update({
-          status: row.attempts + 1 >= 3 ? 'failed' : 'pending',
-          error: String((e as Error).message),
-          attempts: row.attempts + 1,
-        })
-        .eq('id', row.id);
+      await markFailed(admin, row, String((e as Error).message), row.attempts + 1 >= 3);
       results.push({ id: row.id, status: 'failed', error: String((e as Error).message) });
     }
   }
@@ -102,39 +82,73 @@ Deno.serve(async (req) => {
   return json({ processed: results.length, results });
 });
 
+async function markFailed(
+  admin: ReturnType<typeof createClient>,
+  row: ScheduledRow,
+  error: string,
+  terminal: boolean,
+) {
+  await admin
+    .from('scheduled_emails')
+    .update({
+      status: terminal ? 'failed' : 'pending',
+      error,
+      attempts: row.attempts + 1,
+    })
+    .eq('id', row.id);
+}
+
+async function resolveWorkspaceGmail(
+  admin: ReturnType<typeof createClient>,
+  workspaceId: string,
+): Promise<{ token: string; from: string } | null> {
+  const { data: account } = await admin
+    .from('gmail_workspace_account')
+    .select('email, refresh_token_secret_id')
+    .eq('workspace_id', workspaceId)
+    .is('revoked_at', null)
+    .maybeSingle();
+  if (!account) return null;
+
+  const { data: tok } = await admin
+    .from('gmail_tokens')
+    .select('refresh_token')
+    .eq('id', account.refresh_token_secret_id as string)
+    .maybeSingle();
+  if (!tok?.refresh_token) return null;
+
+  const accessToken = await refreshAccessToken(tok.refresh_token as string);
+  if (!accessToken) return null;
+  return { token: accessToken, from: account.email as string };
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return null;
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+  if (!r.ok) return null;
+  const t: any = await r.json();
+  return t.access_token ?? null;
+}
+
 interface SendOk { ok: true; id?: string; threadId?: string }
 interface SendErr { ok: false; error: string; id?: undefined; threadId?: undefined }
 
 async function sendViaGmail(
-  admin: ReturnType<typeof createClient>,
+  accessToken: string,
+  fromEmail: string,
   row: ScheduledRow,
 ): Promise<SendOk | SendErr> {
-  // Fetch full token row including refresh_token + access_token + expiry.
-  const { data: tok } = await admin
-    .from('gmail_tokens')
-    .select('access_token,refresh_token,expires_at,user_email')
-    .eq('user_id', row.user_id)
-    .maybeSingle();
-
-  if (!tok?.refresh_token) return { ok: false, error: 'No Gmail refresh token' };
-
-  let accessToken = tok.access_token as string | null;
-  const expiresAt = tok.expires_at ? new Date(tok.expires_at as string).getTime() : 0;
-  if (!accessToken || expiresAt - Date.now() < 60_000) {
-    const refreshed = await refreshAccessToken(tok.refresh_token as string);
-    if (!refreshed.ok) return { ok: false, error: refreshed.error };
-    accessToken = refreshed.access_token;
-    await admin
-      .from('gmail_tokens')
-      .update({
-        access_token: accessToken,
-        expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-      })
-      .eq('user_id', row.user_id);
-  }
-
   const headers: string[] = [
-    `From: ${tok.user_email}`,
+    `From: ${fromEmail}`,
     `To: ${row.to_email}`,
     row.cc ? `Cc: ${row.cc}` : '',
     row.bcc ? `Bcc: ${row.bcc}` : '',
@@ -162,26 +176,6 @@ async function sendViaGmail(
   if (!r.ok) return { ok: false, error: await r.text() };
   const sent: any = await r.json();
   return { ok: true, id: sent.id, threadId: sent.threadId };
-}
-
-async function refreshAccessToken(refreshToken: string):
-  Promise<{ ok: true; access_token: string; expires_in: number } | { ok: false; error: string }> {
-  const clientId = Deno.env.get('GOOGLE_OAUTH_CLIENT_ID');
-  const clientSecret = Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET');
-  if (!clientId || !clientSecret) return { ok: false, error: 'Google OAuth not configured' };
-  const r = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
-  });
-  if (!r.ok) return { ok: false, error: await r.text() };
-  const t: any = await r.json();
-  return { ok: true, access_token: t.access_token, expires_in: t.expires_in ?? 3600 };
 }
 
 function json(body: unknown, status = 200) {
