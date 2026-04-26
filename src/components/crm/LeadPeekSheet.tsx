@@ -94,7 +94,7 @@ interface PersonLite {
   avatar_url?: string | null;
 }
 
-const TEMPS: Array<"cold" | "warm" | "hot"> = ["cold", "warm", "hot"];
+// temperature labels removed from peek; field still exists in schema
 const PLAN_TYPES = [
   { value: "call", label: "Call", icon: Phone },
   { value: "meeting", label: "Meeting", icon: Users },
