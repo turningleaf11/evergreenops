@@ -4190,6 +4190,7 @@ export type Database = {
       }
       scheduled_emails: {
         Row: {
+          account_id: string | null
           attempts: number
           bcc: string | null
           body_html: string
@@ -4210,6 +4211,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          account_id?: string | null
           attempts?: number
           bcc?: string | null
           body_html: string
@@ -4230,6 +4232,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          account_id?: string | null
           attempts?: number
           bcc?: string | null
           body_html?: string
@@ -4249,7 +4252,15 @@ export type Database = {
           user_id?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_emails_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_workspace_account"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scorecard_entries: {
         Row: {
