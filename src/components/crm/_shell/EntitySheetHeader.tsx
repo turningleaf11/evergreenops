@@ -20,6 +20,7 @@ export function EntitySheetHeader({
   actions,
   leading,
   className,
+  titleClassName,
 }: {
   title: string;
   subtitle?: React.ReactNode;
@@ -33,6 +34,8 @@ export function EntitySheetHeader({
   /** Optional leading element (icon) next to the title. */
   leading?: React.ReactNode;
   className?: string;
+  /** Override the default title typography (e.g. larger size for primary entities). */
+  titleClassName?: string;
 }) {
   const showNav = !!(onPrev || onNext);
   return (
@@ -69,9 +72,9 @@ export function EntitySheetHeader({
         )}
         {leading && <div className="mt-1 shrink-0">{leading}</div>}
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold leading-tight truncate">{title}</h2>
+          <h2 className={cn("text-lg font-semibold leading-tight truncate", titleClassName)}>{title}</h2>
           {subtitle && (
-            <div className="text-xs text-muted-foreground truncate mt-0.5">{subtitle}</div>
+            <div className="text-xs text-muted-foreground mt-0.5 min-w-0">{subtitle}</div>
           )}
         </div>
       </div>
