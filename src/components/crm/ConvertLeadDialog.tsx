@@ -24,6 +24,16 @@ interface Lead {
   title: string | null;
   notes: string;
   owner_id: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_zip?: string | null;
+  property_type?: string | null;
+  units?: number | null;
+  asking_price?: number | null;
+  listed_cap_rate?: number | null;
+  noi?: number | null;
+  source_contact_id?: string | null;
 }
 
 interface Pipeline { id: string; name: string; is_default: boolean }
@@ -77,11 +87,16 @@ export function ConvertLeadDialog({
 
   useEffect(() => {
     if (lead && open) {
-      const title = lead.company_name
-        ? `${lead.company_name} — ${lead.name || "New deal"}`
-        : `${lead.name || "New deal"}`;
+      const loc =
+        [lead.property_city, lead.property_state].filter(Boolean).join(", ") || null;
+      const title =
+        lead.property_address
+          ? `${lead.property_address}${loc ? ` (${loc})` : ""}`
+          : lead.company_name
+            ? `${lead.company_name} — ${lead.name || "New deal"}`
+            : `${lead.name || "New deal"}`;
       setDealTitle(title);
-      setValue("0");
+      setValue(lead.asking_price ? String(lead.asking_price) : "0");
     }
   }, [lead, open]);
 
