@@ -796,10 +796,19 @@ export function LeadPeekSheet({
               <Button onClick={() => onOpenDeal(convertedDealId)}>Open deal</Button>
             ) : (
               <Button
-                disabled={isConverted || isArchived}
+                disabled={
+                  isConverted ||
+                  isArchived ||
+                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                }
                 onClick={() => onConvert(lead)}
+                title={
+                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                    ? "Mark as Fits Buy Box or Maybe to enable conversion"
+                    : undefined
+                }
               >
-                Convert to deal <ArrowRight className="h-4 w-4 ml-1" />
+                Convert to Deal <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             )}
           </div>
