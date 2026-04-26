@@ -8,7 +8,7 @@ import { Calendar, User, Flag, ExternalLink, CheckSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import CommentsSection from "@/components/CommentsSection";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 
 interface Props { id: string; open: boolean; onClose: () => void; }
 
@@ -112,7 +112,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
           )}
 
           <div className="pt-3 border-t border-border/40">
-            <CommentsSection entityType="task" entityId={id} />
+            <ActivityPanel entityType="task" entityId={id} />
           </div>
 
           <div className="pt-3 border-t border-border/40">

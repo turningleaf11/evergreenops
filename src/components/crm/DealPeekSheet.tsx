@@ -46,7 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewTransactionDialog } from "./transactions/NewTransactionDialog";
 import { DealOverviewPanel } from "./DealOverviewPanel";
 import { DealUnderwritingTab } from "./DealUnderwritingTab";
-import { DealBrokerCommsTab } from "./DealBrokerCommsTab";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import { DealFilesTab } from "./DealFilesTab";
 
 interface Deal {
@@ -542,7 +542,6 @@ export function DealPeekSheet({
                         {[
                           { v: "overview", label: "Overview" },
                           { v: "underwriting", label: "Underwriting" },
-                          { v: "broker", label: "Broker Comms" },
                           { v: "activity", label: "Activity" },
                           { v: "files", label: "Files" },
                         ].map((t) => (
@@ -572,55 +571,8 @@ export function DealPeekSheet({
                       />
                     </TabsContent>
 
-                    <TabsContent value="broker" className="p-4 mt-0">
-                      <DealBrokerCommsTab
-                        dealId={deal.id}
-                        workspaceId={deal.workspace_id}
-                        initialFeedback={deal.broker_feedback}
-                        initialEntries={
-                          activities
-                            .filter((a) => a.type === "broker_feedback")
-                            .map((a) => ({ id: a.id, body: a.body || "", occurred_at: a.occurred_at }))
-                        }
-                        onChanged={() => { void reload(); onChanged(); }}
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="activity" className="mt-0">
-                      <div className="p-4">
-                        <CrmComposerTabs
-                          onSubmit={handleComposerSubmit}
-                          onSendEmail={startNewEmail}
-                          emailDisabled={contacts.filter((c) => c.email).length === 0}
-                        />
-                      </div>
-                      <div className="px-4">
-                        <ActivityFilterPills
-                          activities={activities}
-                          value={filter}
-                          onChange={setFilter}
-                        />
-                      </div>
-                      <CrmActivityTimeline
-                        activities={activities}
-                        people={people}
-                        filter={filter}
-                        onReply={(a) => {
-                          const meta = a.metadata as any;
-                          const recipient = primaryContact?.email;
-                          if (!recipient) {
-                            toast({ title: "No primary contact email", variant: "destructive" });
-                            return;
-                          }
-                          openCompose({
-                            to: recipient,
-                            subject: a.subject?.toLowerCase().startsWith("re:")
-                              ? a.subject
-                              : `Re: ${a.subject || ""}`,
-                            threadId: meta?.gmail_thread_id,
-                          });
-                        }}
-                      />
+                    <TabsContent value="activity" className="p-4 mt-0">
+                      <ActivityPanel entityType="deal" entityId={deal.id} />
                     </TabsContent>
 
                     <TabsContent value="files" className="p-4 mt-0">

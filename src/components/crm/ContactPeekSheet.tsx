@@ -27,6 +27,7 @@ import {
   ActivityFilterPills,
   type TimelineActivity,
 } from "./CrmActivityTimeline";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
@@ -253,39 +254,8 @@ export function ContactPeekSheet({
 
               <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_280px] min-h-0 overflow-hidden">
                 {/* Main column */}
-                <div className="overflow-auto">
-                  {/* Composer */}
-                  <div className="p-4">
-                    <CrmComposerTabs
-                      onSubmit={handleComposerSubmit}
-                      onSendEmail={() => openCompose({ to: contact.email!, subject: "" })}
-                      emailDisabled={!canEmail}
-                    />
-                  </div>
-
-                  {/* Filter pills + timeline */}
-                  <div className="px-4">
-                    <ActivityFilterPills
-                      activities={activities}
-                      value={filter}
-                      onChange={setFilter}
-                    />
-                  </div>
-                  <CrmActivityTimeline
-                    activities={activities}
-                    people={people}
-                    filter={filter}
-                    onReply={(a) => {
-                      const meta = a.metadata as any;
-                      openCompose({
-                        to: contact.email!,
-                        subject: a.subject?.toLowerCase().startsWith("re:")
-                          ? a.subject
-                          : `Re: ${a.subject || ""}`,
-                        threadId: meta?.gmail_thread_id,
-                      });
-                    }}
-                  />
+                <div className="overflow-auto p-4">
+                  <ActivityPanel entityType="contact" entityId={contact.id} />
                 </div>
 
                 {/* Right rail — integrated, same surface as page */}
