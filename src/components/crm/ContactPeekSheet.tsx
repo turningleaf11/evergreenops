@@ -335,190 +335,33 @@ export function ContactPeekSheet({
         width="wide"
       >
         {contact && (
-          <>
-            <EntitySheetHeader
-              title={fullName}
-              subtitle={subtitleParts.length ? subtitleParts.join(" · ") : undefined}
-              titleClassName="text-[20px] font-semibold"
-              onClose={onClose}
-              actions={
-                <>
-                  <Badge
-                    className="border-transparent font-semibold"
-                    style={{
-                      backgroundColor: `hsl(${typeColor} / 0.15)`,
-                      color: `hsl(${typeColor})`,
-                      borderRadius: 100,
-                      padding: "3px 10px",
-                      fontSize: 11,
-                    }}
-                  >
-                    {typeLabel}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "font-semibold",
-                      contact.is_active === false
-                        ? "text-muted-foreground border-muted-foreground/40"
-                        : "text-brand-mint-deep border-brand-mint/40 bg-brand-mint/10",
-                    )}
-                    style={{ borderRadius: 100, padding: "3px 10px", fontSize: 11 }}
-                  >
-                    {contact.is_active === false ? "Inactive" : "Active"}
-                  </Badge>
-                </>
-              }
-            />
-
-            {composeOpen ? (
-              <InlineEmailComposer
-                defaultTo={composeCtx.to}
-                defaultSubject={composeCtx.subject}
-                threadId={composeCtx.threadId}
-                onClose={() => setComposeOpen(false)}
-                onSent={handleSent}
-              />
-            ) : (
-              <EntityTabs
-                value={tab}
-                onValueChange={(v) => setTab(v)}
-                hide={["deals", "more"]}
-                actions={
-                  <>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={!canEmail}
-                      onClick={() => {
-                        setComposeCtx({ to: contact.email!, subject: "" });
-                        setComposeOpen(true);
-                      }}
-                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-                    >
-                      <Send className="h-3.5 w-3.5" /> Email
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </>
-                }
-              >
-                <EntityTabPanel value="overview" className="p-0 overflow-hidden">
-                  <EntityDetailLayout
-                    main={
-                      <div className="space-y-7">
-                        <ContactDetailsBlock
-                          contact={contact}
-                          companyName={companyName}
-                          onChange={(patch) => setContact({ ...contact, ...patch })}
-                          onCompanyChange={(name) => setCompanyName(name)}
-                          onChanged={onChanged}
-                        />
-                        <ContactNotesBlock
-                          contact={contact}
-                          onSaved={(patch) => setContact({ ...contact, ...patch })}
-                          onChanged={onChanged}
-                        />
-                        <ContactMarketsSection
-                          contact={contact}
-                          onSaved={(patch) => setContact({ ...contact, ...patch })}
-                          onChanged={onChanged}
-                        />
-                        {hasCustomFields && (
-                          <section>
-                            <SectionLabel>Custom fields</SectionLabel>
-                            <CustomFieldsPanel
-                              contactId={contact.id}
-                              values={(contact.custom_fields || {}) as Record<string, unknown>}
-                              onSaved={(v) => setContact({ ...contact, custom_fields: v })}
-                            />
-                          </section>
-                        )}
-                      </div>
-                    }
-                    sidebar={
-                      <ContactSidebar
-                        contact={contact}
-                        companyName={companyName}
-                        deals={linkedDeals}
-                        leads={linkedLeads}
-                        lastContacted={lastContacted}
-                        onUpdate={updateContact}
-                        onChanged={onChanged}
-                        setContact={setContact}
-                        onLinkDeal={linkDeal}
-                        onLinkLead={linkLead}
-                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
-                        onCreateLead={() => setCreateLeadOpen(true)}
-                      />
-                    }
-                  />
-                </EntityTabPanel>
-
-                <EntityTabPanel value="activity" className="p-0 overflow-hidden">
-                  <EntityDetailLayout
-                    mainClassName="overflow-hidden p-6"
-                    mainInnerClassName="!max-w-none !space-y-0 h-full"
-                    main={
-                      <div
-                        className="h-full flex flex-col bg-card rounded-xl overflow-hidden"
-                        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
-                      >
-                        <div className="flex-1 min-h-0 flex flex-col p-5">
-                          <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
-                        </div>
-                      </div>
-                    }
-                    sidebar={
-                      <ContactSidebar
-                        contact={contact}
-                        companyName={companyName}
-                        deals={linkedDeals}
-                        leads={linkedLeads}
-                        lastContacted={lastContacted}
-                        onUpdate={updateContact}
-                        onChanged={onChanged}
-                        setContact={setContact}
-                        onLinkDeal={linkDeal}
-                        onLinkLead={linkLead}
-                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
-                        onCreateLead={() => setCreateLeadOpen(true)}
-                      />
-                    }
-                  />
-                </EntityTabPanel>
-
-                <EntityTabPanel value="files" className="p-0 overflow-hidden">
-                  <EntityDetailLayout
-                    main={
-                      <div className="rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                        <Inbox className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="font-medium text-foreground mb-1">No files yet</p>
-                        <p>File attachments for contacts will appear here.</p>
-                      </div>
-                    }
-                    sidebar={
-                      <ContactSidebar
-                        contact={contact}
-                        companyName={companyName}
-                        deals={linkedDeals}
-                        leads={linkedLeads}
-                        lastContacted={lastContacted}
-                        onUpdate={updateContact}
-                        onChanged={onChanged}
-                        setContact={setContact}
-                        onLinkDeal={linkDeal}
-                        onLinkLead={linkLead}
-                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
-                        onCreateLead={() => setCreateLeadOpen(true)}
-                      />
-                    }
-                  />
-                </EntityTabPanel>
-              </EntityTabs>
-            )}
-          </>
+          <ContactDetailBody
+            contact={contact}
+            companyName={companyName}
+            linkedDeals={linkedDeals}
+            linkedLeads={linkedLeads}
+            lastContacted={lastContacted}
+            tab={tab}
+            setTab={setTab}
+            composeOpen={composeOpen}
+            composeCtx={composeCtx}
+            setComposeOpen={setComposeOpen}
+            setComposeCtx={setComposeCtx}
+            handleSent={handleSent}
+            canEmail={canEmail}
+            fullName={fullName}
+            typeColor={typeColor}
+            typeLabel={typeLabel}
+            updateContact={updateContact}
+            setContact={setContact}
+            setCompanyName={setCompanyName}
+            onChanged={onChanged}
+            linkDeal={linkDeal}
+            linkLead={linkLead}
+            onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
+            onCreateLead={() => setCreateLeadOpen(true)}
+            hasCustomFields={hasCustomFields}
+          />
         )}
       </EntitySheetShell>
 
