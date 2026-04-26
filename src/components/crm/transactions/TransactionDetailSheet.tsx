@@ -468,8 +468,7 @@ export function TransactionDetailSheet({
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+      </EntitySheetShell>
 
       {/* Mark as closed dialog */}
       <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
