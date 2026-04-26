@@ -56,7 +56,7 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
   const reset = () => {
     setName(""); setTemperature("warm");
     setSourceContactId(null); setSourceContactName("");
-    setAddress(""); setCity(""); setState(""); setZip("");
+    setAddress("");
     setPropType(""); setUnits(""); setBeds(""); setBaths(""); setSqft("");
     setAskingPrice(""); setCapRate(""); setGrossIncome(""); setNoi("");
   };
