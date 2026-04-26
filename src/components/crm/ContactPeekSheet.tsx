@@ -193,172 +193,163 @@ export function ContactPeekSheet({
   const isOpen = !!contactId;
   const canEmail = !!contact?.email;
 
+  const isOpen = !!contactId;
+  const canEmail = !!contact?.email;
+  const fullName = contact
+    ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || "Untitled contact"
+    : "";
+
+  const upcomingMeetings = activities.filter(
+    (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
+  );
+
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col">
-          {loading || !contact ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : (
-            <>
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <SheetTitle className="text-xl truncate">
-                      {`${contact.first_name} ${contact.last_name}`.trim() || "Untitled contact"}
-                    </SheetTitle>
-                    <div className="flex items-center gap-2 flex-wrap pt-1">
-                      <Badge
-                        className="text-[10px] border-transparent"
-                        style={{
-                          backgroundColor: `hsl(${contactTypeColor(contact.contact_type)} / 0.15)`,
-                          color: `hsl(${contactTypeColor(contact.contact_type)})`,
-                        }}
-                      >
-                        {contactTypeLabel(contact.contact_type)}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] capitalize"
-                        style={{
-                          borderColor: `hsl(${STATUS_COLOR[contact.status] || "220 12% 60%"})`,
-                          color: `hsl(${STATUS_COLOR[contact.status] || "220 12% 60%"})`,
-                        }}
-                      >
-                        {contact.status}
-                      </Badge>
-                      {contact.is_active === false && (
-                        <Badge variant="outline" className="text-[10px]">
-                          Inactive
-                        </Badge>
-                      )}
-                      {contact.title && (
-                        <span className="text-xs text-muted-foreground">{contact.title}</span>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={!canEmail}
-                    onClick={() => openCompose({ to: contact.email!, subject: "" })}
-                  >
-                    <Send className="h-3.5 w-3.5 mr-1.5" /> New email
-                  </Button>
-                </div>
-              </SheetHeader>
+      <EntitySheetShell
+        open={isOpen}
+        onOpenChange={(v) => !v && onClose()}
+        loading={loading || !contact}
+        width="default"
+      >
+        {contact && (
+          <>
+            <EntitySheetHeader
+              title={fullName}
+              subtitle={contact.title || undefined}
+              onClose={onClose}
+              actions={
+                <Button
+                  size="sm"
+                  disabled={!canEmail}
+                  onClick={() => {
+                    setComposeCtx({ to: contact.email!, subject: "" });
+                    setComposeOpen(true);
+                  }}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
+                </Button>
+              }
+            />
 
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_280px] min-h-0 overflow-hidden">
-                {/* Main column */}
-                <div className="overflow-auto p-4">
-                  <ActivityPanel entityType="contact" entityId={contact.id} />
-                </div>
+            <EntityIdentityStrip
+              owner={
+                <OwnerPicker
+                  ownerId={contact.owner_id}
+                  onChange={async (id) => {
+                    const { error } = await supabase
+                      .from("contacts")
+                      .update({ owner_id: id })
+                      .eq("id", contact.id);
+                    if (error) {
+                      toast({
+                        title: "Couldn't update owner",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setContact({ ...contact, owner_id: id });
+                    onChanged();
+                  }}
+                />
+              }
+              pills={
+                <>
+                  <EntityStatusPill kind="contact_type" value={contact.contact_type ?? "other"} />
+                  <EntityStatusPill kind="contact_status" value={contact.status} variant="outline" />
+                  {contact.is_active === false && (
+                    <EntityStatusPill kind="contact_status" value="inactive" variant="outline" />
+                  )}
+                </>
+              }
+              chips={
+                <>
+                  {contact.email && (
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="inline-flex items-center gap-1 hover:text-primary"
+                    >
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate max-w-[180px]">{contact.email}</span>
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="inline-flex items-center gap-1 hover:text-primary"
+                    >
+                      <Phone className="h-3 w-3" />
+                      {contact.phone}
+                    </a>
+                  )}
+                  {contact.last_contacted_at && (
+                    <span>
+                      Last contacted{" "}
+                      {formatDistanceToNow(new Date(contact.last_contacted_at), {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  )}
+                </>
+              }
+            />
 
-                {/* Right rail — integrated, same surface as page */}
-                <aside className="border-l border-border/40 overflow-auto bg-background">
-                  <div className="p-6 space-y-6">
-                    {/* Contact info */}
-                    <section className="space-y-3">
-                      <div className="crm-eyebrow">Contact info</div>
-                      {contact.email && (
-                        <a
-                          href={`mailto:${contact.email}`}
-                          className="flex items-center gap-2 text-sm text-primary hover:underline"
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                          <span className="truncate">{contact.email}</span>
-                        </a>
-                      )}
-                      {contact.phone && (
-                        <a
-                          href={`tel:${contact.phone}`}
-                          className="flex items-center gap-2 text-sm text-primary hover:underline"
-                        >
-                          <Phone className="h-3.5 w-3.5" />
-                          {contact.phone}
-                        </a>
-                      )}
-                      {contact.last_contacted_at && (
-                        <div className="text-[11px] text-muted-foreground">
-                          Last contacted{" "}
-                          {formatDistanceToNow(new Date(contact.last_contacted_at), {
-                            addSuffix: true,
-                          })}
-                        </div>
-                      )}
-                    </section>
-
-                    {/* Details (type / preferred method / buy box / markets / active) */}
+            <EntityTabs value={tab} onValueChange={setTab}>
+              <EntityTabPanel value="overview">
+                <div className="space-y-6 max-w-2xl">
+                  <section>
+                    <EntitySectionHeader>Details</EntitySectionHeader>
                     <ContactDetailsPanel
                       contact={contact}
                       onSaved={(patch) => setContact({ ...contact, ...patch })}
                       onChanged={onChanged}
                     />
+                  </section>
 
-                    {/* Owner */}
-                    <section>
-                      <OwnerPicker
-                        ownerId={contact.owner_id}
-                        onChange={async (id) => {
-                          const { error } = await supabase
-                            .from("contacts")
-                            .update({ owner_id: id })
-                            .eq("id", contact.id);
-                          if (error) {
-                            toast({
-                              title: "Couldn't update owner",
-                              description: error.message,
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          setContact({ ...contact, owner_id: id });
-                          onChanged();
-                        }}
-                      />
-                    </section>
-
-                    {/* Custom fields */}
+                  <section>
+                    <EntitySectionHeader>Custom fields</EntitySectionHeader>
                     <CustomFieldsPanel
                       contactId={contact.id}
                       values={(contact.custom_fields || {}) as Record<string, unknown>}
                       onSaved={(v) => setContact({ ...contact, custom_fields: v })}
                     />
+                  </section>
 
-                    {/* Appointments */}
-                    <section>
-                      <div className="crm-eyebrow mb-3">Appointments</div>
-                      {(() => {
-                        const upcoming = activities.filter(
-                          (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
-                        );
-                        if (upcoming.length === 0) {
-                          return (
-                            <p className="text-xs text-muted-foreground">No upcoming meetings.</p>
-                          );
-                        }
-                        return (
-                          <ul className="space-y-1.5">
-                            {upcoming.slice(0, 5).map((m) => (
-                              <li key={m.id} className="text-xs">
-                                <div className="font-medium">{m.subject || "Meeting"}</div>
-                                <div className="text-muted-foreground">
-                                  {new Date(m.occurred_at).toLocaleString()}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        );
-                      })()}
-                    </section>
-                  </div>
-                </aside>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+                  <section>
+                    <EntitySectionHeader>Upcoming meetings</EntitySectionHeader>
+                    {upcomingMeetings.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No upcoming meetings.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {upcomingMeetings.slice(0, 5).map((m) => (
+                          <li key={m.id} className="text-xs">
+                            <div className="font-medium">{m.subject || "Meeting"}</div>
+                            <div className="text-muted-foreground">
+                              {new Date(m.occurred_at).toLocaleString()}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                </div>
+              </EntityTabPanel>
+
+              <EntityTabPanel value="activity" className="p-4">
+                <ActivityPanel entityType="contact" entityId={contact.id} />
+              </EntityTabPanel>
+
+              <EntityTabPanel value="files">
+                <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground">
+                  <Inbox className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="font-medium text-foreground mb-1">No files yet</p>
+                  <p>File attachments for contacts will appear here.</p>
+                </div>
+              </EntityTabPanel>
+            </EntityTabs>
+          </>
+        )}
+      </EntitySheetShell>
 
       <ComposeModal
         open={composeOpen}
