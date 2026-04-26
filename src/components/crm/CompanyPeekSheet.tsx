@@ -155,7 +155,7 @@ export function CompanyPeekSheet({
 
           <EntityTabs
             value={tab}
-            onValueChange={setTab}
+            onValueChange={(v) => setTab(v)}
             hide={["more"]}
           >
             <EntityTabPanel value="overview">
