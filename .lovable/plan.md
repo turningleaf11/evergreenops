@@ -1,54 +1,54 @@
-# Lead detail polish: name title, card sidebar, no-pencil auto-save
+# Fix: Gmail send fails with "Edge Function returned non-2xx"
 
-Three small, scoped changes to `src/components/crm/LeadPeekSheet.tsx` (and one tiny CSS tweak). No data changes, no schema changes.
+## What's actually wrong
 
-## 1. Header title = property/lead name, address as subtitle
+The edge function logs show the real error:
 
-Currently the header shows `company_name || lead.name` as title and the lead name as subtitle.
+```
+ERROR refresh failed { "error": "invalid_grant",
+  "error_description": "Token has been expired or revoked." }
+```
 
-Change to:
-- **Title** = `lead.name` (e.g. "Wisteria RV Park")
-- **Subtitle** = `lead.property_address` (e.g. "1234 Cypress Way, Tampa, FL")
+Your Gmail OAuth refresh token has been revoked by Google (this happens when a Google account password changes, the app is removed from "Apps with access", the token sits unused for 6 months, etc.). The app can't send mail until you reconnect Gmail in **Settings → Integrations → Gmail**.
 
-If there's no name, fall back to property_address; if neither, "Untitled lead".
+The bad UX is that the user sees a generic "Edge Function returned a non-2xx status code" toast with no indication of what to do. We'll fix that.
 
-## 2. Remove the cold/warm/hot labels
+## Changes
 
-- Delete the temperature pill button row from the Details section.
-- Remove the now-unused `TEMPS`, `cycleTemp`, and `meta`/`TEMPERATURE_META` reference inside the lead peek (the constant is still imported elsewhere from `FollowUpPicker`, so we just stop using it locally).
-- Field stays in the schema (no migration). Existing values remain untouched.
+### 1. `supabase/functions/_shared/gmail.ts` — return a clear, recognizable error
 
-## 3. Move Source and Added to the bottom of the left rail
+When `refreshAccessToken` returns null (Google rejected the refresh token), return:
+- HTTP **401** (not 500 — this is an auth problem, not a server bug)
+- Body: `{ error: "gmail_reauth_required", message: "Your Gmail connection has expired. Please reconnect your Gmail account." }`
 
-Reorder the left-rail sections to:
+### 2. `src/components/inbox/ComposeModal.tsx` — friendly error + reconnect CTA
 
-1. **Person** card (name, email, phone)
-2. **Organization** card (collapsible, company name)
-3. **Property** card (address, type, units, beds/baths, sqft, pricing) — already its own card
-4. **Owner / Next follow up** card (the two interactive controls left from "Details")
-5. **Source / Added** card (lead source text + source contact picker + created date) — **moved to the bottom**
+In the `send()` handler, when the invoke returns an error:
+- Try to parse the function's response body. If `error === "gmail_reauth_required"` (or the message mentions reauth/expired), show a **destructive toast** with:
+  - Title: "Gmail reconnect required"
+  - Description: "Your Gmail connection expired. Reconnect to keep sending."
+  - Action button: "Reconnect" → navigates to `/settings/integrations/gmail`
+- Otherwise show the existing generic error toast.
 
-## 4. Sidebar sections become distinct cards
+Apply the same treatment in `ComposePanel.tsx` (the inbox composer uses the same edge function).
 
-Wrap each left-rail section in the existing `.crm-card` utility (rounded-xl, padded, subtle border + shadow) instead of running them together as plain stacked sections. Property card already uses `crm-card-muted`; convert it to plain `crm-card` for visual consistency, and bump the gap between cards to 16px (`space-y-4`).
+### 3. No DB / no schema changes
 
-Result: each card visibly stands alone like a stack of small cards down the rail.
+The user's existing `gmail_workspace_account` row stays as-is; reconnecting through the existing OAuth flow will overwrite the stored refresh token.
 
-## 5. Remove the edit pencil — text fields are click-to-edit
+## What the user needs to do after this ships
 
-In the local `InlineText` component:
-- Remove the `Pencil` icon button (and its lucide import).
-- The displayed value (or italic placeholder) becomes the click target itself. Click anywhere on the value to enter edit mode; Enter or blur saves (already implemented); Escape cancels (already implemented).
-- Hover affordance: subtle muted background on hover so users discover the click target.
+1. Open **Settings → Integrations → Gmail**
+2. Click **Disconnect** (if shown) then **Connect Gmail**
+3. Approve the Google OAuth consent screen
+4. Try sending the email from the Lead again
 
-This applies automatically to every field already using `InlineText` (lead name, email, phone, company, source, property address). `NumField`, `Select`, and the contact picker already auto-save with no pencil — no change needed.
+The code change makes step 1 obvious; the actual reconnection has to be done by the user since only they can complete Google's OAuth flow.
 
 ## Files touched
 
-- `src/components/crm/LeadPeekSheet.tsx` — header title, sidebar reorder + cards, temperature removed, `InlineText` simplified
-- (Optional, no CSS change needed — reuses existing `.crm-card` utility)
+- `supabase/functions/_shared/gmail.ts` (1 small return change + redeploy)
+- `src/components/inbox/ComposeModal.tsx` (error parsing + reconnect toast)
+- `src/components/inbox/ComposePanel.tsx` (same)
 
-## Out of scope
-
-- Deal peek sidebar — same treatment can be applied later if you want consistency, but you only asked about Leads.
-- Schema/data — `temperature` column stays; no migration.
+Edge function `gmail-send` will be redeployed automatically since it imports the shared helper.
