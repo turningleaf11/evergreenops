@@ -1,4 +1,4 @@
-import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -78,17 +78,8 @@ export function EntitySheetHeader({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 pr-8">
         {actions}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={onClose}
-          title="Close"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

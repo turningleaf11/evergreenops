@@ -48,6 +48,7 @@ import {
   type EntityTabId,
 } from "./_shell";
 import { cn } from "@/lib/utils";
+import { LinkRecordPopover } from "./LinkRecordPopover";
 
 interface Contact {
   id: string;
@@ -259,6 +260,50 @@ export function ContactPeekSheet({
     onChanged();
   };
 
+  const linkDeal = async (dealId: string) => {
+    if (!contact) return;
+    const { error } = await supabase
+      .from("deals")
+      .update({ source_contact_id: contact.id })
+      .eq("id", dealId);
+    if (error) {
+      toast({ title: "Couldn't link deal", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data: d } = await supabase
+      .from("deals")
+      .select("id,title,status")
+      .eq("id", dealId)
+      .maybeSingle();
+    if (d) {
+      const row = d as any;
+      setLinkedDeals((prev) => [{ id: row.id, name: row.title, stage: null, status: row.status }, ...prev]);
+    }
+    onChanged();
+  };
+
+  const linkLead = async (leadId: string) => {
+    if (!contact) return;
+    const { error } = await supabase
+      .from("leads")
+      .update({ source_contact_id: contact.id })
+      .eq("id", leadId);
+    if (error) {
+      toast({ title: "Couldn't link lead", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data: l } = await supabase
+      .from("leads")
+      .select("id,property_address,status")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (l) {
+      const row = l as any;
+      setLinkedLeads((prev) => [{ id: row.id, address: row.property_address, status: row.status }, ...prev]);
+    }
+    onChanged();
+  };
+
   return (
     <>
       <EntitySheetShell
@@ -374,6 +419,8 @@ export function ContactPeekSheet({
                         onUpdate={updateContact}
                         onChanged={onChanged}
                         setContact={setContact}
+                        onLinkDeal={linkDeal}
+                        onLinkLead={linkLead}
                       />
                     }
                   />
@@ -381,8 +428,10 @@ export function ContactPeekSheet({
 
                 <EntityTabPanel value="activity" className="p-0 overflow-hidden">
                   <EntityDetailLayout
+                    mainClassName="overflow-hidden p-0"
+                    mainInnerClassName="!max-w-none !space-y-0 h-full"
                     main={
-                      <div className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                      <div className="h-full flex flex-col bg-card">
                         <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
                       </div>
                     }
@@ -396,6 +445,8 @@ export function ContactPeekSheet({
                         onUpdate={updateContact}
                         onChanged={onChanged}
                         setContact={setContact}
+                        onLinkDeal={linkDeal}
+                        onLinkLead={linkLead}
                       />
                     }
                   />
@@ -420,6 +471,8 @@ export function ContactPeekSheet({
                         onUpdate={updateContact}
                         onChanged={onChanged}
                         setContact={setContact}
+                        onLinkDeal={linkDeal}
+                        onLinkLead={linkLead}
                       />
                     }
                   />
@@ -445,6 +498,8 @@ function ContactSidebar({
   onUpdate,
   onChanged,
   setContact,
+  onLinkDeal,
+  onLinkLead,
 }: {
   contact: Contact;
   companyName: string | null;
@@ -454,6 +509,8 @@ function ContactSidebar({
   onUpdate: (patch: Partial<Contact>) => Promise<void>;
   onChanged: () => void;
   setContact: (c: Contact) => void;
+  onLinkDeal?: (dealId: string) => Promise<void> | void;
+  onLinkLead?: (leadId: string) => Promise<void> | void;
 }) {
   return (
     <>
@@ -550,7 +607,18 @@ function ContactSidebar({
         )}
       </EntitySidebarSection>
 
-      <EntitySidebarSection title={`Linked deals (${deals.length})`}>
+      <EntitySidebarSection
+        title={`Linked deals (${deals.length})`}
+        action={
+          onLinkDeal ? (
+            <LinkRecordPopover
+              kind="deal"
+              excludeIds={deals.map((d) => d.id)}
+              onPick={(it) => onLinkDeal(it.id)}
+            />
+          ) : undefined
+        }
+      >
         {deals.length === 0 ? (
           <EntityEmpty>No deals linked.</EntityEmpty>
         ) : (
@@ -568,7 +636,18 @@ function ContactSidebar({
         )}
       </EntitySidebarSection>
 
-      <EntitySidebarSection title={`Linked leads (${leads.length})`}>
+      <EntitySidebarSection
+        title={`Linked leads (${leads.length})`}
+        action={
+          onLinkLead ? (
+            <LinkRecordPopover
+              kind="lead"
+              excludeIds={leads.map((l) => l.id)}
+              onPick={(it) => onLinkLead(it.id)}
+            />
+          ) : undefined
+        }
+      >
         {leads.length === 0 ? (
           <EntityEmpty>No leads linked.</EntityEmpty>
         ) : (
