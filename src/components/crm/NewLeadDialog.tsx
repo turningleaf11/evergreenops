@@ -42,9 +42,6 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
 
   // Property
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
   const [propType, setPropType] = useState<string>("");
   const [units, setUnits] = useState("");
   const [beds, setBeds] = useState("");
