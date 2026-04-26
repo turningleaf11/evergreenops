@@ -453,3 +453,184 @@ function CustomFieldsPanel({
     </section>
   );
 }
+
+function ContactDetailsPanel({
+  contact,
+  onSaved,
+  onChanged,
+}: {
+  contact: Contact;
+  onSaved: (patch: Partial<Contact>) => void;
+  onChanged: () => void;
+}) {
+  const [contactType, setContactType] = useState<ContactType>(
+    (contact.contact_type as ContactType) || "other",
+  );
+  const [method, setMethod] = useState<string>(contact.preferred_contact_method || "");
+  const [buyBox, setBuyBox] = useState<string>(contact.buy_box_notes || "");
+  const [markets, setMarkets] = useState<string[]>(contact.markets || []);
+  const [marketDraft, setMarketDraft] = useState("");
+  const [isActive, setIsActive] = useState<boolean>(contact.is_active !== false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setContactType((contact.contact_type as ContactType) || "other");
+    setMethod(contact.preferred_contact_method || "");
+    setBuyBox(contact.buy_box_notes || "");
+    setMarkets(contact.markets || []);
+    setIsActive(contact.is_active !== false);
+  }, [contact.id]);
+
+  const dirty =
+    contactType !== ((contact.contact_type as ContactType) || "other") ||
+    method !== (contact.preferred_contact_method || "") ||
+    buyBox !== (contact.buy_box_notes || "") ||
+    JSON.stringify(markets) !== JSON.stringify(contact.markets || []) ||
+    isActive !== (contact.is_active !== false);
+
+  const addMarket = () => {
+    const v = marketDraft.trim();
+    if (!v) return;
+    if (!markets.includes(v)) setMarkets([...markets, v]);
+    setMarketDraft("");
+  };
+
+  const save = async () => {
+    setSaving(true);
+    const patch = {
+      contact_type: contactType,
+      preferred_contact_method: (method || null) as PreferredContactMethod | null,
+      buy_box_notes: buyBox.trim() || null,
+      markets: markets.length ? markets : null,
+      is_active: isActive,
+    };
+    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onSaved(patch);
+    onChanged();
+  };
+
+  const quickToggleActive = async (next: boolean) => {
+    setIsActive(next);
+    const { error } = await supabase
+      .from("contacts")
+      .update({ is_active: next })
+      .eq("id", contact.id);
+    if (error) {
+      toast({ title: "Couldn't update", description: error.message, variant: "destructive" });
+      setIsActive(!next);
+      return;
+    }
+    onSaved({ is_active: next });
+    onChanged();
+  };
+
+  return (
+    <section className="space-y-3">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Details
+      </div>
+
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Type</Label>
+        <Select value={contactType} onValueChange={(v) => setContactType(v as ContactType)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CONTACT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {CONTACT_TYPE_LABEL[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Preferred contact method</Label>
+        <Select
+          value={method || "_none"}
+          onValueChange={(v) => setMethod(v === "_none" ? "" : v)}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">—</SelectItem>
+            {PREFERRED_CONTACT_METHODS.map((m) => (
+              <SelectItem key={m} value={m} className="capitalize">
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Buy box / notes</Label>
+        <Textarea
+          rows={3}
+          value={buyBox}
+          onChange={(e) => setBuyBox(e.target.value)}
+          className="text-xs"
+          placeholder="Criteria, price range, geographies, etc."
+        />
+      </div>
+
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Markets</Label>
+        <div className="flex gap-1.5">
+          <Input
+            value={marketDraft}
+            onChange={(e) => setMarketDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addMarket();
+              }
+            }}
+            className="h-8 text-xs"
+            placeholder="Add market…"
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addMarket}>
+            Add
+          </Button>
+        </div>
+        {markets.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {markets.map((m) => (
+              <Badge key={m} variant="secondary" className="gap-1 text-[10px]">
+                {m}
+                <button
+                  type="button"
+                  onClick={() => setMarkets(markets.filter((x) => x !== m))}
+                  className="hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs">Active</Label>
+        <Switch checked={isActive} onCheckedChange={quickToggleActive} />
+      </div>
+
+      {dirty && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Save details
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
