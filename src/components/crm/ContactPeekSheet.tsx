@@ -132,7 +132,7 @@ export function ContactPeekSheet({
     let active = true;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: acts }, { data: p }, { data: deals }, { data: leads }] = await Promise.all([
+      const [{ data: c }, { data: acts }, { data: p }, { data: directDeals }, { data: linkedDealRows }, { data: directLeads }, { data: linkedLeadRows }] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", contactId).maybeSingle(),
         supabase
           .from("crm_activities")
@@ -144,24 +144,61 @@ export function ContactPeekSheet({
         supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500),
         supabase
           .from("deals")
-          .select("id,name,stage,status,primary_contact_id,source_contact_id")
+          .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
           .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
           .order("created_at", { ascending: false })
-          .limit(25),
+          .limit(50),
+        supabase
+          .from("entity_links")
+          .select("source_id, deals:source_id(id,title,stage_id,status)")
+          .eq("source_type", "deal")
+          .eq("target_type", "contact")
+          .eq("target_id", contactId)
+          .limit(50),
         supabase
           .from("leads")
-          .select("id,address_line1,status,source_contact_id,created_at")
+          .select("id,property_address,status,source_contact_id,created_at")
           .eq("source_contact_id", contactId)
           .order("created_at", { ascending: false })
-          .limit(25),
+          .limit(50),
+        supabase
+          .from("entity_links")
+          .select("source_id, leads:source_id(id,property_address,status)")
+          .eq("source_type", "lead")
+          .eq("target_type", "contact")
+          .eq("target_id", contactId)
+          .limit(50),
       ]);
       if (!active) return;
       const contactRow = (c as Contact) || null;
       setContact(contactRow);
       setActivities((acts as TimelineActivity[]) || []);
       setPeople((p as Person[]) || []);
-      setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
-      setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+
+      // Merge deals from direct FKs and entity_links, dedupe by id
+      const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+      ((directDeals as any[]) || []).forEach((d) => {
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+      });
+      ((linkedDealRows as any[]) || []).forEach((row) => {
+        const d = row.deals;
+        if (d && !dealMap.has(d.id)) {
+          dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+        }
+      });
+      setLinkedDeals(Array.from(dealMap.values()));
+
+      const leadMap = new Map<string, { id: string; address: string | null; status: string | null }>();
+      ((directLeads as any[]) || []).forEach((l) => {
+        leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+      });
+      ((linkedLeadRows as any[]) || []).forEach((row) => {
+        const l = row.leads;
+        if (l && !leadMap.has(l.id)) {
+          leadMap.set(l.id, { id: l.id, address: l.property_address, status: l.status });
+        }
+      });
+      setLinkedLeads(Array.from(leadMap.values()));
 
       if (contactRow?.company_id) {
         const { data: comp } = await supabase
