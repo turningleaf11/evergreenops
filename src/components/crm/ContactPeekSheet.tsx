@@ -381,8 +381,10 @@ export function ContactPeekSheet({
 
                 <EntityTabPanel value="activity" className="p-0 overflow-hidden">
                   <EntityDetailLayout
+                    mainClassName="overflow-hidden p-0"
+                    mainInnerClassName="!max-w-none !space-y-0 h-full"
                     main={
-                      <div className="rounded-xl bg-card p-5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                      <div className="h-full flex flex-col bg-card">
                         <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
                       </div>
                     }
@@ -396,6 +398,40 @@ export function ContactPeekSheet({
                         onUpdate={updateContact}
                         onChanged={onChanged}
                         setContact={setContact}
+                        onLinkDeal={async (dealId) => {
+                          const { error } = await supabase
+                            .from("deals")
+                            .update({ source_contact_id: contact.id })
+                            .eq("id", dealId);
+                          if (error) {
+                            toast({ title: "Couldn't link deal", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          const { data: d } = await supabase
+                            .from("deals")
+                            .select("id,name,stage,status")
+                            .eq("id", dealId)
+                            .maybeSingle();
+                          if (d) setLinkedDeals((prev) => [{ id: d.id, name: (d as any).name, stage: (d as any).stage, status: (d as any).status }, ...prev]);
+                          onChanged();
+                        }}
+                        onLinkLead={async (leadId) => {
+                          const { error } = await supabase
+                            .from("leads")
+                            .update({ source_contact_id: contact.id })
+                            .eq("id", leadId);
+                          if (error) {
+                            toast({ title: "Couldn't link lead", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          const { data: l } = await supabase
+                            .from("leads")
+                            .select("id,address_line1,status")
+                            .eq("id", leadId)
+                            .maybeSingle();
+                          if (l) setLinkedLeads((prev) => [{ id: l.id, address: (l as any).address_line1, status: (l as any).status }, ...prev]);
+                          onChanged();
+                        }}
                       />
                     }
                   />
