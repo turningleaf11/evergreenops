@@ -70,9 +70,29 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
 
   const fetchAll = useCallback(async () => {
     const [{ data: c }, { data: e }] = await Promise.all([
+  const [crmActs, setCrmActs] = useState<CrmActivity[]>([]);
+  const isCrmEntity = CRM_ENTITY_TYPES.has(entityType);
+
+  const fetchAll = useCallback(async () => {
+    const queries: Promise<any>[] = [
       supabase.from("comments").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }),
       supabase.from("entity_activity").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at", { ascending: true }).limit(100),
-    ]);
+    ];
+    if (isCrmEntity) {
+      queries.push(
+        supabase.from("crm_activities")
+          .select("id,type,subject,body,occurred_at,actor_id,metadata")
+          .eq("entity_type", entityType)
+          .eq("entity_id", entityId)
+          .order("occurred_at", { ascending: true })
+          .limit(200)
+      );
+    }
+    const results = await Promise.all(queries);
+    const c = results[0].data;
+    const e = results[1].data;
+    const ca = isCrmEntity ? results[2].data : [];
+
     const normalizedC = ((c as any[]) || []).map((x) => ({
       ...x,
       attachments: Array.isArray(x.attachments) ? x.attachments : [],
@@ -80,10 +100,12 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     })) as Comment[];
     setComments(normalizedC);
     setEvents((e as ActivityEvent[]) || []);
+    setCrmActs((ca as CrmActivity[]) || []);
 
     const ids = new Set<string>();
     normalizedC.forEach((c) => ids.add(c.author_id));
     ((e as ActivityEvent[]) || []).forEach((ev) => { if (ev.actor_id) ids.add(ev.actor_id); });
+    ((ca as CrmActivity[]) || []).forEach((a) => { if (a.actor_id) ids.add(a.actor_id); });
     if (ids.size > 0) {
       const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", Array.from(ids));
       if (profs) {
@@ -92,7 +114,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
         setProfiles(map);
       }
     }
-  }, [entityType, entityId]);
+  }, [entityType, entityId, isCrmEntity]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -102,6 +124,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       .channel(`activity-${entityType}-${entityId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${entityId}` }, () => fetchAll())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [entityType, entityId, fetchAll]);
