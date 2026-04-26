@@ -223,7 +223,10 @@ export function LeadsList({ search }: { search: string }) {
               <div
                 key={l.id}
                 onClick={() => setOpenLead(l)}
-                className="px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer border-l-4",
+                  BUY_BOX_BORDER[l.buy_box_fit ?? "unchecked"] || BUY_BOX_BORDER.unchecked,
+                )}
               >
                 <div className="flex items-start gap-3">
                   {/* Temp chip */}
