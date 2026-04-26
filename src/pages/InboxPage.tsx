@@ -103,6 +103,11 @@ export default function InboxPage() {
     setLoading(true);
     const params = new URLSearchParams({ folder });
     if (search) params.set("q", search);
+    if (accountFilter === "all") {
+      params.set("account_id", "all");
+    } else if (accountFilter !== "default") {
+      params.set("account_id", accountFilter);
+    }
     const { data, error } = await supabase.functions.invoke(`gmail-list-threads?${params}`, {
       method: "GET",
     } as any);
@@ -113,7 +118,7 @@ export default function InboxPage() {
   useEffect(() => {
     if (hasAccess) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAccess, folder]);
+  }, [hasAccess, folder, accountFilter]);
 
   const headerTitle = useMemo(() => {
     if (activeLabel?.startsWith("db:")) {
