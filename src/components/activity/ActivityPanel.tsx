@@ -10,6 +10,8 @@ import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer
 import { AttachmentChips, type CommentAttachment } from "@/components/shared/RichCommentInput";
 import { CommentReactions } from "@/components/shared/CommentReactions";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { handleGmailInvokeError } from "@/lib/gmail-error";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
@@ -310,6 +312,56 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     const [thread, setThread] = useState<any[] | null>(null);
     const [loadingThread, setLoadingThread] = useState(false);
     const [openMsgIdx, setOpenMsgIdx] = useState<number | null>(null);
+    const [replyOpen, setReplyOpen] = useState(false);
+    const [replyText, setReplyText] = useState("");
+    const [sendingReply, setSendingReply] = useState(false);
+
+    const lastMsg = thread && thread.length ? thread[thread.length - 1] : null;
+    const replyTo = (() => {
+      const fromHdr = lastMsg?.headers?.from || "";
+      const m = fromHdr.match(/<([^>]+)>/);
+      return m ? m[1] : fromHdr.trim();
+    })();
+    const replySubject = (() => {
+      const s = a.subject || lastMsg?.headers?.subject || "";
+      return s.toLowerCase().startsWith("re:") ? s : `Re: ${s}`.trim();
+    })();
+    const inReplyToHeader = lastMsg?.headers?.["message-id"] as string | undefined;
+
+    const sendReply = async () => {
+      if (!replyText.trim() || !threadId) return;
+      if (!replyTo) {
+        toast.error("Couldn't determine recipient");
+        return;
+      }
+      setSendingReply(true);
+      const html = replyText
+        .split("\n")
+        .map((l) => `<div>${l ? l.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "<br/>"}</div>`)
+        .join("");
+      const { error } = await supabase.functions.invoke("gmail-send", {
+        body: {
+          to: replyTo,
+          subject: replySubject,
+          body: html,
+          threadId,
+          inReplyTo: inReplyToHeader,
+        },
+      });
+      setSendingReply(false);
+      if (error) {
+        const handled = await handleGmailInvokeError(error);
+        if (!handled) toast.error(error.message || "Failed to send");
+        return;
+      }
+      toast.success("Reply sent");
+      setReplyText("");
+      setReplyOpen(false);
+      // Refetch thread so the new message shows
+      setThread(null);
+      setTimeout(() => loadThread(), 400);
+    };
+
 
     const loadThread = useCallback(async () => {
       if (!threadId || thread || loadingThread) return;
@@ -390,12 +442,18 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
             </div>
             {isEmail && (
               <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                {threadId && onReplyEmail && (
+                {threadId && (
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-6 px-2 text-[11px]"
-                    onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
+                    onClick={() => {
+                      if (!expanded) {
+                        setExpanded(true);
+                        if (!thread) loadThread();
+                      }
+                      setReplyOpen(true);
+                    }}
                   >
                     <Reply className="h-3 w-3 mr-1" /> Reply
                   </Button>
@@ -470,16 +528,57 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                       </div>
                     );
                   })}
-                  {onReplyEmail && threadId && (
-                    <div className="p-2 flex justify-end bg-muted/20">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        onClick={() => onReplyEmail({ threadId, subject: a.subject || "" })}
-                      >
-                        <Reply className="h-3 w-3 mr-1" /> Reply
-                      </Button>
+                  {threadId && (
+                    <div className="bg-muted/20 border-t border-border/40">
+                      {!replyOpen ? (
+                        <div className="p-2 flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setReplyOpen(true)}
+                          >
+                            <Reply className="h-3 w-3 mr-1" /> Reply
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-2">
+                          <div className="text-[11px] text-muted-foreground">
+                            Reply to <span className="font-medium text-foreground">{replyTo || "—"}</span>
+                          </div>
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write a reply…"
+                            rows={4}
+                            className="resize-y text-sm bg-background"
+                            autoFocus
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs"
+                              onClick={() => { setReplyOpen(false); setReplyText(""); }}
+                              disabled={sendingReply}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={sendReply}
+                              disabled={sendingReply || !replyText.trim() || !replyTo}
+                            >
+                              {sendingReply ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending…</>
+                              ) : (
+                                <><Reply className="h-3 w-3 mr-1" /> Send reply</>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
