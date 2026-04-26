@@ -133,6 +133,9 @@ export default function CrmPage() {
         <TabsContent value="deals" className="flex-1 min-h-0 overflow-auto m-0">
           <DealsKanban search={search} />
         </TabsContent>
+        <TabsContent value="transactions" className="flex-1 min-h-0 overflow-auto m-0">
+          <TransactionsList search={search} />
+        </TabsContent>
       </Tabs>
 
       <ContactPeekSheet
