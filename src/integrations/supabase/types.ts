@@ -1840,6 +1840,42 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body_html: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          body_html?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          subject?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          body_html?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       entity_activity: {
         Row: {
           action: string
@@ -3708,6 +3744,69 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_emails: {
+        Row: {
+          attempts: number
+          bcc: string | null
+          body_html: string
+          cc: string | null
+          created_at: string
+          error: string | null
+          id: string
+          in_reply_to: string | null
+          send_at: string
+          sent_message_id: string | null
+          sent_thread_id: string | null
+          status: string
+          subject: string
+          thread_id: string | null
+          to_email: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          attempts?: number
+          bcc?: string | null
+          body_html: string
+          cc?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          in_reply_to?: string | null
+          send_at: string
+          sent_message_id?: string | null
+          sent_thread_id?: string | null
+          status?: string
+          subject: string
+          thread_id?: string | null
+          to_email: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          attempts?: number
+          bcc?: string | null
+          body_html?: string
+          cc?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          in_reply_to?: string | null
+          send_at?: string
+          sent_message_id?: string | null
+          sent_thread_id?: string | null
+          status?: string
+          subject?: string
+          thread_id?: string | null
+          to_email?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
         }
         Relationships: []
       }
