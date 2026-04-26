@@ -1478,6 +1478,8 @@ export type Database = {
       }
       deals: {
         Row: {
+          asking_price: number | null
+          broker_feedback: string | null
           company_id: string | null
           created_at: string
           created_by: string | null
@@ -1485,22 +1487,53 @@ export type Database = {
           custom_fields: Json
           department_id: string | null
           description: string
+          disposition_strategy: string | null
+          effective_gross_income: number | null
           expected_close_date: string | null
+          gross_income: number | null
           id: string
+          lane: string
+          lead_id: string | null
+          listed_cap_rate: number | null
+          loi_amount: number | null
+          loi_date: string | null
           lost_reason: string | null
+          mao: number | null
+          noi: number | null
+          operating_expenses: number | null
+          our_cap_rate: number | null
+          our_value: number | null
           owner_id: string | null
           pipeline_id: string
+          price_per_sqft: number | null
+          price_per_unit: number | null
           primary_contact_id: string | null
           probability: number
+          property_address: string | null
+          property_city: string | null
+          property_state: string | null
+          property_type: string | null
+          property_zip: string | null
+          quick_arv: number | null
+          repair_estimate: number | null
+          seller_stated_value: number | null
+          source_contact_id: string | null
+          spread: number | null
+          sqft: number | null
+          stage_entered_at: string | null
           stage_id: string
           status: string
           tags: string[]
           title: string
+          units: number | null
           updated_at: string
+          vacancy_rate: number | null
           value: number
           workspace_id: string | null
         }
         Insert: {
+          asking_price?: number | null
+          broker_feedback?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1508,22 +1541,53 @@ export type Database = {
           custom_fields?: Json
           department_id?: string | null
           description?: string
+          disposition_strategy?: string | null
+          effective_gross_income?: number | null
           expected_close_date?: string | null
+          gross_income?: number | null
           id?: string
+          lane?: string
+          lead_id?: string | null
+          listed_cap_rate?: number | null
+          loi_amount?: number | null
+          loi_date?: string | null
           lost_reason?: string | null
+          mao?: number | null
+          noi?: number | null
+          operating_expenses?: number | null
+          our_cap_rate?: number | null
+          our_value?: number | null
           owner_id?: string | null
           pipeline_id: string
+          price_per_sqft?: number | null
+          price_per_unit?: number | null
           primary_contact_id?: string | null
           probability?: number
+          property_address?: string | null
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          property_zip?: string | null
+          quick_arv?: number | null
+          repair_estimate?: number | null
+          seller_stated_value?: number | null
+          source_contact_id?: string | null
+          spread?: number | null
+          sqft?: number | null
+          stage_entered_at?: string | null
           stage_id: string
           status?: string
           tags?: string[]
           title: string
+          units?: number | null
           updated_at?: string
+          vacancy_rate?: number | null
           value?: number
           workspace_id?: string | null
         }
         Update: {
+          asking_price?: number | null
+          broker_feedback?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1531,18 +1595,47 @@ export type Database = {
           custom_fields?: Json
           department_id?: string | null
           description?: string
+          disposition_strategy?: string | null
+          effective_gross_income?: number | null
           expected_close_date?: string | null
+          gross_income?: number | null
           id?: string
+          lane?: string
+          lead_id?: string | null
+          listed_cap_rate?: number | null
+          loi_amount?: number | null
+          loi_date?: string | null
           lost_reason?: string | null
+          mao?: number | null
+          noi?: number | null
+          operating_expenses?: number | null
+          our_cap_rate?: number | null
+          our_value?: number | null
           owner_id?: string | null
           pipeline_id?: string
+          price_per_sqft?: number | null
+          price_per_unit?: number | null
           primary_contact_id?: string | null
           probability?: number
+          property_address?: string | null
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          property_zip?: string | null
+          quick_arv?: number | null
+          repair_estimate?: number | null
+          seller_stated_value?: number | null
+          source_contact_id?: string | null
+          spread?: number | null
+          sqft?: number | null
+          stage_entered_at?: string | null
           stage_id?: string
           status?: string
           tags?: string[]
           title?: string
+          units?: number | null
           updated_at?: string
+          vacancy_rate?: number | null
           value?: number
           workspace_id?: string | null
         }
@@ -1555,6 +1648,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deals_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
@@ -1564,6 +1664,13 @@ export type Database = {
           {
             foreignKeyName: "deals_primary_contact_id_fkey"
             columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_source_contact_id_fkey"
+            columns: ["source_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
