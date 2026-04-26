@@ -19,6 +19,7 @@ import {
   Calendar as CalendarIcon,
   Paperclip,
   Home,
+  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
