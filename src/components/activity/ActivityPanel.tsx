@@ -160,12 +160,13 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   const stream = useMemo(() => {
     const topComments = comments.filter((c) => !c.parent_id).map((c) => ({ kind: "comment" as const, at: c.created_at, comment: c }));
     const evs = events.map((e) => ({ kind: "event" as const, at: e.created_at, event: e }));
-    let merged: Array<typeof topComments[number] | typeof evs[number]> = [];
+    const crm = crmActs.map((a) => ({ kind: "crm" as const, at: a.occurred_at, crm: a }));
+    let merged: Array<typeof topComments[number] | typeof evs[number] | typeof crm[number]> = [];
     if (filter === "comments") merged = topComments;
-    else if (filter === "activity") merged = evs;
-    else merged = [...topComments, ...evs];
+    else if (filter === "activity") merged = [...evs, ...crm];
+    else merged = [...topComments, ...evs, ...crm];
     return merged.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  }, [comments, events, filter]);
+  }, [comments, events, crmActs, filter]);
 
   const repliesFor = (id: string) => comments.filter((c) => c.parent_id === id);
 
