@@ -522,30 +522,13 @@ export function LeadPeekSheet({
                     <div className="crm-eyebrow flex items-center gap-1.5">
                       <Home className="h-3 w-3" /> Property
                     </div>
-                    <FieldRow icon="📍">
+                    <FieldRow icon={<MapPin className="h-3.5 w-3.5" />}>
                       <InlineText
                         value={lead.property_address ?? null}
-                        placeholder="Address"
+                        placeholder="Full property address"
                         onSave={(v) => onUpdate(lead.id, { property_address: v } as any)}
                       />
                     </FieldRow>
-                    <div className="grid grid-cols-3 gap-1">
-                      <InlineText
-                        value={lead.property_city ?? null}
-                        placeholder="City"
-                        onSave={(v) => onUpdate(lead.id, { property_city: v } as any)}
-                      />
-                      <InlineText
-                        value={lead.property_state ?? null}
-                        placeholder="ST"
-                        onSave={(v) => onUpdate(lead.id, { property_state: v } as any)}
-                      />
-                      <InlineText
-                        value={lead.property_zip ?? null}
-                        placeholder="Zip"
-                        onSave={(v) => onUpdate(lead.id, { property_zip: v } as any)}
-                      />
-                    </div>
                     <DetailRow icon="🏷" label="Type">
                       <Select
                         value={lead.property_type ?? ""}
