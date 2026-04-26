@@ -260,6 +260,50 @@ export function ContactPeekSheet({
     onChanged();
   };
 
+  const linkDeal = async (dealId: string) => {
+    if (!contact) return;
+    const { error } = await supabase
+      .from("deals")
+      .update({ source_contact_id: contact.id })
+      .eq("id", dealId);
+    if (error) {
+      toast({ title: "Couldn't link deal", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data: d } = await supabase
+      .from("deals")
+      .select("id,title,status")
+      .eq("id", dealId)
+      .maybeSingle();
+    if (d) {
+      const row = d as any;
+      setLinkedDeals((prev) => [{ id: row.id, name: row.title, stage: null, status: row.status }, ...prev]);
+    }
+    onChanged();
+  };
+
+  const linkLead = async (leadId: string) => {
+    if (!contact) return;
+    const { error } = await supabase
+      .from("leads")
+      .update({ source_contact_id: contact.id })
+      .eq("id", leadId);
+    if (error) {
+      toast({ title: "Couldn't link lead", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data: l } = await supabase
+      .from("leads")
+      .select("id,property_address,status")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (l) {
+      const row = l as any;
+      setLinkedLeads((prev) => [{ id: row.id, address: row.property_address, status: row.status }, ...prev]);
+    }
+    onChanged();
+  };
+
   return (
     <>
       <EntitySheetShell
