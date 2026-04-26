@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone, Send, X, Inbox, Briefcase, Sparkles, Clock, ExternalLink } from "lucide-react";
+import { Loader2, Mail, Phone, Send, X, Inbox, Briefcase, Sparkles, ExternalLink, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ import ActivityPanel from "@/components/activity/ActivityPanel";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
+  CONTACT_TYPE_COLOR,
   PREFERRED_CONTACT_METHODS,
   type ContactType,
   type PreferredContactMethod,
@@ -39,8 +41,13 @@ import {
   EntitySectionHeader,
   EntityTabs,
   EntityTabPanel,
+  EntityDetailLayout,
+  EntitySidebarSection,
+  EntitySidebarField,
+  EntityEmpty,
   type EntityTabId,
 } from "./_shell";
+import { cn } from "@/lib/utils";
 
 interface Contact {
   id: string;
