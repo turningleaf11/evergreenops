@@ -310,7 +310,23 @@ export function ContactPeekSheet({
               }
             />
 
-            <EntityTabs value={tab} onValueChange={setTab}>
+            <EntityTabs
+              value={tab}
+              onValueChange={setTab}
+              hide={["more"]}
+              actions={
+                <Button
+                  size="sm"
+                  disabled={!canEmail}
+                  onClick={() => {
+                    setComposeCtx({ to: contact.email!, subject: "" });
+                    setComposeOpen(true);
+                  }}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
+                </Button>
+              }
+            >
               <EntityTabPanel value="overview">
                 <div className="space-y-7">
                   <ContactInfoGrid
