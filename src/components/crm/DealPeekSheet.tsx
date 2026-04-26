@@ -798,10 +798,9 @@ export function DealPeekSheet({
                   </div>
                 </aside>
               </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+          </>
+        )}
+      </EntitySheetShell>
 
       {/* Recipient picker dialog */}
       <Dialog open={recipientPickerOpen} onOpenChange={setRecipientPickerOpen}>
