@@ -37,6 +37,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
+import { handleGmailInvokeError } from "@/lib/gmail-error";
 
 interface SendResult {
   threadId?: string;
