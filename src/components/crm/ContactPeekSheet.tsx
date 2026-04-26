@@ -51,6 +51,8 @@ import {
 import { cn } from "@/lib/utils";
 import { LinkRecordPopover } from "./LinkRecordPopover";
 import { EditableLineField } from "./EditableLineField";
+import { NewDealDialog } from "./NewDealDialog";
+import { NewLeadDialog } from "./NewLeadDialog";
 
 interface Contact {
   id: string;
@@ -94,6 +96,9 @@ export function ContactPeekSheet({
   const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null }>>([]);
   const [linkedLeads, setLinkedLeads] = useState<Array<{ id: string; address: string | null; status: string | null }>>([]);
   const [tab, setTab] = useState<EntityTabId>("overview");
+  const [createDealOpen, setCreateDealOpen] = useState(false);
+  const [createLeadOpen, setCreateLeadOpen] = useState(false);
+  const [defaultPipelineId, setDefaultPipelineId] = useState<string | null>(null);
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeCtx, setComposeCtx] = useState<{ to: string; subject: string; threadId?: string }>({
@@ -170,6 +175,21 @@ export function ContactPeekSheet({
     })();
     return () => { active = false; };
   }, [contactId]);
+
+  // Load the default pipeline once so we can offer "+ Create new deal" from this sheet.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("pipelines")
+        .select("id")
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (active) setDefaultPipelineId((data as any)?.id ?? null);
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleComposerSubmit = async (payload: ComposerSubmit) => {
     if (!contact || !user) return;
@@ -347,21 +367,6 @@ export function ContactPeekSheet({
                   >
                     {contact.is_active === false ? "Inactive" : "Active"}
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canEmail}
-                    onClick={() => {
-                      setComposeCtx({ to: contact.email!, subject: "" });
-                      setComposeOpen(true);
-                    }}
-                    className="h-8 gap-1.5"
-                  >
-                    <Send className="h-3.5 w-3.5" /> Email
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                  </Button>
                 </>
               }
             />
@@ -379,6 +384,25 @@ export function ContactPeekSheet({
                 value={tab}
                 onValueChange={(v) => setTab(v)}
                 hide={["deals", "more"]}
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!canEmail}
+                      onClick={() => {
+                        setComposeCtx({ to: contact.email!, subject: "" });
+                        setComposeOpen(true);
+                      }}
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Send className="h-3.5 w-3.5" /> Email
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                }
               >
                 <EntityTabPanel value="overview" className="p-0 overflow-hidden">
                   <EntityDetailLayout
@@ -425,6 +449,8 @@ export function ContactPeekSheet({
                         setContact={setContact}
                         onLinkDeal={linkDeal}
                         onLinkLead={linkLead}
+                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
+                        onCreateLead={() => setCreateLeadOpen(true)}
                       />
                     }
                   />
@@ -456,6 +482,8 @@ export function ContactPeekSheet({
                         setContact={setContact}
                         onLinkDeal={linkDeal}
                         onLinkLead={linkLead}
+                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
+                        onCreateLead={() => setCreateLeadOpen(true)}
                       />
                     }
                   />
@@ -482,6 +510,8 @@ export function ContactPeekSheet({
                         setContact={setContact}
                         onLinkDeal={linkDeal}
                         onLinkLead={linkLead}
+                        onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
+                        onCreateLead={() => setCreateLeadOpen(true)}
                       />
                     }
                   />
@@ -491,6 +521,48 @@ export function ContactPeekSheet({
           </>
         )}
       </EntitySheetShell>
+
+      {contact && defaultPipelineId && (
+        <NewDealDialog
+          open={createDealOpen}
+          onOpenChange={setCreateDealOpen}
+          pipelineId={defaultPipelineId}
+          workspaceId={contact.workspace_id}
+          userId={user?.id ?? null}
+          onCreated={async () => {
+            setCreateDealOpen(false);
+            // Refresh linked deals — re-fetch where this contact is primary or source.
+            const { data: deals } = await supabase
+              .from("deals")
+              .select("id,name,stage,status,primary_contact_id,source_contact_id")
+              .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`)
+              .order("created_at", { ascending: false })
+              .limit(25);
+            setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
+            onChanged();
+          }}
+        />
+      )}
+
+      {contact && (
+        <NewLeadDialog
+          open={createLeadOpen}
+          onOpenChange={setCreateLeadOpen}
+          workspaceId={contact.workspace_id}
+          userId={user?.id ?? null}
+          onCreated={async () => {
+            setCreateLeadOpen(false);
+            const { data: leads } = await supabase
+              .from("leads")
+              .select("id,address_line1,status,source_contact_id,created_at")
+              .eq("source_contact_id", contact.id)
+              .order("created_at", { ascending: false })
+              .limit(25);
+            setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+            onChanged();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -509,6 +581,8 @@ function ContactSidebar({
   setContact,
   onLinkDeal,
   onLinkLead,
+  onCreateDeal,
+  onCreateLead,
 }: {
   contact: Contact;
   companyName: string | null;
@@ -520,6 +594,8 @@ function ContactSidebar({
   setContact: (c: Contact) => void;
   onLinkDeal?: (dealId: string) => Promise<void> | void;
   onLinkLead?: (leadId: string) => Promise<void> | void;
+  onCreateDeal?: () => void;
+  onCreateLead?: () => void;
 }) {
   return (
     <>
@@ -585,6 +661,7 @@ function ContactSidebar({
               kind="deal"
               excludeIds={deals.map((d) => d.id)}
               onPick={(it) => onLinkDeal(it.id)}
+              onCreate={onCreateDeal}
             />
           ) : undefined
         }
@@ -595,6 +672,7 @@ function ContactSidebar({
               kind="deal"
               excludeIds={[]}
               onPick={(it) => onLinkDeal(it.id)}
+              onCreate={onCreateDeal}
               triggerLabel="Link deal"
             />
           ) : (
@@ -623,6 +701,7 @@ function ContactSidebar({
               kind="lead"
               excludeIds={leads.map((l) => l.id)}
               onPick={(it) => onLinkLead(it.id)}
+              onCreate={onCreateLead}
             />
           ) : undefined
         }
@@ -633,6 +712,7 @@ function ContactSidebar({
               kind="lead"
               excludeIds={[]}
               onPick={(it) => onLinkLead(it.id)}
+              onCreate={onCreateLead}
               triggerLabel="Link lead"
             />
           ) : (
