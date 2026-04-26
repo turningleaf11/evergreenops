@@ -107,12 +107,15 @@ export function ContactPeekSheet({
     if (!contactId) {
       setContact(null);
       setActivities([]);
+      setLinkedDeals([]);
+      setLinkedLeads([]);
+      setCompanyName(null);
       return;
     }
     let active = true;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: acts }, { data: p }] = await Promise.all([
+      const [{ data: c }, { data: acts }, { data: p }, { data: deals }, { data: leads }] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", contactId).maybeSingle(),
         supabase
           .from("crm_activities")
@@ -122,11 +125,37 @@ export function ContactPeekSheet({
           .order("occurred_at", { ascending: false })
           .limit(200),
         supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500),
+        supabase
+          .from("deals")
+          .select("id,name,stage,status,primary_contact_id,source_contact_id")
+          .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
+          .order("created_at", { ascending: false })
+          .limit(25),
+        supabase
+          .from("leads")
+          .select("id,address_line1,status,source_contact_id,created_at")
+          .eq("source_contact_id", contactId)
+          .order("created_at", { ascending: false })
+          .limit(25),
       ]);
       if (!active) return;
-      setContact((c as Contact) || null);
+      const contactRow = (c as Contact) || null;
+      setContact(contactRow);
       setActivities((acts as TimelineActivity[]) || []);
       setPeople((p as Person[]) || []);
+      setLinkedDeals(((deals as any[]) || []).map((d) => ({ id: d.id, name: d.name, stage: d.stage, status: d.status })));
+      setLinkedLeads(((leads as any[]) || []).map((l) => ({ id: l.id, address: l.address_line1, status: l.status })));
+
+      if (contactRow?.company_id) {
+        const { data: comp } = await supabase
+          .from("companies")
+          .select("name")
+          .eq("id", contactRow.company_id)
+          .maybeSingle();
+        if (active) setCompanyName((comp as any)?.name ?? null);
+      } else {
+        setCompanyName(null);
+      }
       setLoading(false);
     })();
     return () => { active = false; };
