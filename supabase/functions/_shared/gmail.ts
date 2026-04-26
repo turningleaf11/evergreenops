@@ -72,7 +72,15 @@ export async function getGmailContext(req: Request): Promise<{ ctx?: GmailContex
 
   const accessToken = await refreshAccessToken(tok.refresh_token);
   if (!accessToken) {
-    return { error: { status: 500, body: { error: 'Token refresh failed' } } };
+    return {
+      error: {
+        status: 401,
+        body: {
+          error: 'gmail_reauth_required',
+          message: 'Your Gmail connection has expired. Please reconnect your Gmail account.',
+        },
+      },
+    };
   }
 
   return {
