@@ -56,7 +56,8 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
     });
     setSending(false);
     if (error) {
-      toast.error(error.message);
+      const handled = await handleGmailInvokeError(error);
+      if (!handled) toast.error(error.message);
     } else {
       toast.success("Message sent");
       setTo(""); setSubject(""); setBody(""); setAttachments([]);
