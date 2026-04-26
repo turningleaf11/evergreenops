@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
+import { handleGmailInvokeError } from "@/lib/gmail-error";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -55,7 +56,8 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
     });
     setSending(false);
     if (error) {
-      toast.error(error.message);
+      const handled = await handleGmailInvokeError(error);
+      if (!handled) toast.error(error.message);
     } else {
       toast.success("Message sent");
       setTo(""); setSubject(""); setBody(""); setAttachments([]);

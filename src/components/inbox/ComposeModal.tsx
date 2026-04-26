@@ -37,6 +37,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
+import { handleGmailInvokeError } from "@/lib/gmail-error";
 
 interface SendResult {
   threadId?: string;
@@ -165,7 +166,8 @@ export function ComposeModal({
     });
     setSending(false);
     if (error) {
-      toast.error(error.message);
+      const handled = await handleGmailInvokeError(error);
+      if (!handled) toast.error(error.message);
     } else {
       toast.success("Sent");
       setTo("");
