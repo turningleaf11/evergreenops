@@ -626,7 +626,16 @@ function ContactSidebar({
         }
       >
         {leads.length === 0 ? (
-          <EntityEmpty>No leads linked.</EntityEmpty>
+          onLinkLead ? (
+            <LinkRecordPopover
+              kind="lead"
+              excludeIds={[]}
+              onPick={(it) => onLinkLead(it.id)}
+              triggerLabel="Link lead"
+            />
+          ) : (
+            <EntityEmpty>No leads linked.</EntityEmpty>
+          )
         ) : (
           <ul className="space-y-1.5">
             {leads.slice(0, 5).map((l) => (
