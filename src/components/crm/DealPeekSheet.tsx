@@ -813,9 +813,7 @@ export function DealPeekSheet({
 
                     {/* Appointments */}
                     <section>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                        Appointments
-                      </div>
+                      <div className="crm-eyebrow mb-3">Appointments</div>
                       {(() => {
                         const upcoming = activities.filter(
                           (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
