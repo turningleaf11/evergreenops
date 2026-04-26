@@ -15,11 +15,14 @@ export function LinkRecordPopover({
   kind,
   excludeIds = [],
   onPick,
+  onCreate,
   triggerLabel = "Link",
 }: {
   kind: "deal" | "lead";
   excludeIds?: string[];
   onPick: (item: Item) => void | Promise<void>;
+  /** Optional handler for "+ Create new" footer action. */
+  onCreate?: () => void;
   triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
