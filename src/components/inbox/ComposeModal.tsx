@@ -208,7 +208,8 @@ export function ComposeModal({
       thread_id: threadId ?? null,
       in_reply_to: inReplyTo ?? null,
       send_at: when.toISOString(),
-    });
+      account_id: accountId ?? null,
+    } as any);
     setScheduling(false);
     if (error) {
       toast.error(error.message);
