@@ -532,80 +532,41 @@ function ContactSidebar({
 
       <EntitySidebarSection title="Status">
         <EntitySidebarField label="Type">
-          <Select
+          <ContactTypeChip
             value={(contact.contact_type as ContactType) || "other"}
-            onValueChange={(v) => onUpdate({ contact_type: v })}
-          >
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CONTACT_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {CONTACT_TYPE_LABEL[t]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={(v) => onUpdate({ contact_type: v })}
+          />
         </EntitySidebarField>
         <EntitySidebarField label="Active">
-          <div className="flex items-center gap-2 h-9">
-            <Switch
-              checked={contact.is_active !== false}
-              onCheckedChange={(next) => onUpdate({ is_active: next })}
+          <button
+            type="button"
+            onClick={() => onUpdate({ is_active: !(contact.is_active !== false) })}
+            className="inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors"
+            title="Toggle active"
+          >
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                contact.is_active !== false ? "bg-brand-mint-deep" : "bg-muted-foreground/40",
+              )}
             />
-            <span className="text-xs text-muted-foreground">
+            <span className={contact.is_active !== false ? "text-foreground" : "text-muted-foreground"}>
               {contact.is_active !== false ? "Active" : "Inactive"}
             </span>
-          </div>
+          </button>
         </EntitySidebarField>
       </EntitySidebarSection>
 
       <EntitySidebarSection title="Key details">
         <EntitySidebarField label="Preferred contact">
-          <Select
-            value={contact.preferred_contact_method || "_none"}
-            onValueChange={(v) =>
+          <PreferredContactChip
+            value={contact.preferred_contact_method || null}
+            onChange={(v) =>
               onUpdate({
-                preferred_contact_method:
-                  v === "_none" ? null : (v as PreferredContactMethod),
+                preferred_contact_method: v as PreferredContactMethod | null,
               })
             }
-          >
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="—" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">—</SelectItem>
-              {PREFERRED_CONTACT_METHODS.map((m) => (
-                <SelectItem key={m} value={m} className="capitalize">
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </EntitySidebarField>
-        <EntitySidebarField label="Markets">
-          {contact.markets && contact.markets.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {contact.markets.slice(0, 6).map((m) => (
-                <span
-                  key={m}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full bg-brand-azure/15 text-brand-azure font-semibold"
-                  style={{ fontSize: 11 }}
-                >
-                  {m}
-                </span>
-              ))}
-              {contact.markets.length > 6 && (
-                <span className="text-[11px] text-muted-foreground self-center">
-                  +{contact.markets.length - 6}
-                </span>
-              )}
-            </div>
-          ) : (
-            <EntityEmpty>—</EntityEmpty>
-          )}
+          />
         </EntitySidebarField>
         {lastContacted && (
           <EntitySidebarField label="Last contacted">
