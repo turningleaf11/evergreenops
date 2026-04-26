@@ -273,18 +273,6 @@ export function ContactPeekSheet({
               }
               titleClassName="text-xl font-semibold"
               onClose={onClose}
-              actions={
-                <Button
-                  size="sm"
-                  disabled={!canEmail}
-                  onClick={() => {
-                    setComposeCtx({ to: contact.email!, subject: "" });
-                    setComposeOpen(true);
-                  }}
-                >
-                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
-                </Button>
-              }
             />
 
             <EntityIdentityStrip
@@ -322,7 +310,23 @@ export function ContactPeekSheet({
               }
             />
 
-            <EntityTabs value={tab} onValueChange={setTab}>
+            <EntityTabs
+              value={tab}
+              onValueChange={setTab}
+              hide={["more"]}
+              actions={
+                <Button
+                  size="sm"
+                  disabled={!canEmail}
+                  onClick={() => {
+                    setComposeCtx({ to: contact.email!, subject: "" });
+                    setComposeOpen(true);
+                  }}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" /> Email
+                </Button>
+              }
+            >
               <EntityTabPanel value="overview">
                 <div className="space-y-7">
                   <ContactInfoGrid
@@ -368,8 +372,8 @@ export function ContactPeekSheet({
                 <ContactDealsLeadsTab deals={linkedDeals} leads={linkedLeads} />
               </EntityTabPanel>
 
-              <EntityTabPanel value="activity" className="p-4">
-                <ActivityPanel entityType="contact" entityId={contact.id} />
+              <EntityTabPanel value="activity" className="p-4 flex flex-col min-h-0">
+                <ActivityPanel entityType="contact" entityId={contact.id} hideHeader />
               </EntityTabPanel>
 
               <EntityTabPanel value="files">
