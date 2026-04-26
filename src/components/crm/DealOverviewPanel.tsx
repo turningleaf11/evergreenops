@@ -161,45 +161,9 @@ export function DealOverviewPanel({
         </div>
       </section>
 
-      {/* Source / disposition */}
-      <section className="crm-card space-y-4">
-        <h3 className="crm-eyebrow">Source &amp; strategy</h3>
-
-        <div>
-          <Label className="crm-field-label">Source contact</Label>
-          <ContactPicker
-            value={draft.source_contact_id}
-            onChange={(id) => {
-              setDraft({ ...draft, source_contact_id: id });
-              blur({ source_contact_id: id });
-            }}
-          />
-        </div>
-
-        <div>
-          <Label className="crm-field-label">Disposition strategy</Label>
-          <Select
-            value={draft.disposition_strategy ?? ""}
-            onValueChange={(v) => {
-              setDraft({ ...draft, disposition_strategy: v });
-              blur({ disposition_strategy: v });
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a strategy" />
-            </SelectTrigger>
-            <SelectContent>
-              {DISP_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {leadInfo && (
-          <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-sm flex items-center justify-between gap-3">
+      {leadInfo && (
+        <section className="crm-card">
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="crm-eyebrow">From lead</div>
               <div className="font-medium truncate mt-1">{leadInfo.name}</div>
@@ -210,14 +174,14 @@ export function DealOverviewPanel({
               </Badge>
               <Link
                 to={`/crm?lead=${leadInfo.id}`}
-                className="inline-flex items-center gap-0.5 text-brand-azure hover:underline"
+                className="inline-flex items-center gap-0.5 text-brand-azure hover:underline text-sm"
               >
                 Open <ArrowUpRight className="h-3 w-3" />
               </Link>
             </div>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

@@ -321,6 +321,9 @@ export function LeadPeekSheet({
 
   const emailActivities = activities.filter((a) => a.type === "email");
 
+  const buyBoxFit = (lead.buy_box_fit as BuyBoxFit) || "unchecked";
+  const buyBoxMeta = BUY_BOX_META[buyBoxFit];
+
   return (
     <>
       <EntitySheetShell
@@ -330,11 +333,15 @@ export function LeadPeekSheet({
         width="wide"
       >
           <EntitySheetHeader
-            title={lead.name || lead.property_address || "Untitled lead"}
+            title={lead.property_address || lead.name || "Untitled lead"}
             subtitle={
-              lead.property_address && lead.name ? lead.property_address : undefined
+              sourceContactName
+                ? `Sent by ${sourceContactName}`
+                : lead.source
+                  ? `Source: ${lead.source}`
+                  : undefined
             }
-            titleClassName="text-base"
+            titleClassName="text-[20px] font-semibold"
             onClose={onClose}
             onPrev={prevLead ? () => onOpenLead(prevLead) : undefined}
             onNext={nextLead ? () => onOpenLead(nextLead) : undefined}
@@ -342,6 +349,17 @@ export function LeadPeekSheet({
             nextDisabled={!nextLead}
             actions={
               <>
+                {buyBoxFit !== "unchecked" && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center font-semibold text-[11px]",
+                      buyBoxMeta.bg,
+                    )}
+                    style={{ borderRadius: 100, padding: "3px 10px" }}
+                  >
+                    {buyBoxMeta.label}
+                  </span>
+                )}
                 {isConverted && (
                   <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Converted
@@ -352,6 +370,33 @@ export function LeadPeekSheet({
                     Archived
                   </Badge>
                 )}
+                {isConverted && convertedDealId && onOpenDeal ? (
+                  <Button
+                    size="sm"
+                    onClick={() => onOpenDeal(convertedDealId)}
+                    className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
+                  >
+                    Open deal <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    disabled={
+                      isConverted ||
+                      isArchived ||
+                      !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                    }
+                    onClick={() => onConvert(lead)}
+                    className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl disabled:opacity-50"
+                    title={
+                      !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                        ? "Mark as Fits Buy Box or Maybe to enable conversion"
+                        : undefined
+                    }
+                  >
+                    Convert to Deal <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                )}
               </>
             }
           />
@@ -360,109 +405,92 @@ export function LeadPeekSheet({
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-0 overflow-hidden bg-background">
-              {/* Left rail — same surface as main, just an inset divider */}
-              <aside className="overflow-auto md:border-r md:border-border/40">
-                <div className="p-6 space-y-4">
-                  {/* PERSON */}
-                  <section className="crm-card space-y-3">
-                    <div className="crm-eyebrow">Person</div>
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">
-                        <InlineText
-                          value={lead.name}
-                          placeholder="Name"
-                          onSave={(v) => onUpdate(lead.id, { name: v || "" })}
-                        />
-                      </div>
-                      {lead.title && (
-                        <div className="text-xs text-muted-foreground">{lead.title}</div>
-                      )}
-                      <FieldRow icon={<Mail className="h-3.5 w-3.5" />}>
-                        <InlineText
-                          value={lead.email}
-                          placeholder="Add email"
-                          link={lead.email ? `mailto:${lead.email}` : undefined}
-                          onSave={(v) => onUpdate(lead.id, { email: v || null })}
-                        />
-                      </FieldRow>
-                      <FieldRow icon={<Phone className="h-3.5 w-3.5" />}>
-                        <InlineText
-                          value={lead.phone}
-                          placeholder="Add phone"
-                          link={lead.phone ? `tel:${lead.phone}` : undefined}
-                          onSave={(v) => onUpdate(lead.id, { phone: v || null })}
-                        />
-                      </FieldRow>
-                    </div>
-                  </section>
+            <div className="flex-1 overflow-auto bg-muted/20">
+              {/* Top: Doc checklist + Buy Box (full width) */}
+              <div className="px-6 pt-6 pb-4 space-y-5 bg-background border-b border-border/40">
+                <DocChecklist
+                  hasOm={!!lead.has_om}
+                  hasT12={!!lead.has_t12}
+                  hasRentRoll={!!lead.has_rent_roll}
+                  createdAt={lead.created_at}
+                  sourceContactName={sourceContactName}
+                  onToggle={(field, value) => onUpdate(lead.id, { [field]: value } as any)}
+                />
+                <BuyBoxButtons
+                  value={buyBoxFit}
+                  reason={lead.disqualification_reason ?? null}
+                  onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
+                  onReasonChange={(v) =>
+                    onUpdate(lead.id, { disqualification_reason: v } as any)
+                  }
+                />
+              </div>
 
-                  {/* ORGANIZATION */}
-                  <section className="crm-card space-y-3">
-                    <button
-                      onClick={() => setShowOrg((v) => !v)}
-                      className="flex items-center justify-between w-full crm-eyebrow"
-                    >
-                      <span>Organization</span>
-                      {showOrg ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                    </button>
-                    {showOrg && (
-                      <FieldRow icon={<Building2 className="h-3.5 w-3.5" />}>
-                        <InlineText
-                          value={lead.company_name}
-                          placeholder="Add company"
-                          onSave={(v) => onUpdate(lead.id, { company_name: v || null })}
-                        />
-                      </FieldRow>
-                    )}
-                  </section>
-
+              {/* Two-column main content */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 p-4">
+                {/* LEFT: Property + Financials + Source */}
+                <div className="space-y-4 min-w-0">
                   {/* PROPERTY */}
-                  <section className="crm-card space-y-3">
+                  <section className="crm-card space-y-4">
                     <div className="crm-eyebrow flex items-center gap-1.5">
                       <Home className="h-3 w-3" /> Property
                     </div>
-                    <FieldRow icon={<MapPin className="h-3.5 w-3.5" />}>
-                      <InlineText
-                        value={lead.property_address ?? null}
-                        placeholder="Full property address"
-                        onSave={(v) => onUpdate(lead.id, { property_address: v } as any)}
-                      />
-                    </FieldRow>
-                    <DetailRow icon="🏷" label="Type">
-                      <Select
-                        value={lead.property_type ?? ""}
-                        onValueChange={(v) =>
-                          onUpdate(lead.id, { property_type: v || null } as any)
-                        }
-                      >
-                        <SelectTrigger className="h-7 text-xs">
-                          <SelectValue placeholder="Select…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            "SFR",
-                            "SFR Portfolio",
-                            "MF Small (2-4)",
-                            "MF Large (5+)",
-                            "Mixed Use",
-                            "Commercial",
-                            "Land",
-                            "Other",
-                          ].map((t) => (
-                            <SelectItem key={t} value={t} className="text-xs">
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </DetailRow>
-                    <div className="grid grid-cols-3 gap-1 text-xs">
+                    <div>
+                      <div className="crm-field-label">Property address</div>
+                      <div className="relative">
+                        <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          defaultValue={lead.property_address ?? ""}
+                          placeholder="Full property address"
+                          className="pl-8 h-9"
+                          onBlur={(e) =>
+                            onUpdate(lead.id, { property_address: e.target.value || null } as any)
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <div className="crm-field-label">Type</div>
+                        <Select
+                          value={lead.property_type ?? ""}
+                          onValueChange={(v) =>
+                            onUpdate(lead.id, { property_type: v || null } as any)
+                          }
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[
+                              "SFR",
+                              "SFR Portfolio",
+                              "MF Small (2-4)",
+                              "MF Large (5+)",
+                              "Mixed Use",
+                              "Commercial",
+                              "Land",
+                              "Other",
+                            ].map((t) => (
+                              <SelectItem key={t} value={t} className="text-sm">
+                                {t}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <NumField
                         label="Units"
                         value={lead.units ?? null}
                         onSave={(n) => onUpdate(lead.id, { units: n } as any)}
                       />
+                      <NumField
+                        label="Sqft"
+                        value={lead.sqft ?? null}
+                        onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <NumField
                         label="Beds"
                         value={lead.beds ?? null}
@@ -475,27 +503,43 @@ export function LeadPeekSheet({
                         onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
                       />
                     </div>
-                    <NumField
-                      label="Sqft"
-                      value={lead.sqft ?? null}
-                      onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
-                    />
-                    <NumField
-                      label="Asking price ($)"
-                      value={lead.asking_price ?? null}
-                      onSave={(n) => onUpdate(lead.id, { asking_price: n } as any)}
-                    />
-                    <NumField
-                      label="Cap rate (%)"
-                      value={lead.listed_cap_rate ?? null}
-                      step="0.01"
-                      onSave={(n) => onUpdate(lead.id, { listed_cap_rate: n } as any)}
-                    />
-                    <NumField
-                      label="Gross income ($)"
-                      value={lead.gross_income ?? null}
-                      onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
-                    />
+                  </section>
+
+                  {/* FINANCIALS */}
+                  <section className="crm-card space-y-4">
+                    <div className="crm-eyebrow">Financials</div>
+                    <div>
+                      <div className="crm-field-label">Asking price</div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          defaultValue={lead.asking_price ?? ""}
+                          placeholder="0"
+                          className="pl-7 h-10 text-base font-semibold tabular-nums"
+                          onBlur={(e) =>
+                            onUpdate(lead.id, {
+                              asking_price: e.target.value === "" ? null : Number(e.target.value),
+                            } as any)
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <NumField
+                        label="Listed cap rate (%)"
+                        value={lead.listed_cap_rate ?? null}
+                        step="0.01"
+                        onSave={(n) => onUpdate(lead.id, { listed_cap_rate: n } as any)}
+                      />
+                      <NumField
+                        label="Gross income ($)"
+                        value={lead.gross_income ?? null}
+                        onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
+                      />
+                    </div>
                     <NumField
                       label="NOI ($)"
                       value={lead.noi ?? null}
@@ -503,210 +547,168 @@ export function LeadPeekSheet({
                     />
                   </section>
 
-                  {/* OWNER + NEXT FOLLOW UP */}
+                  {/* SOURCE */}
+                  <section className="crm-card space-y-4">
+                    <div className="crm-eyebrow">Source</div>
+                    <div>
+                      <div className="crm-field-label">Who sent this?</div>
+                      <ContactPicker
+                        value={lead.source_contact_id ?? null}
+                        onChange={(id, c) => {
+                          onUpdate(lead.id, { source_contact_id: id } as any);
+                          setSourceContactName(
+                            c
+                              ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
+                                  c.email ||
+                                  null
+                              : null,
+                          );
+                        }}
+                        placeholder="Select source contact"
+                      />
+                    </div>
+                    <div>
+                      <div className="crm-field-label">Source type</div>
+                      <Input
+                        defaultValue={lead.source ?? ""}
+                        placeholder="email / form / outreach / referral"
+                        className="h-9"
+                        onBlur={(e) =>
+                          onUpdate(lead.id, { source: e.target.value || null })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <div className="crm-field-label">Date added</div>
+                      <div className="text-sm text-muted-foreground">
+                        {format(new Date(lead.created_at), "MMM d, yyyy")}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                {/* RIGHT: Assignment + Activity */}
+                <div className="space-y-4 min-w-0">
                   <section className="crm-card space-y-4">
                     <div className="crm-eyebrow">Assignment</div>
                     <div>
+                      <div className="crm-field-label">Owner</div>
                       <OwnerPicker
                         ownerId={lead.owner_id}
                         onChange={(id) => onUpdate(lead.id, { owner_id: id })}
                       />
                     </div>
-                    <DetailRow icon={<Clock className="h-3.5 w-3.5" />} label="Next follow up">
+                    <div>
+                      <div className="crm-field-label">Next follow up</div>
                       <FollowUpPicker
                         value={lead.next_action_at}
                         onChange={(iso) => onUpdate(lead.id, { next_action_at: iso })}
                         trigger={
-                          <button className="text-sm text-left hover:text-primary truncate">
-                            {lead.next_action_at
-                              ? format(new Date(lead.next_action_at), "MMM d, h:mma")
-                              : (
-                                <span className="text-muted-foreground italic">Not scheduled</span>
-                              )}
+                          <button className="text-sm text-left hover:text-primary truncate w-full">
+                            {lead.next_action_at ? (
+                              format(new Date(lead.next_action_at), "MMM d, h:mma")
+                            ) : (
+                              <span className="text-muted-foreground italic">Not scheduled</span>
+                            )}
                           </button>
                         }
                       />
-                    </DetailRow>
-                  </section>
-
-                  {/* SOURCE + ADDED (bottom) */}
-                  <section className="crm-card space-y-4">
-                    <div className="crm-eyebrow">Source</div>
-                    <DetailRow icon="⬇" label="Source">
-                      <InlineText
-                        value={lead.source}
-                        placeholder="Add source"
-                        onSave={(v) => onUpdate(lead.id, { source: v })}
-                      />
-                    </DetailRow>
-                    <ContactPicker
-                      value={lead.source_contact_id ?? null}
-                      onChange={(id, c) => {
-                        onUpdate(lead.id, { source_contact_id: id } as any);
-                        setSourceContactName(
-                          c
-                            ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
-                                c.email ||
-                                null
-                            : null,
-                        );
-                      }}
-                      placeholder="Who sent this?"
-                    />
-                    <DetailRow icon={<CalendarIcon className="h-3.5 w-3.5" />} label="Added">
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(lead.created_at), "MMM d, yyyy")}
-                      </span>
-                    </DetailRow>
-                  </section>
-                </div>
-              </aside>
-
-              {/* Right column */}
-              <div className="flex flex-col min-h-0 overflow-hidden">
-                {/* Doc checklist + Buy Box header */}
-                <div className="px-6 pt-6 pb-5 space-y-5 border-b border-border/40">
-                  <DocChecklist
-                    hasOm={!!lead.has_om}
-                    hasT12={!!lead.has_t12}
-                    hasRentRoll={!!lead.has_rent_roll}
-                    createdAt={lead.created_at}
-                    sourceContactName={sourceContactName}
-                    onToggle={(field, value) => onUpdate(lead.id, { [field]: value } as any)}
-                  />
-                  <BuyBoxButtons
-                    value={(lead.buy_box_fit as BuyBoxFit) || "unchecked"}
-                    reason={lead.disqualification_reason ?? null}
-                    onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
-                    onReasonChange={(v) =>
-                      onUpdate(lead.id, { disqualification_reason: v } as any)
-                    }
-                  />
-                </div>
-
-                <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 flex flex-col min-h-0">
-                  <TabsList className="h-10 bg-transparent rounded-none border-b border-border/50 px-4 justify-start gap-1 w-full">
-                    <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5">
-                      <NotebookPen className="h-3.5 w-3.5" /> Activity
-                    </TabsTrigger>
-                    <TabsTrigger value="activity" className="data-[state=active]:bg-muted gap-1.5">
-                      <CalendarIcon className="h-3.5 w-3.5" /> Planned
-                    </TabsTrigger>
-                    <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5">
-                      <Mail className="h-3.5 w-3.5" /> Email
-                    </TabsTrigger>
-                    <TabsTrigger value="files" className="data-[state=active]:bg-muted gap-1.5">
-                      <Paperclip className="h-3.5 w-3.5" /> Files
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* ACTIVITY (NOTES + COMMENTS + EVENTS) TAB */}
-                  <TabsContent value="notes" className="flex-1 overflow-hidden m-0 p-4">
-                    <ActivityPanel entityType="lead" entityId={lead.id} hideHeader />
-                  </TabsContent>
-
-                  {/* ACTIVITY TAB */}
-                  <TabsContent value="activity" className="flex-1 overflow-auto m-0 p-4 space-y-4">
-                    <PlannedSection
-                      planned={planned}
-                      planType={planType}
-                      planSubject={planSubject}
-                      setPlanType={setPlanType}
-                      setPlanSubject={setPlanSubject}
-                      onChoosePreset={(k) => planActivity(presetDate(k))}
-                      onCustom={(iso) => planActivity(new Date(iso))}
-                    />
-                    <DoneSection done={done} people={people} />
-                  </TabsContent>
-
-                  {/* EMAIL TAB */}
-                  <TabsContent value="email" className="flex-1 overflow-auto m-0 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        {emailActivities.length === 0
-                          ? "No emails logged yet."
-                          : `${emailActivities.length} email${emailActivities.length === 1 ? "" : "s"}`}
-                      </div>
-                      <Button size="sm" disabled={!lead.email} onClick={openCompose}>
-                        <Send className="h-3.5 w-3.5 mr-1.5" /> New email
-                      </Button>
                     </div>
-                    <CrmActivityTimeline
-                      activities={emailActivities}
-                      people={people}
-                      onReply={(a) => {
-                        const m = a.metadata as any;
-                        setComposeCtx({
-                          to: lead.email!,
-                          subject: a.subject?.toLowerCase().startsWith("re:")
-                            ? a.subject
-                            : `Re: ${a.subject || ""}`,
-                          threadId: m?.gmail_thread_id,
-                        });
-                        setComposeOpen(true);
-                      }}
-                    />
-                  </TabsContent>
-                  {/* FILES TAB */}
-                  <TabsContent value="files" className="flex-1 overflow-auto m-0 p-4">
-                    <LeadFilesTab
-                      leadId={lead.id}
-                      workspaceId={lead.workspace_id}
-                      onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
-                    />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+
+                  <section className="crm-card p-0 overflow-hidden">
+                    <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex flex-col">
+                      <TabsList className="h-10 bg-transparent rounded-none border-b border-border/40 px-3 justify-start gap-1 w-full">
+                        <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5 text-xs">
+                          <NotebookPen className="h-3.5 w-3.5" /> Activity
+                        </TabsTrigger>
+                        <TabsTrigger value="activity" className="data-[state=active]:bg-muted gap-1.5 text-xs">
+                          <CalendarIcon className="h-3.5 w-3.5" /> Planned
+                        </TabsTrigger>
+                        <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5 text-xs">
+                          <Mail className="h-3.5 w-3.5" /> Email
+                        </TabsTrigger>
+                        <TabsTrigger value="files" className="data-[state=active]:bg-muted gap-1.5 text-xs">
+                          <Paperclip className="h-3.5 w-3.5" /> Files
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="notes" className="m-0 p-3 max-h-[600px] overflow-auto">
+                        <ActivityPanel entityType="lead" entityId={lead.id} hideHeader />
+                      </TabsContent>
+
+                      <TabsContent value="activity" className="m-0 p-3 space-y-4 max-h-[600px] overflow-auto">
+                        <PlannedSection
+                          planned={planned}
+                          planType={planType}
+                          planSubject={planSubject}
+                          setPlanType={setPlanType}
+                          setPlanSubject={setPlanSubject}
+                          onChoosePreset={(k) => planActivity(presetDate(k))}
+                          onCustom={(iso) => planActivity(new Date(iso))}
+                        />
+                        <DoneSection done={done} people={people} />
+                      </TabsContent>
+
+                      <TabsContent value="email" className="m-0 p-3 space-y-3 max-h-[600px] overflow-auto">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-muted-foreground">
+                            {emailActivities.length === 0
+                              ? "No emails logged yet."
+                              : `${emailActivities.length} email${emailActivities.length === 1 ? "" : "s"}`}
+                          </div>
+                          <Button size="sm" disabled={!lead.email} onClick={openCompose}>
+                            <Send className="h-3.5 w-3.5 mr-1.5" /> New email
+                          </Button>
+                        </div>
+                        <CrmActivityTimeline
+                          activities={emailActivities}
+                          people={people}
+                          onReply={(a) => {
+                            const m = a.metadata as any;
+                            setComposeCtx({
+                              to: lead.email!,
+                              subject: a.subject?.toLowerCase().startsWith("re:")
+                                ? a.subject
+                                : `Re: ${a.subject || ""}`,
+                              threadId: m?.gmail_thread_id,
+                            });
+                            setComposeOpen(true);
+                          }}
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="files" className="m-0 p-3 max-h-[600px] overflow-auto">
+                        <LeadFilesTab
+                          leadId={lead.id}
+                          workspaceId={lead.workspace_id}
+                          onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </section>
+                </div>
               </div>
             </div>
           )}
 
           {/* Footer */}
-          <div className="border-t border-border/50 px-4 py-3 flex items-center justify-between gap-2 bg-background">
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                <MoreHorizontal className="h-4 w-4" />
+          {!isArchived && !isConverted && (
+            <div className="border-t border-border/50 px-4 py-2 flex items-center justify-end gap-2 bg-background">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  onArchive(lead);
+                  onClose();
+                }}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                Archive
               </Button>
-              {!isArchived && !isConverted && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  title="Archive"
-                  onClick={() => {
-                    onArchive(lead);
-                    onClose();
-                  }}
-                >
-                  <Archive className="h-4 w-4" />
-                </Button>
-              )}
             </div>
-            {isConverted && convertedDealId && onOpenDeal ? (
-              <Button
-                onClick={() => onOpenDeal(convertedDealId)}
-                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl"
-              >
-                Open deal
-              </Button>
-            ) : (
-              <Button
-                disabled={
-                  isConverted ||
-                  isArchived ||
-                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
-                }
-                onClick={() => onConvert(lead)}
-                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl disabled:opacity-50"
-                title={
-                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
-                    ? "Mark as Fits Buy Box or Maybe to enable conversion"
-                    : undefined
-                }
-              >
-                Convert to Deal <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-            )}
-          </div>
+          )}
       </EntitySheetShell>
 
       <ComposeModal

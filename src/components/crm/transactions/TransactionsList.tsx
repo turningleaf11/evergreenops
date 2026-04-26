@@ -3,7 +3,7 @@ import { Plus, Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import {
   Select,
   SelectContent,
@@ -175,82 +175,141 @@ export function TransactionsList({ search }: { search: string }) {
           <p>Create a transaction or move a deal to Under Contract.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden bg-card">
-          <div className="grid grid-cols-[2.5fr_1fr_1fr_1.4fr_1.2fr_1fr_1fr] px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/50 bg-muted/30">
+        <div
+          className="rounded-xl overflow-hidden bg-card"
+          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid hsl(var(--border) / 0.5)" }}
+        >
+          <div className="grid grid-cols-[2.4fr_0.9fr_1fr_1.3fr_1.2fr_1.4fr_1fr] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20">
             <div>Property</div>
             <div>Lane</div>
             <div>Type</div>
-            <div>Closing</div>
+            <div>Closing date</div>
             <div>Buyer</div>
-            <div className="text-right">Est. net</div>
             <div>Checklist</div>
+            <div className="text-right">Est. net</div>
           </div>
           {filtered.map((r) => {
             const days = daysBetween(r.closing_date);
             const prog = progress[r.id] || { done: 0, total: 0 };
             const pct = prog.total ? (prog.done / prog.total) * 100 : 0;
+            const propLabel = r.property_address?.trim() || "Untitled";
             return (
               <button
                 key={r.id}
                 onClick={() => setOpenId(r.id)}
-                className="w-full text-left grid grid-cols-[2.5fr_1fr_1fr_1.4fr_1.2fr_1fr_1fr] items-center px-3 py-2.5 text-sm border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors"
+                className="w-full text-left grid grid-cols-[2.4fr_0.9fr_1fr_1.3fr_1.2fr_1.4fr_1fr] items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors"
               >
-                <div className="min-w-0 pr-2">
-                  <div className="font-medium truncate">{r.property_address || "—"}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {[r.property_city, r.property_state].filter(Boolean).join(", ")}
+                {/* PROPERTY */}
+                <div className="min-w-0 pr-3">
+                  <div className="text-[14px] font-semibold truncate text-foreground leading-tight">
+                    {propLabel}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground truncate leading-tight">
+                    {[r.property_city, r.property_state].filter(Boolean).join(", ") || (
+                      <span className="italic text-muted-foreground/60">no city</span>
+                    )}
                     {r.status !== "active" && (
-                      <Badge
-                        variant="outline"
-                        className="ml-2 text-[9px]"
-                        style={{ borderColor: `hsl(${TX_STATUS_COLOR[r.status]})`, color: `hsl(${TX_STATUS_COLOR[r.status]})` }}
+                      <span
+                        className="ml-2"
+                        style={{
+                          backgroundColor: `hsl(${TX_STATUS_COLOR[r.status]} / 0.15)`,
+                          color: `hsl(${TX_STATUS_COLOR[r.status]})`,
+                          borderRadius: 100,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: "2px 8px",
+                        }}
                       >
                         {r.status}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>
+
+                {/* LANE */}
                 <div>
-                  <Badge
-                    className="text-[10px] border-transparent"
+                  <span
                     style={{
                       backgroundColor: `hsl(${TX_LANE_COLOR[r.lane]} / 0.15)`,
                       color: `hsl(${TX_LANE_COLOR[r.lane]})`,
+                      borderRadius: 100,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "3px 10px",
                     }}
                   >
                     {TX_LANE_LABEL[r.lane]}
-                  </Badge>
-                </div>
-                <div>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px]"
-                    style={{ borderColor: `hsl(${TX_TYPE_COLOR[r.transaction_type]})`, color: `hsl(${TX_TYPE_COLOR[r.transaction_type]})` }}
-                  >
-                    {TX_TYPE_LABEL[r.transaction_type]}
-                  </Badge>
-                </div>
-                <div className="text-xs">
-                  <div className="text-foreground">
-                    {r.closing_date ? new Date(r.closing_date).toLocaleDateString() : "—"}
-                  </div>
-                  <span className={cn("inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border", closingCountdownClass(days))}>
-                    {fmtCountdown(days)}
                   </span>
                 </div>
-                <div className="text-xs truncate">{buyerName(r.buyer_contact_id)}</div>
-                <div className="text-right text-xs tabular-nums">
-                  {fmtMoney(r.status === "closed" ? r.actual_net : r.estimated_net)}
+
+                {/* TYPE */}
+                <div>
+                  <span
+                    style={{
+                      backgroundColor: `hsl(${TX_TYPE_COLOR[r.transaction_type]} / 0.13)`,
+                      color: `hsl(${TX_TYPE_COLOR[r.transaction_type]})`,
+                      borderRadius: 100,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "3px 10px",
+                    }}
+                  >
+                    {TX_TYPE_LABEL[r.transaction_type]}
+                  </span>
                 </div>
-                <div className="text-xs">
+
+                {/* CLOSING */}
+                <div className="text-xs pr-2">
+                  {r.closing_date ? (
+                    <>
+                      <div className="text-foreground text-[13px]">
+                        {new Date(r.closing_date).toLocaleDateString()}
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium",
+                          closingCountdownClass(days),
+                        )}
+                      >
+                        {fmtCountdown(days)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="italic text-brand-coral/80 text-[12px]">No date set</span>
+                  )}
+                </div>
+
+                {/* BUYER */}
+                <div className="text-[13px] truncate pr-2">
+                  {r.buyer_contact_id ? (
+                    buyerName(r.buyer_contact_id)
+                  ) : (
+                    <span className="italic text-muted-foreground/60">—</span>
+                  )}
+                </div>
+
+                {/* CHECKLIST */}
+                <div className="text-xs pr-3">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden min-w-[40px]">
+                      <div
+                        className="h-full bg-brand-mint"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                      {prog.done}/{prog.total}
+                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 font-medium">
+                      {prog.done} of {prog.total}
                     </span>
                   </div>
+                </div>
+
+                {/* EST NET */}
+                <div className="text-right text-[13px] tabular-nums font-medium">
+                  {(r.status === "closed" ? r.actual_net : r.estimated_net) == null ? (
+                    <span className="italic text-muted-foreground/60 font-normal">—</span>
+                  ) : (
+                    fmtMoney(r.status === "closed" ? r.actual_net : r.estimated_net)
+                  )}
                 </div>
               </button>
             );
