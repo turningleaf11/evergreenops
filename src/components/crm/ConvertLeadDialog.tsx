@@ -24,6 +24,16 @@ interface Lead {
   title: string | null;
   notes: string;
   owner_id: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_zip?: string | null;
+  property_type?: string | null;
+  units?: number | null;
+  asking_price?: number | null;
+  listed_cap_rate?: number | null;
+  noi?: number | null;
+  source_contact_id?: string | null;
 }
 
 interface Pipeline { id: string; name: string; is_default: boolean }
@@ -77,11 +87,16 @@ export function ConvertLeadDialog({
 
   useEffect(() => {
     if (lead && open) {
-      const title = lead.company_name
-        ? `${lead.company_name} — ${lead.name || "New deal"}`
-        : `${lead.name || "New deal"}`;
+      const loc =
+        [lead.property_city, lead.property_state].filter(Boolean).join(", ") || null;
+      const title =
+        lead.property_address
+          ? `${lead.property_address}${loc ? ` (${loc})` : ""}`
+          : lead.company_name
+            ? `${lead.company_name} — ${lead.name || "New deal"}`
+            : `${lead.name || "New deal"}`;
       setDealTitle(title);
-      setValue("0");
+      setValue(lead.asking_price ? String(lead.asking_price) : "0");
     }
   }, [lead, open]);
 
@@ -147,15 +162,27 @@ export function ConvertLeadDialog({
     }
     const dealId = (d as { id: string }).id;
 
-    // 3. carry over notes as activity
-    if (lead.notes && lead.notes.trim()) {
+    // 3. carry over notes + property snapshot as activity
+    const summaryLines: string[] = [];
+    if (lead.property_address) {
+      summaryLines.push(
+        `Property: ${[lead.property_address, lead.property_city, lead.property_state, lead.property_zip].filter(Boolean).join(", ")}`,
+      );
+    }
+    if (lead.property_type) summaryLines.push(`Type: ${lead.property_type}`);
+    if (lead.units) summaryLines.push(`Units: ${lead.units}`);
+    if (lead.asking_price) summaryLines.push(`Asking: $${lead.asking_price.toLocaleString()}`);
+    if (lead.listed_cap_rate) summaryLines.push(`Listed cap: ${lead.listed_cap_rate}%`);
+    if (lead.noi) summaryLines.push(`NOI: $${lead.noi.toLocaleString()}`);
+    const body = [summaryLines.join("\n"), lead.notes?.trim()].filter(Boolean).join("\n\n");
+    if (body) {
       await supabase.from("crm_activities").insert({
         workspace_id: lead.workspace_id,
         entity_type: "deal",
         entity_id: dealId,
         type: "note",
         subject: "Imported from lead",
-        body: lead.notes,
+        body,
         actor_id: userId,
       });
     }

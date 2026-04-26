@@ -40,7 +40,27 @@ interface Lead {
   notes: string;
   owner_id: string | null;
   created_at: string;
+  buy_box_fit?: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_type?: string | null;
+  asking_price?: number | null;
+  units?: number | null;
+  source_contact_id?: string | null;
+  has_om?: boolean;
+  has_t12?: boolean;
+  has_rent_roll?: boolean;
+  disqualification_reason?: string | null;
+  converted_deal_id?: string | null;
 }
+
+const BUY_BOX_BORDER: Record<string, string> = {
+  yes: "border-l-emerald-500",
+  maybe: "border-l-amber-400",
+  no: "border-l-red-500",
+  unchecked: "border-l-muted-foreground/20",
+};
 
 const TEMPS: Array<"cold" | "warm" | "hot"> = ["cold", "warm", "hot"];
 
@@ -136,7 +156,16 @@ export function LeadsList({ search }: { search: string }) {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Stats + filters */}
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">Leads Inbox</h2>
+          <p className="text-xs text-muted-foreground">
+            Portfolio deal flow — OMs, T12s, and rent rolls coming in from brokers and wholesalers.
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="flex items-center gap-6 text-sm">
           <div>
@@ -194,7 +223,10 @@ export function LeadsList({ search }: { search: string }) {
               <div
                 key={l.id}
                 onClick={() => setOpenLead(l)}
-                className="px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer border-l-4",
+                  BUY_BOX_BORDER[l.buy_box_fit ?? "unchecked"] || BUY_BOX_BORDER.unchecked,
+                )}
               >
                 <div className="flex items-start gap-3">
                   {/* Temp chip */}
@@ -219,11 +251,23 @@ export function LeadsList({ search }: { search: string }) {
                   {/* Body */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm truncate">{l.name || "Untitled lead"}</span>
-                      {l.company_name && (
-                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                          <Building2 className="h-3 w-3" /> {l.company_name}
+                      <span className="font-medium text-sm truncate">
+                        {l.property_address || l.name || "Untitled lead"}
+                      </span>
+                      {(l.property_city || l.property_state) && (
+                        <span className="text-xs text-muted-foreground">
+                          {[l.property_city, l.property_state].filter(Boolean).join(", ")}
                         </span>
+                      )}
+                      {l.property_type && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {l.property_type}
+                        </Badge>
+                      )}
+                      {!!l.units && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {l.units} units
+                        </Badge>
                       )}
                       {l.source && (
                         <Badge variant="outline" className="text-[10px]">
@@ -242,6 +286,16 @@ export function LeadsList({ search }: { search: string }) {
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                      {!!l.asking_price && (
+                        <span className="font-medium text-foreground">
+                          ${l.asking_price.toLocaleString()}
+                        </span>
+                      )}
+                      {l.company_name && (
+                        <span className="inline-flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> {l.company_name}
+                        </span>
+                      )}
                       {l.email && (
                         <a
                           href={`mailto:${l.email}`}
@@ -266,6 +320,14 @@ export function LeadsList({ search }: { search: string }) {
                           <Clock className="h-3 w-3" /> Next: {format(new Date(l.next_action_at), "MMM d, h:mma")}
                         </span>
                       )}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", l.has_om ? "bg-emerald-500" : "bg-muted-foreground/30")} title="OM" />
+                        OM
+                        <span className={cn("h-1.5 w-1.5 rounded-full ml-1", l.has_t12 ? "bg-emerald-500" : "bg-muted-foreground/30")} title="T12" />
+                        T12
+                        <span className={cn("h-1.5 w-1.5 rounded-full ml-1", l.has_rent_roll ? "bg-emerald-500" : "bg-muted-foreground/30")} title="Rent Roll" />
+                        RR
+                      </span>
                     </div>
                   </div>
 
@@ -284,13 +346,15 @@ export function LeadsList({ search }: { search: string }) {
                           </Button>
                         }
                       />
-                      <Button
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => setConvertLead(l)}
-                      >
-                        Qualify <ArrowRight className="h-3 w-3" />
-                      </Button>
+                      {(l.buy_box_fit === "yes" || l.buy_box_fit === "maybe") && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => setConvertLead(l)}
+                        >
+                          Convert to Deal <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

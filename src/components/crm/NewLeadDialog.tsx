@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ContactPicker } from "./ContactPicker";
 
 interface Props {
   open: boolean;
@@ -22,34 +23,70 @@ interface Props {
   onCreated: () => void;
 }
 
+const PROPERTY_TYPES = [
+  "SFR",
+  "SFR Portfolio",
+  "MF Small (2-4)",
+  "MF Large (5+)",
+  "Mixed Use",
+  "Commercial",
+  "Land",
+  "Other",
+];
+
 export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreated }: Props) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [company, setCompany] = useState("");
-  const [source, setSource] = useState("");
   const [temperature, setTemperature] = useState("warm");
+  const [sourceContactId, setSourceContactId] = useState<string | null>(null);
+  const [sourceContactName, setSourceContactName] = useState<string>("");
+
+  // Property
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [propType, setPropType] = useState<string>("");
+  const [units, setUnits] = useState("");
+  const [beds, setBeds] = useState("");
+  const [baths, setBaths] = useState("");
+  const [sqft, setSqft] = useState("");
+  const [askingPrice, setAskingPrice] = useState("");
+  const [capRate, setCapRate] = useState("");
+  const [grossIncome, setGrossIncome] = useState("");
+  const [noi, setNoi] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
-    setName(""); setEmail(""); setPhone(""); setCompany(""); setSource(""); setTemperature("warm");
+    setName(""); setTemperature("warm");
+    setSourceContactId(null); setSourceContactName("");
+    setAddress(""); setCity(""); setState(""); setZip("");
+    setPropType(""); setUnits(""); setBeds(""); setBaths(""); setSqft("");
+    setAskingPrice(""); setCapRate(""); setGrossIncome(""); setNoi("");
   };
 
   const submit = async () => {
     if (!userId) return;
-    if (!name.trim() && !email.trim()) {
-      toast({ title: "Add at least a name or email", variant: "destructive" });
-      return;
-    }
+    const inferredName = name.trim() || address.trim() || "Untitled property lead";
     setSaving(true);
     const { error } = await supabase.from("leads").insert({
       workspace_id: workspaceId,
-      name: name.trim(),
-      email: email.trim() || null,
-      phone: phone.trim() || null,
-      company_name: company.trim() || null,
-      source: source.trim() || null,
+      name: inferredName,
       temperature,
+      lane: "portfolio",
+      source_contact_id: sourceContactId,
+      property_address: address.trim() || null,
+      property_city: city.trim() || null,
+      property_state: state.trim() || null,
+      property_zip: zip.trim() || null,
+      property_type: propType || null,
+      units: units ? Number(units) : null,
+      beds: beds ? Number(beds) : null,
+      baths: baths ? Number(baths) : null,
+      sqft: sqft ? Number(sqft) : null,
+      asking_price: askingPrice ? Number(askingPrice) : null,
+      listed_cap_rate: capRate ? Number(capRate) : null,
+      gross_income: grossIncome ? Number(grossIncome) : null,
+      noi: noi ? Number(noi) : null,
       created_by: userId,
       owner_id: userId,
     });
@@ -65,46 +102,121 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New lead</DialogTitle>
+          <DialogTitle>New portfolio lead</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs">Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+
+        <div className="space-y-5">
+          {/* PROPERTY */}
+          <section className="space-y-2">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Property</h3>
             <div>
-              <Label className="text-xs">Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label className="text-xs">Address</Label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
             </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">City</Label>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">State</Label>
+                <Input value={state} onChange={(e) => setState(e.target.value)} maxLength={2} />
+              </div>
+              <div>
+                <Label className="text-xs">Zip</Label>
+                <Input value={zip} onChange={(e) => setZip(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Type</Label>
+                <Select value={propType} onValueChange={setPropType}>
+                  <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                  <SelectContent>
+                    {PROPERTY_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Units</Label>
+                <Input type="number" value={units} onChange={(e) => setUnits(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">Beds</Label>
+                <Input type="number" value={beds} onChange={(e) => setBeds(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Baths</Label>
+                <Input type="number" step="0.5" value={baths} onChange={(e) => setBaths(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Sqft</Label>
+                <Input type="number" value={sqft} onChange={(e) => setSqft(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Asking price ($)</Label>
+                <Input type="number" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Listed cap rate (%)</Label>
+                <Input type="number" step="0.01" value={capRate} onChange={(e) => setCapRate(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Gross income ($)</Label>
+                <Input type="number" value={grossIncome} onChange={(e) => setGrossIncome(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">NOI ($)</Label>
+                <Input type="number" value={noi} onChange={(e) => setNoi(e.target.value)} />
+              </div>
+            </div>
+          </section>
+
+          {/* SOURCE */}
+          <section className="space-y-2">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Source</h3>
             <div>
-              <Label className="text-xs">Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label className="text-xs">Who sent this?</Label>
+              <ContactPicker
+                value={sourceContactId}
+                onChange={(id, c) => {
+                  setSourceContactId(id);
+                  setSourceContactName(
+                    c ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "" : "",
+                  );
+                }}
+                placeholder="Search existing contacts…"
+              />
             </div>
-          </div>
-          <div>
-            <Label className="text-xs">Company</Label>
-            <Input value={company} onChange={(e) => setCompany(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">Source</Label>
-              <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Web form, Referral…" />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Internal label (optional)</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Auto from address" />
+              </div>
+              <div>
+                <Label className="text-xs">Temperature</Label>
+                <Select value={temperature} onValueChange={setTemperature}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cold">Cold</SelectItem>
+                    <SelectItem value="warm">Warm</SelectItem>
+                    <SelectItem value="hot">Hot</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">Temperature</Label>
-              <Select value={temperature} onValueChange={setTemperature}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cold">Cold</SelectItem>
-                  <SelectItem value="warm">Warm</SelectItem>
-                  <SelectItem value="hot">Hot</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          </section>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button size="sm" onClick={submit} disabled={saving}>

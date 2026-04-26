@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   Clock,
   Calendar as CalendarIcon,
+  Paperclip,
+  Home,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -42,6 +44,10 @@ import {
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
+import { DocChecklist } from "./DocChecklist";
+import { BuyBoxButtons, BUY_BOX_META, type BuyBoxFit } from "./BuyBoxButtons";
+import { LeadFilesTab } from "./LeadFilesTab";
+import { ContactPicker } from "./ContactPicker";
 
 export interface Lead {
   id: string;
@@ -58,6 +64,26 @@ export interface Lead {
   notes: string;
   owner_id: string | null;
   created_at: string;
+  buy_box_fit?: string | null;
+  disqualification_reason?: string | null;
+  has_om?: boolean;
+  has_t12?: boolean;
+  has_rent_roll?: boolean;
+  source_contact_id?: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_zip?: string | null;
+  property_type?: string | null;
+  units?: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  asking_price?: number | null;
+  listed_cap_rate?: number | null;
+  gross_income?: number | null;
+  noi?: number | null;
+  converted_deal_id?: string | null;
 }
 
 interface PersonLite {
@@ -119,7 +145,8 @@ export function LeadPeekSheet({
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [people, setPeople] = useState<PersonLite[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"notes" | "activity" | "email">("notes");
+  const [tab, setTab] = useState<"notes" | "activity" | "email" | "files">("notes");
+  const [sourceContactName, setSourceContactName] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [planType, setPlanType] = useState<string>("call");
   const [planSubject, setPlanSubject] = useState("");
@@ -170,6 +197,22 @@ export function LeadPeekSheet({
       setActivities((acts as TimelineActivity[]) || []);
       setPeople((p as PersonLite[]) || []);
       setLoading(false);
+
+      // load source contact name
+      if (lead.source_contact_id) {
+        const { data: c } = await supabase
+          .from("contacts")
+          .select("first_name,last_name,email")
+          .eq("id", lead.source_contact_id)
+          .maybeSingle();
+        if (active && c) {
+          setSourceContactName(
+            `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
+          );
+        }
+      } else if (active) {
+        setSourceContactName(null);
+      }
     })();
     return () => {
       active = false;
@@ -476,11 +519,155 @@ export function LeadPeekSheet({
                       </FieldRow>
                     )}
                   </section>
+
+                  {/* PROPERTY */}
+                  <section className="space-y-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Home className="h-3 w-3" /> Property
+                    </div>
+                    <FieldRow icon="📍">
+                      <InlineText
+                        value={lead.property_address ?? null}
+                        placeholder="Address"
+                        onSave={(v) => onUpdate(lead.id, { property_address: v } as any)}
+                      />
+                    </FieldRow>
+                    <div className="grid grid-cols-3 gap-1">
+                      <InlineText
+                        value={lead.property_city ?? null}
+                        placeholder="City"
+                        onSave={(v) => onUpdate(lead.id, { property_city: v } as any)}
+                      />
+                      <InlineText
+                        value={lead.property_state ?? null}
+                        placeholder="ST"
+                        onSave={(v) => onUpdate(lead.id, { property_state: v } as any)}
+                      />
+                      <InlineText
+                        value={lead.property_zip ?? null}
+                        placeholder="Zip"
+                        onSave={(v) => onUpdate(lead.id, { property_zip: v } as any)}
+                      />
+                    </div>
+                    <DetailRow icon="🏷" label="Type">
+                      <Select
+                        value={lead.property_type ?? ""}
+                        onValueChange={(v) =>
+                          onUpdate(lead.id, { property_type: v || null } as any)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            "SFR",
+                            "SFR Portfolio",
+                            "MF Small (2-4)",
+                            "MF Large (5+)",
+                            "Mixed Use",
+                            "Commercial",
+                            "Land",
+                            "Other",
+                          ].map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </DetailRow>
+                    <div className="grid grid-cols-3 gap-1 text-xs">
+                      <NumField
+                        label="Units"
+                        value={lead.units ?? null}
+                        onSave={(n) => onUpdate(lead.id, { units: n } as any)}
+                      />
+                      <NumField
+                        label="Beds"
+                        value={lead.beds ?? null}
+                        onSave={(n) => onUpdate(lead.id, { beds: n } as any)}
+                      />
+                      <NumField
+                        label="Baths"
+                        value={lead.baths ?? null}
+                        step="0.5"
+                        onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
+                      />
+                    </div>
+                    <NumField
+                      label="Sqft"
+                      value={lead.sqft ?? null}
+                      onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
+                    />
+                    <NumField
+                      label="Asking price ($)"
+                      value={lead.asking_price ?? null}
+                      onSave={(n) => onUpdate(lead.id, { asking_price: n } as any)}
+                    />
+                    <NumField
+                      label="Cap rate (%)"
+                      value={lead.listed_cap_rate ?? null}
+                      step="0.01"
+                      onSave={(n) => onUpdate(lead.id, { listed_cap_rate: n } as any)}
+                    />
+                    <NumField
+                      label="Gross income ($)"
+                      value={lead.gross_income ?? null}
+                      onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
+                    />
+                    <NumField
+                      label="NOI ($)"
+                      value={lead.noi ?? null}
+                      onSave={(n) => onUpdate(lead.id, { noi: n } as any)}
+                    />
+                  </section>
+
+                  {/* SOURCE */}
+                  <section className="space-y-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Source
+                    </div>
+                    <ContactPicker
+                      value={lead.source_contact_id ?? null}
+                      onChange={(id, c) => {
+                        onUpdate(lead.id, { source_contact_id: id } as any);
+                        setSourceContactName(
+                          c
+                            ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
+                                c.email ||
+                                null
+                            : null,
+                        );
+                      }}
+                      placeholder="Who sent this?"
+                    />
+                  </section>
                 </div>
               </aside>
 
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
+                {/* Doc checklist + Buy Box header */}
+                <div className="px-4 pt-4 pb-3 space-y-3 border-b border-border/50">
+                  <DocChecklist
+                    hasOm={!!lead.has_om}
+                    hasT12={!!lead.has_t12}
+                    hasRentRoll={!!lead.has_rent_roll}
+                    createdAt={lead.created_at}
+                    sourceContactName={sourceContactName}
+                    onToggle={(field, value) => onUpdate(lead.id, { [field]: value } as any)}
+                  />
+                  <BuyBoxButtons
+                    value={(lead.buy_box_fit as BuyBoxFit) || "unchecked"}
+                    reason={lead.disqualification_reason ?? null}
+                    onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
+                    onReasonChange={(v) =>
+                      onUpdate(lead.id, { disqualification_reason: v } as any)
+                    }
+                  />
+                </div>
+
                 <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 flex flex-col min-h-0">
                   <TabsList className="h-10 bg-transparent rounded-none border-b border-border/50 px-4 justify-start gap-1 w-full">
                     <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5">
@@ -491,6 +678,9 @@ export function LeadPeekSheet({
                     </TabsTrigger>
                     <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5">
                       <Mail className="h-3.5 w-3.5" /> Email
+                    </TabsTrigger>
+                    <TabsTrigger value="files" className="data-[state=active]:bg-muted gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" /> Files
                     </TabsTrigger>
                   </TabsList>
 
@@ -568,6 +758,14 @@ export function LeadPeekSheet({
                       }}
                     />
                   </TabsContent>
+                  {/* FILES TAB */}
+                  <TabsContent value="files" className="flex-1 overflow-auto m-0 p-4">
+                    <LeadFilesTab
+                      leadId={lead.id}
+                      workspaceId={lead.workspace_id}
+                      onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
+                    />
+                  </TabsContent>
                 </Tabs>
               </div>
             </div>
@@ -598,10 +796,19 @@ export function LeadPeekSheet({
               <Button onClick={() => onOpenDeal(convertedDealId)}>Open deal</Button>
             ) : (
               <Button
-                disabled={isConverted || isArchived}
+                disabled={
+                  isConverted ||
+                  isArchived ||
+                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                }
                 onClick={() => onConvert(lead)}
+                title={
+                  !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
+                    ? "Mark as Fits Buy Box or Maybe to enable conversion"
+                    : undefined
+                }
               >
-                Convert to deal <ArrowRight className="h-4 w-4 ml-1" />
+                Convert to Deal <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             )}
           </div>
@@ -872,5 +1079,56 @@ function DoneSection({
         <CrmActivityTimeline activities={done} people={people} />
       )}
     </section>
+  );
+}
+
+function NumField({
+  label,
+  value,
+  step,
+  onSave,
+}: {
+  label: string;
+  value: number | null;
+  step?: string;
+  onSave: (n: number | null) => Promise<void> | void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value !== null ? String(value) : "");
+  useEffect(() => setDraft(value !== null ? String(value) : ""), [value]);
+
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      {editing ? (
+        <Input
+          autoFocus
+          type="number"
+          step={step}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            setEditing(false);
+            const n = draft.trim() === "" ? null : Number(draft);
+            if ((n ?? null) !== (value ?? null)) onSave(n);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") {
+              setDraft(value !== null ? String(value) : "");
+              setEditing(false);
+            }
+          }}
+          className="h-6 w-24 text-xs"
+        />
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="text-foreground hover:text-primary"
+        >
+          {value !== null ? value.toLocaleString() : <span className="text-muted-foreground italic">—</span>}
+        </button>
+      )}
+    </div>
   );
 }

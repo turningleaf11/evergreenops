@@ -2531,6 +2531,56 @@ export type Database = {
           },
         ]
       }
+      lead_files: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          lead_id: string
+          mime_type: string | null
+          name: string
+          size_bytes: number | null
+          storage_path: string | null
+          uploaded_by: string | null
+          url: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id: string
+          mime_type?: string | null
+          name: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id?: string
+          mime_type?: string | null
+          name?: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_files_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leadership_meeting_action_items: {
         Row: {
           agenda_item_id: string | null
@@ -2631,65 +2681,128 @@ export type Database = {
       }
       leads: {
         Row: {
+          asking_price: number | null
+          baths: number | null
+          beds: number | null
+          buy_box_fit: string
           company_name: string | null
           converted_contact_id: string | null
           converted_deal_id: string | null
           created_at: string
           created_by: string | null
           custom_fields: Json
+          disqualification_reason: string | null
           email: string | null
+          gross_income: number | null
+          has_om: boolean
+          has_rent_roll: boolean
+          has_t12: boolean
           id: string
+          lane: string
+          listed_cap_rate: number | null
+          lot_size: string | null
           name: string
           next_action_at: string | null
+          noi: number | null
           notes: string
           owner_id: string | null
           phone: string | null
+          property_address: string | null
+          property_city: string | null
+          property_state: string | null
+          property_type: string | null
+          property_zip: string | null
           source: string | null
+          source_contact_id: string | null
+          sqft: number | null
           status: string
           temperature: string
           title: string | null
+          units: number | null
           updated_at: string
           workspace_id: string | null
         }
         Insert: {
+          asking_price?: number | null
+          baths?: number | null
+          beds?: number | null
+          buy_box_fit?: string
           company_name?: string | null
           converted_contact_id?: string | null
           converted_deal_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          disqualification_reason?: string | null
           email?: string | null
+          gross_income?: number | null
+          has_om?: boolean
+          has_rent_roll?: boolean
+          has_t12?: boolean
           id?: string
+          lane?: string
+          listed_cap_rate?: number | null
+          lot_size?: string | null
           name?: string
           next_action_at?: string | null
+          noi?: number | null
           notes?: string
           owner_id?: string | null
           phone?: string | null
+          property_address?: string | null
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          property_zip?: string | null
           source?: string | null
+          source_contact_id?: string | null
+          sqft?: number | null
           status?: string
           temperature?: string
           title?: string | null
+          units?: number | null
           updated_at?: string
           workspace_id?: string | null
         }
         Update: {
+          asking_price?: number | null
+          baths?: number | null
+          beds?: number | null
+          buy_box_fit?: string
           company_name?: string | null
           converted_contact_id?: string | null
           converted_deal_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          disqualification_reason?: string | null
           email?: string | null
+          gross_income?: number | null
+          has_om?: boolean
+          has_rent_roll?: boolean
+          has_t12?: boolean
           id?: string
+          lane?: string
+          listed_cap_rate?: number | null
+          lot_size?: string | null
           name?: string
           next_action_at?: string | null
+          noi?: number | null
           notes?: string
           owner_id?: string | null
           phone?: string | null
+          property_address?: string | null
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          property_zip?: string | null
           source?: string | null
+          source_contact_id?: string | null
+          sqft?: number | null
           status?: string
           temperature?: string
           title?: string | null
+          units?: number | null
           updated_at?: string
           workspace_id?: string | null
         }
@@ -2706,6 +2819,13 @@ export type Database = {
             columns: ["converted_deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
