@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
 import { handleGmailInvokeError } from "@/lib/gmail-error";
+import { useGmailAccess } from "@/hooks/useGmailAccess";
 
 interface SendResult {
   threadId?: string;
