@@ -57,9 +57,10 @@ interface Props {
   entityId: string;
   hideHeader?: boolean;
   defaultFilter?: FilterMode;
+  onReplyEmail?: (info: { threadId: string; subject: string }) => void;
 }
 
-export default function ActivityPanel({ entityType, entityId, hideHeader = false, defaultFilter = "all" }: Props) {
+export default function ActivityPanel({ entityType, entityId, hideHeader = false, defaultFilter = "all", onReplyEmail }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
