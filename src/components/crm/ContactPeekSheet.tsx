@@ -1839,18 +1839,6 @@ function ContactDetailBody({
           <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
             <EntityTabPanel value="overview" className="p-6">
               <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="About">
-                  <p
-                    className={cn(
-                      "text-sm whitespace-pre-wrap",
-                      contact.notes
-                        ? "text-foreground"
-                        : "italic text-muted-foreground/70",
-                    )}
-                  >
-                    {contact.notes || "No notes yet."}
-                  </p>
-                </OverviewCard>
                 <OverviewCard title="Profile">
                   <CustomFieldsPanel
                     contactId={contact.id}
