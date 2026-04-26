@@ -74,10 +74,9 @@ export function EntityTabs<V extends string = EntityTabId>({
 }
 
 /**
- * Tab content panel with consistent scroll behavior.
- * Padding is intentionally `0` because EntityDetailLayout owns the layout
- * (background, padding, sidebar). Pass `className="p-6"` for legacy
- * single-column tab content.
+ * Tab content panel with consistent padding / scroll behavior.
+ * Pass className="p-0 overflow-hidden" + render an EntityDetailLayout inside
+ * for the unified two-column shell.
  */
 export function EntityTabPanel({
   value,
@@ -91,7 +90,10 @@ export function EntityTabPanel({
   return (
     <TabsContent
       value={value}
-      className={cn("flex-1 m-0 p-0 outline-none data-[state=inactive]:hidden", className)}
+      className={cn(
+        "flex-1 overflow-auto m-0 p-6 outline-none data-[state=inactive]:hidden",
+        className,
+      )}
       forceMount
     >
       {children}
