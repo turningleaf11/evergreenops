@@ -386,11 +386,9 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 5 — P&L */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    P&L summary
-                  </h3>
-                  <div className="rounded-xl border border-border/50 bg-card p-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">P&amp;L summary</h3>
+                  <div className="crm-card grid grid-cols-2 md:grid-cols-3 gap-4">
                     <MoneyField
                       label="Purchase price"
                       value={tx.purchase_price}
@@ -407,7 +405,7 @@ export function TransactionDetailSheet({
                       onSave={(v) => saveField({ earnest_money_required: v })}
                     />
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">EM received</Label>
+                      <Label className="crm-field-label">EM received</Label>
                       <button
                         onClick={() =>
                           saveField({
@@ -418,9 +416,9 @@ export function TransactionDetailSheet({
                           })
                         }
                         className={cn(
-                          "px-3 py-2 rounded-md text-xs font-medium border transition-colors",
+                          "px-3 py-2 rounded-md text-sm font-medium border transition-colors",
                           tx.earnest_money_received
-                            ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                            ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
                             : "bg-muted text-muted-foreground border-border",
                         )}
                       >
@@ -433,7 +431,7 @@ export function TransactionDetailSheet({
                       onSave={(v) => saveField({ estimated_net: v })}
                     />
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Actual net</Label>
+                      <Label className="crm-field-label">Actual net</Label>
                       {tx.status === "closed" ? (
                         <Input
                           type="number"
@@ -441,10 +439,10 @@ export function TransactionDetailSheet({
                           onBlur={(e) =>
                             saveField({ actual_net: e.target.value ? Number(e.target.value) : null })
                           }
-                          className="h-9 text-base font-semibold text-emerald-600 tabular-nums"
+                          className="h-9 text-base font-semibold text-brand-mint-deep tabular-nums"
                         />
                       ) : (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                        <div className="px-3 py-2 text-sm crm-empty">
                           Available after close
                         </div>
                       )}
@@ -453,10 +451,8 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 6 — NOTES */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Notes
-                  </h3>
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Notes</h3>
                   <Textarea
                     value={notesDraft}
                     onChange={(e) => setNotesDraft(e.target.value)}
@@ -467,9 +463,9 @@ export function TransactionDetailSheet({
                     }}
                     rows={4}
                     placeholder="Notes about this transaction…"
-                    className="resize-none"
+                    className="resize-none text-sm"
                   />
-                  <p className="text-[11px] text-muted-foreground">Saves on blur.</p>
+                  <p className="text-[11px] text-muted-foreground italic">Saves on blur.</p>
                 </section>
               </div>
             </>
