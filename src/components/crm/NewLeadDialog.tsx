@@ -106,21 +106,15 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
           <section className="space-y-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Property</h3>
             <div>
-              <Label className="text-xs">Address</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label className="text-xs">City</Label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">State</Label>
-                <Input value={state} onChange={(e) => setState(e.target.value)} maxLength={2} />
-              </div>
-              <div>
-                <Label className="text-xs">Zip</Label>
-                <Input value={zip} onChange={(e) => setZip(e.target.value)} />
+              <Label className="text-xs">Property Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Full property address"
+                  className="pl-8"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
