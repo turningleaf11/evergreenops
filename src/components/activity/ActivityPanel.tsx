@@ -68,8 +68,6 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    const [{ data: c }, { data: e }] = await Promise.all([
   const [crmActs, setCrmActs] = useState<CrmActivity[]>([]);
   const isCrmEntity = CRM_ENTITY_TYPES.has(entityType);
 
