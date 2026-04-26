@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFile } from "@/lib/file-upload";
 import { handleGmailInvokeError } from "@/lib/gmail-error";
+import { useGmailAccess } from "@/hooks/useGmailAccess";
 
 interface SendResult {
   threadId?: string;
@@ -108,6 +109,7 @@ export function ComposeModal({
 }: Props) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
+  const { accounts, defaultAccount } = useGmailAccess();
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState("");
@@ -119,6 +121,7 @@ export function ComposeModal({
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
   const [customWhen, setCustomWhen] = useState("");
+  const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -127,8 +130,11 @@ export function ComposeModal({
       setSubject(defaultSubject);
       setBody("");
       setAttachments([]);
+      setAccountId(defaultAccount?.id ?? null);
     }
-  }, [open, defaultTo, defaultSubject]);
+  }, [open, defaultTo, defaultSubject, defaultAccount?.id]);
+
+  const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
 
   useEffect(() => {
     if (!open) return;
@@ -162,7 +168,7 @@ export function ComposeModal({
     }
     setSending(true);
     const { data, error } = await supabase.functions.invoke("gmail-send", {
-      body: { to, subject, body: buildHtml(), threadId, inReplyTo },
+      body: { to, subject, body: buildHtml(), threadId, inReplyTo, account_id: accountId ?? undefined },
     });
     setSending(false);
     if (error) {
