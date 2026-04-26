@@ -10,8 +10,7 @@ import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer
 import { AttachmentChips, type CommentAttachment } from "@/components/shared/RichCommentInput";
 import { CommentReactions } from "@/components/shared/CommentReactions";
 import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
-import { handleGmailInvokeError } from "@/lib/gmail-error";
+import { InlineEmailComposer } from "@/components/crm/InlineEmailComposer";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
