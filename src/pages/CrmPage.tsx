@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Users, Building2, Briefcase, Plus, Search, Inbox } from "lucide-react";
+import { Users, Building2, Briefcase, Plus, Search, Inbox, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,8 +13,9 @@ import { LeadsList } from "@/components/crm/LeadsList";
 import { ContactPeekSheet } from "@/components/crm/ContactPeekSheet";
 import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
+import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
 
-type Tab = "leads" | "contacts" | "companies" | "deals";
+type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
 
 export default function CrmPage() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function CrmPage() {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
-  const initialTab: Tab = (["leads", "contacts", "companies", "deals"] as Tab[]).includes(
+  const initialTab: Tab = (["leads", "contacts", "companies", "deals", "transactions"] as Tab[]).includes(
     params.tab as Tab,
   )
     ? (params.tab as Tab)
@@ -109,6 +110,9 @@ export default function CrmPage() {
             <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
               <Briefcase className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
+              <FileText className="h-3.5 w-3.5" /> Transactions
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -128,6 +132,9 @@ export default function CrmPage() {
         </TabsContent>
         <TabsContent value="deals" className="flex-1 min-h-0 overflow-auto m-0">
           <DealsKanban search={search} />
+        </TabsContent>
+        <TabsContent value="transactions" className="flex-1 min-h-0 overflow-auto m-0">
+          <TransactionsList search={search} />
         </TabsContent>
       </Tabs>
 

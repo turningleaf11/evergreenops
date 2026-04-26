@@ -42,6 +42,7 @@ import {
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NewTransactionDialog } from "./transactions/NewTransactionDialog";
 import { DealOverviewPanel } from "./DealOverviewPanel";
 import { DealUnderwritingTab } from "./DealUnderwritingTab";
 import { DealBrokerCommsTab } from "./DealBrokerCommsTab";
@@ -153,6 +154,7 @@ export function DealPeekSheet({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<ContactLite[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [newTxOpen, setNewTxOpen] = useState(false);
 
   const reload = async () => {
     if (!dealId) return;
@@ -492,7 +494,7 @@ export function DealPeekSheet({
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={() => toast({ title: "Coming next", description: "Transaction creation wires up in the next prompt." })}
+                        onClick={() => setNewTxOpen(true)}
                       >
                         Create Transaction →
                       </Button>
@@ -878,6 +880,29 @@ export function DealPeekSheet({
           setCreateOpen(false);
         }}
       />
+
+      {deal && (
+        <NewTransactionDialog
+          open={newTxOpen}
+          onOpenChange={setNewTxOpen}
+          prefillFromDeal={{
+            dealId: deal.id,
+            property_address: deal.property_address || deal.title,
+            property_city: deal.property_city,
+            property_state: deal.property_state,
+            property_type: deal.property_type,
+            units: deal.units,
+            asking_price: deal.asking_price ?? deal.value,
+            source_contact_id: deal.source_contact_id,
+            expected_close_date: deal.expected_close_date,
+          }}
+          defaultLane="portfolio"
+          onCreated={() => {
+            toast({ title: "Transaction created", description: "View it in the Transactions tab." });
+            onChanged();
+          }}
+        />
+      )}
     </>
   );
 }

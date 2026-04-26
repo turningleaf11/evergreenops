@@ -1060,6 +1060,151 @@ export type Database = {
           },
         ]
       }
+      crm_transactions: {
+        Row: {
+          actual_net: number | null
+          assignment_fee: number | null
+          attorney_contact_id: string | null
+          buyer_contact_id: string | null
+          closing_date: string | null
+          contract_date: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          due_diligence_end: string | null
+          earnest_money_received: boolean
+          earnest_money_received_date: string | null
+          earnest_money_required: number | null
+          estimated_net: number | null
+          id: string
+          inspection_deadline: string | null
+          lane: string
+          lender_contact_id: string | null
+          notes: string | null
+          property_address: string
+          property_city: string | null
+          property_state: string | null
+          property_type: string | null
+          purchase_price: number | null
+          source_contact_id: string | null
+          status: string
+          title_contact_id: string | null
+          transaction_type: string
+          units: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actual_net?: number | null
+          assignment_fee?: number | null
+          attorney_contact_id?: string | null
+          buyer_contact_id?: string | null
+          closing_date?: string | null
+          contract_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          due_diligence_end?: string | null
+          earnest_money_received?: boolean
+          earnest_money_received_date?: string | null
+          earnest_money_required?: number | null
+          estimated_net?: number | null
+          id?: string
+          inspection_deadline?: string | null
+          lane?: string
+          lender_contact_id?: string | null
+          notes?: string | null
+          property_address?: string
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          purchase_price?: number | null
+          source_contact_id?: string | null
+          status?: string
+          title_contact_id?: string | null
+          transaction_type?: string
+          units?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actual_net?: number | null
+          assignment_fee?: number | null
+          attorney_contact_id?: string | null
+          buyer_contact_id?: string | null
+          closing_date?: string | null
+          contract_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          due_diligence_end?: string | null
+          earnest_money_received?: boolean
+          earnest_money_received_date?: string | null
+          earnest_money_required?: number | null
+          estimated_net?: number | null
+          id?: string
+          inspection_deadline?: string | null
+          lane?: string
+          lender_contact_id?: string | null
+          notes?: string | null
+          property_address?: string
+          property_city?: string | null
+          property_state?: string | null
+          property_type?: string | null
+          purchase_price?: number | null
+          source_contact_id?: string | null
+          status?: string
+          title_contact_id?: string | null
+          transaction_type?: string
+          units?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_transactions_attorney_contact_id_fkey"
+            columns: ["attorney_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_lender_contact_id_fkey"
+            columns: ["lender_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_title_contact_id_fkey"
+            columns: ["title_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_briefings: {
         Row: {
           briefing_date: string
@@ -4532,6 +4677,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transaction_checklist_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          is_complete: boolean
+          label: string
+          sort_order: number
+          transaction_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_complete?: boolean
+          label: string
+          sort_order?: number
+          transaction_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_complete?: boolean
+          label?: string
+          sort_order?: number
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_checklist_items_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "crm_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_favorites: {
         Row: {
