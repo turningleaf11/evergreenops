@@ -82,7 +82,7 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
           <TabsList className="w-full">
             <TabsTrigger value="fields" className="flex-1 text-xs">Fields</TabsTrigger>
             <TabsTrigger value="notes" className="flex-1 text-xs">Notes</TabsTrigger>
-            {row && <TabsTrigger value="comments" className="flex-1 text-xs">Comments</TabsTrigger>}
+            {row && <TabsTrigger value="comments" className="flex-1 text-xs">Activity</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="fields" className="mt-4">

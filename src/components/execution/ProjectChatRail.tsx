@@ -15,7 +15,7 @@ export default function ProjectChatRail({ open, onClose, projectId }: ProjectCha
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-medium">Comments</h2>
+          <h2 className="text-sm font-medium">Activity</h2>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
