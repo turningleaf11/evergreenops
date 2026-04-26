@@ -14,7 +14,11 @@ import {
   Search,
   UserPlus,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  EntitySheetShell,
+  EntitySheetHeader,
+  EntityIdentityStrip,
+} from "./_shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
