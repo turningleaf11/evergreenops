@@ -15,3 +15,6 @@ verify_jwt = false
 [functions.api-test]
 verify_jwt = false
 
+[functions.scheduled-email-dispatch]
+verify_jwt = false
+
