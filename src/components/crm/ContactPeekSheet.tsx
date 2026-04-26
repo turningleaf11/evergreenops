@@ -324,6 +324,13 @@ export function ContactPeekSheet({
                       )}
                     </section>
 
+                    {/* Details (type / preferred method / buy box / markets / active) */}
+                    <ContactDetailsPanel
+                      contact={contact}
+                      onSaved={(patch) => setContact({ ...contact, ...patch })}
+                      onChanged={onChanged}
+                    />
+
                     {/* Owner */}
                     <section>
                       <OwnerPicker
