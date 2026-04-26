@@ -57,7 +57,7 @@ export function ActivityComposer({ placeholder = "Write a comment…", onSubmit,
       TaskItem.configure({ nested: true }),
       SlashCommands,
       UniversalMention,
-    ],
+    ] as any,
     content: "",
     autofocus: autoFocus ?? false,
     editorProps: {
