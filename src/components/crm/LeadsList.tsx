@@ -251,11 +251,23 @@ export function LeadsList({ search }: { search: string }) {
                   {/* Body */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm truncate">{l.name || "Untitled lead"}</span>
-                      {l.company_name && (
-                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                          <Building2 className="h-3 w-3" /> {l.company_name}
+                      <span className="font-medium text-sm truncate">
+                        {l.property_address || l.name || "Untitled lead"}
+                      </span>
+                      {(l.property_city || l.property_state) && (
+                        <span className="text-xs text-muted-foreground">
+                          {[l.property_city, l.property_state].filter(Boolean).join(", ")}
                         </span>
+                      )}
+                      {l.property_type && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {l.property_type}
+                        </Badge>
+                      )}
+                      {!!l.units && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {l.units} units
+                        </Badge>
                       )}
                       {l.source && (
                         <Badge variant="outline" className="text-[10px]">
@@ -274,6 +286,16 @@ export function LeadsList({ search }: { search: string }) {
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                      {!!l.asking_price && (
+                        <span className="font-medium text-foreground">
+                          ${l.asking_price.toLocaleString()}
+                        </span>
+                      )}
+                      {l.company_name && (
+                        <span className="inline-flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> {l.company_name}
+                        </span>
+                      )}
                       {l.email && (
                         <a
                           href={`mailto:${l.email}`}
@@ -298,6 +320,14 @@ export function LeadsList({ search }: { search: string }) {
                           <Clock className="h-3 w-3" /> Next: {format(new Date(l.next_action_at), "MMM d, h:mma")}
                         </span>
                       )}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", l.has_om ? "bg-emerald-500" : "bg-muted-foreground/30")} title="OM" />
+                        OM
+                        <span className={cn("h-1.5 w-1.5 rounded-full ml-1", l.has_t12 ? "bg-emerald-500" : "bg-muted-foreground/30")} title="T12" />
+                        T12
+                        <span className={cn("h-1.5 w-1.5 rounded-full ml-1", l.has_rent_roll ? "bg-emerald-500" : "bg-muted-foreground/30")} title="Rent Roll" />
+                        RR
+                      </span>
                     </div>
                   </div>
 
