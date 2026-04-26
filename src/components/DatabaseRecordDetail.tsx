@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Save, Mail, Phone, ExternalLink, DollarSign, Check, Type, Hash, Calendar, ListChecks, User as UserIcon, Tag as TagIcon } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
-import CommentsSection from "@/components/CommentsSection";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 
@@ -127,7 +127,7 @@ export default function DatabaseRecordDetail({ database, row, open, onClose, onS
 
           {row && (
             <TabsContent value="comments" className="mt-4">
-              <CommentsSection entityType="database_row" entityId={row.id} />
+              <ActivityPanel entityType="database_row" entityId={row.id} />
             </TabsContent>
           )}
         </Tabs>

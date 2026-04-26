@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X, LayoutGrid, List } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import CommentsSection from "@/components/CommentsSection";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -401,7 +401,7 @@ export default function IssuesPage() {
 
               {/* Comments */}
               <div className="mt-4 border-t pt-4">
-                <CommentsSection entityType="issue" entityId={selectedIssue.id} />
+                <ActivityPanel entityType="issue" entityId={selectedIssue.id} />
               </div>
             </>
           )}

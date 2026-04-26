@@ -1,6 +1,6 @@
 import { MessageSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CommentsSection from "@/components/CommentsSection";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 
 interface ProjectChatRailProps {
   open: boolean;
@@ -22,7 +22,7 @@ export default function ProjectChatRail({ open, onClose, projectId }: ProjectCha
         </Button>
       </div>
       <div className="flex-1 min-h-0 px-4 pt-4 pb-3">
-        <CommentsSection entityType="project" entityId={projectId} hideHeader />
+        <ActivityPanel entityType="project" entityId={projectId} hideHeader />
       </div>
     </aside>
   );

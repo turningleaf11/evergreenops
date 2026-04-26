@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, User, Tag, Flag, AlertCircle, Repeat, FileText, ExternalLink, FolderKanban } from "lucide-react";
-import CommentsSection from "@/components/CommentsSection";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import { FieldRow } from "@/components/shared/AccordionField";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -298,7 +298,7 @@ function DetailContent({ type, item, onStatusChange, getName }: {
       )}
 
       <div className="pt-2 border-t border-border/30">
-        <CommentsSection entityType={type} entityId={item.id} />
+        <ActivityPanel entityType={type} entityId={item.id} />
       </div>
     </div>
   );
