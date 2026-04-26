@@ -63,6 +63,8 @@ export function DealsKanban({ search }: { search: string }) {
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [people, setPeople] = useState<PersonLite[]>([]);
+  const [sourceContacts, setSourceContacts] = useState<ContactLite[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
@@ -80,6 +82,8 @@ export function DealsKanban({ search }: { search: string }) {
       setPipelines(list);
       const def = list.find((p) => p.is_default) || list[0];
       setActivePipelineId(def?.id ?? null);
+      const { data: ps } = await supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500);
+      setPeople((ps as PersonLite[]) || []);
       setLoading(false);
     })();
   }, []);
@@ -92,7 +96,20 @@ export function DealsKanban({ search }: { search: string }) {
         supabase.from("deals").select("*").eq("pipeline_id", activePipelineId).order("created_at", { ascending: false }),
       ]);
       setStages((st as Stage[]) || []);
-      setDeals((dl as Deal[]) || []);
+      const dealRows = (dl as Deal[]) || [];
+      setDeals(dealRows);
+      const contactIds = Array.from(
+        new Set(dealRows.map((d) => d.source_contact_id).filter(Boolean) as string[]),
+      );
+      if (contactIds.length) {
+        const { data: cs } = await supabase
+          .from("contacts")
+          .select("id,first_name,last_name")
+          .in("id", contactIds);
+        setSourceContacts((cs as ContactLite[]) || []);
+      } else {
+        setSourceContacts([]);
+      }
     })();
   }, [activePipelineId, refreshKey]);
 
