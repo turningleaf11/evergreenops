@@ -487,6 +487,8 @@ function ContactSidebar({
   onUpdate,
   onChanged,
   setContact,
+  onLinkDeal,
+  onLinkLead,
 }: {
   contact: Contact;
   companyName: string | null;
@@ -496,6 +498,8 @@ function ContactSidebar({
   onUpdate: (patch: Partial<Contact>) => Promise<void>;
   onChanged: () => void;
   setContact: (c: Contact) => void;
+  onLinkDeal?: (dealId: string) => Promise<void> | void;
+  onLinkLead?: (leadId: string) => Promise<void> | void;
 }) {
   return (
     <>
