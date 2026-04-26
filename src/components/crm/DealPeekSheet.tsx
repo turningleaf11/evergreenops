@@ -560,13 +560,14 @@ export function DealPeekSheet({
                         {[
                           { v: "overview", label: "Overview" },
                           { v: "underwriting", label: "Underwriting" },
+                          { v: "broker", label: "Broker Comms" },
                           { v: "activity", label: "Activity" },
                           { v: "files", label: "Files" },
                         ].map((t) => (
                           <TabsTrigger
                             key={t.v}
                             value={t.v}
-                            className="text-[15px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
+                            className="text-[14px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
                           >
                             {t.label}
                           </TabsTrigger>
