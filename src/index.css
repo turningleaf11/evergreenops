@@ -51,6 +51,15 @@
     --warning-foreground: 0 0% 100%;
     --info: 200 98% 39%;
     --info-foreground: 0 0% 100%;
+
+    /* Brand palette (CRM polish) */
+    --brand-azure: 230 64% 54%;        /* #3E54D3 */
+    --brand-mint: 165 67% 52%;         /* #2FDAAA */
+    --brand-mint-deep: 165 67% 38%;
+    --brand-tangerine: 19 100% 71%;    /* #FFA16F */
+    --brand-coral: 350 83% 58%;        /* #ED3B5B */
+    --brand-violet: 258 56% 60%;
+    --brand-purple-muted: 245 16% 65%; /* #9896B8 */
   }
 
   .dark {
@@ -97,6 +106,15 @@
     --warning-foreground: 0 0% 100%;
     --info: 200 98% 35%;
     --info-foreground: 0 0% 100%;
+
+    /* Brand palette (CRM polish) */
+    --brand-azure: 230 64% 60%;
+    --brand-mint: 165 67% 52%;
+    --brand-mint-deep: 165 67% 38%;
+    --brand-tangerine: 19 100% 71%;
+    --brand-coral: 350 83% 60%;
+    --brand-violet: 258 56% 65%;
+    --brand-purple-muted: 245 16% 65%;
   }
 }
 
@@ -191,6 +209,31 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ── CRM polish utilities ── */
+  .crm-eyebrow {
+    @apply text-[11px] font-semibold uppercase text-muted-foreground;
+    letter-spacing: 0.12em;
+  }
+  .crm-field-label {
+    @apply text-xs text-muted-foreground mb-1 block;
+  }
+  .crm-card {
+    @apply rounded-xl bg-card p-6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid hsl(var(--border) / 0.4);
+  }
+  .crm-card-muted {
+    @apply rounded-xl p-6;
+    background-color: hsl(var(--muted) / 0.4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+  .crm-section-stack > * + * { margin-top: 32px; }
+  .crm-field-stack > * + * { margin-top: 16px; }
+  .crm-empty {
+    @apply italic text-muted-foreground;
   }
 }
 

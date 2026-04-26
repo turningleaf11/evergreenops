@@ -10,23 +10,23 @@ export const BUY_BOX_META: Record<
 > = {
   yes: {
     label: "Fits Buy Box",
-    border: "border-l-emerald-500",
-    bg: "bg-emerald-500 text-white hover:bg-emerald-600",
-    ring: "ring-emerald-500/40",
+    border: "border-l-brand-mint",
+    bg: "bg-brand-mint text-white hover:brightness-95",
+    ring: "ring-brand-mint/40",
     icon: Check,
   },
   maybe: {
     label: "Maybe",
-    border: "border-l-amber-400",
-    bg: "bg-amber-400 text-amber-950 hover:bg-amber-500",
-    ring: "ring-amber-400/40",
+    border: "border-l-brand-tangerine",
+    bg: "bg-brand-tangerine text-white hover:brightness-95",
+    ring: "ring-brand-tangerine/40",
     icon: HelpCircle,
   },
   no: {
     label: "Pass",
-    border: "border-l-red-500",
-    bg: "bg-red-500 text-white hover:bg-red-600",
-    ring: "ring-red-500/40",
+    border: "border-l-brand-coral",
+    bg: "bg-brand-coral text-white hover:brightness-95",
+    ring: "ring-brand-coral/40",
     icon: X,
   },
   unchecked: {
@@ -49,19 +49,16 @@ export function BuyBoxButtons({
   onChange: (v: BuyBoxFit) => void;
   onReasonChange: (v: string | null) => void;
 }) {
-  const choices: { v: BuyBoxFit; label: string; icon: any }[] = [
-    { v: "yes", label: "Fits Buy Box", icon: Check },
-    { v: "maybe", label: "Maybe", icon: HelpCircle },
-    { v: "no", label: "Pass", icon: X },
+  const choices: { v: BuyBoxFit; label: string; icon: any; activeBg: string }[] = [
+    { v: "yes", label: "Fits", icon: Check, activeBg: "bg-brand-mint" },
+    { v: "maybe", label: "Maybe", icon: HelpCircle, activeBg: "bg-brand-tangerine" },
+    { v: "no", label: "Pass", icon: X, activeBg: "bg-brand-coral" },
   ];
   return (
     <div className="space-y-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Buy Box Check
-      </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="crm-eyebrow">Buy Box Check</div>
+      <div className="grid grid-cols-3 gap-3">
         {choices.map((c) => {
-          const meta = BUY_BOX_META[c.v];
           const active = value === c.v;
           const Icon = c.icon;
           return (
@@ -69,10 +66,10 @@ export function BuyBoxButtons({
               key={c.v}
               onClick={() => onChange(c.v)}
               className={cn(
-                "flex items-center justify-center gap-1.5 h-11 rounded-lg text-sm font-medium transition-all border border-transparent",
+                "flex items-center justify-center gap-2 h-[52px] w-full rounded-xl text-sm font-medium transition-all",
                 active
-                  ? `${meta.bg} ring-2 ring-offset-1 ring-offset-background ${meta.ring}`
-                  : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                  ? `${c.activeBg} text-white shadow-md`
+                  : "bg-muted/50 text-foreground hover:bg-muted",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -83,7 +80,7 @@ export function BuyBoxButtons({
       </div>
       {value === "no" && (
         <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground">Reason for pass</label>
+          <label className="crm-field-label">Reason for pass</label>
           <Textarea
             value={reason ?? ""}
             onChange={(e) => onReasonChange(e.target.value || null)}

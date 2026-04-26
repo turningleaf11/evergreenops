@@ -392,15 +392,13 @@ export function LeadPeekSheet({
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] min-h-0 overflow-hidden">
-              {/* Left rail */}
-              <aside className="border-r border-border/50 overflow-auto bg-muted/10">
-                <div className="p-4 space-y-6">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-0 overflow-hidden bg-background">
+              {/* Left rail — same surface as main, just an inset divider */}
+              <aside className="overflow-auto md:border-r md:border-border/40">
+                <div className="p-6 space-y-8">
                   {/* DETAILS */}
-                  <section className="space-y-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Details
-                    </div>
+                  <section className="space-y-4">
+                    <div className="crm-eyebrow">Details</div>
 
                     {/* Temperature */}
                     <div className="flex items-center gap-2">
@@ -464,11 +462,9 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* PERSON */}
-                  <section className="space-y-2">
+                  <section className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Person
-                      </div>
+                      <div className="crm-eyebrow">Person</div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-sm font-medium">
@@ -501,10 +497,10 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* ORGANIZATION */}
-                  <section className="space-y-2">
+                  <section className="space-y-3">
                     <button
                       onClick={() => setShowOrg((v) => !v)}
-                      className="flex items-center justify-between w-full text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      className="flex items-center justify-between w-full crm-eyebrow"
                     >
                       <span>Organization</span>
                       {showOrg ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -521,8 +517,8 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* PROPERTY */}
-                  <section className="space-y-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <section className="crm-card-muted space-y-3">
+                    <div className="crm-eyebrow flex items-center gap-1.5">
                       <Home className="h-3 w-3" /> Property
                     </div>
                     <FieldRow icon="📍">
@@ -624,10 +620,8 @@ export function LeadPeekSheet({
                   </section>
 
                   {/* SOURCE */}
-                  <section className="space-y-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Source
-                    </div>
+                  <section className="space-y-3">
+                    <div className="crm-eyebrow">Source</div>
                     <ContactPicker
                       value={lead.source_contact_id ?? null}
                       onChange={(id, c) => {
@@ -649,7 +643,7 @@ export function LeadPeekSheet({
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
                 {/* Doc checklist + Buy Box header */}
-                <div className="px-4 pt-4 pb-3 space-y-3 border-b border-border/50">
+                <div className="px-6 pt-6 pb-5 space-y-5 border-b border-border/40">
                   <DocChecklist
                     hasOm={!!lead.has_om}
                     hasT12={!!lead.has_t12}
@@ -793,7 +787,12 @@ export function LeadPeekSheet({
               )}
             </div>
             {isConverted && convertedDealId && onOpenDeal ? (
-              <Button onClick={() => onOpenDeal(convertedDealId)}>Open deal</Button>
+              <Button
+                onClick={() => onOpenDeal(convertedDealId)}
+                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl"
+              >
+                Open deal
+              </Button>
             ) : (
               <Button
                 disabled={
@@ -802,13 +801,14 @@ export function LeadPeekSheet({
                   !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
                 }
                 onClick={() => onConvert(lead)}
+                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl disabled:opacity-50"
                 title={
                   !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
                     ? "Mark as Fits Buy Box or Maybe to enable conversion"
                     : undefined
                 }
               >
-                Convert to Deal <ArrowRight className="h-4 w-4 ml-1" />
+                Convert to Deal <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
             )}
           </div>

@@ -31,6 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { QuickCreateDialog } from "./QuickCreateDialog";
@@ -116,6 +117,25 @@ const formatMoney = (n: number, currency = "USD") =>
 
 const contactName = (c: ContactLite) =>
   `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Untitled";
+
+// Stage color map keyed by normalized stage name
+const STAGE_BADGE: Record<string, string> = {
+  buy_box_check: "bg-muted text-muted-foreground border-transparent",
+  quick_underwrite: "bg-brand-azure/15 text-brand-azure border-transparent",
+  broker_feedback: "bg-brand-tangerine/20 text-brand-tangerine border-transparent",
+  deep_underwrite: "bg-brand-azure/15 text-brand-azure border-transparent",
+  loi_sent: "bg-brand-violet/15 text-brand-violet border-transparent",
+  due_diligence: "bg-brand-tangerine/20 text-brand-tangerine border-transparent",
+  under_contract: "bg-brand-mint/20 text-brand-mint-deep border-transparent",
+  closed: "bg-brand-mint-deep/20 text-brand-mint-deep border-transparent",
+  dead: "bg-brand-coral/15 text-brand-coral border-transparent",
+};
+
+function stageBadgeClass(name: string | undefined): string {
+  if (!name) return "bg-muted text-muted-foreground border-transparent";
+  const key = name.toLowerCase().replace(/\s+/g, "_");
+  return STAGE_BADGE[key] ?? "bg-muted text-muted-foreground border-transparent";
+}
 
 export function DealPeekSheet({
   dealId,
@@ -471,12 +491,10 @@ export function DealPeekSheet({
                     <div className="flex items-center gap-2 flex-wrap pt-1">
                       {currentStage && (
                         <Badge
-                          variant="outline"
-                          className="text-[10px]"
-                          style={{
-                            borderColor: `hsl(${currentStage.color})`,
-                            color: `hsl(${currentStage.color})`,
-                          }}
+                          className={cn(
+                            "text-[10px] capitalize",
+                            stageBadgeClass(currentStage.name),
+                          )}
                         >
                           {currentStage.name}
                         </Badge>
@@ -493,8 +511,8 @@ export function DealPeekSheet({
                     {currentStage?.name === "Under Contract" && (
                       <Button
                         size="sm"
-                        variant="default"
                         onClick={() => setNewTxOpen(true)}
+                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
                       >
                         Create Transaction →
                       </Button>
@@ -519,13 +537,23 @@ export function DealPeekSheet({
                 {/* Main column */}
                 <div className="overflow-auto">
                   <Tabs defaultValue="overview" className="w-full">
-                    <div className="px-4 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
-                      <TabsList className="bg-transparent p-0 h-auto gap-1">
-                        <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-                        <TabsTrigger value="underwriting" className="text-xs">Underwriting</TabsTrigger>
-                        <TabsTrigger value="broker" className="text-xs">Broker Comms</TabsTrigger>
-                        <TabsTrigger value="activity" className="text-xs">Activity</TabsTrigger>
-                        <TabsTrigger value="files" className="text-xs">Files</TabsTrigger>
+                    <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                      <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
+                        {[
+                          { v: "overview", label: "Overview" },
+                          { v: "underwriting", label: "Underwriting" },
+                          { v: "broker", label: "Broker Comms" },
+                          { v: "activity", label: "Activity" },
+                          { v: "files", label: "Files" },
+                        ].map((t) => (
+                          <TabsTrigger
+                            key={t.v}
+                            value={t.v}
+                            className="text-[15px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
+                          >
+                            {t.label}
+                          </TabsTrigger>
+                        ))}
                       </TabsList>
                     </div>
 
@@ -602,15 +630,13 @@ export function DealPeekSheet({
                 </div>
 
                 {/* Right rail */}
-                <aside className="border-l border-border/50 overflow-auto bg-muted/10">
-                  <div className="p-4 space-y-5">
+                <aside className="border-l border-border/40 overflow-auto bg-background">
+                  <div className="p-6 space-y-8">
                     {/* Quick edit fields */}
-                    <section className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Deal details
-                      </div>
+                    <section className="space-y-4">
+                      <div className="crm-eyebrow">Deal details</div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Stage</Label>
+                        <Label className="crm-field-label">Stage</Label>
                         <select
                           value={deal.stage_id}
                           onChange={(e) => saveField({ stage_id: e.target.value } as any)}
@@ -622,7 +648,7 @@ export function DealPeekSheet({
                         </select>
                       </div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Value</Label>
+                        <Label className="crm-field-label">Value</Label>
                         <Input
                           type="number"
                           value={editValue}
@@ -635,7 +661,7 @@ export function DealPeekSheet({
                         />
                       </div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Expected close</Label>
+                        <Label className="crm-field-label">Expected close</Label>
                         <Input
                           type="date"
                           value={editClose ?? ""}
@@ -671,10 +697,8 @@ export function DealPeekSheet({
 
                     {/* Contacts */}
                     <section>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Contacts
-                        </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="crm-eyebrow">Contacts</div>
                         <Popover open={addOpen} onOpenChange={setAddOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
@@ -789,9 +813,7 @@ export function DealPeekSheet({
 
                     {/* Appointments */}
                     <section>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                        Appointments
-                      </div>
+                      <div className="crm-eyebrow mb-3">Appointments</div>
                       {(() => {
                         const upcoming = activities.filter(
                           (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
@@ -937,9 +959,7 @@ function DealCustomFieldsPanel({
   };
   return (
     <section>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Custom fields
-      </div>
+      <div className="crm-eyebrow mb-3">Custom fields</div>
       <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
       {dirty && (
         <div className="flex justify-end mt-2">

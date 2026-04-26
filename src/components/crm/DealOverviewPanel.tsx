@@ -73,28 +73,28 @@ export function DealOverviewPanel({
   const blur = (patch: Partial<OverviewDeal>) => onSave(patch);
 
   const buyBoxColor: Record<string, string> = {
-    yes: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-    maybe: "bg-amber-400/15 text-amber-600 border-amber-400/30",
-    no: "bg-red-500/15 text-red-600 border-red-500/30",
+    yes: "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30",
+    maybe: "bg-brand-tangerine/20 text-brand-tangerine border-brand-tangerine/30",
+    no: "bg-brand-coral/15 text-brand-coral border-brand-coral/30",
     unchecked: "bg-muted text-muted-foreground border-border",
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* Property */}
-      <section className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Property</h3>
+      <section className="crm-card space-y-4">
+        <h3 className="crm-eyebrow">Property</h3>
         <div>
-          <Label className="text-xs">Address</Label>
+          <Label className="crm-field-label">Address</Label>
           <Input
             value={draft.property_address ?? ""}
             onChange={(e) => setDraft({ ...draft, property_address: e.target.value })}
             onBlur={() => blur({ property_address: draft.property_address })}
           />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs">City</Label>
+            <Label className="crm-field-label">City</Label>
             <Input
               value={draft.property_city ?? ""}
               onChange={(e) => setDraft({ ...draft, property_city: e.target.value })}
@@ -102,7 +102,7 @@ export function DealOverviewPanel({
             />
           </div>
           <div>
-            <Label className="text-xs">State</Label>
+            <Label className="crm-field-label">State</Label>
             <Input
               value={draft.property_state ?? ""}
               onChange={(e) => setDraft({ ...draft, property_state: e.target.value })}
@@ -110,7 +110,7 @@ export function DealOverviewPanel({
             />
           </div>
           <div>
-            <Label className="text-xs">Zip</Label>
+            <Label className="crm-field-label">Zip</Label>
             <Input
               value={draft.property_zip ?? ""}
               onChange={(e) => setDraft({ ...draft, property_zip: e.target.value })}
@@ -118,9 +118,9 @@ export function DealOverviewPanel({
             />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs">Type</Label>
+            <Label className="crm-field-label">Type</Label>
             <Input
               value={draft.property_type ?? ""}
               placeholder="MF, SFR, Mixed…"
@@ -129,7 +129,7 @@ export function DealOverviewPanel({
             />
           </div>
           <div>
-            <Label className="text-xs">Units</Label>
+            <Label className="crm-field-label">Units</Label>
             <Input
               type="number"
               value={draft.units ?? ""}
@@ -138,7 +138,7 @@ export function DealOverviewPanel({
             />
           </div>
           <div>
-            <Label className="text-xs">Sqft</Label>
+            <Label className="crm-field-label">Sqft</Label>
             <Input
               type="number"
               value={draft.sqft ?? ""}
@@ -150,39 +150,44 @@ export function DealOverviewPanel({
       </section>
 
       {/* Pricing */}
-      <section className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Pricing</h3>
-        <div className="grid grid-cols-2 gap-2">
+      <section className="crm-card space-y-4">
+        <h3 className="crm-eyebrow">Pricing</h3>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs">Asking price</Label>
+            <Label className="crm-field-label">Asking price</Label>
+            <div className="text-lg font-semibold tabular-nums mb-1">
+              {fmtMoney(draft.asking_price)}
+            </div>
             <Input
               type="number"
               value={draft.asking_price ?? ""}
               onChange={(e) => setDraft({ ...draft, asking_price: e.target.value === "" ? null : Number(e.target.value) })}
               onBlur={() => blur({ asking_price: draft.asking_price })}
+              className="h-9"
             />
           </div>
           <div>
-            <Label className="text-xs">Seller-stated value</Label>
+            <Label className="crm-field-label">Seller-stated value</Label>
+            <div className="text-lg font-semibold tabular-nums mb-1">
+              {fmtMoney(draft.seller_stated_value)}
+            </div>
             <Input
               type="number"
               value={draft.seller_stated_value ?? ""}
               onChange={(e) => setDraft({ ...draft, seller_stated_value: e.target.value === "" ? null : Number(e.target.value) })}
               onBlur={() => blur({ seller_stated_value: draft.seller_stated_value })}
+              className="h-9"
             />
           </div>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          Asking: <span className="font-medium text-foreground">{fmtMoney(draft.asking_price)}</span>
         </div>
       </section>
 
       {/* Source / disposition */}
-      <section className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Source & strategy</h3>
+      <section className="crm-card space-y-4">
+        <h3 className="crm-eyebrow">Source &amp; strategy</h3>
 
         <div>
-          <Label className="text-xs">Source contact</Label>
+          <Label className="crm-field-label">Source contact</Label>
           <ContactPicker
             value={draft.source_contact_id}
             onChange={(id) => {
@@ -193,7 +198,7 @@ export function DealOverviewPanel({
         </div>
 
         <div>
-          <Label className="text-xs">Disposition strategy</Label>
+          <Label className="crm-field-label">Disposition strategy</Label>
           <Select
             value={draft.disposition_strategy ?? ""}
             onValueChange={(v) => {
@@ -215,10 +220,10 @@ export function DealOverviewPanel({
         </div>
 
         {leadInfo && (
-          <div className="rounded-lg border border-border/40 bg-muted/30 p-2.5 text-xs flex items-center justify-between gap-2">
+          <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-sm flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">From lead</div>
-              <div className="font-medium truncate">{leadInfo.name}</div>
+              <div className="crm-eyebrow">From lead</div>
+              <div className="font-medium truncate mt-1">{leadInfo.name}</div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Badge variant="outline" className={buyBoxColor[leadInfo.buy_box_fit ?? "unchecked"]}>
@@ -226,7 +231,7 @@ export function DealOverviewPanel({
               </Badge>
               <Link
                 to={`/crm?lead=${leadInfo.id}`}
-                className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                className="inline-flex items-center gap-0.5 text-brand-azure hover:underline"
               >
                 Open <ArrowUpRight className="h-3 w-3" />
               </Link>

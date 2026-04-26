@@ -288,14 +288,12 @@ export function ContactPeekSheet({
                   />
                 </div>
 
-                {/* Right rail */}
-                <aside className="border-l border-border/50 overflow-auto bg-muted/10">
-                  <div className="p-4 space-y-5">
+                {/* Right rail — integrated, same surface as page */}
+                <aside className="border-l border-border/40 overflow-auto bg-background">
+                  <div className="p-6 space-y-6">
                     {/* Contact info */}
-                    <section className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Contact info
-                      </div>
+                    <section className="space-y-3">
+                      <div className="crm-eyebrow">Contact info</div>
                       {contact.email && (
                         <a
                           href={`mailto:${contact.email}`}
@@ -363,9 +361,7 @@ export function ContactPeekSheet({
 
                     {/* Appointments */}
                     <section>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                        Appointments
-                      </div>
+                      <div className="crm-eyebrow mb-3">Appointments</div>
                       {(() => {
                         const upcoming = activities.filter(
                           (a) => a.type === "meeting" && new Date(a.occurred_at) >= new Date(),
@@ -439,9 +435,7 @@ function CustomFieldsPanel({
   };
   return (
     <section>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Custom fields
-      </div>
+      <div className="crm-eyebrow mb-3">Custom fields</div>
       <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
       {dirty && (
         <div className="flex justify-end mt-2">
@@ -530,10 +524,8 @@ function ContactDetailsPanel({
   };
 
   return (
-    <section className="space-y-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Details
-      </div>
+    <section className="space-y-6">
+      <div className="crm-eyebrow">Details</div>
 
       <div>
         <Label className="text-[11px] text-muted-foreground">Type</Label>
@@ -602,9 +594,12 @@ function ContactDetailsPanel({
           </Button>
         </div>
         {markets.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-1.5 mt-2">
             {markets.map((m) => (
-              <Badge key={m} variant="secondary" className="gap-1 text-[10px]">
+              <span
+                key={m}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-azure/10 text-brand-azure"
+              >
                 {m}
                 <button
                   type="button"
@@ -613,7 +608,7 @@ function ContactDetailsPanel({
                 >
                   <X className="h-3 w-3" />
                 </button>
-              </Badge>
+              </span>
             ))}
           </div>
         )}

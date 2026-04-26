@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
+  Check,
   CheckCircle2,
-  Circle,
   Trash2,
   Mail,
   Phone,
   ExternalLink,
+  User,
+  FileText,
+  Scale,
+  Banknote,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -292,8 +297,9 @@ export function TransactionDetailSheet({
                           setActualNetInput(tx.estimated_net?.toString() || "");
                           setCloseOpen(true);
                         }}
+                        className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-10 px-5"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Closed
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark as Closed
                       </Button>
                     )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
@@ -303,13 +309,11 @@ export function TransactionDetailSheet({
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-auto p-6 space-y-6">
+              <div className="flex-1 overflow-auto p-6 space-y-8">
                 {/* SECTION 2 — KEY DATES */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Key dates
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Key dates</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <DateCard
                       label="Contract Date"
                       value={tx.contract_date}
@@ -336,17 +340,16 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 3 — KEY PEOPLE */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Key people
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Key people</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
                       const id = tx[roleKey];
                       const contact = people.find((p) => p.id === id);
                       return (
                         <PersonCard
                           key={roleKey}
+                          roleKey={roleKey}
                           label={ROLE_LABELS[roleKey]}
                           contact={contact || null}
                           onPick={(newId) => saveField({ [roleKey]: newId } as any)}
@@ -357,59 +360,30 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 4 — CHECKLIST */}
-                <section className="space-y-3">
+                <section className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Closing checklist
-                    </h3>
+                    <h3 className="crm-eyebrow">Closing checklist</h3>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {progress} of {total} complete
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all"
+                      className="h-full bg-brand-mint transition-all"
                       style={{ width: `${progressPct}%` }}
                     />
                   </div>
-                  <ul className="space-y-1 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
+                  <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
                     {items.map((item) => (
-                      <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
-                        <button
-                          onClick={() => toggleItem(item)}
-                          className="shrink-0 mt-0.5"
-                        >
-                          {item.is_complete ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              "text-sm",
-                              item.is_complete && "line-through text-muted-foreground",
-                            )}
-                          >
-                            {item.label}
-                          </div>
-                          {item.is_complete && item.completed_at && (
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              Completed {formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}
-                            </div>
-                          )}
-                        </div>
-                        <Input
-                          type="date"
-                          value={item.due_date ?? ""}
-                          onChange={(e) => setItemDueDate(item.id, e.target.value || null)}
-                          className="h-7 text-xs w-[140px] shrink-0"
-                        />
-                      </li>
+                      <ChecklistRow
+                        key={item.id}
+                        item={item}
+                        onToggle={() => toggleItem(item)}
+                        onSetDue={(v) => setItemDueDate(item.id, v)}
+                      />
                     ))}
                     {items.length === 0 && (
-                      <li className="px-3 py-6 text-center text-xs text-muted-foreground">
+                      <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">
                         No checklist items.
                       </li>
                     )}
@@ -417,11 +391,9 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 5 — P&L */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    P&L summary
-                  </h3>
-                  <div className="rounded-xl border border-border/50 bg-card p-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">P&amp;L summary</h3>
+                  <div className="crm-card grid grid-cols-2 md:grid-cols-3 gap-4">
                     <MoneyField
                       label="Purchase price"
                       value={tx.purchase_price}
@@ -438,7 +410,7 @@ export function TransactionDetailSheet({
                       onSave={(v) => saveField({ earnest_money_required: v })}
                     />
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">EM received</Label>
+                      <Label className="crm-field-label">EM received</Label>
                       <button
                         onClick={() =>
                           saveField({
@@ -449,9 +421,9 @@ export function TransactionDetailSheet({
                           })
                         }
                         className={cn(
-                          "px-3 py-2 rounded-md text-xs font-medium border transition-colors",
+                          "px-3 py-2 rounded-md text-sm font-medium border transition-colors",
                           tx.earnest_money_received
-                            ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                            ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
                             : "bg-muted text-muted-foreground border-border",
                         )}
                       >
@@ -464,7 +436,7 @@ export function TransactionDetailSheet({
                       onSave={(v) => saveField({ estimated_net: v })}
                     />
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Actual net</Label>
+                      <Label className="crm-field-label">Actual net</Label>
                       {tx.status === "closed" ? (
                         <Input
                           type="number"
@@ -472,10 +444,10 @@ export function TransactionDetailSheet({
                           onBlur={(e) =>
                             saveField({ actual_net: e.target.value ? Number(e.target.value) : null })
                           }
-                          className="h-9 text-base font-semibold text-emerald-600 tabular-nums"
+                          className="h-9 text-base font-semibold text-brand-mint-deep tabular-nums"
                         />
                       ) : (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                        <div className="px-3 py-2 text-sm crm-empty">
                           Available after close
                         </div>
                       )}
@@ -484,10 +456,8 @@ export function TransactionDetailSheet({
                 </section>
 
                 {/* SECTION 6 — NOTES */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Notes
-                  </h3>
+                <section className="space-y-3">
+                  <h3 className="crm-eyebrow">Notes</h3>
                   <Textarea
                     value={notesDraft}
                     onChange={(e) => setNotesDraft(e.target.value)}
@@ -498,9 +468,9 @@ export function TransactionDetailSheet({
                     }}
                     rows={4}
                     placeholder="Notes about this transaction…"
-                    className="resize-none"
+                    className="resize-none text-sm"
                   />
-                  <p className="text-[11px] text-muted-foreground">Saves on blur.</p>
+                  <p className="text-[11px] text-muted-foreground italic">Saves on blur.</p>
                 </section>
               </div>
             </>
@@ -550,22 +520,28 @@ function DateCard({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card p-3 space-y-1.5",
-        emphasized ? "border-primary/30 bg-primary/5" : "border-border/50",
+        "rounded-xl bg-card p-5 space-y-2 border transition-shadow",
+        emphasized
+          ? "border-brand-azure/30 lg:col-span-2 p-6"
+          : "border-border/40",
       )}
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
     >
-      <div className={cn("text-[10px] uppercase tracking-wide text-muted-foreground", emphasized && "text-primary")}>
-        {label}
+      <div className="crm-eyebrow flex items-center gap-1.5">
+        <CalendarIcon className="h-3 w-3" /> {label}
       </div>
       <Input
         type="date"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className={cn("h-8 text-sm bg-transparent border-0 px-0", emphasized && "text-base font-semibold")}
+        className={cn(
+          "bg-transparent border-0 px-0 h-9 text-base font-medium",
+          emphasized && "text-lg font-semibold",
+        )}
       />
       <div
         className={cn(
-          "inline-block text-[10px] px-1.5 py-0.5 rounded border",
+          "inline-block text-xs font-medium px-2 py-0.5 rounded-full border",
           countdownClass ?? "text-muted-foreground bg-muted/40 border-border/40",
         )}
       >
@@ -575,24 +551,37 @@ function DateCard({
   );
 }
 
+const ROLE_ICONS: Record<RoleKey, any> = {
+  buyer_contact_id: User,
+  title_contact_id: FileText,
+  attorney_contact_id: Scale,
+  lender_contact_id: Banknote,
+};
+
 function PersonCard({
+  roleKey,
   label,
   contact,
   onPick,
 }: {
+  roleKey: RoleKey;
   label: string;
   contact: ContactDetail | null;
   onPick: (id: string | null) => void;
 }) {
+  const Icon = ROLE_ICONS[roleKey] || User;
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-3 space-y-2">
+    <div
+      className="rounded-xl bg-card p-5 space-y-3 border border-border/40"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-          {label}
-        </span>
+        <div className="crm-eyebrow flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5" /> {label}
+        </div>
         {contact?.contact_type && (
           <Badge
-            className="text-[9px] border-transparent"
+            className="text-[10px] border-transparent"
             style={{
               backgroundColor: `hsl(${contactTypeColor(contact.contact_type)} / 0.15)`,
               color: `hsl(${contactTypeColor(contact.contact_type)})`,
@@ -603,10 +592,10 @@ function PersonCard({
         )}
       </div>
       {contact ? (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <a
             href={`/crm/contacts?contact=${contact.id}`}
-            className="text-sm font-medium hover:text-primary inline-flex items-center gap-1"
+            className="text-sm font-medium hover:text-brand-azure inline-flex items-center gap-1"
           >
             {`${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim() || "Unnamed"}
             <ExternalLink className="h-3 w-3" />
@@ -614,7 +603,7 @@ function PersonCard({
           {contact.email && (
             <a
               href={`mailto:${contact.email}`}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-azure"
             >
               <Mail className="h-3 w-3" /> {contact.email}
             </a>
@@ -622,14 +611,14 @@ function PersonCard({
           {contact.phone && (
             <a
               href={`tel:${contact.phone}`}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-azure"
             >
               <Phone className="h-3 w-3" /> {contact.phone}
             </a>
           )}
           <button
             onClick={() => onPick(null)}
-            className="text-[10px] text-muted-foreground hover:text-destructive"
+            className="text-[11px] text-muted-foreground hover:text-destructive"
           >
             Remove
           </button>
@@ -642,6 +631,70 @@ function PersonCard({
         />
       )}
     </div>
+  );
+}
+
+function ChecklistRow({
+  item,
+  onToggle,
+  onSetDue,
+}: {
+  item: ChecklistItem;
+  onToggle: () => void;
+  onSetDue: (v: string | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <li className="px-3 py-3">
+      <div className="flex items-start gap-3">
+        <button
+          onClick={onToggle}
+          className={cn(
+            "shrink-0 mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+            item.is_complete
+              ? "bg-brand-mint border-brand-mint text-white"
+              : "border-muted-foreground/40 hover:border-brand-mint",
+          )}
+          aria-label={item.is_complete ? "Mark incomplete" : "Mark complete"}
+        >
+          {item.is_complete && <Check className="h-3 w-3" strokeWidth={3} />}
+        </button>
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="min-w-0 flex-1 text-left"
+        >
+          <div
+            className={cn(
+              "text-sm",
+              item.is_complete && "line-through text-muted-foreground",
+            )}
+          >
+            {item.label}
+          </div>
+          {item.is_complete && item.completed_at && (
+            <div className="text-[11px] text-muted-foreground italic mt-0.5">
+              Completed {formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}
+            </div>
+          )}
+          {!item.is_complete && item.due_date && !expanded && (
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Due {item.due_date}
+            </div>
+          )}
+        </button>
+      </div>
+      {expanded && (
+        <div className="mt-3 pl-8 flex items-center gap-2">
+          <Label className="text-[11px] text-muted-foreground">Due date</Label>
+          <Input
+            type="date"
+            value={item.due_date ?? ""}
+            onChange={(e) => onSetDue(e.target.value || null)}
+            className="h-7 text-xs w-[160px]"
+          />
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -658,7 +711,7 @@ function MoneyField({
   useEffect(() => setDraft(value?.toString() ?? ""), [value]);
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="crm-field-label">{label}</Label>
       <Input
         type="number"
         value={draft}
@@ -667,7 +720,7 @@ function MoneyField({
           const n = draft === "" ? null : Number(draft);
           if (n !== value) onSave(n);
         }}
-        className="h-8 text-sm tabular-nums"
+        className="h-9 text-sm tabular-nums"
       />
     </div>
   );
