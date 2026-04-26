@@ -29,7 +29,7 @@ export function EntityTabs({
   className?: string;
   children: React.ReactNode;
 }) {
-  const order: EntityTabId[] = ["overview", "activity", "files", "more"];
+  const order: EntityTabId[] = ["overview", "deals", "activity", "files", "more"];
   const visible = order.filter((t) => !hide.includes(t));
 
   return (
