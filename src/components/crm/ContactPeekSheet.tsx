@@ -409,13 +409,16 @@ export function ContactPeekSheet({
                           }
                           const { data: d } = await supabase
                             .from("deals")
-                            .select("id,name,stage,status")
+                            .select("id,title,status")
                             .eq("id", dealId)
                             .maybeSingle();
-                          if (d) setLinkedDeals((prev) => [{ id: d.id, name: (d as any).name, stage: (d as any).stage, status: (d as any).status }, ...prev]);
+                          if (d) {
+                            const row = d as any;
+                            setLinkedDeals((prev) => [{ id: row.id, name: row.title, stage: null, status: row.status }, ...prev]);
+                          }
                           onChanged();
                         }}
-                        onLinkLead={async (leadId) => {
+                        onLinkLead={async (leadId: string) => {
                           const { error } = await supabase
                             .from("leads")
                             .update({ source_contact_id: contact.id })
@@ -426,10 +429,13 @@ export function ContactPeekSheet({
                           }
                           const { data: l } = await supabase
                             .from("leads")
-                            .select("id,address_line1,status")
+                            .select("id,property_address,status")
                             .eq("id", leadId)
                             .maybeSingle();
-                          if (l) setLinkedLeads((prev) => [{ id: l.id, address: (l as any).address_line1, status: (l as any).status }, ...prev]);
+                          if (l) {
+                            const row = l as any;
+                            setLinkedLeads((prev) => [{ id: row.id, address: row.property_address, status: row.status }, ...prev]);
+                          }
                           onChanged();
                         }}
                       />
