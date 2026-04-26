@@ -98,6 +98,7 @@ export function LeadsList({ search }: { search: string }) {
 
   const updateLead = async (id: string, patch: Partial<Lead>) => {
     setLeads((arr) => arr.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    setOpenLead((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
     const { error } = await supabase.from("leads").update(patch as any).eq("id", id);
     if (error) {
       toast({ title: "Couldn't update lead", description: error.message, variant: "destructive" });
