@@ -31,7 +31,9 @@ export function EntitySheetShell({
   footer?: React.ReactNode;
 }) {
   const widthClass =
-    width === "wide" ? "w-full sm:max-w-5xl" : "w-full sm:max-w-2xl";
+    width === "wide"
+      ? "w-full sm:max-w-5xl sm:min-w-[640px]"
+      : "w-full sm:max-w-2xl sm:min-w-[520px]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
