@@ -188,3 +188,58 @@ export function CustomFieldsRenderer({ fields, values, onChange, compact }: Rend
     </div>
   );
 }
+
+function TagsInput({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const t = draft.trim();
+    if (!t) return;
+    if (value.includes(t)) {
+      setDraft("");
+      return;
+    }
+    onChange([...value, t]);
+    setDraft("");
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      {value.map((t) => (
+        <span
+          key={t}
+          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border"
+        >
+          {t}
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => onChange(value.filter((x) => x !== t))}
+            aria-label={`Remove ${t}`}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            add();
+          } else if (e.key === "Backspace" && !draft && value.length) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+        onBlur={add}
+        placeholder="Add tag…"
+        className="h-7 w-32 text-xs"
+      />
+    </div>
+  );
+}
