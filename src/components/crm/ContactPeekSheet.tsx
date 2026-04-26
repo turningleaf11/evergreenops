@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone, Send, X } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Loader2, Mail, Phone, Send, X, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -21,10 +19,8 @@ import { formatDistanceToNow } from "date-fns";
 import { CustomFieldsRenderer, useCustomFields } from "./CustomFieldsRenderer";
 import { ComposeModal } from "@/components/inbox/ComposeModal";
 import { OwnerPicker } from "./PeoplePickers";
-import { CrmComposerTabs, type ComposerSubmit } from "./CrmComposerTabs";
+import { type ComposerSubmit } from "./CrmComposerTabs";
 import {
-  CrmActivityTimeline,
-  ActivityFilterPills,
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import ActivityPanel from "@/components/activity/ActivityPanel";
@@ -32,11 +28,19 @@ import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
   PREFERRED_CONTACT_METHODS,
-  contactTypeColor,
-  contactTypeLabel,
   type ContactType,
   type PreferredContactMethod,
 } from "./contactTypes";
+import {
+  EntitySheetShell,
+  EntitySheetHeader,
+  EntityIdentityStrip,
+  EntityStatusPill,
+  EntitySectionHeader,
+  EntityTabs,
+  EntityTabPanel,
+  type EntityTabId,
+} from "./_shell";
 
 interface Contact {
   id: string;
