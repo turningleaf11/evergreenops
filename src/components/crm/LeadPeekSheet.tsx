@@ -643,7 +643,7 @@ export function LeadPeekSheet({
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
                 {/* Doc checklist + Buy Box header */}
-                <div className="px-4 pt-4 pb-3 space-y-3 border-b border-border/50">
+                <div className="px-6 pt-6 pb-5 space-y-5 border-b border-border/40">
                   <DocChecklist
                     hasOm={!!lead.has_om}
                     hasT12={!!lead.has_t12}
@@ -787,7 +787,12 @@ export function LeadPeekSheet({
               )}
             </div>
             {isConverted && convertedDealId && onOpenDeal ? (
-              <Button onClick={() => onOpenDeal(convertedDealId)}>Open deal</Button>
+              <Button
+                onClick={() => onOpenDeal(convertedDealId)}
+                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl"
+              >
+                Open deal
+              </Button>
             ) : (
               <Button
                 disabled={
@@ -796,13 +801,14 @@ export function LeadPeekSheet({
                   !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
                 }
                 onClick={() => onConvert(lead)}
+                className="bg-brand-azure hover:bg-brand-azure/90 text-white h-11 px-6 rounded-xl disabled:opacity-50"
                 title={
                   !(lead.buy_box_fit === "yes" || lead.buy_box_fit === "maybe")
                     ? "Mark as Fits Buy Box or Maybe to enable conversion"
                     : undefined
                 }
               >
-                Convert to Deal <ArrowRight className="h-4 w-4 ml-1" />
+                Convert to Deal <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
             )}
           </div>
