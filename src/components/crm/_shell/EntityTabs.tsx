@@ -41,13 +41,13 @@ export function EntityTabs({
       onValueChange={(v) => onValueChange(v as EntityTabId)}
       className={cn("flex-1 flex flex-col min-h-0", className)}
     >
-      <div className="px-6 border-b border-border/50 bg-background sticky top-0 z-10 flex items-center justify-between gap-3">
+      <div className="px-6 border-b border-border/50 bg-background flex items-center justify-between gap-3 shrink-0">
         <TabsList className="h-11 bg-transparent rounded-none p-0 gap-1 justify-start">
           {visible.map((t) => (
             <TabsTrigger
               key={t}
               value={t}
-              className="text-sm font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:shadow-none"
+              className="text-sm font-normal px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:font-medium data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
             >
               {ENTITY_TAB_LABELS[t]}
             </TabsTrigger>
