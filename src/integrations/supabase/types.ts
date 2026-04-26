@@ -760,7 +760,9 @@ export type Database = {
       contacts: {
         Row: {
           address: Json
+          buy_box_notes: string | null
           company_id: string | null
+          contact_type: string
           created_at: string
           created_by: string | null
           custom_fields: Json
@@ -768,11 +770,14 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          is_active: boolean
           last_contacted_at: string | null
           last_name: string
+          markets: string[] | null
           notes: string
           owner_id: string | null
           phone: string | null
+          preferred_contact_method: string | null
           social: Json
           source: string | null
           status: string
@@ -783,7 +788,9 @@ export type Database = {
         }
         Insert: {
           address?: Json
+          buy_box_notes?: string | null
           company_id?: string | null
+          contact_type?: string
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
@@ -791,11 +798,14 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          is_active?: boolean
           last_contacted_at?: string | null
           last_name?: string
+          markets?: string[] | null
           notes?: string
           owner_id?: string | null
           phone?: string | null
+          preferred_contact_method?: string | null
           social?: Json
           source?: string | null
           status?: string
@@ -806,7 +816,9 @@ export type Database = {
         }
         Update: {
           address?: Json
+          buy_box_notes?: string | null
           company_id?: string | null
+          contact_type?: string
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
@@ -814,11 +826,14 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          is_active?: boolean
           last_contacted_at?: string | null
           last_name?: string
+          markets?: string[] | null
           notes?: string
           owner_id?: string | null
           phone?: string | null
+          preferred_contact_method?: string | null
           social?: Json
           source?: string | null
           status?: string
