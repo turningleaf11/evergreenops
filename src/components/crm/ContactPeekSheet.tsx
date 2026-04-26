@@ -596,7 +596,18 @@ function ContactSidebar({
         )}
       </EntitySidebarSection>
 
-      <EntitySidebarSection title={`Linked deals (${deals.length})`}>
+      <EntitySidebarSection
+        title={`Linked deals (${deals.length})`}
+        action={
+          onLinkDeal ? (
+            <LinkRecordPopover
+              kind="deal"
+              excludeIds={deals.map((d) => d.id)}
+              onPick={(it) => onLinkDeal(it.id)}
+            />
+          ) : undefined
+        }
+      >
         {deals.length === 0 ? (
           <EntityEmpty>No deals linked.</EntityEmpty>
         ) : (
@@ -614,7 +625,18 @@ function ContactSidebar({
         )}
       </EntitySidebarSection>
 
-      <EntitySidebarSection title={`Linked leads (${leads.length})`}>
+      <EntitySidebarSection
+        title={`Linked leads (${leads.length})`}
+        action={
+          onLinkLead ? (
+            <LinkRecordPopover
+              kind="lead"
+              excludeIds={leads.map((l) => l.id)}
+              onPick={(it) => onLinkLead(it.id)}
+            />
+          ) : undefined
+        }
+      >
         {leads.length === 0 ? (
           <EntityEmpty>No leads linked.</EntityEmpty>
         ) : (
