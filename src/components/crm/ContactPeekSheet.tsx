@@ -1775,24 +1775,6 @@ function ContactDetailBody({
 
           <SidebarDivider />
 
-          {/* Relationship notes */}
-          <SidebarBlock label="Relationship">
-            <Textarea
-              defaultValue={contact.buy_box_notes || ""}
-              onBlur={(e) => {
-                const next = e.target.value.trim() || null;
-                if ((next || "") !== (contact.buy_box_notes || "")) {
-                  void persist({ buy_box_notes: next });
-                }
-              }}
-              placeholder="Deal quality, what they buy, how they work…"
-              rows={4}
-              className="text-sm resize-none border-border/60"
-            />
-          </SidebarBlock>
-
-          <SidebarDivider />
-
           {/* Owner */}
           <SidebarBlock label="Owner">
             <OwnerPicker
@@ -1857,18 +1839,6 @@ function ContactDetailBody({
           <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
             <EntityTabPanel value="overview" className="p-6">
               <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="About">
-                  <p
-                    className={cn(
-                      "text-sm whitespace-pre-wrap",
-                      contact.notes
-                        ? "text-foreground"
-                        : "italic text-muted-foreground/70",
-                    )}
-                  >
-                    {contact.notes || "No notes yet."}
-                  </p>
-                </OverviewCard>
                 <OverviewCard title="Profile">
                   <CustomFieldsPanel
                     contactId={contact.id}
