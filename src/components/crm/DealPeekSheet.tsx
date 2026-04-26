@@ -630,15 +630,13 @@ export function DealPeekSheet({
                 </div>
 
                 {/* Right rail */}
-                <aside className="border-l border-border/50 overflow-auto bg-muted/10">
-                  <div className="p-4 space-y-5">
+                <aside className="border-l border-border/40 overflow-auto bg-background">
+                  <div className="p-6 space-y-8">
                     {/* Quick edit fields */}
-                    <section className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Deal details
-                      </div>
+                    <section className="space-y-4">
+                      <div className="crm-eyebrow">Deal details</div>
                       <div>
-                        <Label className="text-[11px] text-muted-foreground">Stage</Label>
+                        <Label className="crm-field-label">Stage</Label>
                         <select
                           value={deal.stage_id}
                           onChange={(e) => saveField({ stage_id: e.target.value } as any)}
@@ -699,10 +697,8 @@ export function DealPeekSheet({
 
                     {/* Contacts */}
                     <section>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Contacts
-                        </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="crm-eyebrow">Contacts</div>
                         <Popover open={addOpen} onOpenChange={setAddOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
