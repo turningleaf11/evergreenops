@@ -11,8 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
-import CommentsSection from "@/components/CommentsSection";
-import EntityActivity from "@/components/EntityActivity";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import LinkProjectPicker from "./LinkProjectPicker";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
@@ -279,13 +278,10 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
           <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !discussionOpen && "-rotate-90")} />
-              <MessageSquare className="h-3.5 w-3.5" /> Comments & Activity
+              <MessageSquare className="h-3.5 w-3.5" /> Activity
             </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3 space-y-4">
-              <CommentsSection entityType="goal" entityId={goalId} />
-              <div className="pt-3 border-t border-border/40">
-                <EntityActivity entityType="goal" entityId={goalId} />
-              </div>
+            <CollapsibleContent className="pt-3">
+              <ActivityPanel entityType="goal" entityId={goalId} />
             </CollapsibleContent>
           </Collapsible>
         </div>
