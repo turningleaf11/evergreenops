@@ -524,6 +524,26 @@ export function LeadPeekSheet({
 
               {/* Right column */}
               <div className="flex flex-col min-h-0 overflow-hidden">
+                {/* Doc checklist + Buy Box header */}
+                <div className="px-4 pt-4 pb-3 space-y-3 border-b border-border/50">
+                  <DocChecklist
+                    hasOm={!!lead.has_om}
+                    hasT12={!!lead.has_t12}
+                    hasRentRoll={!!lead.has_rent_roll}
+                    createdAt={lead.created_at}
+                    sourceContactName={sourceContactName}
+                    onToggle={(field, value) => onUpdate(lead.id, { [field]: value } as any)}
+                  />
+                  <BuyBoxButtons
+                    value={(lead.buy_box_fit as BuyBoxFit) || "unchecked"}
+                    reason={lead.disqualification_reason ?? null}
+                    onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
+                    onReasonChange={(v) =>
+                      onUpdate(lead.id, { disqualification_reason: v } as any)
+                    }
+                  />
+                </div>
+
                 <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 flex flex-col min-h-0">
                   <TabsList className="h-10 bg-transparent rounded-none border-b border-border/50 px-4 justify-start gap-1 w-full">
                     <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5">
@@ -534,6 +554,9 @@ export function LeadPeekSheet({
                     </TabsTrigger>
                     <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5">
                       <Mail className="h-3.5 w-3.5" /> Email
+                    </TabsTrigger>
+                    <TabsTrigger value="files" className="data-[state=active]:bg-muted gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" /> Files
                     </TabsTrigger>
                   </TabsList>
 
