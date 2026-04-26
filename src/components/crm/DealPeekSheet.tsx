@@ -59,6 +59,36 @@ interface Deal {
   lost_reason: string | null;
   description: string;
   custom_fields: Record<string, unknown>;
+  // Portfolio fields
+  property_address: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_zip: string | null;
+  property_type: string | null;
+  units: number | null;
+  sqft: number | null;
+  asking_price: number | null;
+  seller_stated_value: number | null;
+  source_contact_id: string | null;
+  lead_id: string | null;
+  disposition_strategy: string | null;
+  // Underwriting
+  quick_arv: number | null;
+  repair_estimate: number | null;
+  mao: number | null;
+  spread: number | null;
+  gross_income: number | null;
+  vacancy_rate: number | null;
+  effective_gross_income: number | null;
+  operating_expenses: number | null;
+  noi: number | null;
+  our_value: number | null;
+  our_cap_rate: number | null;
+  price_per_unit: number | null;
+  price_per_sqft: number | null;
+  loi_date: string | null;
+  loi_amount: number | null;
+  broker_feedback: string | null;
 }
 interface Stage { id: string; name: string; color: string; is_won: boolean; is_lost: boolean }
 interface ContactLite {
