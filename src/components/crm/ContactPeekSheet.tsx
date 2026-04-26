@@ -471,6 +471,8 @@ export function ContactPeekSheet({
                         onUpdate={updateContact}
                         onChanged={onChanged}
                         setContact={setContact}
+                        onLinkDeal={linkDeal}
+                        onLinkLead={linkLead}
                       />
                     }
                   />
