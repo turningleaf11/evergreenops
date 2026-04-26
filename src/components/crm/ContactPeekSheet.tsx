@@ -982,7 +982,7 @@ function ContactLinkedActivity({
           )}
           {lastContacted && (
             <li className="flex items-start gap-2.5 text-sm">
-              <Clock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <ExternalLink className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="font-medium">Last contacted</div>
                 <div className="text-xs text-muted-foreground">{lastContacted}</div>
