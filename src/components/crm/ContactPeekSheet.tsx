@@ -75,6 +75,7 @@ interface Contact {
   buy_box_notes: string | null;
   markets: string[] | null;
   is_active: boolean;
+  source: string | null;
 }
 
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
