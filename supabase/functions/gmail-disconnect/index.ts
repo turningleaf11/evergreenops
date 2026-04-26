@@ -26,36 +26,61 @@ Deno.serve(async (req) => {
       .from('profiles').select('workspace_id').eq('user_id', userId).single();
     if (!profile?.workspace_id) return json({ error: 'No workspace' }, 400);
 
+    // Optional: { account_id } to target one account. If omitted, behavior is
+    // "disconnect ALL accounts" for backward compat with the original UI.
+    let accountId: string | null = null;
+    try {
+      const body = await req.json();
+      accountId = body?.account_id ?? null;
+    } catch { /* no body — disconnect all */ }
+
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const { data: account } = await admin
+    // Pull the accounts we're about to remove (so we can revoke each refresh token at Google)
+    let q = admin
       .from('gmail_workspace_account')
-      .select('refresh_token_secret_id')
-      .eq('workspace_id', profile.workspace_id)
-      .maybeSingle();
+      .select('id, refresh_token_secret_id, is_default')
+      .eq('workspace_id', profile.workspace_id);
+    if (accountId) q = q.eq('id', accountId);
+    const { data: targets } = await q;
 
-    if (account?.refresh_token_secret_id) {
-      // Best-effort revoke at Google
-      const { data: tok } = await admin
-        .from('gmail_tokens').select('refresh_token').eq('id', account.refresh_token_secret_id).single();
-      if (tok?.refresh_token) {
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tok.refresh_token)}`, { method: 'POST' });
-      }
-      await admin.from('gmail_tokens').delete().eq('id', account.refresh_token_secret_id);
+    if (!targets || targets.length === 0) {
+      return json({ ok: true });
     }
 
-    await admin.from('gmail_workspace_account')
-      .update({ revoked_at: new Date().toISOString() })
-      .eq('workspace_id', profile.workspace_id);
+    let promotedNewDefault = false;
+    for (const acc of targets) {
+      if (acc.refresh_token_secret_id) {
+        const { data: tok } = await admin
+          .from('gmail_tokens').select('refresh_token').eq('id', acc.refresh_token_secret_id).single();
+        if (tok?.refresh_token) {
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tok.refresh_token)}`, { method: 'POST' });
+        }
+        await admin.from('gmail_tokens').delete().eq('id', acc.refresh_token_secret_id);
+      }
+      await admin.from('gmail_workspace_account').delete().eq('id', acc.id);
 
-    // Hard delete so the workspace can reconnect cleanly
-    await admin.from('gmail_workspace_account')
-      .delete().eq('workspace_id', profile.workspace_id);
+      // If we just removed the default, promote the oldest remaining active account
+      if (acc.is_default) {
+        const { data: next } = await admin
+          .from('gmail_workspace_account')
+          .select('id')
+          .eq('workspace_id', profile.workspace_id)
+          .is('revoked_at', null)
+          .order('connected_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (next) {
+          await admin.from('gmail_workspace_account').update({ is_default: true }).eq('id', next.id);
+          promotedNewDefault = true;
+        }
+      }
+    }
 
-    return json({ ok: true });
+    return json({ ok: true, removed: targets.length, promoted_new_default: promotedNewDefault });
   } catch (e) {
     console.error('gmail-disconnect', e);
     return json({ error: String(e) }, 500);
