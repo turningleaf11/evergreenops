@@ -117,6 +117,25 @@ const formatMoney = (n: number, currency = "USD") =>
 const contactName = (c: ContactLite) =>
   `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Untitled";
 
+// Stage color map keyed by normalized stage name
+const STAGE_BADGE: Record<string, string> = {
+  buy_box_check: "bg-muted text-muted-foreground border-transparent",
+  quick_underwrite: "bg-brand-azure/15 text-brand-azure border-transparent",
+  broker_feedback: "bg-brand-tangerine/20 text-brand-tangerine border-transparent",
+  deep_underwrite: "bg-brand-azure/15 text-brand-azure border-transparent",
+  loi_sent: "bg-brand-violet/15 text-brand-violet border-transparent",
+  due_diligence: "bg-brand-tangerine/20 text-brand-tangerine border-transparent",
+  under_contract: "bg-brand-mint/20 text-brand-mint-deep border-transparent",
+  closed: "bg-brand-mint-deep/20 text-brand-mint-deep border-transparent",
+  dead: "bg-brand-coral/15 text-brand-coral border-transparent",
+};
+
+function stageBadgeClass(name: string | undefined): string {
+  if (!name) return "bg-muted text-muted-foreground border-transparent";
+  const key = name.toLowerCase().replace(/\s+/g, "_");
+  return STAGE_BADGE[key] ?? "bg-muted text-muted-foreground border-transparent";
+}
+
 export function DealPeekSheet({
   dealId,
   onClose,
