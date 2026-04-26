@@ -582,18 +582,19 @@ function ContactSidebar({
 
 function CustomFieldsPanel({
   contactId,
+  contactType,
   values,
   onSaved,
 }: {
   contactId: string;
+  contactType: string | null;
   values: Record<string, unknown>;
   onSaved: (v: Record<string, unknown>) => void;
 }) {
-  const { fields } = useCustomFields("contact");
+  const { fields, loading } = useCustomFields("contact", contactType);
   const [draft, setDraft] = useState<Record<string, unknown>>(values);
   const [saving, setSaving] = useState(false);
   useEffect(() => setDraft(values), [contactId]);
-  if (fields.length === 0) return null;
   const dirty = JSON.stringify(draft) !== JSON.stringify(values);
   const save = async () => {
     setSaving(true);
@@ -608,10 +609,38 @@ function CustomFieldsPanel({
     }
     onSaved(draft);
   };
+  if (loading) {
+    return <p className="text-xs text-muted-foreground">Loading…</p>;
+  }
+  if (fields.length === 0) {
+    const typeLbl = CONTACT_TYPE_LABEL[(contactType as ContactType) || "other"];
+    return (
+      <p className="text-xs text-muted-foreground">
+        No profile fields for {typeLbl} contacts.{" "}
+        <Link to="/settings" className="text-primary hover:underline">
+          → Set up in Settings
+        </Link>
+      </p>
+    );
+  }
+  // Decorate the creative_friendly field with a tooltip on its label
+  const decorated = fields.map((f) =>
+    f.field_key === "creative_friendly"
+      ? {
+          ...f,
+          label: f.label, // label kept; tooltip rendered separately by wrapper if desired
+        }
+      : f,
+  );
   return (
     <section>
-      <div className="crm-eyebrow mb-3">Custom fields</div>
-      <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} compact />
+      <CustomFieldsRenderer fields={decorated} values={draft} onChange={setDraft} compact />
+      {fields.some((f) => f.field_key === "creative_friendly") && (
+        <p className="text-[11px] text-muted-foreground mt-2">
+          <span className="font-medium">Creative Friendly:</span> Comfortable with subject-to,
+          wraps, seller finance, and creative deal structures.
+        </p>
+      )}
       {dirty && (
         <div className="flex justify-end mt-2">
           <Button size="sm" onClick={save} disabled={saving}>
