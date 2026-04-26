@@ -26,18 +26,18 @@ export const CONTACT_TYPE_LABEL: Record<ContactType, string> = {
   other: "Other",
 };
 
-// HSL tokens — keep design-system aligned (no raw hex in components).
-// azure blue, mint, muted purple, tangerine, gray
+// HSL tokens — aligned with brand palette in index.css.
+// azure, mint, muted purple, tangerine, gray
 export const CONTACT_TYPE_COLOR: Record<ContactType, string> = {
-  wholesaler: "210 90% 54%",   // azure blue
-  broker: "210 90% 54%",       // azure blue
-  buyer: "158 64% 52%",        // tropical mint green
-  title_agent: "265 40% 58%",  // muted purple
-  attorney: "265 40% 58%",     // muted purple
-  lender: "24 90% 56%",        // tangerine orange
-  contractor: "220 12% 60%",   // gray (fallback)
-  investor: "220 12% 60%",     // gray (fallback)
-  other: "220 12% 60%",        // gray
+  wholesaler: "var(--brand-azure)",        // azure
+  broker: "var(--brand-azure)",            // azure
+  buyer: "var(--brand-mint)",              // mint green
+  title_agent: "var(--brand-purple-muted)",// muted purple
+  attorney: "var(--brand-purple-muted)",   // muted purple
+  lender: "var(--brand-tangerine)",        // tangerine
+  contractor: "220 12% 60%",               // gray
+  investor: "220 12% 60%",                 // gray
+  other: "220 12% 60%",                    // gray
 };
 
 export function contactTypeColor(t: string | null | undefined): string {
