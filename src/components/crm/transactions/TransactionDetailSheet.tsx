@@ -455,22 +455,9 @@ export function TransactionDetailSheet({
                   </div>
                 </section>
 
-                {/* SECTION 6 — NOTES */}
+                {/* SECTION 6 — ACTIVITY */}
                 <section className="space-y-3">
-                  <h3 className="crm-eyebrow">Notes</h3>
-                  <Textarea
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    onBlur={() => {
-                      if (notesDraft !== (tx.notes ?? "")) {
-                        saveField({ notes: notesDraft });
-                      }
-                    }}
-                    rows={4}
-                    placeholder="Notes about this transaction…"
-                    className="resize-none text-sm"
-                  />
-                  <p className="text-[11px] text-muted-foreground italic">Saves on blur.</p>
+                  <ActivityPanel entityType="transaction" entityId={tx.id} />
                 </section>
               </div>
             </>
