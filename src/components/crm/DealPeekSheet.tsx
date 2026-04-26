@@ -153,6 +153,7 @@ export function DealPeekSheet({
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<ContactLite[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [newTxOpen, setNewTxOpen] = useState(false);
 
   const reload = async () => {
     if (!dealId) return;
