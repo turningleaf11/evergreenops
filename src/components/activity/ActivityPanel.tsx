@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle } from "lucide-react";
+import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer";
