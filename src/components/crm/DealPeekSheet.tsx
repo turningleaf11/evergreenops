@@ -280,7 +280,7 @@ export function DealPeekSheet({
   }, [dealId]);
 
   useEffect(() => {
-    if (!addOpen || search.trim().length < 2) { setSearchResults([]); return; }
+    if (search.trim().length < 2) { setSearchResults([]); return; }
     let cancelled = false;
     const q = `%${search.trim()}%`;
     (async () => {
@@ -292,7 +292,7 @@ export function DealPeekSheet({
       if (!cancelled) setSearchResults((data as ContactLite[]) || []);
     })();
     return () => { cancelled = true; };
-  }, [search, addOpen]);
+  }, [search]);
 
   const saveField = async (patch: Partial<Deal>) => {
     if (!deal) return;
