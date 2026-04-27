@@ -444,6 +444,18 @@ export function InlineEmailComposer({
         />
       </div>
 
+      {/* Signature preview — appended automatically on send & replies */}
+      {signatureUrl && (
+        <div className="px-5 py-2 border-t border-border/40 shrink-0">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Signature</div>
+          <img
+            src={signatureUrl}
+            alt="Email signature"
+            className="max-h-20 w-auto rounded"
+          />
+        </div>
+      )}
+
       {/* Attachments preview */}
       {attachments.length > 0 && (
         <div className="px-5 py-2 border-t border-border/40 flex flex-wrap gap-1.5 shrink-0">
