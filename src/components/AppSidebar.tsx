@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   Home, FileText, Database as DbIcon, Users, ChevronDown,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
   HelpCircle, Code2,
 } from "lucide-react";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
@@ -65,7 +65,7 @@ export function AppSidebar() {
   const workNav = [
     { title: "Execution Hub", url: "/execution", icon: Target },
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
-    { title: "CRM", url: "/crm/contacts", icon: Briefcase },
+    { title: "Deals", url: "/crm/deals", icon: Rocket },
     { title: "Meetings", url: "/meetings", icon: Video },
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
