@@ -62,9 +62,7 @@ const BUY_BOX_BORDER: Record<string, string> = {
   unchecked: "border-l-muted-foreground/20",
 };
 
-const TEMPS: Array<"cold" | "warm" | "hot"> = ["cold", "warm", "hot"];
-
-export function LeadsList({ search }: { search: string }) {
+export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
   const navigate = useNavigate();
