@@ -366,6 +366,21 @@ export function TransactionDetailSheet({
     [],
   );
 
+  const primaryContact = useMemo(
+    () => linkedContacts.find((c) => c.id === tx?.primary_contact_id) || null,
+    [linkedContacts, tx?.primary_contact_id],
+  );
+  const associatedContacts = useMemo(
+    () => linkedContacts.filter((c) => c.id !== tx?.primary_contact_id),
+    [linkedContacts, tx?.primary_contact_id],
+  );
+  const linkedIds = useMemo(() => new Set(linkedContacts.map((c) => c.id)), [linkedContacts]);
+  const contactName = (c: ContactDetail) =>
+    `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Untitled";
+
+  const canManage =
+    !!user && !!tx && (tx.owner_id === user.id || tx.created_by === user.id);
+
   return (
     <>
       <EntitySheetShell
