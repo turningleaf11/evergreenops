@@ -357,7 +357,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     const [{ data: a }, { data: e }, { data: dealsLink1 }, { data: dealsLink2 }] = await Promise.all([
       supabase
         .from("crm_activities")
-        .select("id,type,subject,body,occurred_at,actor_id,metadata")
+        .select("id,type,subject,body,occurred_at,actor_id,metadata,is_pinned")
         .eq("entity_type", "contact")
         .eq("entity_id", contact.id)
         .order("occurred_at", { ascending: false })
