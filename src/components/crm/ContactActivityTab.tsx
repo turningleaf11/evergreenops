@@ -404,15 +404,18 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     void fetchAll();
   }, [fetchAll]);
 
-  // Realtime
+  // Realtime — keep fetchAll in a ref so the channel isn't re-created on every render
+  const fetchAllRef = useRef(fetchAll);
+  useEffect(() => { fetchAllRef.current = fetchAll; }, [fetchAll]);
+
   useEffect(() => {
     const ch = supabase
-      .channel(`contact-activity-${contact.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${contact.id}` }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${contact.id}` }, () => fetchAll())
+      .channel(`contact-activity-${contact.id}-${Math.random().toString(36).slice(2, 8)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
+      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [contact.id, fetchAll]);
+  }, [contact.id]);
 
   const deleteActivity = async (id: string) => {
     const { error } = await supabase.from("crm_activities").delete().eq("id", id);
