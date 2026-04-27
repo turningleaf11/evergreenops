@@ -980,6 +980,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id: string
+          is_pinned: boolean
           metadata: Json
           occurred_at: string
           subject: string
@@ -994,6 +995,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id?: string
+          is_pinned?: boolean
           metadata?: Json
           occurred_at?: string
           subject?: string
@@ -1008,6 +1010,7 @@ export type Database = {
           entity_id?: string
           entity_type?: string
           id?: string
+          is_pinned?: boolean
           metadata?: Json
           occurred_at?: string
           subject?: string

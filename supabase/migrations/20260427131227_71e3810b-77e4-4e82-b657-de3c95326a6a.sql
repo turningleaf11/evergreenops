@@ -1,0 +1,2 @@
+ALTER TABLE public.crm_activities ADD COLUMN IF NOT EXISTS is_pinned boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_crm_activities_entity_pinned ON public.crm_activities (entity_type, entity_id, is_pinned, occurred_at DESC);
