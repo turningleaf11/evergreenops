@@ -27,6 +27,7 @@ import {
   type TimelineActivity,
 } from "./CrmActivityTimeline";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import { ContactActivityTab } from "./ContactActivityTab";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
