@@ -169,7 +169,6 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
             </SelectContent>
           </Select>
         </div>
-        </div>
       </div>
 
       {loading ? (
