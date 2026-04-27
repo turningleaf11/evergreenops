@@ -52,7 +52,7 @@ interface ContactLite {
   last_name: string | null;
 }
 
-export function TransactionsList({ search }: { search: string }) {
+export function TransactionsList({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { id: workspaceId } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Tx[]>([]);
@@ -65,6 +65,10 @@ export function TransactionsList({ search }: { search: string }) {
   const [laneFilter, setLaneFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [closingFilter, setClosingFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (newSignal > 0) setNewOpen(true);
+  }, [newSignal]);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -165,9 +169,7 @@ export function TransactionsList({ search }: { search: string }) {
             </SelectContent>
           </Select>
         </div>
-        <Button size="sm" onClick={() => setNewOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New transaction
-        </Button>
+        </div>
       </div>
 
       {loading ? (
