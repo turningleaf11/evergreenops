@@ -347,7 +347,7 @@ export function ContactActivityTab({
     if (!resolvedEntityId) return;
     setLoading(true);
 
-    const baseQueries: Promise<any>[] = [
+    const baseQueries: any[] = [
       supabase
         .from("crm_activities")
         .select("id,type,subject,body,occurred_at,actor_id,metadata,is_pinned")
