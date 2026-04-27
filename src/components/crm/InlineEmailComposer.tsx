@@ -158,6 +158,7 @@ export function InlineEmailComposer({
         attachments.map((a) => `<a href="${a.url}">${a.name}</a>`).join("<br/>") +
         `</div>`;
     }
+    html += buildSignatureHtml();
     return html;
   };
 
