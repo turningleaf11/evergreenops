@@ -177,7 +177,6 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
           </div>
           <div className="divide-y divide-border/40">
           {filtered.map((l) => {
-            const meta = TEMPERATURE_META[l.temperature] || TEMPERATURE_META.warm;
             const isConverted = l.status === "converted";
             const isArchived = l.status === "archived";
             return (
@@ -190,24 +189,6 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
                 )}
               >
                 <div className="flex items-start gap-3">
-                  {/* Temp chip */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isConverted && !isArchived) cycleTemp(l);
-                    }}
-                    disabled={isConverted || isArchived}
-                    className={cn(
-                      "shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium",
-                      meta.bg,
-                      meta.fg,
-                      !isConverted && !isArchived && "hover:ring-2 hover:ring-offset-1 hover:ring-offset-background hover:ring-current/30 cursor-pointer",
-                    )}
-                    title="Click to cycle cold → warm → hot"
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                    {meta.label}
-                  </button>
 
                   {/* Body */}
                   <div className="flex-1 min-w-0">
