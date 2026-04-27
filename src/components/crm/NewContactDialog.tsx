@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { MarketsEditor } from "./MarketsEditor";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
