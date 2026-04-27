@@ -1793,20 +1793,27 @@ function ContactDetailBody({
 
           {/* Linked records */}
           <SidebarBlock label="Linked records">
-            <LinkedRecordsRow
+            <LinkedRecordsGroup
               kind="deal"
-              count={linkedDeals.length}
-              items={linkedDeals.map((d) => ({ id: d.id, label: d.name }))}
+              items={linkedDeals.map((d) => ({
+                id: d.id,
+                title: d.address || d.name || "Untitled deal",
+                stage: d.stage,
+              }))}
               icon={<Briefcase className="h-3.5 w-3.5" />}
               emptyLabel="No deals yet"
               excludeIds={linkedDeals.map((d) => d.id)}
               onPick={(it) => linkDeal(it.id)}
               onCreate={onCreateDeal}
+              onOpen={(id) => openDealById(id)}
             />
-            <LinkedRecordsRow
+            <LinkedRecordsGroup
               kind="lead"
-              count={linkedLeads.length}
-              items={linkedLeads.map((l) => ({ id: l.id, label: l.address || "Untitled lead" }))}
+              items={linkedLeads.map((l) => ({
+                id: l.id,
+                title: l.address || "Untitled lead",
+                stage: l.status,
+              }))}
               icon={<Sparkles className="h-3.5 w-3.5" />}
               emptyLabel="No leads yet"
               excludeIds={linkedLeads.map((l) => l.id)}
