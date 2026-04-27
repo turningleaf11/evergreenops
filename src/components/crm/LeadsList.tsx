@@ -156,16 +156,6 @@ export function LeadsList({ search }: { search: string }) {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold leading-tight">Leads Inbox</h2>
-          <p className="text-xs text-muted-foreground">
-            Portfolio deal flow — OMs, T12s, and rent rolls coming in from brokers and wholesalers.
-          </p>
-        </div>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">
         <div className="flex items-center gap-6 text-sm">
           <div>
@@ -196,7 +186,17 @@ export function LeadsList({ search }: { search: string }) {
           <p>New leads will land here. Click "New lead" to add one.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 bg-card divide-y divide-border/40">
+        <div
+          className="rounded-xl overflow-hidden bg-card"
+          style={{
+            boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+            border: "1px solid hsl(var(--border) / 0.5)",
+          }}
+        >
+          <div className="px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20">
+            Deal Inbox
+          </div>
+          <div className="divide-y divide-border/40">
           {filtered.map((l) => {
             const meta = TEMPERATURE_META[l.temperature] || TEMPERATURE_META.warm;
             const isConverted = l.status === "converted";
