@@ -55,6 +55,7 @@ import { LinkRecordPopover } from "./LinkRecordPopover";
 import { EditableLineField } from "./EditableLineField";
 import { NewDealDialog } from "./NewDealDialog";
 import { NewLeadDialog } from "./NewLeadDialog";
+import { ContactFilesTab } from "./ContactFilesTab";
 
 interface Contact {
   id: string;
