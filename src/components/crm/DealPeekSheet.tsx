@@ -530,36 +530,32 @@ export function DealPeekSheet({
                 </>
               }
             />
-            <EntityIdentityStrip
-              pills={
-                <>
-                  {currentStage && (
-                    <Badge
-                      className={cn(
-                        "text-[11px] capitalize font-semibold border-transparent",
-                        stageBadgeClass(currentStage.name),
-                      )}
-                      style={{ borderRadius: 100, padding: "3px 10px" }}
-                    >
-                      {currentStage.name}
-                    </Badge>
-                  )}
-                </>
-              }
-              rightSlot={
-                deal.asking_price != null ? (
-                  <span className="text-sm font-semibold tabular-nums">
-                    {formatMoney(Number(deal.asking_price), deal.currency)}
-                  </span>
-                ) : null
-              }
-            />
-
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
+                  {/* Stage progression bar pinned at top */}
+                  {stages.length > 0 && (
+                    <div className="px-6 pt-5 pb-3 bg-background border-b border-border/50">
+                      <div className="max-w-3xl">
+                        <StageProgressBar
+                          stages={stages.map((s) => ({
+                            id: s.id,
+                            label: s.name,
+                            isWon: s.is_won,
+                            isLost: s.is_lost,
+                          }))}
+                          currentId={deal.stage_id}
+                          onChange={(stageId) => {
+                            const s = stages.find((x) => x.id === stageId);
+                            const status = s?.is_won ? "won" : s?.is_lost ? "lost" : "open";
+                            return saveField({ stage_id: stageId, status } as any);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {/* Composer pinned above the tabs */}
-                  <div className="px-6 pt-5 pb-4 bg-background border-b border-border/50">
+                  <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
                     <div className="max-w-3xl">
                       <EntityComposer
                         workspaceId={deal.workspace_id}
@@ -571,26 +567,6 @@ export function DealPeekSheet({
                       />
                     </div>
                   </div>
-                  <Tabs defaultValue="overview" className="w-full">
-                    <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
-                      <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
-                        {[
-                          { v: "overview", label: "Overview" },
-                          { v: "underwriting", label: "Underwriting" },
-                          { v: "broker", label: "Broker Comms" },
-                          { v: "activity", label: "Activity" },
-                          { v: "files", label: "Files" },
-                        ].map((t) => (
-                          <TabsTrigger
-                            key={t.v}
-                            value={t.v}
-                            className="text-[14px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
-                          >
-                            {t.label}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                    </div>
 
                     <TabsContent value="overview" className="p-4 mt-0">
                       <DealOverviewPanel
