@@ -714,7 +714,13 @@ function CustomFieldsPanel({
   );
   return (
     <section>
-      <CustomFieldsRenderer fields={decorated} values={draft} onChange={setDraft} compact />
+      <CustomFieldsRenderer
+        fields={decorated}
+        values={draft}
+        onChange={setDraft}
+        compact
+        variant="contact"
+      />
       {fields.some((f) => f.field_key === "creative_friendly") && (
         <p className="text-[11px] text-muted-foreground mt-2">
           <span className="font-medium">Creative Friendly:</span> Comfortable with subject-to,
