@@ -1750,6 +1750,17 @@ function ContactDetailBody({
 
           <SidebarDivider />
 
+          {/* Owner */}
+          <SidebarBlock label="Owner">
+            <OwnerPicker
+              ownerId={contact.owner_id}
+              onChange={(id) => updateContact({ owner_id: id })}
+              label=""
+            />
+          </SidebarBlock>
+
+          <SidebarDivider />
+
           {/* Contact details */}
           <SidebarBlock label="Contact details">
             <SidebarRow icon={<Phone className="h-4 w-4" />}>
@@ -1841,17 +1852,6 @@ function ContactDetailBody({
                 </span>
               </button>
             </SidebarRow>
-          </SidebarBlock>
-
-          <SidebarDivider />
-
-          {/* Owner */}
-          <SidebarBlock label="Owner">
-            <OwnerPicker
-              ownerId={contact.owner_id}
-              onChange={(id) => updateContact({ owner_id: id })}
-              label=""
-            />
           </SidebarBlock>
 
           <SidebarDivider />
