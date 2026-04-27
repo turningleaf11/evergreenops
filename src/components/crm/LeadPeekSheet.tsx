@@ -26,7 +26,14 @@ import {
   EntitySheetShell,
   EntitySheetHeader,
   EntityIdentityStrip,
+  EntityTabs,
+  EntityTabPanel,
+  EntitySidebarSection,
+  EntitySidebarField,
+  EntityEmpty,
+  OverviewCard,
 } from "./_shell";
+import { EntityComposer } from "./EntityComposer";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
