@@ -12,5 +12,8 @@ export { EntitySectionHeader } from "./EntitySectionHeader";
 export { EntityTabs, EntityTabPanel, ENTITY_TAB_LABELS } from "./EntityTabs";
 export type { EntityTabId } from "./EntityTabs";
 export { OverviewCard } from "./OverviewCard";
+export { StageProgressBar } from "./StageProgressBar";
+export type { StageProgressItem } from "./StageProgressBar";
+export { EntityIdentityBlock } from "./EntityIdentityBlock";
 export { resolveStatus } from "./statusRegistry";
 export type { RegistryKind, StatusVariant } from "./statusRegistry";
