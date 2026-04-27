@@ -12,6 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  DataTableShell,
+  DataTableHeader,
+  DataTableRow,
+  DataTablePill,
+} from "@/components/ui/data-table-shell";
 import { NewTransactionDialog } from "./NewTransactionDialog";
 import { TransactionDetailSheet } from "./TransactionDetailSheet";
 import {
@@ -175,11 +181,8 @@ export function TransactionsList({ search }: { search: string }) {
           <p>Create a transaction or move a deal to Under Contract.</p>
         </div>
       ) : (
-        <div
-          className="rounded-xl overflow-hidden bg-card"
-          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid hsl(var(--border) / 0.5)" }}
-        >
-          <div className="grid grid-cols-[2.4fr_0.9fr_1fr_1.3fr_1.2fr_1.4fr_1fr] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20">
+        <DataTableShell>
+          <DataTableHeader template="2.4fr 0.9fr 1fr 1.3fr 1.2fr 1.4fr 1fr">
             <div>Property</div>
             <div>Lane</div>
             <div>Type</div>
@@ -187,17 +190,18 @@ export function TransactionsList({ search }: { search: string }) {
             <div>Buyer</div>
             <div>Checklist</div>
             <div className="text-right">Est. net</div>
-          </div>
+          </DataTableHeader>
           {filtered.map((r) => {
             const days = daysBetween(r.closing_date);
             const prog = progress[r.id] || { done: 0, total: 0 };
             const pct = prog.total ? (prog.done / prog.total) * 100 : 0;
             const propLabel = r.property_address?.trim() || "Untitled";
             return (
-              <button
+              <DataTableRow
                 key={r.id}
+                template="2.4fr 0.9fr 1fr 1.3fr 1.2fr 1.4fr 1fr"
                 onClick={() => setOpenId(r.id)}
-                className="w-full text-left grid grid-cols-[2.4fr_0.9fr_1fr_1.3fr_1.2fr_1.4fr_1fr] items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors"
+                asButton
               >
                 {/* PROPERTY */}
                 <div className="min-w-0 pr-3">
@@ -209,53 +213,25 @@ export function TransactionsList({ search }: { search: string }) {
                       <span className="italic text-muted-foreground/60">no city</span>
                     )}
                     {r.status !== "active" && (
-                      <span
-                        className="ml-2"
-                        style={{
-                          backgroundColor: `hsl(${TX_STATUS_COLOR[r.status]} / 0.15)`,
-                          color: `hsl(${TX_STATUS_COLOR[r.status]})`,
-                          borderRadius: 100,
-                          fontSize: 10,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                        }}
-                      >
+                      <DataTablePill hsl={TX_STATUS_COLOR[r.status]} className="ml-2 text-[10px] px-2 py-[2px]">
                         {r.status}
-                      </span>
+                      </DataTablePill>
                     )}
                   </div>
                 </div>
 
                 {/* LANE */}
                 <div>
-                  <span
-                    style={{
-                      backgroundColor: `hsl(${TX_LANE_COLOR[r.lane]} / 0.15)`,
-                      color: `hsl(${TX_LANE_COLOR[r.lane]})`,
-                      borderRadius: 100,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                    }}
-                  >
+                  <DataTablePill hsl={TX_LANE_COLOR[r.lane]}>
                     {TX_LANE_LABEL[r.lane]}
-                  </span>
+                  </DataTablePill>
                 </div>
 
                 {/* TYPE */}
                 <div>
-                  <span
-                    style={{
-                      backgroundColor: `hsl(${TX_TYPE_COLOR[r.transaction_type]} / 0.13)`,
-                      color: `hsl(${TX_TYPE_COLOR[r.transaction_type]})`,
-                      borderRadius: 100,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                    }}
-                  >
+                  <DataTablePill hsl={TX_TYPE_COLOR[r.transaction_type]} bgOpacity={0.13}>
                     {TX_TYPE_LABEL[r.transaction_type]}
-                  </span>
+                  </DataTablePill>
                 </div>
 
                 {/* CLOSING */}
@@ -311,10 +287,10 @@ export function TransactionsList({ search }: { search: string }) {
                     fmtMoney(r.status === "closed" ? r.actual_net : r.estimated_net)
                   )}
                 </div>
-              </button>
+              </DataTableRow>
             );
           })}
-        </div>
+        </DataTableShell>
       )}
 
       <NewTransactionDialog
