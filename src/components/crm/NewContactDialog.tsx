@@ -42,7 +42,6 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
   const [preferredMethod, setPreferredMethod] = useState<PreferredContactMethod | "">("");
   const [buyBox, setBuyBox] = useState("");
   const [markets, setMarkets] = useState<string[]>([]);
-  const [marketDraft, setMarketDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
