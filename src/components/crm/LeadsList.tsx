@@ -365,6 +365,7 @@ export function LeadsList({ search }: { search: string }) {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
