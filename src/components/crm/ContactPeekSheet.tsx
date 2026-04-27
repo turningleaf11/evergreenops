@@ -1826,7 +1826,7 @@ function ContactDetailBody({
               items={linkedDeals.map((d) => ({
                 id: d.id,
                 title: d.address || d.name || "Untitled deal",
-                stage: d.stage,
+                stage: d.stage ? (stageMap[d.stage] ?? null) : null,
               }))}
               icon={<Briefcase className="h-3.5 w-3.5" />}
               emptyLabel="No deals yet"
