@@ -583,7 +583,7 @@ export function ContactActivityTab({
                       kind="note"
                       act={a}
                       actorName={a.actor_id ? profiles[a.actor_id] || "Someone" : "System"}
-                      contactEmail={contact.email}
+                      contactEmail={resolvedEmail}
                       onDelete={() => deleteActivity(a.id)}
                       onRefresh={fetchAll}
                       onTogglePin={() => togglePin(a)}
@@ -610,7 +610,7 @@ export function ContactActivityTab({
                           kind={item.kind}
                           act={item.act}
                           actorName={item.act.actor_id ? profiles[item.act.actor_id] || "Someone" : "System"}
-                          contactEmail={contact.email}
+                          contactEmail={resolvedEmail}
                           onDelete={() => deleteActivity(item.act.id)}
                           onRefresh={fetchAll}
                           onTogglePin={item.kind === "note" ? () => togglePin(item.act) : undefined}
