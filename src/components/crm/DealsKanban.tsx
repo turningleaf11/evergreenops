@@ -90,6 +90,10 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
   }, []);
 
   useEffect(() => {
+    if (newSignal > 0) setNewOpen(true);
+  }, [newSignal]);
+
+  useEffect(() => {
     if (!activePipelineId) return;
     (async () => {
       const [{ data: st }, { data: dl }] = await Promise.all([
