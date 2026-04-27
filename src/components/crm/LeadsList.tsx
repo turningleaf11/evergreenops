@@ -154,9 +154,6 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
           >
             {showArchived ? "Hide" : "Show"} archived/converted
           </Button>
-          <Button size="sm" onClick={() => setNewOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New lead
-          </Button>
         </div>
       </div>
 
