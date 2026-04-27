@@ -2122,39 +2122,31 @@ function ContactMarketsInline({
   );
 }
 
-function LinkedRecordsRow({
+function LinkedRecordsGroup({
   kind,
-  count,
   items,
   icon,
   emptyLabel,
   excludeIds,
   onPick,
   onCreate,
+  onOpen,
 }: {
   kind: "deal" | "lead";
-  count: number;
-  items: Array<{ id: string; label: string }>;
+  items: Array<{ id: string; title: string; stage: string | null }>;
   icon: React.ReactNode;
   emptyLabel: string;
   excludeIds: string[];
   onPick: (it: { id: string; label: string }) => void | Promise<void>;
   onCreate?: () => void;
+  onOpen?: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const noun = kind === "deal" ? "Deals" : "Leads";
+  const count = items.length;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => count > 0 && setExpanded((e) => !e)}
-          disabled={count === 0}
-          className={cn(
-            "inline-flex items-center gap-2 text-sm",
-            count > 0 ? "hover:text-foreground" : "text-muted-foreground cursor-default",
-          )}
-        >
+        <div className="inline-flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">{icon}</span>
           {count === 0 ? (
             <span className="italic text-muted-foreground/70">{emptyLabel}</span>
@@ -2163,7 +2155,7 @@ function LinkedRecordsRow({
               {count} {count === 1 ? noun.slice(0, -1) : noun}
             </span>
           )}
-        </button>
+        </div>
         <LinkRecordPopover
           kind={kind}
           excludeIds={excludeIds}
@@ -2172,15 +2164,40 @@ function LinkedRecordsRow({
           triggerLabel={`Link ${kind}`}
         />
       </div>
-      {expanded && items.length > 0 && (
-        <ul className="pl-6 space-y-0.5">
+      {count > 0 && (
+        <ul className="space-y-1.5">
           {items.map((it) => (
             <li
               key={it.id}
-              className="text-[13px] text-foreground truncate py-0.5"
-              title={it.label}
+              className="bg-card flex items-center justify-between gap-2"
+              style={{
+                borderRadius: 8,
+                border: "1px solid #F0F0F0",
+                padding: "10px 12px",
+              }}
             >
-              {it.label}
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-medium truncate" title={it.title}>
+                  {it.title}
+                </div>
+                {it.stage && (
+                  <div className="mt-0.5">
+                    <EntityStatusPill
+                      kind={kind === "deal" ? "deal_stage" : "lead_status"}
+                      value={it.stage}
+                    />
+                  </div>
+                )}
+              </div>
+              {onOpen && (
+                <button
+                  type="button"
+                  onClick={() => onOpen(it.id)}
+                  className="text-[12px] text-primary hover:underline whitespace-nowrap shrink-0"
+                >
+                  Open →
+                </button>
+              )}
             </li>
           ))}
         </ul>
