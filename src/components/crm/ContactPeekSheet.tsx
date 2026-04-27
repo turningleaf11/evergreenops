@@ -1857,7 +1857,7 @@ function ContactDetailBody({
         </div>
       </aside>
 
-      {/* ─────────────── RIGHT: Tabs + content ─────────────── */}
+      {/* ─────────────── RIGHT: Composer (sticky) + Tabs + content ─────────────── */}
       <div className="flex flex-col min-h-0 bg-[#F8F8F8] dark:bg-muted/10">
         {composeOpen ? (
           <InlineEmailComposer
@@ -1868,83 +1868,95 @@ function ContactDetailBody({
             onSent={handleSent}
           />
         ) : (
-          <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
-            <EntityTabPanel value="overview" className="p-6">
-              <div className="space-y-6 max-w-3xl">
-                <OverviewCard title="Profile">
-                  <CustomFieldsPanel
-                    contactId={contact.id}
-                    contactType={contact.contact_type}
-                    values={(contact.custom_fields || {}) as Record<string, unknown>}
-                    onSaved={(v) => setContact({ ...contact, custom_fields: v })}
-                  />
-                </OverviewCard>
-              </div>
-            </EntityTabPanel>
-
-            <EntityTabPanel value="activity" className="p-6 overflow-hidden">
-              <div className="h-full flex flex-col max-w-3xl">
-                <ContactActivityTab contact={contact} />
-              </div>
-            </EntityTabPanel>
-
-            <EntityTabPanel value="deals" className="p-6">
+          <>
+            {/* Always-visible composer above the tabs */}
+            <div className="shrink-0 px-6 pt-5 pb-4 bg-background border-b border-border/50">
               <div className="max-w-3xl">
-                {linkedDeals.length === 0 ? (
-                  <div className="rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                    <Briefcase className="h-8 w-8 mb-2 opacity-50" />
-                    <p className="font-medium text-foreground mb-1">No deals sourced yet</p>
-                    <p>Deals sourced from this contact will appear here.</p>
-                  </div>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {linkedDeals.map((d) => {
-                      const title = d.address || d.name || "Untitled deal";
-                      const stageLabel = d.stage ? (stageMap[d.stage] ?? null) : null;
-                      const price = d.asking_price != null
-                        ? `$${Number(d.asking_price).toLocaleString()}`
-                        : null;
-                      return (
-                        <li
-                          key={d.id}
-                          className="bg-card flex items-center justify-between gap-3 transition-shadow hover:[box-shadow:0_4px_12px_rgba(0,0,0,0.08)]"
-                          style={{
-                            borderRadius: 10,
-                            padding: "14px 16px",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                          }}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-medium truncate" title={title}>{title}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {stageLabel && <EntityStatusPill kind="deal_stage" value={stageLabel} />}
-                            {price && <span className="text-sm text-muted-foreground">{price}</span>}
-                            <button
-                              type="button"
-                              onClick={() => openDealById(d.id)}
-                              className="text-[12px] text-primary hover:underline whitespace-nowrap"
-                            >
-                              Open →
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                <ContactComposer
+                  contact={contact}
+                  onPosted={() => setTimelineNonce((n) => n + 1)}
+                />
               </div>
-            </EntityTabPanel>
+            </div>
 
-            <EntityTabPanel value="files" className="p-6">
-              <div className="max-w-3xl rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                <Inbox className="h-8 w-8 mb-2 opacity-50" />
-                <p className="font-medium text-foreground mb-1">No files yet</p>
-                <p>File attachments for contacts will appear here.</p>
-              </div>
-            </EntityTabPanel>
-          </EntityTabs>
+            <EntityTabs value={tab} onValueChange={setTab} tabs={tabs} className="bg-background">
+              <EntityTabPanel value="overview" className="p-6">
+                <div className="space-y-6 max-w-3xl">
+                  <OverviewCard title="Profile">
+                    <CustomFieldsPanel
+                      contactId={contact.id}
+                      contactType={contact.contact_type}
+                      values={(contact.custom_fields || {}) as Record<string, unknown>}
+                      onSaved={(v) => setContact({ ...contact, custom_fields: v })}
+                    />
+                  </OverviewCard>
+                </div>
+              </EntityTabPanel>
+
+              <EntityTabPanel value="activity" className="p-6 overflow-hidden">
+                <div className="h-full flex flex-col max-w-3xl">
+                  <ContactActivityTab key={timelineNonce} contact={contact} />
+                </div>
+              </EntityTabPanel>
+
+              <EntityTabPanel value="deals" className="p-6">
+                <div className="max-w-3xl">
+                  {linkedDeals.length === 0 ? (
+                    <div className="rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                      <Briefcase className="h-8 w-8 mb-2 opacity-50" />
+                      <p className="font-medium text-foreground mb-1">No deals sourced yet</p>
+                      <p>Deals sourced from this contact will appear here.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2.5">
+                      {linkedDeals.map((d) => {
+                        const title = d.address || d.name || "Untitled deal";
+                        const stageLabel = d.stage ? (stageMap[d.stage] ?? null) : null;
+                        const price = d.asking_price != null
+                          ? `$${Number(d.asking_price).toLocaleString()}`
+                          : null;
+                        return (
+                          <li
+                            key={d.id}
+                            className="bg-card flex items-center justify-between gap-3 transition-shadow hover:[box-shadow:0_4px_12px_rgba(0,0,0,0.08)]"
+                            style={{
+                              borderRadius: 10,
+                              padding: "14px 16px",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                            }}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="text-sm font-medium truncate" title={title}>{title}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {stageLabel && <EntityStatusPill kind="deal_stage" value={stageLabel} />}
+                              {price && <span className="text-sm text-muted-foreground">{price}</span>}
+                              <button
+                                type="button"
+                                onClick={() => openDealById(d.id)}
+                                className="text-[12px] text-primary hover:underline whitespace-nowrap"
+                              >
+                                Open →
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </EntityTabPanel>
+
+              <EntityTabPanel value="files" className="p-6">
+                <div className="max-w-3xl rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                  <Inbox className="h-8 w-8 mb-2 opacity-50" />
+                  <p className="font-medium text-foreground mb-1">No files yet</p>
+                  <p>File attachments for contacts will appear here.</p>
+                </div>
+              </EntityTabPanel>
+            </EntityTabs>
+          </>
         )}
       </div>
     </div>
