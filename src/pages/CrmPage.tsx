@@ -127,7 +127,7 @@ export default function CrmPage() {
               <Inbox className="h-3.5 w-3.5" /> Inbox
             </TabsTrigger>
             <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
-              <Briefcase className="h-3.5 w-3.5" /> Deals
+              <Rocket className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Transactions
