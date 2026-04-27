@@ -690,6 +690,33 @@ export function LeadPeekSheet({
               {/* SIDEBAR */}
               <aside className="overflow-auto border-l border-border/50 bg-background">
                 <div className="p-5 space-y-5">
+                  <PrimaryContactCard
+                    contact={sourceContact}
+                    onUnlink={async () => {
+                      await onUpdate(lead.id, { source_contact_id: null } as any);
+                      setSourceContact(null);
+                      setSourceContactName(null);
+                    }}
+                    onLink={async (id) => {
+                      await onUpdate(lead.id, { source_contact_id: id } as any);
+                      setContactSearch("");
+                      const { data: c } = await supabase
+                        .from("contacts")
+                        .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
+                        .eq("id", id)
+                        .maybeSingle();
+                      if (c) {
+                        setSourceContact(c);
+                        setSourceContactName(
+                          `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
+                        );
+                      }
+                    }}
+                    searchQuery={contactSearch}
+                    onSearchQueryChange={setContactSearch}
+                    searchResults={contactSearchResults}
+                  />
+
                   <EntitySidebarSection title="Owner">
                     <OwnerPicker
                       ownerId={lead.owner_id}
@@ -708,45 +735,6 @@ export function LeadPeekSheet({
                         {lead.status?.replace(/_/g, " ") || "—"}
                       </span>
                     </EntitySidebarField>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Contact">
-                    <EntitySidebarField label="Source contact">
-                      {sourceContactName ? (
-                        <span className="text-sm">{sourceContactName}</span>
-                      ) : (
-                        <EntityEmpty>Not set</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Email">
-                      {lead.email ? (
-                        <a
-                          href={`mailto:${lead.email}`}
-                          className="text-sm hover:text-primary break-all"
-                        >
-                          {lead.email}
-                        </a>
-                      ) : (
-                        <EntityEmpty>—</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Phone">
-                      {lead.phone ? (
-                        <a
-                          href={`tel:${lead.phone}`}
-                          className="text-sm hover:text-primary"
-                        >
-                          {lead.phone}
-                        </a>
-                      ) : (
-                        <EntityEmpty>—</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    {lead.company_name && (
-                      <EntitySidebarField label="Company">
-                        <span className="text-sm">{lead.company_name}</span>
-                      </EntitySidebarField>
-                    )}
                   </EntitySidebarSection>
 
                   <EntitySidebarSection title="Follow up">
