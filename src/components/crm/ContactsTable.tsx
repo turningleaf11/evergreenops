@@ -205,23 +205,20 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
           <Loader2 className="h-4 w-4 animate-spin" /> Loading contacts…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-sm text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">No contacts match</p>
-          <p>Try clearing filters or adding a new contact.</p>
-        </div>
+        <DataTableEmpty
+          title="No contacts match"
+          hint="Try clearing filters or adding a new contact."
+        />
       ) : (
-        <div
-          className="rounded-xl bg-card overflow-hidden"
-          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid hsl(var(--border) / 0.5)" }}
-        >
-          <div className="grid grid-cols-[2.4fr_1fr_1.4fr_1.6fr_1.1fr_40px] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20">
+        <DataTableShell>
+          <DataTableHeader template={TEMPLATE}>
             <div>Name</div>
             <div>Type</div>
             <div>Company</div>
             <div>Markets</div>
             <div>Last contact</div>
             <div />
-          </div>
+          </DataTableHeader>
           {filtered.map((c) => {
             const fullName =
               `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Untitled contact";
@@ -229,10 +226,10 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
             const markets = c.markets ?? [];
             const company = c.company_id ? companyMap.get(c.company_id) ?? null : null;
             return (
-              <div
+              <DataTableRow
                 key={c.id}
+                template={TEMPLATE}
                 onClick={() => onOpen(c.id)}
-                className="group grid grid-cols-[2.4fr_1fr_1.4fr_1.6fr_1.1fr_40px] items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors cursor-pointer"
               >
                 {/* NAME */}
                 <div className="flex items-center gap-3 min-w-0 pr-3">
@@ -275,19 +272,9 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
 
                 {/* TYPE */}
                 <div>
-                  <span
-                    className="inline-flex items-center font-semibold"
-                    style={{
-                      backgroundColor: `hsl(${typeColor} / 0.15)`,
-                      color: `hsl(${typeColor})`,
-                      borderRadius: 100,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                    }}
-                  >
+                  <DataTablePill hsl={typeColor}>
                     {contactTypeLabel(c.contact_type)}
-                  </span>
+                  </DataTablePill>
                 </div>
 
                 {/* COMPANY */}
@@ -353,10 +340,10 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </div>
+              </DataTableRow>
             );
           })}
-        </div>
+        </DataTableShell>
       )}
     </div>
   );
