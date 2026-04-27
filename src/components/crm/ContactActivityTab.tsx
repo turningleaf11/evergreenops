@@ -642,6 +642,7 @@ function TimelineRow({
   contactEmail,
   onDelete,
   onRefresh,
+  onTogglePin,
 }: {
   kind: "note" | "email" | "call" | "file";
   act: CrmActivity;
@@ -649,17 +650,69 @@ function TimelineRow({
   contactEmail: string | null;
   onDelete: () => void;
   onRefresh: () => void;
+  onTogglePin?: () => void;
 }) {
   const cfg = TYPE_STYLE[kind];
   const Icon = cfg.icon;
   const meta = (act.metadata || {}) as any;
   const threadId: string | undefined = meta.gmail_thread_id;
   const [replyOpen, setReplyOpen] = useState(false);
+  const isNote = kind === "note";
+  const pinned = !!act.is_pinned;
 
   const replySubject = (() => {
     const s = act.subject || "";
     return s.toLowerCase().startsWith("re:") ? s : `Re: ${s}`.trim();
   })();
+
+  // Render NOTES as post-it style cards
+  if (isNote) {
+    return (
+      <div
+        className="group relative rounded-md p-3 pl-4"
+        style={{
+          backgroundColor: NOTE_BG,
+          boxShadow: NOTE_SHADOW,
+          border: "1px solid rgba(180,150,40,0.18)",
+        }}
+      >
+        {pinned && (
+          <Pin
+            className="absolute -top-1.5 -left-1.5 h-3.5 w-3.5 text-amber-700 rotate-[-20deg] drop-shadow"
+            fill="currentColor"
+          />
+        )}
+        <div className="flex items-center gap-2">
+          <Avatar className="h-5 w-5">
+            <AvatarFallback className="bg-amber-200 text-amber-900 text-[9px]">{initials(actorName)}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium text-amber-950">{actorName}</span>
+          <span className="text-xs text-amber-900/60">· {timeAgo(act.occurred_at)}</span>
+          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onTogglePin && (
+              <button
+                onClick={onTogglePin}
+                className="p-1 rounded hover:bg-amber-200/60 text-amber-800"
+                title={pinned ? "Unpin note" : "Pin note"}
+              >
+                {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              className="p-1 rounded hover:bg-amber-200/60 text-amber-800 hover:text-destructive"
+              title="Delete note"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        {act.body && (
+          <p className="whitespace-pre-wrap text-sm text-amber-950/90 mt-1 leading-relaxed">{act.body}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="group flex gap-3">
