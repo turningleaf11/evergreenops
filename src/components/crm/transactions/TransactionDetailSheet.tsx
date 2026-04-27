@@ -237,7 +237,81 @@ export function TransactionDetailSheet({
     onChanged();
   };
 
-  const toggleItem = async (item: ChecklistItem) => {
+  // Contact search
+  useEffect(() => {
+    if (!addOpen || search.trim().length < 2) { setSearchResults([]); return; }
+    let cancelled = false;
+    const q = `%${search.trim()}%`;
+    (async () => {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,first_name,last_name,email,phone,contact_type")
+        .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
+        .limit(8);
+      if (!cancelled) setSearchResults((data as ContactDetail[]) || []);
+    })();
+    return () => { cancelled = true; };
+  }, [search, addOpen]);
+
+  // Contact link/unlink/primary
+  const linkContact = async (contactId: string) => {
+    if (!tx || !user) return;
+    if (!tx.primary_contact_id) {
+      await saveField({ primary_contact_id: contactId });
+    } else if (contactId !== tx.primary_contact_id) {
+      const exists = contactLinks.some((l) => l.target_id === contactId);
+      if (!exists) {
+        await supabase.from("entity_links").insert({
+          source_type: "transaction",
+          source_id: tx.id,
+          target_type: "contact",
+          target_id: contactId,
+          created_by: user.id,
+        });
+      }
+    }
+    await reload();
+  };
+
+  const unlinkContact = async (contactId: string) => {
+    if (!tx) return;
+    if (tx.primary_contact_id === contactId) {
+      const others = contactLinks.map((l) => l.target_id).filter((id) => id !== contactId);
+      const newPrimary = others[0] ?? null;
+      if (newPrimary) {
+        await supabase
+          .from("entity_links")
+          .delete()
+          .eq("source_type", "transaction")
+          .eq("source_id", tx.id)
+          .eq("target_type", "contact")
+          .eq("target_id", newPrimary);
+      }
+      await saveField({ primary_contact_id: newPrimary });
+    } else {
+      const link = contactLinks.find((l) => l.target_id === contactId);
+      if (link) await supabase.from("entity_links").delete().eq("id", link.id);
+    }
+    await reload();
+  };
+
+  const makePrimary = async (contactId: string) => {
+    if (!tx || tx.primary_contact_id === contactId || !user) return;
+    const oldPrimary = tx.primary_contact_id;
+    if (oldPrimary) {
+      await supabase.from("entity_links").insert({
+        source_type: "transaction",
+        source_id: tx.id,
+        target_type: "contact",
+        target_id: oldPrimary,
+        created_by: user.id,
+      });
+    }
+    const link = contactLinks.find((l) => l.target_id === contactId);
+    if (link) await supabase.from("entity_links").delete().eq("id", link.id);
+    await saveField({ primary_contact_id: contactId });
+    await reload();
+  };
     if (!user) return;
     const newComplete = !item.is_complete;
     const patch = {
