@@ -4085,6 +4085,7 @@ export type Database = {
           created_at: string
           department_id: string | null
           email: string | null
+          email_signature_url: string | null
           full_name: string | null
           id: string
           onboarding_completed_at: string | null
@@ -4109,6 +4110,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           email?: string | null
+          email_signature_url?: string | null
           full_name?: string | null
           id?: string
           onboarding_completed_at?: string | null
@@ -4133,6 +4135,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           email?: string | null
+          email_signature_url?: string | null
           full_name?: string | null
           id?: string
           onboarding_completed_at?: string | null
