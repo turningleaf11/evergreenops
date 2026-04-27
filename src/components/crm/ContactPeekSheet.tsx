@@ -1596,6 +1596,7 @@ function ContactDetailBody({
   onCreateDeal?: () => void;
   onCreateLead?: () => void;
   hasCustomFields: boolean;
+  stageMap: Record<string, string>;
 }) {
   const initials =
     `${contact.first_name?.[0] ?? ""}${contact.last_name?.[0] ?? ""}`.toUpperCase() ||
