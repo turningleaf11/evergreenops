@@ -32,6 +32,7 @@ import {
   EntitySidebarField,
   EntityEmpty,
   OverviewCard,
+  StageProgressBar,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Badge } from "@/components/ui/badge";
