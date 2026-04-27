@@ -414,8 +414,8 @@ export function InlineEmailComposer({
         </Popover>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      {/* Body — capped height so the composer never stretches the whole sheet */}
+      <div className="overflow-auto max-h-[260px]">
         <RichTextEditor
           content={body}
           onChange={setBody}
