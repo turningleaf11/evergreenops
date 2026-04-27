@@ -122,17 +122,38 @@ export function ComposeModal({
   const [tplName, setTplName] = useState("");
   const [customWhen, setCustomWhen] = useState("");
   const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Load this user's PNG signature once
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email_signature_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setSignatureUrl((data as any)?.email_signature_url ?? null);
+    })();
+  }, [user?.id]);
+
+  const buildSignatureHtml = (): string => {
+    if (!signatureUrl) return "";
+    return `<p><br/></p><div class="email-signature" data-signature="1"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
+  };
 
   useEffect(() => {
     if (open) {
       setTo(defaultTo);
       setSubject(defaultSubject);
-      setBody("");
+      // Pre-fill the editor with two blank lines + signature so the user
+      // types ABOVE their signature (visible inside the text box).
+      setBody(signatureUrl ? `<p></p><p></p>${buildSignatureHtml()}` : "");
       setAttachments([]);
       setAccountId(defaultAccount?.id ?? null);
     }
-  }, [open, defaultTo, defaultSubject, defaultAccount?.id]);
+  }, [open, defaultTo, defaultSubject, defaultAccount?.id, signatureUrl]);
 
   const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
 
