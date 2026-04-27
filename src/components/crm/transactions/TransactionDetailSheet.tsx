@@ -48,6 +48,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ContactPicker } from "../ContactPicker";
 import { contactTypeColor, contactTypeLabel } from "../contactTypes";
+import { OwnerPicker, TransactionTeamMembersPanel } from "../PeoplePickers";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   TX_LANE_LABEL,
   TX_LANE_COLOR,
