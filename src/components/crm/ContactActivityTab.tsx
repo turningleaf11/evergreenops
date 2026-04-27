@@ -87,11 +87,15 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
 ];
 
+const NOTE_BG = "#FFF7B8"; // warm post-it yellow
+const NOTE_BG_SOFT = "#FFFBE0"; // softer composer background
+const NOTE_SHADOW = "0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(180,150,40,0.10)";
+
 const TYPE_STYLE: Record<
   string,
   { icon: any; bg: string; fg: string }
 > = {
-  note: { icon: NotebookPen, bg: "bg-[#3E54D3]/12", fg: "text-[#3E54D3]" },
+  note: { icon: NotebookPen, bg: "bg-[#FCE588]", fg: "text-amber-800" },
   email: { icon: Mail, bg: "bg-emerald-100", fg: "text-emerald-700" },
   call: { icon: Phone, bg: "bg-orange-100", fg: "text-orange-700" },
   file: { icon: FileText, bg: "bg-violet-100", fg: "text-violet-700" },
