@@ -2204,7 +2204,11 @@ function LinkedRecordsGroup({
           {items.map((it) => (
             <li
               key={it.id}
-              className="bg-card flex items-center justify-between gap-2"
+              onClick={onOpen ? () => onOpen(it.id) : undefined}
+              className={cn(
+                "bg-card flex items-center justify-between gap-2 transition-shadow",
+                onOpen && "cursor-pointer hover:[box-shadow:0_2px_8px_rgba(0,0,0,0.08)]",
+              )}
               style={{
                 borderRadius: 8,
                 border: "1px solid #F0F0F0",
@@ -2225,13 +2229,9 @@ function LinkedRecordsGroup({
                 )}
               </div>
               {onOpen && (
-                <button
-                  type="button"
-                  onClick={() => onOpen(it.id)}
-                  className="text-[12px] text-primary hover:underline whitespace-nowrap shrink-0"
-                >
+                <span className="text-[12px] text-primary whitespace-nowrap shrink-0">
                   Open →
-                </button>
+                </span>
               )}
             </li>
           ))}
