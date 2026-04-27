@@ -554,7 +554,20 @@ export function DealPeekSheet({
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_300px] min-h-0 overflow-hidden">
                 {/* Main column */}
-                <div className="overflow-auto">
+                <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
+                  {/* Composer pinned above the tabs */}
+                  <div className="px-6 pt-5 pb-4 bg-background border-b border-border/50">
+                    <div className="max-w-3xl">
+                      <EntityComposer
+                        workspaceId={deal.workspace_id}
+                        entityType="deal"
+                        entityId={deal.id}
+                        defaultEmail={primaryContact?.email ?? null}
+                        notePlaceholder="Jot a note about this deal…"
+                        onPosted={() => { void reload(); onChanged(); }}
+                      />
+                    </div>
+                  </div>
                   <Tabs defaultValue="overview" className="w-full">
                     <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
                       <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
