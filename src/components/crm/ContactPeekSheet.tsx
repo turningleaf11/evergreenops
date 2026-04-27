@@ -1958,11 +1958,7 @@ function ContactDetailBody({
               </EntityTabPanel>
 
               <EntityTabPanel value="files" className="p-6">
-                <div className="max-w-3xl rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                  <Inbox className="h-8 w-8 mb-2 opacity-50" />
-                  <p className="font-medium text-foreground mb-1">No files yet</p>
-                  <p>File attachments for contacts will appear here.</p>
-                </div>
+                <ContactFilesTab contactId={contact.id} workspaceId={contact.workspace_id} />
               </EntityTabPanel>
             </EntityTabs>
           </>
