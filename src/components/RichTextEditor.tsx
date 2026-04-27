@@ -17,7 +17,7 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import Callout from "@/extensions/CalloutNode";
 import Badge from "@/extensions/BadgeNode";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -142,6 +142,20 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       attributes: { class: "prose prose-sm max-w-none focus:outline-none" },
     },
   });
+
+  // Sync external `content` changes into the editor (e.g. async-loaded
+  // signature, template insertion). Skip changes that came from the
+  // editor itself to avoid clobbering the user's caret/selection.
+  useEffect(() => {
+    if (!editor) return;
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      return;
+    }
+    const current = editor.getHTML();
+    if (current === content) return;
+    editor.commands.setContent(content || "", false);
+  }, [content, editor]);
 
   // Click below the editor content focuses cursor at the end (Notion-style)
   const handleSurfaceClick = (e: React.MouseEvent) => {
