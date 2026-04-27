@@ -343,16 +343,6 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
   const [tasks, setTasks] = useState<CrmTask[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Note composer
-  const [noteBody, setNoteBody] = useState("");
-  const [noteAttach, setNoteAttach] = useState<{ name: string; url: string } | null>(null);
-  const [savingNote, setSavingNote] = useState(false);
-
-  // Call composer
-  const [callOutcome, setCallOutcome] = useState("answered");
-  const [callDuration, setCallDuration] = useState("");
-  const [callBody, setCallBody] = useState("");
-  const [savingCall, setSavingCall] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
