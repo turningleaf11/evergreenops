@@ -1799,6 +1799,7 @@ function ContactDetailBody({
             <OwnerPicker
               ownerId={contact.owner_id}
               onChange={(id) => updateContact({ owner_id: id })}
+              label=""
             />
           </SidebarBlock>
 
