@@ -450,6 +450,19 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     setActs((prev) => prev.filter((x) => x.id !== id));
   };
 
+  const togglePin = async (act: CrmActivity) => {
+    const next = !act.is_pinned;
+    setActs((prev) => prev.map((x) => (x.id === act.id ? { ...x, is_pinned: next } : x)));
+    const { error } = await supabase
+      .from("crm_activities")
+      .update({ is_pinned: next })
+      .eq("id", act.id);
+    if (error) {
+      toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" });
+      setActs((prev) => prev.map((x) => (x.id === act.id ? { ...x, is_pinned: !next } : x)));
+    }
+  };
+
   const describeEvent = (e: EntityEvent) => {
     const actor = e.actor_id ? profiles[e.actor_id] || "Someone" : "System";
     const meta = e.metadata || {};
