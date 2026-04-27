@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Users, Building2, Briefcase, Plus, Search, Inbox, FileText } from "lucide-react";
+import { Users, Building2, Rocket, Plus, Search, Inbox, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -73,10 +73,10 @@ export default function CrmPage() {
       <div className="border-b border-border/50 px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-            <Briefcase className="h-5 w-5" />
+            <Rocket className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-tight">CRM</h1>
+            <h1 className="text-lg font-semibold leading-tight">Deals</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export default function CrmPage() {
               <Inbox className="h-3.5 w-3.5" /> Inbox
             </TabsTrigger>
             <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
-              <Briefcase className="h-3.5 w-3.5" /> Deals
+              <Rocket className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Transactions
