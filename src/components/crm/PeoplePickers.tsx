@@ -88,7 +88,7 @@ export function OwnerPicker({
 
   return (
     <div>
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
+      {label ? <div className="text-xs text-muted-foreground mb-1">{label}</div> : null}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button className="w-full flex items-center gap-2 text-sm rounded-md border border-input bg-background px-2 py-1.5 hover:bg-muted/50 transition-colors">
