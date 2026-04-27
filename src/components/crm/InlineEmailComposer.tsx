@@ -112,6 +112,7 @@ export function InlineEmailComposer({
   const [tplName, setTplName] = useState("");
   const [customWhen, setCustomWhen] = useState("");
   const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
