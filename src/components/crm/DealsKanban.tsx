@@ -287,11 +287,13 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
       {view === "table" && (
         <DealsTableView
           deals={filteredSortedDeals}
+          stages={stages}
           stageMap={stageMap}
           onOpen={(id) => setOpenDealId(id)}
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={toggleSort}
+          onUpdate={updateDeal}
         />
       )}
 
