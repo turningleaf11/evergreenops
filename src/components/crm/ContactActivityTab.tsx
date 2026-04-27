@@ -145,9 +145,7 @@ export function ContactComposer({
   const { user } = useAuth();
   const [tab, setTab] = useState<"note" | "email" | "call">("note");
 
-  // Note composer
-  const [noteBody, setNoteBody] = useState("");
-  const [noteAttach, setNoteAttach] = useState<{ name: string; url: string } | null>(null);
+  // Note composer (rich)
   const [savingNote, setSavingNote] = useState(false);
 
   // Call composer
@@ -156,10 +154,19 @@ export function ContactComposer({
   const [callBody, setCallBody] = useState("");
   const [savingCall, setSavingCall] = useState(false);
 
-  const submitNote = async () => {
-    if (!user || !noteBody.trim()) return;
+  const submitNote = async (payload: ActivitySubmitPayload) => {
+    if (!user) return;
+    const { contentHtml, contentText, attachments, gifUrl, audioUrl } = payload;
+    if (!contentText.trim() && attachments.length === 0 && !gifUrl && !audioUrl) return;
     setSavingNote(true);
-    const body = noteAttach ? `${noteBody.trim()}\n\n📎 ${noteAttach.name}: ${noteAttach.url}` : noteBody.trim();
+
+    // Build a body that preserves the rich HTML and appends media references
+    const extras: string[] = [];
+    attachments.forEach((a) => extras.push(`<p>📎 <a href="${a.url}" target="_blank" rel="noreferrer">${a.name}</a></p>`));
+    if (gifUrl) extras.push(`<p><img src="${gifUrl}" alt="gif" /></p>`);
+    if (audioUrl) extras.push(`<p>🎙️ <a href="${audioUrl}" target="_blank" rel="noreferrer">Voice note</a></p>`);
+    const body = `${contentHtml}${extras.join("")}`;
+
     const { error } = await supabase.from("crm_activities").insert({
       workspace_id: contact.workspace_id,
       entity_type: "contact",
@@ -168,14 +175,18 @@ export function ContactComposer({
       subject: "",
       body,
       actor_id: user.id,
+      metadata: {
+        rich: true,
+        attachments,
+        gif_url: gifUrl,
+        audio_url: audioUrl,
+      } as any,
     });
     setSavingNote(false);
     if (error) {
       toast({ title: "Couldn't save note", description: error.message, variant: "destructive" });
       return;
     }
-    setNoteBody("");
-    setNoteAttach(null);
     onPosted?.();
   };
 
