@@ -620,8 +620,10 @@ export function TransactionDetailSheet({
                   </TabsContent>
 
                   {/* ACTIVITY */}
-                  <TabsContent value="activity" className="p-6 mt-0">
-                    <ActivityPanel entityType="transaction" entityId={tx.id} />
+                  <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
+                    <div className="h-full flex flex-col max-w-3xl">
+                      <ActivityPanel entityType="transaction" entityId={tx.id} hideHeader hideComposer />
+                    </div>
                   </TabsContent>
 
                   {/* FILES */}
