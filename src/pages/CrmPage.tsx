@@ -77,9 +77,6 @@ export default function CrmPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight">CRM</h1>
-            <p className="text-xs text-muted-foreground">
-              Contacts, companies, and deals — connected to your inbox.
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
