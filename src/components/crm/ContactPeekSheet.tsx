@@ -1649,6 +1649,19 @@ function ContactDetailBody({
               <div className="text-[12px] italic text-muted-foreground/70">
                 {lastContacted ? `Last contacted ${lastContacted}` : "Never contacted"}
               </div>
+              {contact.created_at && (
+                <div className="text-[12px] text-muted-foreground/70">
+                  Added{" "}
+                  {new Date(contact.created_at).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  {contact.source && (
+                    <span className="capitalize"> · via {contact.source}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
