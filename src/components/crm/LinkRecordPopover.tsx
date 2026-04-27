@@ -79,7 +79,7 @@ export function LinkRecordPopover({
           className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
           title={triggerLabel}
         >
-          <Plus className="h-3 w-3" /> Link
+          <Plus className="h-3 w-3" /> {triggerLabel}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
