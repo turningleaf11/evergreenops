@@ -773,8 +773,8 @@ export function DealPeekSheet({
                   </div>
                 </aside>
               </div>
-              </div>
           </>
+
         )}
       </EntitySheetShell>
 
