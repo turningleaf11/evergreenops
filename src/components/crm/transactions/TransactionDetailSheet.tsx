@@ -312,6 +312,8 @@ export function TransactionDetailSheet({
     await saveField({ primary_contact_id: contactId });
     await reload();
   };
+
+  const toggleItem = async (item: ChecklistItem) => {
     if (!user) return;
     const newComplete = !item.is_complete;
     const patch = {
