@@ -161,6 +161,9 @@ export function LeadPeekSheet({
   const [tab, setTab] = useState<"overview" | "activity" | "files">("overview");
   const [composerNonce, setComposerNonce] = useState(0);
   const [sourceContactName, setSourceContactName] = useState<string | null>(null);
+  const [sourceContact, setSourceContact] = useState<any | null>(null);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactSearchResults, setContactSearchResults] = useState<any[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [planType, setPlanType] = useState<string>("call");
   const [planSubject, setPlanSubject] = useState("");
