@@ -632,31 +632,8 @@ export function DealPeekSheet({
                 {/* Right rail — identity-first sidebar */}
                 <aside className="border-l border-border/40 overflow-auto bg-background">
                   <div className="p-5 space-y-5">
-                    <EntityIdentityBlock
-                      title={deal.property_address?.trim() || deal.title || "Untitled deal"}
-                      badges={
-                        <>
-                          {currentStage && (
-                            <Badge
-                              className={cn("text-[11px] capitalize font-semibold border-transparent", stageBadgeClass(currentStage.name))}
-                              style={{ borderRadius: 100, padding: "3px 10px" }}
-                            >
-                              {currentStage.name}
-                            </Badge>
-                          )}
-                          {deal.asking_price != null && (
-                            <span className="text-xs font-semibold tabular-nums text-foreground">
-                              {formatMoney(Number(deal.asking_price), deal.currency)}
-                            </span>
-                          )}
-                        </>
-                      }
-                      meta={
-                        [deal.property_city, deal.property_state].filter(Boolean).join(", ") ? (
-                          <div>{[deal.property_city, deal.property_state].filter(Boolean).join(", ")}</div>
-                        ) : null
-                      }
-                    />
+                    {/* Identity block removed — title is editable in the sheet header. */}
+
 
                     <PrimaryContactCard
                       contact={primaryContact as any}
