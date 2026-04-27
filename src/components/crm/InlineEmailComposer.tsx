@@ -103,6 +103,7 @@ export function InlineEmailComposer({
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState("");
+  const [bodyInitialized, setBodyInitialized] = useState(false);
   const [sending, setSending] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -130,7 +131,7 @@ export function InlineEmailComposer({
     })();
   }, []);
 
-  // Load this user's email signature (PNG URL) so we can append it to outgoing mail.
+  // Load this user's email signature (PNG URL).
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
@@ -147,8 +148,21 @@ export function InlineEmailComposer({
 
   const buildSignatureHtml = (): string => {
     if (!signatureUrl) return "";
-    return `<br/><br/><div class="email-signature"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
+    return `<div class="email-signature" data-signature="1"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
   };
+
+  // Pre-fill the editor body with two blank lines + signature once we know
+  // whether the user has a signature. User types ABOVE their signature.
+  useEffect(() => {
+    if (bodyInitialized) return;
+    if (signatureUrl) {
+      setBody(`<p></p><p></p>${buildSignatureHtml()}`);
+    } else {
+      setBody("");
+    }
+    setBodyInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signatureUrl]);
 
   const buildHtml = (): string => {
     let html = body || "";
@@ -158,7 +172,10 @@ export function InlineEmailComposer({
         attachments.map((a) => `<a href="${a.url}">${a.name}</a>`).join("<br/>") +
         `</div>`;
     }
-    html += buildSignatureHtml();
+    // Safety net: if a template wiped the signature out of the body, re-append.
+    if (signatureUrl && !html.includes('data-signature="1"')) {
+      html += buildSignatureHtml();
+    }
     return html;
   };
 
