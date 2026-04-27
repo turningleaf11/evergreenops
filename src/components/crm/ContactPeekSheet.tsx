@@ -326,26 +326,26 @@ export function ContactPeekSheet({
     const [{ data: directDeals }, { data: linkedDealRows }] = await Promise.all([
       supabase
         .from("deals")
-        .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
+        .select("id,title,stage_id,status,property_address,asking_price,primary_contact_id,source_contact_id")
         .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("entity_links")
-        .select("source_id, deals:source_id(id,title,stage_id,status)")
+        .select("source_id, deals:source_id(id,title,stage_id,status,property_address,asking_price)")
         .eq("source_type", "deal")
         .eq("target_type", "contact")
         .eq("target_id", contactId)
         .limit(50),
     ]);
-    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>();
     ((directDeals as any[]) || []).forEach((d) =>
-      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status }),
+      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null }),
     );
     ((linkedDealRows as any[]) || []).forEach((row) => {
       const d = row.deals;
       if (d && !dealMap.has(d.id)) {
-        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null });
       }
     });
     setLinkedDeals(Array.from(dealMap.values()));
