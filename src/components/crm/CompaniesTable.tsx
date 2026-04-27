@@ -42,6 +42,16 @@ export function CompaniesTable({ search, refreshKey = 0 }: { search: string; ref
     void reload();
   }, [refreshKey]);
 
+  const updateCompany = async (id: string, patch: Partial<Company>) => {
+    const prev = companies;
+    setCompanies((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("companies").update(patch as any).eq("id", id);
+    if (error) {
+      setCompanies(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return companies;
