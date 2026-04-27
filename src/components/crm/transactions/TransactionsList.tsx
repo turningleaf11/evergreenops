@@ -235,37 +235,79 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
 
                 {/* LANE */}
                 <div>
-                  <DataTablePill hsl={TX_LANE_COLOR[r.lane]}>
-                    {TX_LANE_LABEL[r.lane]}
-                  </DataTablePill>
+                  <InlinePopoverCell
+                    ariaLabel="Change lane"
+                    trigger={
+                      <DataTablePill hsl={TX_LANE_COLOR[r.lane]}>
+                        {TX_LANE_LABEL[r.lane]}
+                      </DataTablePill>
+                    }
+                  >
+                    {(close) => (
+                      <InlineOptionList
+                        value={r.lane}
+                        options={Object.keys(TX_LANE_LABEL).map((k) => ({
+                          value: k,
+                          label: TX_LANE_LABEL[k],
+                          color: TX_LANE_COLOR[k],
+                        }))}
+                        close={close}
+                        onChange={(v) => updateTx(r.id, { lane: v })}
+                      />
+                    )}
+                  </InlinePopoverCell>
                 </div>
 
                 {/* TYPE */}
                 <div>
-                  <DataTablePill hsl={TX_TYPE_COLOR[r.transaction_type]} bgOpacity={0.13}>
-                    {TX_TYPE_LABEL[r.transaction_type]}
-                  </DataTablePill>
+                  <InlinePopoverCell
+                    ariaLabel="Change type"
+                    trigger={
+                      <DataTablePill hsl={TX_TYPE_COLOR[r.transaction_type]} bgOpacity={0.13}>
+                        {TX_TYPE_LABEL[r.transaction_type]}
+                      </DataTablePill>
+                    }
+                  >
+                    {(close) => (
+                      <InlineOptionList
+                        value={r.transaction_type}
+                        options={Object.keys(TX_TYPE_LABEL).map((k) => ({
+                          value: k,
+                          label: TX_TYPE_LABEL[k],
+                          color: TX_TYPE_COLOR[k],
+                        }))}
+                        close={close}
+                        onChange={(v) => updateTx(r.id, { transaction_type: v })}
+                      />
+                    )}
+                  </InlinePopoverCell>
                 </div>
 
                 {/* CLOSING */}
                 <div className="text-xs pr-2">
-                  {r.closing_date ? (
-                    <>
-                      <div className="text-foreground text-[13px]">
-                        {new Date(r.closing_date).toLocaleDateString()}
-                      </div>
-                      <span
-                        className={cn(
-                          "inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium",
-                          closingCountdownClass(days),
-                        )}
-                      >
-                        {fmtCountdown(days)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="italic text-brand-coral/80 text-[12px]">No date set</span>
-                  )}
+                  <InlineDateCell
+                    value={r.closing_date}
+                    onSave={(v) => updateTx(r.id, { closing_date: v })}
+                    display={
+                      r.closing_date ? (
+                        <>
+                          <div className="text-foreground text-[13px]">
+                            {new Date(r.closing_date).toLocaleDateString()}
+                          </div>
+                          <span
+                            className={cn(
+                              "inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium",
+                              closingCountdownClass(days),
+                            )}
+                          >
+                            {fmtCountdown(days)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="italic text-brand-coral/80 text-[12px]">No date set</span>
+                      )
+                    }
+                  />
                 </div>
 
                 {/* BUYER */}
