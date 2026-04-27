@@ -21,6 +21,7 @@ import {
   StageProgressBar,
   EntityIdentityBlock,
   EntitySidebarSection,
+  PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,9 @@ interface ContactLite {
   last_name: string;
   email: string | null;
   phone: string | null;
+  contact_type?: string | null;
+  last_contacted_at?: string | null;
+  created_at?: string | null;
 }
 interface LinkRow { id: string; target_id: string }
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
@@ -280,7 +284,7 @@ export function DealPeekSheet({
   }, [dealId]);
 
   useEffect(() => {
-    if (!addOpen || search.trim().length < 2) { setSearchResults([]); return; }
+    if (search.trim().length < 2) { setSearchResults([]); return; }
     let cancelled = false;
     const q = `%${search.trim()}%`;
     (async () => {
@@ -292,7 +296,7 @@ export function DealPeekSheet({
       if (!cancelled) setSearchResults((data as ContactLite[]) || []);
     })();
     return () => { cancelled = true; };
-  }, [search, addOpen]);
+  }, [search]);
 
   const saveField = async (patch: Partial<Deal>) => {
     if (!deal) return;
@@ -657,73 +661,22 @@ export function DealPeekSheet({
                       }
                     />
 
-                    <EntitySidebarSection
-                      title="Contact"
-                      action={
-                        <Popover open={addOpen} onOpenChange={setAddOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
-                              <Plus className="h-3.5 w-3.5" /> Add
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" className="w-72 p-0">
-                            <div className="p-2 border-b border-border/40">
-                              <div className="relative">
-                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts…" className="h-8 pl-7 text-sm" autoFocus />
-                              </div>
-                            </div>
-                            <div className="max-h-60 overflow-auto">
-                              {searchResults.filter((c) => !linkedIds.has(c.id)).map((c) => (
-                                <button key={c.id} onClick={() => { linkContact(c.id); setAddOpen(false); setSearch(""); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50">
-                                  <div className="font-medium truncate">{contactName(c)}</div>
-                                  {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
-                                </button>
-                              ))}
-                              {searchResults.length === 0 && search.trim().length >= 2 && (
-                                <div className="px-3 py-3 text-xs text-muted-foreground">No matches</div>
-                              )}
-                            </div>
-                            <div className="border-t border-border/40 p-1">
-                              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs" onClick={() => { setAddOpen(false); setCreateOpen(true); }}>
-                                <UserPlus className="h-3.5 w-3.5" /> Create new contact
-                              </Button>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      }
-                    >
-                      {primaryContact ? (
-                        <div className="rounded-md border border-border/50 bg-card p-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                                {contactName(primaryContact)}
-                              </div>
-                              {primaryContact.email && (
-                                <a href={`mailto:${primaryContact.email}`} className="text-[11px] text-muted-foreground hover:text-primary truncate flex items-center gap-1">
-                                  <Mail className="h-3 w-3" /> {primaryContact.email}
-                                </a>
-                              )}
-                            </div>
-                            <button onClick={() => unlinkContact(primaryContact.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-muted-foreground italic">No primary contact.</p>
-                      )}
-                    </EntitySidebarSection>
+                    <PrimaryContactCard
+                      contact={primaryContact as any}
+                      onUnlink={(id) => unlinkContact(id)}
+                      onLink={(id) => { linkContact(id); setSearch(""); }}
+                      searchQuery={search}
+                      onSearchQueryChange={setSearch}
+                      searchResults={searchResults.filter((c) => !linkedIds.has(c.id))}
+                      onCreateNew={() => setCreateOpen(true)}
+                      canEdit
+                    />
 
                     <EntitySidebarSection title="Owner">
                       <OwnerPicker ownerId={deal.owner_id} onChange={async (id) => { await saveField({ owner_id: id } as any); }} label="" />
                     </EntitySidebarSection>
 
-                    <EntitySidebarSection title="Team members">
-                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} />
-                    </EntitySidebarSection>
+                    <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} />
 
                     <EntitySidebarSection title="Associated contacts">
                       {associatedContacts.length === 0 && (

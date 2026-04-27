@@ -15,5 +15,7 @@ export { OverviewCard } from "./OverviewCard";
 export { StageProgressBar } from "./StageProgressBar";
 export type { StageProgressItem } from "./StageProgressBar";
 export { EntityIdentityBlock } from "./EntityIdentityBlock";
+export { PrimaryContactCard } from "./PrimaryContactCard";
+export type { PrimaryContactLite } from "./PrimaryContactCard";
 export { resolveStatus } from "./statusRegistry";
 export type { RegistryKind, StatusVariant } from "./statusRegistry";

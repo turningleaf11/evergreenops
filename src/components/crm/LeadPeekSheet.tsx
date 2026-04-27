@@ -33,6 +33,7 @@ import {
   EntityEmpty,
   OverviewCard,
   StageProgressBar,
+  PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Badge } from "@/components/ui/badge";
@@ -161,6 +162,9 @@ export function LeadPeekSheet({
   const [tab, setTab] = useState<"overview" | "activity" | "files">("overview");
   const [composerNonce, setComposerNonce] = useState(0);
   const [sourceContactName, setSourceContactName] = useState<string | null>(null);
+  const [sourceContact, setSourceContact] = useState<any | null>(null);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactSearchResults, setContactSearchResults] = useState<any[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [planType, setPlanType] = useState<string>("call");
   const [planSubject, setPlanSubject] = useState("");
@@ -212,19 +216,21 @@ export function LeadPeekSheet({
       setPeople((p as PersonLite[]) || []);
       setLoading(false);
 
-      // load source contact name
+      // load source contact (used as primary contact card)
       if (lead.source_contact_id) {
         const { data: c } = await supabase
           .from("contacts")
-          .select("first_name,last_name,email")
+          .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
           .eq("id", lead.source_contact_id)
           .maybeSingle();
         if (active && c) {
+          setSourceContact(c);
           setSourceContactName(
             `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
           );
         }
       } else if (active) {
+        setSourceContact(null);
         setSourceContactName(null);
       }
     })();
@@ -232,6 +238,22 @@ export function LeadPeekSheet({
       active = false;
     };
   }, [lead?.id]);
+
+  // Contact search for the primary contact picker
+  useEffect(() => {
+    if (contactSearch.trim().length < 2) { setContactSearchResults([]); return; }
+    let cancelled = false;
+    const q = `%${contactSearch.trim()}%`;
+    (async () => {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,first_name,last_name,email")
+        .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
+        .limit(8);
+      if (!cancelled) setContactSearchResults(data || []);
+    })();
+    return () => { cancelled = true; };
+  }, [contactSearch]);
 
   const planned = useMemo(
     () =>
@@ -668,6 +690,33 @@ export function LeadPeekSheet({
               {/* SIDEBAR */}
               <aside className="overflow-auto border-l border-border/50 bg-background">
                 <div className="p-5 space-y-5">
+                  <PrimaryContactCard
+                    contact={sourceContact}
+                    onUnlink={async () => {
+                      await onUpdate(lead.id, { source_contact_id: null } as any);
+                      setSourceContact(null);
+                      setSourceContactName(null);
+                    }}
+                    onLink={async (id) => {
+                      await onUpdate(lead.id, { source_contact_id: id } as any);
+                      setContactSearch("");
+                      const { data: c } = await supabase
+                        .from("contacts")
+                        .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
+                        .eq("id", id)
+                        .maybeSingle();
+                      if (c) {
+                        setSourceContact(c);
+                        setSourceContactName(
+                          `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
+                        );
+                      }
+                    }}
+                    searchQuery={contactSearch}
+                    onSearchQueryChange={setContactSearch}
+                    searchResults={contactSearchResults}
+                  />
+
                   <EntitySidebarSection title="Owner">
                     <OwnerPicker
                       ownerId={lead.owner_id}
@@ -686,45 +735,6 @@ export function LeadPeekSheet({
                         {lead.status?.replace(/_/g, " ") || "—"}
                       </span>
                     </EntitySidebarField>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Contact">
-                    <EntitySidebarField label="Source contact">
-                      {sourceContactName ? (
-                        <span className="text-sm">{sourceContactName}</span>
-                      ) : (
-                        <EntityEmpty>Not set</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Email">
-                      {lead.email ? (
-                        <a
-                          href={`mailto:${lead.email}`}
-                          className="text-sm hover:text-primary break-all"
-                        >
-                          {lead.email}
-                        </a>
-                      ) : (
-                        <EntityEmpty>—</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Phone">
-                      {lead.phone ? (
-                        <a
-                          href={`tel:${lead.phone}`}
-                          className="text-sm hover:text-primary"
-                        >
-                          {lead.phone}
-                        </a>
-                      ) : (
-                        <EntityEmpty>—</EntityEmpty>
-                      )}
-                    </EntitySidebarField>
-                    {lead.company_name && (
-                      <EntitySidebarField label="Company">
-                        <span className="text-sm">{lead.company_name}</span>
-                      </EntitySidebarField>
-                    )}
                   </EntitySidebarSection>
 
                   <EntitySidebarSection title="Follow up">
