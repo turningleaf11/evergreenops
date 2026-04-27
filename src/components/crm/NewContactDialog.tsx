@@ -54,14 +54,6 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
     setPreferredMethod("");
     setBuyBox("");
     setMarkets([]);
-    setMarketDraft("");
-  };
-
-  const addMarket = () => {
-    const v = marketDraft.trim();
-    if (!v) return;
-    if (!markets.includes(v)) setMarkets([...markets, v]);
-    setMarketDraft("");
   };
 
   const submit = async () => {
