@@ -1,0 +1,732 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Loader2,
+  NotebookPen,
+  Mail,
+  Phone,
+  Send,
+  Reply,
+  Trash2,
+  Paperclip,
+  AtSign,
+  FileText,
+  RefreshCw,
+  CheckSquare,
+  Square as SquareIcon,
+  ExternalLink,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { triggerFileInput, uploadFile } from "@/lib/file-upload";
+import { InlineEmailComposer } from "./InlineEmailComposer";
+
+interface Contact {
+  id: string;
+  workspace_id: string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+}
+
+interface CrmActivity {
+  id: string;
+  type: string; // note | email | call | meeting | sms | stage_change | ...
+  subject: string | null;
+  body: string | null;
+  occurred_at: string;
+  actor_id: string | null;
+  metadata: Record<string, any> | null;
+}
+
+interface EntityEvent {
+  id: string;
+  action: string;
+  metadata: Record<string, any> | null;
+  actor_id: string | null;
+  created_at: string;
+}
+
+interface CrmTask {
+  id: string;
+  title: string;
+  due_date: string | null;
+  is_complete: boolean;
+  assigned_to: string | null;
+  deal_id: string | null;
+  deal_title?: string | null;
+  deal_address?: string | null;
+  created_at: string;
+}
+
+type FilterId = "all" | "notes" | "emails" | "calls" | "files" | "updates" | "tasks";
+
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "notes", label: "Notes" },
+  { id: "emails", label: "Emails" },
+  { id: "calls", label: "Calls" },
+  { id: "files", label: "Files" },
+  { id: "updates", label: "Updates" },
+  { id: "tasks", label: "Tasks" },
+];
+
+const TYPE_STYLE: Record<
+  string,
+  { icon: any; bg: string; fg: string }
+> = {
+  note: { icon: NotebookPen, bg: "bg-[#3E54D3]/12", fg: "text-[#3E54D3]" },
+  email: { icon: Mail, bg: "bg-emerald-100", fg: "text-emerald-700" },
+  call: { icon: Phone, bg: "bg-orange-100", fg: "text-orange-700" },
+  file: { icon: FileText, bg: "bg-violet-100", fg: "text-violet-700" },
+  update: { icon: RefreshCw, bg: "bg-muted", fg: "text-muted-foreground" },
+};
+
+const initials = (n: string) =>
+  n
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+const timeAgo = (d: string) => {
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
+const dayBucket = (d: string): "TODAY" | "YESTERDAY" | "LAST WEEK" | "OLDER" => {
+  const now = new Date();
+  const date = new Date(d);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const ts = date.getTime();
+  if (ts >= startOfToday) return "TODAY";
+  if (ts >= startOfToday - 86400000) return "YESTERDAY";
+  if (ts >= startOfToday - 7 * 86400000) return "LAST WEEK";
+  return "OLDER";
+};
+
+export function ContactActivityTab({ contact }: { contact: Contact }) {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"note" | "email" | "call">("note");
+  const [filter, setFilter] = useState<FilterId>("all");
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [acts, setActs] = useState<CrmActivity[]>([]);
+  const [events, setEvents] = useState<EntityEvent[]>([]);
+  const [tasks, setTasks] = useState<CrmTask[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Note composer
+  const [noteBody, setNoteBody] = useState("");
+  const [noteAttach, setNoteAttach] = useState<{ name: string; url: string } | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
+
+  // Call composer
+  const [callOutcome, setCallOutcome] = useState("answered");
+  const [callDuration, setCallDuration] = useState("");
+  const [callBody, setCallBody] = useState("");
+  const [savingCall, setSavingCall] = useState(false);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const [{ data: a }, { data: e }, { data: dealsLink1 }, { data: dealsLink2 }] = await Promise.all([
+      supabase
+        .from("crm_activities")
+        .select("id,type,subject,body,occurred_at,actor_id,metadata")
+        .eq("entity_type", "contact")
+        .eq("entity_id", contact.id)
+        .order("occurred_at", { ascending: false })
+        .limit(300),
+      supabase
+        .from("entity_activity")
+        .select("id,action,metadata,actor_id,created_at")
+        .eq("entity_type", "contact")
+        .eq("entity_id", contact.id)
+        .order("created_at", { ascending: false })
+        .limit(200),
+      // Deals where this contact is primary or source
+      supabase
+        .from("deals")
+        .select("id,title,property_address")
+        .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`),
+      // Deals linked via entity_links
+      supabase
+        .from("entity_links")
+        .select("source_id, deals:source_id(id,title,property_address)")
+        .eq("source_type", "deal")
+        .eq("target_type", "contact")
+        .eq("target_id", contact.id),
+    ]);
+
+    const dealMap = new Map<string, { title: string | null; address: string | null }>();
+    ((dealsLink1 as any[]) || []).forEach((d) =>
+      dealMap.set(d.id, { title: d.title, address: d.property_address ?? null }),
+    );
+    ((dealsLink2 as any[]) || []).forEach((row) => {
+      const d = row.deals;
+      if (d && !dealMap.has(d.id)) dealMap.set(d.id, { title: d.title, address: d.property_address ?? null });
+    });
+
+    let taskRows: CrmTask[] = [];
+    if (dealMap.size > 0) {
+      const ids = Array.from(dealMap.keys());
+      const { data: t } = await supabase
+        .from("crm_tasks")
+        .select("id,title,due_date,is_complete,assigned_to,deal_id,created_at")
+        .in("deal_id", ids)
+        .order("due_date", { ascending: true, nullsFirst: false });
+      taskRows = ((t as any[]) || []).map((x) => ({
+        ...x,
+        deal_title: x.deal_id ? dealMap.get(x.deal_id)?.title ?? null : null,
+        deal_address: x.deal_id ? dealMap.get(x.deal_id)?.address ?? null : null,
+      }));
+    }
+
+    setActs((a as CrmActivity[]) || []);
+    setEvents((e as EntityEvent[]) || []);
+    setTasks(taskRows);
+
+    const ids = new Set<string>();
+    ((a as CrmActivity[]) || []).forEach((x) => { if (x.actor_id) ids.add(x.actor_id); });
+    ((e as EntityEvent[]) || []).forEach((x) => { if (x.actor_id) ids.add(x.actor_id); });
+    taskRows.forEach((x) => { if (x.assigned_to) ids.add(x.assigned_to); });
+    if (ids.size) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", Array.from(ids));
+      const map: Record<string, string> = {};
+      ((profs as any[]) || []).forEach((p) => { map[p.user_id] = p.full_name || "Unknown"; });
+      setProfiles(map);
+    }
+    setLoading(false);
+  }, [contact.id]);
+
+  useEffect(() => {
+    void fetchAll();
+  }, [fetchAll]);
+
+  // Realtime
+  useEffect(() => {
+    const ch = supabase
+      .channel(`contact-activity-${contact.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${contact.id}` }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${contact.id}` }, () => fetchAll())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [contact.id, fetchAll]);
+
+  // Composer handlers
+  const submitNote = async () => {
+    if (!user || !noteBody.trim()) return;
+    setSavingNote(true);
+    const body = noteAttach ? `${noteBody.trim()}\n\n📎 ${noteAttach.name}: ${noteAttach.url}` : noteBody.trim();
+    const { error } = await supabase.from("crm_activities").insert({
+      workspace_id: contact.workspace_id,
+      entity_type: "contact",
+      entity_id: contact.id,
+      type: "note",
+      subject: "",
+      body,
+      actor_id: user.id,
+    });
+    setSavingNote(false);
+    if (error) {
+      toast({ title: "Couldn't save note", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNoteBody("");
+    setNoteAttach(null);
+    void fetchAll();
+  };
+
+  const submitCall = async () => {
+    if (!user) return;
+    setSavingCall(true);
+    const outcomeLabel = callOutcome.replace(/_/g, " ");
+    const subject = `Call · ${outcomeLabel}${callDuration ? ` · ${callDuration}` : ""}`;
+    const { error } = await supabase.from("crm_activities").insert({
+      workspace_id: contact.workspace_id,
+      entity_type: "contact",
+      entity_id: contact.id,
+      type: "call",
+      subject,
+      body: callBody.trim(),
+      actor_id: user.id,
+    });
+    setSavingCall(false);
+    if (error) {
+      toast({ title: "Couldn't log call", description: error.message, variant: "destructive" });
+      return;
+    }
+    setCallBody("");
+    setCallDuration("");
+    setCallOutcome("answered");
+    void fetchAll();
+  };
+
+  const handleAttach = () => {
+    triggerFileInput("*", async (file) => {
+      const url = await uploadFile(file);
+      if (!url) {
+        toast({ title: "Upload failed", variant: "destructive" });
+        return;
+      }
+      setNoteAttach({ name: file.name, url });
+    });
+  };
+
+  const deleteActivity = async (id: string) => {
+    const { error } = await supabase.from("crm_activities").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Couldn't delete", description: error.message, variant: "destructive" });
+      return;
+    }
+    setActs((prev) => prev.filter((x) => x.id !== id));
+  };
+
+  const describeEvent = (e: EntityEvent) => {
+    const actor = e.actor_id ? profiles[e.actor_id] || "Someone" : "System";
+    const meta = e.metadata || {};
+    switch (e.action) {
+      case "created": return `${actor} created this contact`;
+      case "status_changed": return `${actor} changed status to ${meta.new_status || "—"}`;
+      case "stage_changed": return `${actor} moved a deal to ${meta.new_stage || "—"}`;
+      case "assigned": return `${actor} assigned ${meta.assignee_name || "someone"}`;
+      case "linked": return `${actor} linked a ${meta.target_type || "record"}`;
+      case "unlinked": return `${actor} unlinked a ${meta.target_type || "record"}`;
+      default: return `${actor} ${e.action.replace(/_/g, " ")}`;
+    }
+  };
+
+  // Build unified timeline (excluding tasks; tasks render in their own pane)
+  const timeline = useMemo(() => {
+    type Item =
+      | { kind: "note" | "call" | "email" | "file"; at: string; act: CrmActivity }
+      | { kind: "update"; at: string; ev: EntityEvent };
+    const items: Item[] = [];
+    acts.forEach((a) => {
+      if (a.type === "note") items.push({ kind: "note", at: a.occurred_at, act: a });
+      else if (a.type === "call") items.push({ kind: "call", at: a.occurred_at, act: a });
+      else if (a.type === "email") items.push({ kind: "email", at: a.occurred_at, act: a });
+      else if (a.type === "file" || (a.metadata as any)?.file_url) items.push({ kind: "file", at: a.occurred_at, act: a });
+      // stage_change/etc. roll up into "update" stream below via entity_activity, skip from acts
+    });
+    events.forEach((ev) => items.push({ kind: "update", at: ev.created_at, ev }));
+
+    const filtered = items.filter((it) => {
+      if (filter === "all") return it.kind !== "update" ? true : true;
+      if (filter === "notes") return it.kind === "note";
+      if (filter === "emails") return it.kind === "email";
+      if (filter === "calls") return it.kind === "call";
+      if (filter === "files") return it.kind === "file";
+      if (filter === "updates") return it.kind === "update";
+      return false;
+    });
+
+    return filtered.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  }, [acts, events, filter]);
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, typeof timeline> = { TODAY: [], YESTERDAY: [], "LAST WEEK": [], OLDER: [] };
+    timeline.forEach((it) => {
+      const b = dayBucket(it.at);
+      groups[b].push(it);
+    });
+    return groups;
+  }, [timeline]);
+
+  const showTasks = filter === "tasks";
+  const empty = !showTasks && timeline.length === 0;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* TOP — COMPOSER */}
+      <div className="shrink-0 rounded-xl border border-border/60 bg-background overflow-hidden">
+        <div className="flex items-center gap-1 px-2 pt-2 border-b border-border/40">
+          {([
+            { id: "note", label: "Note", Icon: NotebookPen },
+            { id: "email", label: "Email", Icon: Mail },
+            { id: "call", label: "Log Call", Icon: Phone },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-t-md border-b-2 -mb-px transition-colors",
+                tab === id
+                  ? "border-[#3E54D3] text-foreground font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "note" && (
+          <div className="p-3 space-y-2">
+            <Textarea
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              placeholder="Add a note about this contact..."
+              rows={3}
+              className="text-sm resize-none border-border/50"
+            />
+            {noteAttach && (
+              <div className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
+                <Paperclip className="h-3 w-3" /> {noteAttach.name}
+                <button onClick={() => setNoteAttach(null)} className="ml-1 text-muted-foreground hover:text-destructive">×</button>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Attach file">
+                  <Paperclip className="h-3.5 w-3.5" />
+                </button>
+                <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Mention">
+                  <AtSign className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <Button
+                size="sm"
+                onClick={submitNote}
+                disabled={savingNote || !noteBody.trim()}
+                style={{ backgroundColor: "#3E54D3" }}
+                className="text-white hover:opacity-90"
+              >
+                {savingNote && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+                Save Note
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {tab === "email" && (
+          <div className="p-3">
+            <InlineEmailComposer
+              defaultTo={contact.email || ""}
+              defaultSubject=""
+              onClose={() => setTab("note")}
+              onSent={() => {
+                setTab("note");
+                void fetchAll();
+              }}
+            />
+          </div>
+        )}
+
+        {tab === "call" && (
+          <div className="p-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-[11px] text-muted-foreground mb-1">Outcome</div>
+                <Select value={callOutcome} onValueChange={setCallOutcome}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="answered">Answered</SelectItem>
+                    <SelectItem value="no_answer">No Answer</SelectItem>
+                    <SelectItem value="left_voicemail">Left Voicemail</SelectItem>
+                    <SelectItem value="wrong_number">Wrong Number</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-[11px] text-muted-foreground mb-1">Duration (optional)</div>
+                <Input
+                  value={callDuration}
+                  onChange={(e) => setCallDuration(e.target.value)}
+                  placeholder="e.g. 5m"
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <Textarea
+              value={callBody}
+              onChange={(e) => setCallBody(e.target.value)}
+              placeholder="Call notes…"
+              rows={3}
+              className="text-sm resize-none border-border/50"
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={submitCall}
+                disabled={savingCall}
+                style={{ backgroundColor: "#3E54D3" }}
+                className="text-white hover:opacity-90"
+              >
+                {savingCall && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+                Log Call
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* DIVIDER */}
+      <div className="border-t border-border/50 -mx-1" />
+
+      {/* FILTER PILLS */}
+      <div className="shrink-0 flex items-center gap-1.5 flex-wrap">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+              filter === f.id
+                ? "bg-[#3E54D3] text-white"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* TIMELINE / TASKS */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        {loading && acts.length === 0 && (
+          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Loading…
+          </div>
+        )}
+
+        {showTasks ? (
+          <TasksPane tasks={tasks} profiles={profiles} />
+        ) : empty ? (
+          <div className="text-center text-sm text-muted-foreground py-12">
+            No activity yet. Add a note or log a call above.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {(["TODAY", "YESTERDAY", "LAST WEEK", "OLDER"] as const).map((bucket) => {
+              const items = grouped[bucket];
+              if (!items || items.length === 0) return null;
+              return (
+                <div key={bucket}>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/80 font-semibold mb-2 pl-1">
+                    {bucket}
+                  </div>
+                  <div className="space-y-3">
+                    {items.map((item) =>
+                      item.kind === "update" ? (
+                        <UpdateRow key={`u-${item.ev.id}`} text={describeEvent(item.ev)} at={item.at} />
+                      ) : (
+                        <TimelineRow
+                          key={`a-${item.act.id}`}
+                          kind={item.kind}
+                          act={item.act}
+                          actorName={item.act.actor_id ? profiles[item.act.actor_id] || "Someone" : "System"}
+                          contactEmail={contact.email}
+                          onDelete={() => deleteActivity(item.act.id)}
+                          onRefresh={fetchAll}
+                        />
+                      ),
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpdateRow({ text, at }: { text: string; at: string }) {
+  const cfg = TYPE_STYLE.update;
+  const Icon = cfg.icon;
+  return (
+    <div className="flex items-start gap-3 text-xs">
+      <div className={cn("h-7 w-7 shrink-0 rounded-full flex items-center justify-center", cfg.bg)}>
+        <Icon className={cn("h-3.5 w-3.5", cfg.fg)} />
+      </div>
+      <div className="flex-1 text-muted-foreground pt-1">
+        {text} · <span>{timeAgo(at)}</span>
+      </div>
+    </div>
+  );
+}
+
+function TimelineRow({
+  kind,
+  act,
+  actorName,
+  contactEmail,
+  onDelete,
+  onRefresh,
+}: {
+  kind: "note" | "email" | "call" | "file";
+  act: CrmActivity;
+  actorName: string;
+  contactEmail: string | null;
+  onDelete: () => void;
+  onRefresh: () => void;
+}) {
+  const cfg = TYPE_STYLE[kind];
+  const Icon = cfg.icon;
+  const meta = (act.metadata || {}) as any;
+  const threadId: string | undefined = meta.gmail_thread_id;
+  const [replyOpen, setReplyOpen] = useState(false);
+
+  const replySubject = (() => {
+    const s = act.subject || "";
+    return s.toLowerCase().startsWith("re:") ? s : `Re: ${s}`.trim();
+  })();
+
+  return (
+    <div className="group flex gap-3">
+      <div className={cn("h-7 w-7 shrink-0 rounded-full flex items-center justify-center mt-0.5", cfg.bg)}>
+        <Icon className={cn("h-3.5 w-3.5", cfg.fg)} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Avatar className="h-5 w-5">
+            <AvatarFallback className="bg-muted text-[9px]">{initials(actorName)}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium">{actorName}</span>
+          <span className="text-xs text-muted-foreground">· {timeAgo(act.occurred_at)}</span>
+        </div>
+        {act.subject && (
+          <div className="text-sm font-medium mt-1 truncate">{act.subject}</div>
+        )}
+        {act.body && (
+          <p className="whitespace-pre-wrap text-sm text-foreground/90 mt-0.5">{act.body}</p>
+        )}
+
+        <div className="mt-1.5 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          {kind === "email" && threadId && (
+            <button
+              onClick={() => setReplyOpen((v) => !v)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Reply className="h-3 w-3" /> Reply
+            </button>
+          )}
+          {kind === "email" && threadId && (
+            <Link
+              to={`/inbox?thread=${threadId}`}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="h-3 w-3" /> Open
+            </Link>
+          )}
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" /> Delete
+          </button>
+        </div>
+
+        {replyOpen && threadId && (
+          <div className="mt-2">
+            <InlineEmailComposer
+              defaultTo={contactEmail || ""}
+              defaultSubject={replySubject}
+              threadId={threadId}
+              onClose={() => setReplyOpen(false)}
+              onSent={() => {
+                setReplyOpen(false);
+                onRefresh();
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TasksPane({
+  tasks,
+  profiles,
+}: {
+  tasks: CrmTask[];
+  profiles: Record<string, string>;
+}) {
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center text-sm text-muted-foreground py-12">
+        No deal tasks linked to this contact yet.
+      </div>
+    );
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return (
+    <ul className="space-y-2">
+      {tasks.map((t) => {
+        const due = t.due_date ? new Date(t.due_date) : null;
+        const overdue = !!due && !t.is_complete && due.getTime() < today.getTime();
+        const assignee = t.assigned_to ? profiles[t.assigned_to] || "Unassigned" : null;
+        const dealLabel = t.deal_address || t.deal_title || "Deal";
+        return (
+          <li
+            key={t.id}
+            className="flex items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5"
+          >
+            <div className="text-muted-foreground" title="Tasks are managed on the deal record">
+              {t.is_complete ? <CheckSquare className="h-4 w-4" /> : <SquareIcon className="h-4 w-4" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className={cn("text-sm font-medium truncate", t.is_complete && "line-through text-muted-foreground")}>
+                {t.title}
+              </div>
+              <div className="text-[11px] text-muted-foreground truncate">
+                →{" "}
+                {t.deal_id ? (
+                  <Link to={`/crm/deals?deal=${t.deal_id}`} className="hover:text-foreground underline-offset-2 hover:underline">
+                    {dealLabel}
+                  </Link>
+                ) : (
+                  <span>{dealLabel}</span>
+                )}
+              </div>
+            </div>
+            {due && (
+              <div className={cn("text-xs shrink-0", overdue ? "text-red-600 font-medium" : "text-muted-foreground")}>
+                {due.toLocaleDateString()}
+              </div>
+            )}
+            {assignee && (
+              <Avatar className="h-6 w-6 shrink-0">
+                <AvatarFallback className="bg-muted text-[10px]">{initials(assignee)}</AvatarFallback>
+              </Avatar>
+            )}
+            {t.deal_id && (
+              <Link
+                to={`/crm/deals?deal=${t.deal_id}`}
+                className="shrink-0 text-xs text-[#3E54D3] hover:underline whitespace-nowrap"
+              >
+                Open deal →
+              </Link>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
