@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Loader2, Mail, Phone, Send, X, Inbox, Briefcase, Sparkles, ExternalLink, MoreHorizontal, ArrowRight, Building2, Search, MessageSquare, Smartphone, Pencil, MapPin } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export function ContactPeekSheet({
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [companyName, setCompanyName] = useState<string | null>(null);
-  const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null }>>([]);
+  const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>>([]);
   const [linkedLeads, setLinkedLeads] = useState<Array<{ id: string; address: string | null; status: string | null }>>([]);
   const [tab, setTab] = useState<EntityTabId>("overview");
   const [createDealOpen, setCreateDealOpen] = useState(false);
@@ -144,13 +144,13 @@ export function ContactPeekSheet({
         supabase.from("profiles").select("user_id,full_name,avatar_url").limit(500),
         supabase
           .from("deals")
-          .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
+          .select("id,title,stage_id,status,property_address,asking_price,primary_contact_id,source_contact_id")
           .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
           .order("created_at", { ascending: false })
           .limit(50),
         supabase
           .from("entity_links")
-          .select("source_id, deals:source_id(id,title,stage_id,status)")
+          .select("source_id, deals:source_id(id,title,stage_id,status,property_address,asking_price)")
           .eq("source_type", "deal")
           .eq("target_type", "contact")
           .eq("target_id", contactId)
@@ -176,14 +176,14 @@ export function ContactPeekSheet({
       setPeople((p as Person[]) || []);
 
       // Merge deals from direct FKs and entity_links, dedupe by id
-      const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+      const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>();
       ((directDeals as any[]) || []).forEach((d) => {
-        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null });
       });
       ((linkedDealRows as any[]) || []).forEach((row) => {
         const d = row.deals;
         if (d && !dealMap.has(d.id)) {
-          dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+          dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null });
         }
       });
       setLinkedDeals(Array.from(dealMap.values()));
@@ -216,16 +216,20 @@ export function ContactPeekSheet({
   }, [contactId]);
 
   // Load the default pipeline once so we can offer "+ Create new deal" from this sheet.
+  // Also load all pipeline stages so we can map stage_id → stage name.
+  const [stageMap, setStageMap] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase
-        .from("pipelines")
-        .select("id")
-        .order("sort_order", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (active) setDefaultPipelineId((data as any)?.id ?? null);
+      const [{ data: pl }, { data: stages }] = await Promise.all([
+        supabase.from("pipelines").select("id").order("sort_order", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("pipeline_stages").select("id,name"),
+      ]);
+      if (!active) return;
+      setDefaultPipelineId((pl as any)?.id ?? null);
+      const m: Record<string, string> = {};
+      ((stages as any[]) || []).forEach((s) => { m[s.id] = s.name; });
+      setStageMap(m);
     })();
     return () => { active = false; };
   }, []);
@@ -326,26 +330,26 @@ export function ContactPeekSheet({
     const [{ data: directDeals }, { data: linkedDealRows }] = await Promise.all([
       supabase
         .from("deals")
-        .select("id,title,stage_id,status,primary_contact_id,source_contact_id")
+        .select("id,title,stage_id,status,property_address,asking_price,primary_contact_id,source_contact_id")
         .or(`primary_contact_id.eq.${contactId},source_contact_id.eq.${contactId}`)
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("entity_links")
-        .select("source_id, deals:source_id(id,title,stage_id,status)")
+        .select("source_id, deals:source_id(id,title,stage_id,status,property_address,asking_price)")
         .eq("source_type", "deal")
         .eq("target_type", "contact")
         .eq("target_id", contactId)
         .limit(50),
     ]);
-    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null }>();
+    const dealMap = new Map<string, { id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>();
     ((directDeals as any[]) || []).forEach((d) =>
-      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status }),
+      dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null }),
     );
     ((linkedDealRows as any[]) || []).forEach((row) => {
       const d = row.deals;
       if (d && !dealMap.has(d.id)) {
-        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status });
+        dealMap.set(d.id, { id: d.id, name: d.title, stage: d.stage_id, status: d.status, address: d.property_address ?? null, asking_price: d.asking_price ?? null });
       }
     });
     setLinkedDeals(Array.from(dealMap.values()));
@@ -452,6 +456,7 @@ export function ContactPeekSheet({
             onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
             onCreateLead={() => setCreateLeadOpen(true)}
             hasCustomFields={hasCustomFields}
+            stageMap={stageMap}
           />
         )}
       </EntitySheetShell>
@@ -509,7 +514,7 @@ function ContactSidebar({
 }: {
   contact: Contact;
   companyName: string | null;
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   onUpdate: (patch: Partial<Contact>) => Promise<void>;
@@ -714,7 +719,13 @@ function CustomFieldsPanel({
   );
   return (
     <section>
-      <CustomFieldsRenderer fields={decorated} values={draft} onChange={setDraft} compact />
+      <CustomFieldsRenderer
+        fields={decorated}
+        values={draft}
+        onChange={setDraft}
+        compact
+        variant="contact"
+      />
       {fields.some((f) => f.field_key === "creative_friendly") && (
         <p className="text-[11px] text-muted-foreground mt-2">
           <span className="font-medium">Creative Friendly:</span> Comfortable with subject-to,
@@ -1040,7 +1051,7 @@ function ContactLinkedActivity({
   lastContacted,
   onViewAll,
 }: {
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   onViewAll: () => void;
@@ -1107,7 +1118,7 @@ function ContactDealsLeadsTab({
   deals,
   leads,
 }: {
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
 }) {
   if (deals.length === 0 && leads.length === 0) {
@@ -1492,7 +1503,7 @@ function PreferredContactChip({
               <span className="text-foreground capitalize">Prefers {value}</span>
             </>
           ) : (
-            <span className="italic text-muted-foreground/70">Not set</span>
+            <span className="italic text-muted-foreground/70">Prefers —</span>
           )}
         </button>
       </PopoverTrigger>
@@ -1559,10 +1570,11 @@ function ContactDetailBody({
   onCreateDeal,
   onCreateLead,
   hasCustomFields,
+  stageMap,
 }: {
   contact: Contact;
   companyName: string | null;
-  linkedDeals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  linkedDeals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   linkedLeads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   tab: EntityTabId;
@@ -1585,6 +1597,7 @@ function ContactDetailBody({
   onCreateDeal?: () => void;
   onCreateLead?: () => void;
   hasCustomFields: boolean;
+  stageMap: Record<string, string>;
 }) {
   const initials =
     `${contact.first_name?.[0] ?? ""}${contact.last_name?.[0] ?? ""}`.toUpperCase() ||
@@ -1598,6 +1611,13 @@ function ContactDetailBody({
     }
     setContact({ ...contact, ...patch });
     onChanged();
+  };
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openDealById = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("deal", id);
+    setSearchParams(next, { replace: false });
   };
 
   const tabs: Array<{ id: EntityTabId; label: string }> = [
@@ -1643,6 +1663,19 @@ function ContactDetailBody({
               <div className="text-[12px] italic text-muted-foreground/70">
                 {lastContacted ? `Last contacted ${lastContacted}` : "Never contacted"}
               </div>
+              {contact.created_at && (
+                <div className="text-[12px] text-muted-foreground/70">
+                  Added{" "}
+                  {new Date(contact.created_at).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  {contact.source && (
+                    <span className="capitalize"> · via {contact.source}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1780,6 +1813,7 @@ function ContactDetailBody({
             <OwnerPicker
               ownerId={contact.owner_id}
               onChange={(id) => updateContact({ owner_id: id })}
+              label=""
             />
           </SidebarBlock>
 
@@ -1787,20 +1821,27 @@ function ContactDetailBody({
 
           {/* Linked records */}
           <SidebarBlock label="Linked records">
-            <LinkedRecordsRow
+            <LinkedRecordsGroup
               kind="deal"
-              count={linkedDeals.length}
-              items={linkedDeals.map((d) => ({ id: d.id, label: d.name }))}
+              items={linkedDeals.map((d) => ({
+                id: d.id,
+                title: d.address || d.name || "Untitled deal",
+                stage: d.stage ? (stageMap[d.stage] ?? null) : null,
+              }))}
               icon={<Briefcase className="h-3.5 w-3.5" />}
               emptyLabel="No deals yet"
               excludeIds={linkedDeals.map((d) => d.id)}
               onPick={(it) => linkDeal(it.id)}
               onCreate={onCreateDeal}
+              onOpen={(id) => openDealById(id)}
             />
-            <LinkedRecordsRow
+            <LinkedRecordsGroup
               kind="lead"
-              count={linkedLeads.length}
-              items={linkedLeads.map((l) => ({ id: l.id, label: l.address || "Untitled lead" }))}
+              items={linkedLeads.map((l) => ({
+                id: l.id,
+                title: l.address || "Untitled lead",
+                stage: l.status,
+              }))}
               icon={<Sparkles className="h-3.5 w-3.5" />}
               emptyLabel="No leads yet"
               excludeIds={linkedLeads.map((l) => l.id)}
@@ -1809,19 +1850,6 @@ function ContactDetailBody({
             />
           </SidebarBlock>
 
-          {/* Meta — small muted footer with the date added and source */}
-          <div className="pt-2 flex items-end justify-end">
-            <div className="text-right text-[11px] text-muted-foreground/70 leading-snug space-y-0.5">
-              {contact.created_at && (
-                <div>
-                  Added {new Date(contact.created_at).toLocaleDateString()}
-                </div>
-              )}
-              {contact.source && (
-                <div className="capitalize">via {contact.source}</div>
-              )}
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -1882,22 +1910,42 @@ function ContactDetailBody({
                     <p>Deals sourced from this contact will appear here.</p>
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-card overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                    <ul className="divide-y divide-border/40">
-                      {linkedDeals.map((d) => (
-                        <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F9F9F9] transition-colors">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                  <ul className="space-y-2.5">
+                    {linkedDeals.map((d) => {
+                      const title = d.address || d.name || "Untitled deal";
+                      const stageLabel = d.stage ? (stageMap[d.stage] ?? null) : null;
+                      const price = d.asking_price != null
+                        ? `$${Number(d.asking_price).toLocaleString()}`
+                        : null;
+                      return (
+                        <li
+                          key={d.id}
+                          className="bg-card flex items-center justify-between gap-3 transition-shadow hover:[box-shadow:0_4px_12px_rgba(0,0,0,0.08)]"
+                          style={{
+                            borderRadius: 10,
+                            padding: "14px 16px",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-medium truncate">{d.name}</span>
+                            <span className="text-sm font-medium truncate" title={title}>{title}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {d.stage && <EntityStatusPill kind="deal_stage" value={d.stage} />}
-                            {d.status && <EntityStatusPill kind="deal_status" value={d.status} variant="outline" />}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {stageLabel && <EntityStatusPill kind="deal_stage" value={stageLabel} />}
+                            {price && <span className="text-sm text-muted-foreground">{price}</span>}
+                            <button
+                              type="button"
+                              onClick={() => openDealById(d.id)}
+                              className="text-[12px] text-primary hover:underline whitespace-nowrap"
+                            >
+                              Open →
+                            </button>
                           </div>
                         </li>
-                      ))}
-                    </ul>
-                  </div>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
             </EntityTabPanel>
@@ -2101,39 +2149,31 @@ function ContactMarketsInline({
   );
 }
 
-function LinkedRecordsRow({
+function LinkedRecordsGroup({
   kind,
-  count,
   items,
   icon,
   emptyLabel,
   excludeIds,
   onPick,
   onCreate,
+  onOpen,
 }: {
   kind: "deal" | "lead";
-  count: number;
-  items: Array<{ id: string; label: string }>;
+  items: Array<{ id: string; title: string; stage: string | null }>;
   icon: React.ReactNode;
   emptyLabel: string;
   excludeIds: string[];
   onPick: (it: { id: string; label: string }) => void | Promise<void>;
   onCreate?: () => void;
+  onOpen?: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const noun = kind === "deal" ? "Deals" : "Leads";
+  const count = items.length;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => count > 0 && setExpanded((e) => !e)}
-          disabled={count === 0}
-          className={cn(
-            "inline-flex items-center gap-2 text-sm",
-            count > 0 ? "hover:text-foreground" : "text-muted-foreground cursor-default",
-          )}
-        >
+        <div className="inline-flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">{icon}</span>
           {count === 0 ? (
             <span className="italic text-muted-foreground/70">{emptyLabel}</span>
@@ -2142,7 +2182,7 @@ function LinkedRecordsRow({
               {count} {count === 1 ? noun.slice(0, -1) : noun}
             </span>
           )}
-        </button>
+        </div>
         <LinkRecordPopover
           kind={kind}
           excludeIds={excludeIds}
@@ -2151,15 +2191,40 @@ function LinkedRecordsRow({
           triggerLabel={`Link ${kind}`}
         />
       </div>
-      {expanded && items.length > 0 && (
-        <ul className="pl-6 space-y-0.5">
+      {count > 0 && (
+        <ul className="space-y-1.5">
           {items.map((it) => (
             <li
               key={it.id}
-              className="text-[13px] text-foreground truncate py-0.5"
-              title={it.label}
+              className="bg-card flex items-center justify-between gap-2"
+              style={{
+                borderRadius: 8,
+                border: "1px solid #F0F0F0",
+                padding: "10px 12px",
+              }}
             >
-              {it.label}
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-medium truncate" title={it.title}>
+                  {it.title}
+                </div>
+                {it.stage && (
+                  <div className="mt-0.5">
+                    <EntityStatusPill
+                      kind={kind === "deal" ? "deal_stage" : "lead_status"}
+                      value={it.stage}
+                    />
+                  </div>
+                )}
+              </div>
+              {onOpen && (
+                <button
+                  type="button"
+                  onClick={() => onOpen(it.id)}
+                  className="text-[12px] text-primary hover:underline whitespace-nowrap shrink-0"
+                >
+                  Open →
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -2177,12 +2242,16 @@ function OverviewCard({
 }) {
   return (
     <section
-      className="rounded-xl bg-card p-5"
-      style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+      className="bg-card"
+      style={{
+        borderRadius: 12,
+        padding: 24,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
     >
       <h3
-        className="text-[11px] font-semibold uppercase text-muted-foreground mb-3"
-        style={{ letterSpacing: "0.14em" }}
+        className="text-[11px] font-semibold uppercase mb-4"
+        style={{ letterSpacing: "0.12em", color: "#9896B8" }}
       >
         {title}
       </h3>
