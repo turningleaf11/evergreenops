@@ -153,6 +153,18 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
     onChanged();
   };
 
+  const updateContact = async (id: string, patch: Partial<Contact>) => {
+    const prev = contacts;
+    setContacts((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", id);
+    if (error) {
+      setContacts(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onChanged();
+  };
+
   return (
     <div className="px-6 py-5">
       {/* Filter pill bar */}
