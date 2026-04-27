@@ -456,6 +456,7 @@ export function ContactPeekSheet({
             onCreateDeal={defaultPipelineId ? () => setCreateDealOpen(true) : undefined}
             onCreateLead={() => setCreateLeadOpen(true)}
             hasCustomFields={hasCustomFields}
+            stageMap={stageMap}
           />
         )}
       </EntitySheetShell>
