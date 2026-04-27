@@ -13,6 +13,12 @@ import {
   Banknote,
   Calendar as CalendarIcon,
   Home,
+  Plus,
+  X,
+  Star,
+  StarOff,
+  Search,
+  UserPlus,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
