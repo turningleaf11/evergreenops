@@ -640,8 +640,27 @@ function UsersTab() {
     setDeleting(false);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>;
+  const handleUploadSignature = async (userId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please upload an image (PNG recommended)", variant: "destructive" });
+      return;
+    }
+    const { uploadFile } = await import("@/lib/file-upload");
+    const url = await uploadFile(file);
+    if (!url) {
+      toast({ title: "Upload failed", variant: "destructive" });
+      return;
+    }
+    await supabase.from("profiles").update({ email_signature_url: url } as any).eq("user_id", userId);
+    toast({ title: "Signature updated" });
+    fetchUsers();
+  };
 
+  const handleRemoveSignature = async (userId: string) => {
+    await supabase.from("profiles").update({ email_signature_url: null } as any).eq("user_id", userId);
+    toast({ title: "Signature removed" });
+    fetchUsers();
+  };
   return (
     <>
       <div className="flex items-center justify-between">
