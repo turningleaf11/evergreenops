@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Building2, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { CompanyPeekSheet } from "./CompanyPeekSheet";
 import {
   DataTableShell,
@@ -8,6 +9,7 @@ import {
   DataTableRow,
   DataTableEmpty,
 } from "@/components/ui/data-table-shell";
+import { InlineTextCell } from "./InlineCellEditors";
 
 interface Company {
   id: string;
