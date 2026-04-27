@@ -956,14 +956,13 @@ function ContactMarketsSection({
   onChanged: () => void;
 }) {
   const [markets, setMarkets] = useState<string[]>(contact.markets || []);
-  const [marketDraft, setMarketDraft] = useState("");
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     setMarkets(contact.markets || []);
   }, [contact.id]);
 
   const persist = async (next: string[]) => {
+    setMarkets(next);
     const patch = { markets: next.length ? next : null };
     const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
     if (error) {
@@ -974,78 +973,16 @@ function ContactMarketsSection({
     onChanged();
   };
 
-  const addMarket = () => {
-    const v = marketDraft.trim();
-    if (!v) {
-      setAdding(false);
-      return;
-    }
-    if (markets.includes(v)) {
-      setMarketDraft("");
-      setAdding(false);
-      return;
-    }
-    const next = [...markets, v];
-    setMarkets(next);
-    setMarketDraft("");
-    setAdding(false);
-    void persist(next);
-  };
-
-  const removeMarket = (m: string) => {
-    const next = markets.filter((x) => x !== m);
-    setMarkets(next);
-    void persist(next);
-  };
-
   return (
     <section>
       <EntitySectionHeader>Markets</EntitySectionHeader>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {markets.map((m) => (
-          <span
-            key={m}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-azure text-white"
-          >
-            {m}
-            <button
-              type="button"
-              onClick={() => removeMarket(m)}
-              className="opacity-70 hover:opacity-100"
-              aria-label={`Remove ${m}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-        {adding ? (
-          <Input
-            autoFocus
-            value={marketDraft}
-            onChange={(e) => setMarketDraft(e.target.value)}
-            onBlur={addMarket}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === ",") {
-                e.preventDefault();
-                addMarket();
-              } else if (e.key === "Escape") {
-                setMarketDraft("");
-                setAdding(false);
-              }
-            }}
-            className="h-7 text-xs w-32"
-            placeholder="Market name"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
-          >
-            + Add market
-          </button>
-        )}
-      </div>
+      <MarketsEditor
+        workspaceId={contact.workspace_id}
+        value={markets}
+        onChange={persist}
+        variant="chips-azure"
+        emptyLabel="Add markets"
+      />
     </section>
   );
 }
