@@ -95,7 +95,7 @@ export function ContactPeekSheet({
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [companyName, setCompanyName] = useState<string | null>(null);
-  const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null }>>([]);
+  const [linkedDeals, setLinkedDeals] = useState<Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>>([]);
   const [linkedLeads, setLinkedLeads] = useState<Array<{ id: string; address: string | null; status: string | null }>>([]);
   const [tab, setTab] = useState<EntityTabId>("overview");
   const [createDealOpen, setCreateDealOpen] = useState(false);
