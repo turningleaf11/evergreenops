@@ -33,6 +33,7 @@ import {
   EntityEmpty,
   OverviewCard,
   StageProgressBar,
+  PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Badge } from "@/components/ui/badge";
