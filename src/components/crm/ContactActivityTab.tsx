@@ -238,7 +238,7 @@ export function ContactComposer({
       </div>
 
       {tab === "note" && (
-        <div className="p-3 space-y-2" style={{ backgroundColor: NOTE_BG_SOFT }}>
+        <div className="p-3 space-y-2">
           <Textarea
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
