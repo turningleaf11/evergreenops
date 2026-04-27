@@ -539,7 +539,7 @@ export function ContactActivityTab({
     <div className="flex h-full min-h-0 flex-col gap-4">
       {/* FILTER PILLS */}
       <div className="shrink-0 flex items-center gap-1.5 flex-wrap">
-        {FILTERS.map((f) => (
+        {FILTERS.filter((f) => f.id !== "tasks" || isContactScope).map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
