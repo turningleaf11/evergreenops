@@ -270,9 +270,6 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
               <TableIcon className="h-3.5 w-3.5" /> Table
             </button>
           </div>
-          <Button size="sm" onClick={() => setNewOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New deal
-          </Button>
         </div>
       </div>
 
