@@ -32,7 +32,7 @@ export function DataTableShell({ className, children, style, ...rest }: DataTabl
 }
 
 interface ColumnsProps {
-  /** Tailwind grid-cols template, e.g. "[2.4fr_1fr_1.4fr_40px]" */
+  /** CSS grid-template-columns value, e.g. "2.4fr 1fr 1.4fr 40px" */
   template: string;
   children: ReactNode;
   className?: string;
@@ -42,9 +42,10 @@ export function DataTableHeader({ template, children, className }: ColumnsProps)
   return (
     <div
       className={cn(
-        `grid grid-cols-${template} px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20`,
+        "grid px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--brand-purple-muted))] border-b border-border/40 bg-muted/20",
         className,
       )}
+      style={{ gridTemplateColumns: template }}
     >
       {children}
     </div>
@@ -59,18 +60,21 @@ interface RowProps extends Omit<HTMLAttributes<HTMLDivElement>, "onClick"> {
 }
 
 export const DataTableRow = forwardRef<HTMLDivElement, RowProps>(function DataTableRow(
-  { template, onClick, asButton, className, children, ...rest },
+  { template, onClick, asButton, className, children, style, ...rest },
   ref,
 ) {
-  const base = `group grid grid-cols-${template} items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors`;
+  const base =
+    "group grid items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors";
+  const gridStyle: CSSProperties = { gridTemplateColumns: template, ...style };
   if (asButton) {
     return (
       <button
-        // @ts-expect-error - using forwardRef for div, but button works similarly
+        // @ts-expect-error - shared ref shape
         ref={ref}
         type="button"
         onClick={onClick}
         className={cn("w-full text-left", base, className)}
+        style={gridStyle}
       >
         {children}
       </button>
@@ -81,6 +85,7 @@ export const DataTableRow = forwardRef<HTMLDivElement, RowProps>(function DataTa
       ref={ref}
       onClick={onClick}
       className={cn(base, onClick && "cursor-pointer", className)}
+      style={gridStyle}
       {...rest}
     >
       {children}
