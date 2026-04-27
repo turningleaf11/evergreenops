@@ -514,6 +514,7 @@ interface DBUser {
   roles: string[];
   is_primary?: boolean;
   time_clock_enabled: boolean;
+  email_signature_url: string | null;
 }
 
 function UsersTab() {
