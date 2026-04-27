@@ -413,292 +413,335 @@ export function LeadPeekSheet({
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="flex-1 overflow-auto bg-muted/20">
-              {/* Top: Doc checklist + Buy Box (full width) */}
-              <div className="px-6 pt-6 pb-4 space-y-5 bg-background border-b border-border/40">
-                <DocChecklist
-                  hasOm={!!lead.has_om}
-                  hasT12={!!lead.has_t12}
-                  hasRentRoll={!!lead.has_rent_roll}
-                  createdAt={lead.created_at}
-                  sourceContactName={sourceContactName}
-                  onToggle={(field, value) => onUpdate(lead.id, { [field]: value } as any)}
-                />
-                <BuyBoxButtons
-                  value={buyBoxFit}
-                  reason={lead.disqualification_reason ?? null}
-                  onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
-                  onReasonChange={(v) =>
-                    onUpdate(lead.id, { disqualification_reason: v } as any)
-                  }
-                />
-              </div>
-
-              {/* Two-column main content */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 p-4">
-                {/* LEFT: Property + Financials + Source */}
-                <div className="space-y-4 min-w-0">
-                  {/* PROPERTY */}
-                  <section className="crm-card space-y-4">
-                    <div className="crm-eyebrow flex items-center gap-1.5">
-                      <Home className="h-3 w-3" /> Property
-                    </div>
-                    <div>
-                      <div className="crm-field-label">Property address</div>
-                      <div className="relative">
-                        <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          defaultValue={lead.property_address ?? ""}
-                          placeholder="Full property address"
-                          className="pl-8 h-9"
-                          onBlur={(e) =>
-                            onUpdate(lead.id, { property_address: e.target.value || null } as any)
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <div className="crm-field-label">Type</div>
-                        <Select
-                          value={lead.property_type ?? ""}
-                          onValueChange={(v) =>
-                            onUpdate(lead.id, { property_type: v || null } as any)
-                          }
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[
-                              "SFR",
-                              "SFR Portfolio",
-                              "MF Small (2-4)",
-                              "MF Large (5+)",
-                              "Mixed Use",
-                              "Commercial",
-                              "Land",
-                              "Other",
-                            ].map((t) => (
-                              <SelectItem key={t} value={t} className="text-sm">
-                                {t}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <NumField
-                        label="Units"
-                        value={lead.units ?? null}
-                        onSave={(n) => onUpdate(lead.id, { units: n } as any)}
-                      />
-                      <NumField
-                        label="Sqft"
-                        value={lead.sqft ?? null}
-                        onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <NumField
-                        label="Beds"
-                        value={lead.beds ?? null}
-                        onSave={(n) => onUpdate(lead.id, { beds: n } as any)}
-                      />
-                      <NumField
-                        label="Baths"
-                        value={lead.baths ?? null}
-                        step="0.5"
-                        onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
-                      />
-                    </div>
-                  </section>
-
-                  {/* FINANCIALS */}
-                  <section className="crm-card space-y-4">
-                    <div className="crm-eyebrow">Financials</div>
-                    <div>
-                      <div className="crm-field-label">Asking price</div>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          defaultValue={lead.asking_price ?? ""}
-                          placeholder="0"
-                          className="pl-7 h-10 text-base font-semibold tabular-nums"
-                          onBlur={(e) =>
-                            onUpdate(lead.id, {
-                              asking_price: e.target.value === "" ? null : Number(e.target.value),
-                            } as any)
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <NumField
-                        label="Listed cap rate (%)"
-                        value={lead.listed_cap_rate ?? null}
-                        step="0.01"
-                        onSave={(n) => onUpdate(lead.id, { listed_cap_rate: n } as any)}
-                      />
-                      <NumField
-                        label="Gross income ($)"
-                        value={lead.gross_income ?? null}
-                        onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
-                      />
-                    </div>
-                    <NumField
-                      label="NOI ($)"
-                      value={lead.noi ?? null}
-                      onSave={(n) => onUpdate(lead.id, { noi: n } as any)}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] min-h-0 overflow-hidden">
+              {/* MAIN: composer + tabs */}
+              <div className="flex flex-col min-h-0 bg-[#F8F8F8] dark:bg-muted/10">
+                {/* Composer pinned above the tabs */}
+                <div className="shrink-0 px-6 pt-5 pb-4 bg-background border-b border-border/50">
+                  <div className="max-w-3xl">
+                    <EntityComposer
+                      workspaceId={lead.workspace_id}
+                      entityType="lead"
+                      entityId={lead.id}
+                      defaultEmail={lead.email}
+                      notePlaceholder="Jot a note about this lead…"
+                      onPosted={() => {
+                        setComposerNonce((n) => n + 1);
+                        void reload();
+                      }}
                     />
-                  </section>
-
-                  {/* SOURCE */}
-                  <section className="crm-card space-y-4">
-                    <div className="crm-eyebrow">Source</div>
-                    <div>
-                      <div className="crm-field-label">Who sent this?</div>
-                      <ContactPicker
-                        value={lead.source_contact_id ?? null}
-                        onChange={(id, c) => {
-                          onUpdate(lead.id, { source_contact_id: id } as any);
-                          setSourceContactName(
-                            c
-                              ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
-                                  c.email ||
-                                  null
-                              : null,
-                          );
-                        }}
-                        placeholder="Select source contact"
-                      />
-                    </div>
-                    <div>
-                      <div className="crm-field-label">Source type</div>
-                      <Input
-                        defaultValue={lead.source ?? ""}
-                        placeholder="email / form / outreach / referral"
-                        className="h-9"
-                        onBlur={(e) =>
-                          onUpdate(lead.id, { source: e.target.value || null })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <div className="crm-field-label">Date added</div>
-                      <div className="text-sm text-muted-foreground">
-                        {format(new Date(lead.created_at), "MMM d, yyyy")}
-                      </div>
-                    </div>
-                  </section>
+                  </div>
                 </div>
 
-                {/* RIGHT: Assignment + Activity */}
-                <div className="space-y-4 min-w-0">
-                  <section className="crm-card space-y-4">
-                    <div className="crm-eyebrow">Assignment</div>
-                    <div>
-                      <div className="crm-field-label">Owner</div>
-                      <OwnerPicker
-                        ownerId={lead.owner_id}
-                        onChange={(id) => onUpdate(lead.id, { owner_id: id })}
-                      />
-                    </div>
-                    <div>
-                      <div className="crm-field-label">Next follow up</div>
-                      <FollowUpPicker
-                        value={lead.next_action_at}
-                        onChange={(iso) => onUpdate(lead.id, { next_action_at: iso })}
-                        trigger={
-                          <button className="text-sm text-left hover:text-primary truncate w-full">
-                            {lead.next_action_at ? (
-                              format(new Date(lead.next_action_at), "MMM d, h:mma")
-                            ) : (
-                              <span className="text-muted-foreground italic">Not scheduled</span>
-                            )}
-                          </button>
-                        }
-                      />
-                    </div>
-                  </section>
-
-                  <section className="crm-card p-0 overflow-hidden">
-                    <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex flex-col">
-                      <TabsList className="h-10 bg-transparent rounded-none border-b border-border/40 px-3 justify-start gap-1 w-full">
-                        <TabsTrigger value="notes" className="data-[state=active]:bg-muted gap-1.5 text-xs">
-                          <NotebookPen className="h-3.5 w-3.5" /> Activity
-                        </TabsTrigger>
-                        <TabsTrigger value="activity" className="data-[state=active]:bg-muted gap-1.5 text-xs">
-                          <CalendarIcon className="h-3.5 w-3.5" /> Planned
-                        </TabsTrigger>
-                        <TabsTrigger value="email" className="data-[state=active]:bg-muted gap-1.5 text-xs">
-                          <Mail className="h-3.5 w-3.5" /> Email
-                        </TabsTrigger>
-                        <TabsTrigger value="files" className="data-[state=active]:bg-muted gap-1.5 text-xs">
-                          <Paperclip className="h-3.5 w-3.5" /> Files
-                        </TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="notes" className="m-0 p-3 max-h-[600px] overflow-auto">
-                        <ActivityPanel entityType="lead" entityId={lead.id} hideHeader />
-                      </TabsContent>
-
-                      <TabsContent value="activity" className="m-0 p-3 space-y-4 max-h-[600px] overflow-auto">
-                        <PlannedSection
-                          planned={planned}
-                          planType={planType}
-                          planSubject={planSubject}
-                          setPlanType={setPlanType}
-                          setPlanSubject={setPlanSubject}
-                          onChoosePreset={(k) => planActivity(presetDate(k))}
-                          onCustom={(iso) => planActivity(new Date(iso))}
+                <EntityTabs
+                  value={tab}
+                  onValueChange={(v) => setTab(v as any)}
+                  tabs={[
+                    { id: "overview", label: "Overview" },
+                    { id: "activity", label: "Activity" },
+                    { id: "files", label: "Files" },
+                  ]}
+                  className="bg-background"
+                >
+                  <EntityTabPanel value="overview" className="p-6">
+                    <div className="space-y-4 max-w-3xl">
+                      {/* Buy Box Check */}
+                      <OverviewCard title="Buy Box Check">
+                        <DocChecklist
+                          hasOm={!!lead.has_om}
+                          hasT12={!!lead.has_t12}
+                          hasRentRoll={!!lead.has_rent_roll}
+                          createdAt={lead.created_at}
+                          sourceContactName={sourceContactName}
+                          onToggle={(field, value) =>
+                            onUpdate(lead.id, { [field]: value } as any)
+                          }
                         />
-                        <DoneSection done={done} people={people} />
-                      </TabsContent>
-
-                      <TabsContent value="email" className="m-0 p-3 space-y-3 max-h-[600px] overflow-auto">
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-muted-foreground">
-                            {emailActivities.length === 0
-                              ? "No emails logged yet."
-                              : `${emailActivities.length} email${emailActivities.length === 1 ? "" : "s"}`}
-                          </div>
-                          <Button size="sm" disabled={!lead.email} onClick={openCompose}>
-                            <Send className="h-3.5 w-3.5 mr-1.5" /> New email
-                          </Button>
+                        <div className="pt-2">
+                          <BuyBoxButtons
+                            value={buyBoxFit}
+                            reason={lead.disqualification_reason ?? null}
+                            onChange={(v) => onUpdate(lead.id, { buy_box_fit: v } as any)}
+                            onReasonChange={(v) =>
+                              onUpdate(lead.id, { disqualification_reason: v } as any)
+                            }
+                          />
                         </div>
-                        <CrmActivityTimeline
-                          activities={emailActivities}
-                          people={people}
-                          onReply={(a) => {
-                            const m = a.metadata as any;
-                            setComposeCtx({
-                              to: lead.email!,
-                              subject: a.subject?.toLowerCase().startsWith("re:")
-                                ? a.subject
-                                : `Re: ${a.subject || ""}`,
-                              threadId: m?.gmail_thread_id,
-                            });
-                            setComposeOpen(true);
-                          }}
-                        />
-                      </TabsContent>
+                      </OverviewCard>
 
-                      <TabsContent value="files" className="m-0 p-3 max-h-[600px] overflow-auto">
-                        <LeadFilesTab
-                          leadId={lead.id}
-                          workspaceId={lead.workspace_id}
-                          onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
+                      {/* Property */}
+                      <OverviewCard title="Property">
+                        <div>
+                          <div className="crm-field-label">Property address</div>
+                          <div className="relative">
+                            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              defaultValue={lead.property_address ?? ""}
+                              placeholder="Full property address"
+                              className="pl-8 h-9"
+                              onBlur={(e) =>
+                                onUpdate(lead.id, {
+                                  property_address: e.target.value || null,
+                                } as any)
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <div className="crm-field-label">Type</div>
+                            <Select
+                              value={lead.property_type ?? ""}
+                              onValueChange={(v) =>
+                                onUpdate(lead.id, { property_type: v || null } as any)
+                              }
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue placeholder="Select…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  "SFR",
+                                  "SFR Portfolio",
+                                  "MF Small (2-4)",
+                                  "MF Large (5+)",
+                                  "Mixed Use",
+                                  "Commercial",
+                                  "Land",
+                                  "Other",
+                                ].map((t) => (
+                                  <SelectItem key={t} value={t} className="text-sm">
+                                    {t}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <NumField
+                            label="Units"
+                            value={lead.units ?? null}
+                            onSave={(n) => onUpdate(lead.id, { units: n } as any)}
+                          />
+                          <NumField
+                            label="Sqft"
+                            value={lead.sqft ?? null}
+                            onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <NumField
+                            label="Beds"
+                            value={lead.beds ?? null}
+                            onSave={(n) => onUpdate(lead.id, { beds: n } as any)}
+                          />
+                          <NumField
+                            label="Baths"
+                            value={lead.baths ?? null}
+                            step="0.5"
+                            onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
+                          />
+                        </div>
+                      </OverviewCard>
+
+                      {/* Financials */}
+                      <OverviewCard title="Financials">
+                        <div>
+                          <div className="crm-field-label">Asking price</div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                              $
+                            </span>
+                            <Input
+                              type="number"
+                              defaultValue={lead.asking_price ?? ""}
+                              placeholder="0"
+                              className="pl-7 h-10 text-base font-semibold tabular-nums"
+                              onBlur={(e) =>
+                                onUpdate(lead.id, {
+                                  asking_price:
+                                    e.target.value === "" ? null : Number(e.target.value),
+                                } as any)
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <NumField
+                            label="Listed cap rate (%)"
+                            value={lead.listed_cap_rate ?? null}
+                            step="0.01"
+                            onSave={(n) =>
+                              onUpdate(lead.id, { listed_cap_rate: n } as any)
+                            }
+                          />
+                          <NumField
+                            label="Gross income ($)"
+                            value={lead.gross_income ?? null}
+                            onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
+                          />
+                        </div>
+                        <NumField
+                          label="NOI ($)"
+                          value={lead.noi ?? null}
+                          onSave={(n) => onUpdate(lead.id, { noi: n } as any)}
                         />
-                      </TabsContent>
-                    </Tabs>
-                  </section>
-                </div>
+                      </OverviewCard>
+
+                      {/* Source */}
+                      <OverviewCard title="Source">
+                        <div>
+                          <div className="crm-field-label">Who sent this?</div>
+                          <ContactPicker
+                            value={lead.source_contact_id ?? null}
+                            onChange={(id, c) => {
+                              onUpdate(lead.id, { source_contact_id: id } as any);
+                              setSourceContactName(
+                                c
+                                  ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() ||
+                                      c.email ||
+                                      null
+                                  : null,
+                              );
+                            }}
+                            placeholder="Select source contact"
+                          />
+                        </div>
+                        <div>
+                          <div className="crm-field-label">Source type</div>
+                          <Input
+                            defaultValue={lead.source ?? ""}
+                            placeholder="email / form / outreach / referral"
+                            className="h-9"
+                            onBlur={(e) =>
+                              onUpdate(lead.id, { source: e.target.value || null })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <div className="crm-field-label">Date added</div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(lead.created_at), "MMM d, yyyy")}
+                          </div>
+                        </div>
+                      </OverviewCard>
+                    </div>
+                  </EntityTabPanel>
+
+                  <EntityTabPanel value="activity" className="p-6 overflow-hidden">
+                    <div className="h-full flex flex-col max-w-3xl">
+                      <ActivityPanel
+                        key={composerNonce}
+                        entityType="lead"
+                        entityId={lead.id}
+                        hideHeader
+                      />
+                    </div>
+                  </EntityTabPanel>
+
+                  <EntityTabPanel value="files" className="p-6">
+                    <div className="max-w-3xl">
+                      <LeadFilesTab
+                        leadId={lead.id}
+                        workspaceId={lead.workspace_id}
+                        onDocsUpdated={(patch) => onUpdate(lead.id, patch as any)}
+                      />
+                    </div>
+                  </EntityTabPanel>
+                </EntityTabs>
               </div>
+
+              {/* SIDEBAR */}
+              <aside className="overflow-auto border-l border-border/50 bg-background">
+                <div className="p-5 space-y-5">
+                  <EntitySidebarSection title="Owner">
+                    <OwnerPicker
+                      ownerId={lead.owner_id}
+                      onChange={(id) => onUpdate(lead.id, { owner_id: id })}
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Status">
+                    <EntitySidebarField label="Buy box">
+                      <span className="text-sm text-foreground">
+                        {buyBoxMeta?.label || "Unchecked"}
+                      </span>
+                    </EntitySidebarField>
+                    <EntitySidebarField label="Stage">
+                      <span className="text-sm text-foreground capitalize">
+                        {lead.status?.replace(/_/g, " ") || "—"}
+                      </span>
+                    </EntitySidebarField>
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Contact">
+                    <EntitySidebarField label="Source contact">
+                      {sourceContactName ? (
+                        <span className="text-sm">{sourceContactName}</span>
+                      ) : (
+                        <EntityEmpty>Not set</EntityEmpty>
+                      )}
+                    </EntitySidebarField>
+                    <EntitySidebarField label="Email">
+                      {lead.email ? (
+                        <a
+                          href={`mailto:${lead.email}`}
+                          className="text-sm hover:text-primary break-all"
+                        >
+                          {lead.email}
+                        </a>
+                      ) : (
+                        <EntityEmpty>—</EntityEmpty>
+                      )}
+                    </EntitySidebarField>
+                    <EntitySidebarField label="Phone">
+                      {lead.phone ? (
+                        <a
+                          href={`tel:${lead.phone}`}
+                          className="text-sm hover:text-primary"
+                        >
+                          {lead.phone}
+                        </a>
+                      ) : (
+                        <EntityEmpty>—</EntityEmpty>
+                      )}
+                    </EntitySidebarField>
+                    {lead.company_name && (
+                      <EntitySidebarField label="Company">
+                        <span className="text-sm">{lead.company_name}</span>
+                      </EntitySidebarField>
+                    )}
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Follow up">
+                    <FollowUpPicker
+                      value={lead.next_action_at}
+                      onChange={(iso) =>
+                        onUpdate(lead.id, { next_action_at: iso })
+                      }
+                      trigger={
+                        <button className="text-sm text-left hover:text-primary truncate w-full">
+                          {lead.next_action_at ? (
+                            format(new Date(lead.next_action_at), "MMM d, h:mma")
+                          ) : (
+                            <span className="text-muted-foreground italic">
+                              Not scheduled
+                            </span>
+                          )}
+                        </button>
+                      }
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Created">
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(lead.created_at), "MMM d, yyyy")}
+                    </div>
+                  </EntitySidebarSection>
+                </div>
+              </aside>
             </div>
           )}
+
 
           {/* Footer */}
           {!isArchived && !isConverted && (
