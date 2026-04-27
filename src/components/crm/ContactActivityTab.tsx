@@ -15,6 +15,8 @@ import {
   CheckSquare,
   Square as SquareIcon,
   ExternalLink,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +52,7 @@ interface CrmActivity {
   occurred_at: string;
   actor_id: string | null;
   metadata: Record<string, any> | null;
+  is_pinned?: boolean | null;
 }
 
 interface EntityEvent {
@@ -84,11 +87,15 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
 ];
 
+const NOTE_BG = "#FFF7B8"; // warm post-it yellow
+const NOTE_BG_SOFT = "#FFFBE0"; // softer composer background
+const NOTE_SHADOW = "0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(180,150,40,0.10)";
+
 const TYPE_STYLE: Record<
   string,
   { icon: any; bg: string; fg: string }
 > = {
-  note: { icon: NotebookPen, bg: "bg-[#3E54D3]/12", fg: "text-[#3E54D3]" },
+  note: { icon: NotebookPen, bg: "bg-[#FCE588]", fg: "text-amber-800" },
   email: { icon: Mail, bg: "bg-emerald-100", fg: "text-emerald-700" },
   call: { icon: Phone, bg: "bg-orange-100", fg: "text-orange-700" },
   file: { icon: FileText, bg: "bg-violet-100", fg: "text-violet-700" },
@@ -231,26 +238,27 @@ export function ContactComposer({
       </div>
 
       {tab === "note" && (
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2" style={{ backgroundColor: NOTE_BG_SOFT }}>
           <Textarea
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
-            placeholder="Add a note about this contact..."
+            placeholder="Jot a sticky note about this contact…"
             rows={3}
-            className="text-sm resize-none border-border/50"
+            className="text-sm resize-none border-amber-200/80 focus-visible:ring-amber-300"
+            style={{ backgroundColor: NOTE_BG }}
           />
           {noteAttach && (
-            <div className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
+            <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-md px-2 py-1 text-xs">
               <Paperclip className="h-3 w-3" /> {noteAttach.name}
               <button onClick={() => setNoteAttach(null)} className="ml-1 text-muted-foreground hover:text-destructive">×</button>
             </div>
           )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Attach file">
+              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Attach file">
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
-              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Mention">
+              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Mention">
                 <AtSign className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -349,7 +357,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     const [{ data: a }, { data: e }, { data: dealsLink1 }, { data: dealsLink2 }] = await Promise.all([
       supabase
         .from("crm_activities")
-        .select("id,type,subject,body,occurred_at,actor_id,metadata")
+        .select("id,type,subject,body,occurred_at,actor_id,metadata,is_pinned")
         .eq("entity_type", "contact")
         .eq("entity_id", contact.id)
         .order("occurred_at", { ascending: false })
@@ -442,6 +450,19 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     setActs((prev) => prev.filter((x) => x.id !== id));
   };
 
+  const togglePin = async (act: CrmActivity) => {
+    const next = !act.is_pinned;
+    setActs((prev) => prev.map((x) => (x.id === act.id ? { ...x, is_pinned: next } : x)));
+    const { error } = await supabase
+      .from("crm_activities")
+      .update({ is_pinned: next })
+      .eq("id", act.id);
+    if (error) {
+      toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" });
+      setActs((prev) => prev.map((x) => (x.id === act.id ? { ...x, is_pinned: !next } : x)));
+    }
+  };
+
   const describeEvent = (e: EntityEvent) => {
     const actor = e.actor_id ? profiles[e.actor_id] || "Someone" : "System";
     const meta = e.metadata || {};
@@ -456,6 +477,15 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     }
   };
 
+  // Pinned notes (always shown at top when filter shows notes)
+  const pinnedNotes = useMemo(() => {
+    return acts
+      .filter((a) => a.type === "note" && a.is_pinned)
+      .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+  }, [acts]);
+
+  const showPinnedSection = pinnedNotes.length > 0 && (filter === "all" || filter === "notes");
+
   // Build unified timeline (excluding tasks; tasks render in their own pane)
   const timeline = useMemo(() => {
     type Item =
@@ -463,16 +493,17 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
       | { kind: "update"; at: string; ev: EntityEvent };
     const items: Item[] = [];
     acts.forEach((a) => {
+      // Pinned notes are rendered separately at the top — exclude them from the date timeline
+      if (a.type === "note" && a.is_pinned && (filter === "all" || filter === "notes")) return;
       if (a.type === "note") items.push({ kind: "note", at: a.occurred_at, act: a });
       else if (a.type === "call") items.push({ kind: "call", at: a.occurred_at, act: a });
       else if (a.type === "email") items.push({ kind: "email", at: a.occurred_at, act: a });
       else if (a.type === "file" || (a.metadata as any)?.file_url) items.push({ kind: "file", at: a.occurred_at, act: a });
-      // stage_change/etc. roll up into "update" stream below via entity_activity, skip from acts
     });
     events.forEach((ev) => items.push({ kind: "update", at: ev.created_at, ev }));
 
     const filtered = items.filter((it) => {
-      if (filter === "all") return it.kind !== "update" ? true : true;
+      if (filter === "all") return true;
       if (filter === "notes") return it.kind === "note";
       if (filter === "emails") return it.kind === "email";
       if (filter === "calls") return it.kind === "call";
@@ -494,7 +525,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
   }, [timeline]);
 
   const showTasks = filter === "tasks";
-  const empty = !showTasks && timeline.length === 0;
+  const empty = !showTasks && timeline.length === 0 && !showPinnedSection;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -532,6 +563,27 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
           </div>
         ) : (
           <div className="space-y-6">
+            {showPinnedSection && (
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/80 font-semibold mb-2 pl-1 inline-flex items-center gap-1">
+                  <Pin className="h-3 w-3" /> Pinned
+                </div>
+                <div className="space-y-3">
+                  {pinnedNotes.map((a) => (
+                    <TimelineRow
+                      key={`p-${a.id}`}
+                      kind="note"
+                      act={a}
+                      actorName={a.actor_id ? profiles[a.actor_id] || "Someone" : "System"}
+                      contactEmail={contact.email}
+                      onDelete={() => deleteActivity(a.id)}
+                      onRefresh={fetchAll}
+                      onTogglePin={() => togglePin(a)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             {(["TODAY", "YESTERDAY", "LAST WEEK", "OLDER"] as const).map((bucket) => {
               const items = grouped[bucket];
               if (!items || items.length === 0) return null;
@@ -553,6 +605,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
                           contactEmail={contact.email}
                           onDelete={() => deleteActivity(item.act.id)}
                           onRefresh={fetchAll}
+                          onTogglePin={item.kind === "note" ? () => togglePin(item.act) : undefined}
                         />
                       ),
                     )}
@@ -589,6 +642,7 @@ function TimelineRow({
   contactEmail,
   onDelete,
   onRefresh,
+  onTogglePin,
 }: {
   kind: "note" | "email" | "call" | "file";
   act: CrmActivity;
@@ -596,17 +650,69 @@ function TimelineRow({
   contactEmail: string | null;
   onDelete: () => void;
   onRefresh: () => void;
+  onTogglePin?: () => void;
 }) {
   const cfg = TYPE_STYLE[kind];
   const Icon = cfg.icon;
   const meta = (act.metadata || {}) as any;
   const threadId: string | undefined = meta.gmail_thread_id;
   const [replyOpen, setReplyOpen] = useState(false);
+  const isNote = kind === "note";
+  const pinned = !!act.is_pinned;
 
   const replySubject = (() => {
     const s = act.subject || "";
     return s.toLowerCase().startsWith("re:") ? s : `Re: ${s}`.trim();
   })();
+
+  // Render NOTES as post-it style cards
+  if (isNote) {
+    return (
+      <div
+        className="group relative rounded-md p-3 pl-4"
+        style={{
+          backgroundColor: NOTE_BG,
+          boxShadow: NOTE_SHADOW,
+          border: "1px solid rgba(180,150,40,0.18)",
+        }}
+      >
+        {pinned && (
+          <Pin
+            className="absolute -top-1.5 -left-1.5 h-3.5 w-3.5 text-amber-700 rotate-[-20deg] drop-shadow"
+            fill="currentColor"
+          />
+        )}
+        <div className="flex items-center gap-2">
+          <Avatar className="h-5 w-5">
+            <AvatarFallback className="bg-amber-200 text-amber-900 text-[9px]">{initials(actorName)}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium text-amber-950">{actorName}</span>
+          <span className="text-xs text-amber-900/60">· {timeAgo(act.occurred_at)}</span>
+          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onTogglePin && (
+              <button
+                onClick={onTogglePin}
+                className="p-1 rounded hover:bg-amber-200/60 text-amber-800"
+                title={pinned ? "Unpin note" : "Pin note"}
+              >
+                {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              className="p-1 rounded hover:bg-amber-200/60 text-amber-800 hover:text-destructive"
+              title="Delete note"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        {act.body && (
+          <p className="whitespace-pre-wrap text-sm text-amber-950/90 mt-1 leading-relaxed">{act.body}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="group flex gap-3">

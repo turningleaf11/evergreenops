@@ -55,6 +55,7 @@ import { LinkRecordPopover } from "./LinkRecordPopover";
 import { EditableLineField } from "./EditableLineField";
 import { NewDealDialog } from "./NewDealDialog";
 import { NewLeadDialog } from "./NewLeadDialog";
+import { ContactFilesTab } from "./ContactFilesTab";
 
 interface Contact {
   id: string;
@@ -85,10 +86,12 @@ export function ContactPeekSheet({
   contactId,
   onClose,
   onChanged,
+  onOpenDeal,
 }: {
   contactId: string | null;
   onClose: () => void;
   onChanged: () => void;
+  onOpenDeal?: (dealId: string) => void;
 }) {
   const { user } = useAuth();
   const [contact, setContact] = useState<Contact | null>(null);
@@ -458,6 +461,7 @@ export function ContactPeekSheet({
             onCreateLead={() => setCreateLeadOpen(true)}
             hasCustomFields={hasCustomFields}
             stageMap={stageMap}
+            onOpenDeal={onOpenDeal}
           />
         )}
       </EntitySheetShell>
@@ -1572,6 +1576,7 @@ function ContactDetailBody({
   onCreateLead,
   hasCustomFields,
   stageMap,
+  onOpenDeal,
 }: {
   contact: Contact;
   companyName: string | null;
@@ -1599,6 +1604,7 @@ function ContactDetailBody({
   onCreateLead?: () => void;
   hasCustomFields: boolean;
   stageMap: Record<string, string>;
+  onOpenDeal?: (dealId: string) => void;
 }) {
   const initials =
     `${contact.first_name?.[0] ?? ""}${contact.last_name?.[0] ?? ""}`.toUpperCase() ||
@@ -1616,6 +1622,10 @@ function ContactDetailBody({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openDealById = (id: string) => {
+    if (onOpenDeal) {
+      onOpenDeal(id);
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set("deal", id);
     setSearchParams(next, { replace: false });
@@ -1949,11 +1959,7 @@ function ContactDetailBody({
               </EntityTabPanel>
 
               <EntityTabPanel value="files" className="p-6">
-                <div className="max-w-3xl rounded-xl bg-card flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                  <Inbox className="h-8 w-8 mb-2 opacity-50" />
-                  <p className="font-medium text-foreground mb-1">No files yet</p>
-                  <p>File attachments for contacts will appear here.</p>
-                </div>
+                <ContactFilesTab contactId={contact.id} workspaceId={contact.workspace_id} />
               </EntityTabPanel>
             </EntityTabs>
           </>
@@ -2195,7 +2201,11 @@ function LinkedRecordsGroup({
           {items.map((it) => (
             <li
               key={it.id}
-              className="bg-card flex items-center justify-between gap-2"
+              onClick={onOpen ? () => onOpen(it.id) : undefined}
+              className={cn(
+                "bg-card flex items-center justify-between gap-2 transition-shadow",
+                onOpen && "cursor-pointer hover:[box-shadow:0_2px_8px_rgba(0,0,0,0.08)]",
+              )}
               style={{
                 borderRadius: 8,
                 border: "1px solid #F0F0F0",
@@ -2216,13 +2226,9 @@ function LinkedRecordsGroup({
                 )}
               </div>
               {onOpen && (
-                <button
-                  type="button"
-                  onClick={() => onOpen(it.id)}
-                  className="text-[12px] text-primary hover:underline whitespace-nowrap shrink-0"
-                >
+                <span className="text-[12px] text-primary whitespace-nowrap shrink-0">
                   Open →
-                </button>
+                </span>
               )}
             </li>
           ))}
