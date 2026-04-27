@@ -509,7 +509,7 @@ function ContactSidebar({
 }: {
   contact: Contact;
   companyName: string | null;
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   onUpdate: (patch: Partial<Contact>) => Promise<void>;
@@ -1046,7 +1046,7 @@ function ContactLinkedActivity({
   lastContacted,
   onViewAll,
 }: {
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   onViewAll: () => void;
@@ -1113,7 +1113,7 @@ function ContactDealsLeadsTab({
   deals,
   leads,
 }: {
-  deals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  deals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   leads: Array<{ id: string; address: string | null; status: string | null }>;
 }) {
   if (deals.length === 0 && leads.length === 0) {
@@ -1568,7 +1568,7 @@ function ContactDetailBody({
 }: {
   contact: Contact;
   companyName: string | null;
-  linkedDeals: Array<{ id: string; name: string; stage: string | null; status: string | null }>;
+  linkedDeals: Array<{ id: string; name: string; stage: string | null; status: string | null; address: string | null; asking_price: number | null }>;
   linkedLeads: Array<{ id: string; address: string | null; status: string | null }>;
   lastContacted: string | null;
   tab: EntityTabId;
