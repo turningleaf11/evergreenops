@@ -1402,6 +1402,29 @@ function CompanyEditableLine({
               </button>
             ))
           )}
+          {query.trim() && !results.some((c) => c.name.toLowerCase() === query.trim().toLowerCase()) && (
+            <button
+              type="button"
+              onClick={async () => {
+                const name = query.trim();
+                const { data, error } = await supabase
+                  .from("companies")
+                  .insert({ name })
+                  .select("id,name")
+                  .single();
+                if (error || !data) {
+                  toast({ title: "Couldn't create company", description: error?.message, variant: "destructive" });
+                  return;
+                }
+                await onPicked(data as { id: string; name: string });
+                setOpen(false);
+                setQuery("");
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/60 text-primary border-t border-border/40 mt-1 flex items-center gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" /> Create "{query.trim()}"
+            </button>
+          )}
           {contact.company_id && (
             <button
               type="button"
