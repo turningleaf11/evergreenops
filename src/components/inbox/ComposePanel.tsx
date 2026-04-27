@@ -30,6 +30,7 @@ interface Props {
 
 export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defaultSubject = "", defaultBody = "", threadId, inReplyTo }: Props) {
   const { accounts, defaultAccount } = useGmailAccess();
+  const { user } = useAuth();
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState(defaultSubject);
   const [body, setBody] = useState(defaultBody);
@@ -38,16 +39,38 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
   const [maximized, setMaximized] = useState(false);
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
   const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Load this user's PNG signature
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email_signature_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setSignatureUrl((data as any)?.email_signature_url ?? null);
+    })();
+  }, [user?.id]);
+
+  const buildSignatureHtml = (): string => {
+    if (!signatureUrl) return "";
+    return `<div class="email-signature" data-signature="1"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
+  };
 
   useEffect(() => {
     if (open) {
       setTo(defaultTo);
       setSubject(defaultSubject);
-      setBody(defaultBody);
+      // Pre-fill body with two blank lines + signature so it's visible
+      // INSIDE the text box and the user types above it.
+      const initial = defaultBody || "";
+      setBody(signatureUrl ? `${initial}<p></p><p></p>${buildSignatureHtml()}` : initial);
       setAccountId(defaultAccount?.id ?? null);
     }
-  }, [open, defaultTo, defaultSubject, defaultBody, defaultAccount?.id]);
+  }, [open, defaultTo, defaultSubject, defaultBody, defaultAccount?.id, signatureUrl]);
 
   const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
 
