@@ -13,6 +13,12 @@ import {
   Banknote,
   Calendar as CalendarIcon,
   Home,
+  Plus,
+  X,
+  Star,
+  StarOff,
+  Search,
+  UserPlus,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -42,6 +48,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ContactPicker } from "../ContactPicker";
 import { contactTypeColor, contactTypeLabel } from "../contactTypes";
+import { OwnerPicker, TransactionTeamMembersPanel } from "../PeoplePickers";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   TX_LANE_LABEL,
   TX_LANE_COLOR,
@@ -83,6 +91,9 @@ interface Transaction {
   lender_contact_id: string | null;
   source_contact_id: string | null;
   notes: string | null;
+  owner_id: string | null;
+  primary_contact_id: string | null;
+  disposition_strategy: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -129,39 +140,66 @@ export function TransactionDetailSheet({
   const [tx, setTx] = useState<Transaction | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [people, setPeople] = useState<ContactDetail[]>([]);
+  const [contactLinks, setContactLinks] = useState<{ id: string; target_id: string }[]>([]);
+  const [linkedContacts, setLinkedContacts] = useState<ContactDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [actualNetInput, setActualNetInput] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<ContactDetail[]>([]);
 
   const reload = async () => {
     if (!transactionId) return;
-    const [{ data: t }, { data: it }] = await Promise.all([
+    const [{ data: t }, { data: it }, { data: ls }] = await Promise.all([
       supabase.from("crm_transactions").select("*").eq("id", transactionId).maybeSingle(),
       supabase
         .from("transaction_checklist_items")
         .select("*")
         .eq("transaction_id", transactionId)
         .order("sort_order", { ascending: true }),
+      supabase
+        .from("entity_links")
+        .select("id,target_id")
+        .eq("source_type", "transaction")
+        .eq("source_id", transactionId)
+        .eq("target_type", "contact"),
     ]);
     const txRow = (t as Transaction) || null;
     setTx(txRow);
     setItems((it as ChecklistItem[]) || []);
+    setContactLinks((ls as { id: string; target_id: string }[]) || []);
     if (txRow) {
-      const ids = [
+      // Role contacts (buyer/title/attorney/lender/source)
+      const roleIds = [
         txRow.buyer_contact_id,
         txRow.title_contact_id,
         txRow.attorney_contact_id,
         txRow.lender_contact_id,
         txRow.source_contact_id,
       ].filter(Boolean) as string[];
-      if (ids.length) {
+      if (roleIds.length) {
         const { data: cs } = await supabase
           .from("contacts")
           .select("id,first_name,last_name,email,phone,contact_type")
-          .in("id", ids);
+          .in("id", roleIds);
         setPeople((cs as ContactDetail[]) || []);
       } else {
         setPeople([]);
+      }
+
+      // Linked contacts (primary + associated)
+      const linkIds = ((ls as { id: string; target_id: string }[]) || []).map((l) => l.target_id);
+      if (txRow.primary_contact_id) linkIds.unshift(txRow.primary_contact_id);
+      const uniqLinkIds = Array.from(new Set(linkIds));
+      if (uniqLinkIds.length) {
+        const { data: cs } = await supabase
+          .from("contacts")
+          .select("id,first_name,last_name,email,phone,contact_type")
+          .in("id", uniqLinkIds);
+        setLinkedContacts((cs as ContactDetail[]) || []);
+      } else {
+        setLinkedContacts([]);
       }
     }
   };
@@ -197,6 +235,82 @@ export function TransactionDetailSheet({
     }
     setTx({ ...tx, ...patch });
     onChanged();
+  };
+
+  // Contact search
+  useEffect(() => {
+    if (!addOpen || search.trim().length < 2) { setSearchResults([]); return; }
+    let cancelled = false;
+    const q = `%${search.trim()}%`;
+    (async () => {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,first_name,last_name,email,phone,contact_type")
+        .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
+        .limit(8);
+      if (!cancelled) setSearchResults((data as ContactDetail[]) || []);
+    })();
+    return () => { cancelled = true; };
+  }, [search, addOpen]);
+
+  // Contact link/unlink/primary
+  const linkContact = async (contactId: string) => {
+    if (!tx || !user) return;
+    if (!tx.primary_contact_id) {
+      await saveField({ primary_contact_id: contactId });
+    } else if (contactId !== tx.primary_contact_id) {
+      const exists = contactLinks.some((l) => l.target_id === contactId);
+      if (!exists) {
+        await supabase.from("entity_links").insert({
+          source_type: "transaction",
+          source_id: tx.id,
+          target_type: "contact",
+          target_id: contactId,
+          created_by: user.id,
+        });
+      }
+    }
+    await reload();
+  };
+
+  const unlinkContact = async (contactId: string) => {
+    if (!tx) return;
+    if (tx.primary_contact_id === contactId) {
+      const others = contactLinks.map((l) => l.target_id).filter((id) => id !== contactId);
+      const newPrimary = others[0] ?? null;
+      if (newPrimary) {
+        await supabase
+          .from("entity_links")
+          .delete()
+          .eq("source_type", "transaction")
+          .eq("source_id", tx.id)
+          .eq("target_type", "contact")
+          .eq("target_id", newPrimary);
+      }
+      await saveField({ primary_contact_id: newPrimary });
+    } else {
+      const link = contactLinks.find((l) => l.target_id === contactId);
+      if (link) await supabase.from("entity_links").delete().eq("id", link.id);
+    }
+    await reload();
+  };
+
+  const makePrimary = async (contactId: string) => {
+    if (!tx || tx.primary_contact_id === contactId || !user) return;
+    const oldPrimary = tx.primary_contact_id;
+    if (oldPrimary) {
+      await supabase.from("entity_links").insert({
+        source_type: "transaction",
+        source_id: tx.id,
+        target_type: "contact",
+        target_id: oldPrimary,
+        created_by: user.id,
+      });
+    }
+    const link = contactLinks.find((l) => l.target_id === contactId);
+    if (link) await supabase.from("entity_links").delete().eq("id", link.id);
+    await saveField({ primary_contact_id: contactId });
+    await reload();
   };
 
   const toggleItem = async (item: ChecklistItem) => {
@@ -251,6 +365,21 @@ export function TransactionDetailSheet({
     ],
     [],
   );
+
+  const primaryContact = useMemo(
+    () => linkedContacts.find((c) => c.id === tx?.primary_contact_id) || null,
+    [linkedContacts, tx?.primary_contact_id],
+  );
+  const associatedContacts = useMemo(
+    () => linkedContacts.filter((c) => c.id !== tx?.primary_contact_id),
+    [linkedContacts, tx?.primary_contact_id],
+  );
+  const linkedIds = useMemo(() => new Set(linkedContacts.map((c) => c.id)), [linkedContacts]);
+  const contactName = (c: ContactDetail) =>
+    `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Untitled";
+
+  const canManage =
+    !!user && !!tx && (tx.owner_id === user.id || tx.created_by === user.id);
 
   return (
     <>
@@ -546,6 +675,138 @@ export function TransactionDetailSheet({
                     }
                   />
 
+                  {/* Contact (primary) — same pattern as Deal */}
+                  <EntitySidebarSection
+                    title="Contact"
+                    action={
+                      <Popover open={addOpen} onOpenChange={setAddOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 p-0">
+                          <div className="p-2 border-b border-border/40">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                              <Input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search contacts…"
+                                className="h-8 pl-7 text-sm"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-60 overflow-auto">
+                            {searchResults.filter((c) => !linkedIds.has(c.id)).map((c) => (
+                              <button
+                                key={c.id}
+                                onClick={() => { linkContact(c.id); setAddOpen(false); setSearch(""); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                              >
+                                <div className="font-medium truncate">{contactName(c)}</div>
+                                {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
+                              </button>
+                            ))}
+                            {searchResults.length === 0 && search.trim().length >= 2 && (
+                              <div className="px-3 py-3 text-xs text-muted-foreground">No matches</div>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    }
+                  >
+                    {primaryContact ? (
+                      <div className="rounded-md border border-border/50 bg-card p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              {contactName(primaryContact)}
+                            </div>
+                            {primaryContact.email && (
+                              <a href={`mailto:${primaryContact.email}`} className="text-[11px] text-muted-foreground hover:text-primary truncate flex items-center gap-1">
+                                <Mail className="h-3 w-3" /> {primaryContact.email}
+                              </a>
+                            )}
+                          </div>
+                          <button onClick={() => unlinkContact(primaryContact.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground italic">No primary contact.</p>
+                    )}
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Owner">
+                    <OwnerPicker
+                      ownerId={tx.owner_id}
+                      onChange={async (id) => { await saveField({ owner_id: id } as any); }}
+                      label=""
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Team members">
+                    <TransactionTeamMembersPanel
+                      transactionId={tx.id}
+                      canManage={canManage}
+                      currentUserId={user?.id ?? null}
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Associated contacts">
+                    {associatedContacts.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground italic">No additional contacts.</p>
+                    )}
+                    {associatedContacts.map((c) => (
+                      <div key={c.id} className="rounded-md border border-border/40 bg-card p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm truncate">{contactName(c)}</div>
+                            {c.email && (
+                              <a href={`mailto:${c.email}`} className="text-[11px] text-muted-foreground hover:text-primary truncate flex items-center gap-1">
+                                <Mail className="h-3 w-3" /> {c.email}
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            <button onClick={() => makePrimary(c.id)} className="text-muted-foreground hover:text-amber-500 p-1 rounded" title="Make primary">
+                              <StarOff className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => unlinkContact(c.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Source">
+                    <ContactPicker
+                      value={tx.source_contact_id}
+                      onChange={(id) => saveField({ source_contact_id: id })}
+                      placeholder="Who sent this?"
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Disposition strategy">
+                    <select
+                      value={tx.disposition_strategy ?? ""}
+                      onChange={(e) => saveField({ disposition_strategy: e.target.value || null } as any)}
+                      className="w-full text-sm h-9 rounded-md border border-input bg-background px-2"
+                    >
+                      <option value="">Choose a strategy</option>
+                      <option value="buy_hold">Buy &amp; Hold</option>
+                      <option value="assign">Assign</option>
+                      <option value="double_close">Double Close</option>
+                      <option value="pass">Pass</option>
+                    </select>
+                  </EntitySidebarSection>
+
                   <EntitySidebarSection title="Closing">
                     <div className="text-sm">
                       {tx.closing_date ? (
@@ -576,14 +837,6 @@ export function TransactionDetailSheet({
                     <div className="text-sm tabular-nums text-brand-mint-deep">
                       {fmtMoney(tx.estimated_net)}
                     </div>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Source">
-                    <ContactPicker
-                      value={tx.source_contact_id}
-                      onChange={(id) => saveField({ source_contact_id: id })}
-                      placeholder="Who sent this?"
-                    />
                   </EntitySidebarSection>
 
                   <EntitySidebarSection title="Created">
