@@ -567,8 +567,27 @@ export function DealPeekSheet({
                       />
                     </div>
                   </div>
+                  <Tabs defaultValue="overview" className="w-full">
+                    <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                      <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
+                        {[
+                          { v: "overview", label: "Overview" },
+                          { v: "underwriting", label: "Underwriting" },
+                          { v: "broker", label: "Broker Comms" },
+                          { v: "activity", label: "Activity" },
+                          { v: "files", label: "Files" },
+                        ].map((t) => (
+                          <TabsTrigger
+                            key={t.v}
+                            value={t.v}
+                            className="text-[14px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
+                          >
+                            {t.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </div>
 
-                    <TabsContent value="overview" className="p-4 mt-0">
                       <DealOverviewPanel
                         deal={deal as any}
                         workspaceId={deal.workspace_id}
