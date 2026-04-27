@@ -315,8 +315,26 @@ export function ContactComposer({
 
 /**
  * Timeline-only feed for the Activity tab. Composer lives separately above the tab bar.
+ *
+ * Generalized to support any entity_type stored on crm_activities / entity_activity
+ * (contact | deal | lead | transaction | ...). Contact-specific deal & task aggregation
+ * only runs when entityType === "contact".
  */
-export function ContactActivityTab({ contact }: { contact: Contact }) {
+export function ContactActivityTab({
+  contact,
+  entityType = "contact",
+  entityId,
+  contactEmail,
+}: {
+  contact?: Contact;
+  entityType?: "contact" | "deal" | "lead" | "transaction" | string;
+  entityId?: string;
+  contactEmail?: string | null;
+}) {
+  const resolvedEntityType = entityType;
+  const resolvedEntityId = entityId ?? contact?.id ?? "";
+  const resolvedEmail = contactEmail ?? contact?.email ?? null;
+  const isContactScope = resolvedEntityType === "contact" && !!contact;
   const [filter, setFilter] = useState<FilterId>("all");
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [acts, setActs] = useState<CrmActivity[]>([]);
@@ -326,58 +344,71 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
 
 
   const fetchAll = useCallback(async () => {
+    if (!resolvedEntityId) return;
     setLoading(true);
-    const [{ data: a }, { data: e }, { data: dealsLink1 }, { data: dealsLink2 }] = await Promise.all([
+
+    const baseQueries: any[] = [
       supabase
         .from("crm_activities")
         .select("id,type,subject,body,occurred_at,actor_id,metadata,is_pinned")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
+        .eq("entity_type", resolvedEntityType)
+        .eq("entity_id", resolvedEntityId)
         .order("occurred_at", { ascending: false })
         .limit(300),
       supabase
         .from("entity_activity")
         .select("id,action,metadata,actor_id,created_at")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
+        .eq("entity_type", resolvedEntityType)
+        .eq("entity_id", resolvedEntityId)
         .order("created_at", { ascending: false })
         .limit(200),
-      // Deals where this contact is primary or source
-      supabase
-        .from("deals")
-        .select("id,title,property_address")
-        .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`),
-      // Deals linked via entity_links
-      supabase
-        .from("entity_links")
-        .select("source_id, deals:source_id(id,title,property_address)")
-        .eq("source_type", "deal")
-        .eq("target_type", "contact")
-        .eq("target_id", contact.id),
-    ]);
+    ];
 
-    const dealMap = new Map<string, { title: string | null; address: string | null }>();
-    ((dealsLink1 as any[]) || []).forEach((d) =>
-      dealMap.set(d.id, { title: d.title, address: d.property_address ?? null }),
-    );
-    ((dealsLink2 as any[]) || []).forEach((row) => {
-      const d = row.deals;
-      if (d && !dealMap.has(d.id)) dealMap.set(d.id, { title: d.title, address: d.property_address ?? null });
-    });
+    if (isContactScope) {
+      baseQueries.push(
+        supabase
+          .from("deals")
+          .select("id,title,property_address")
+          .or(`primary_contact_id.eq.${resolvedEntityId},source_contact_id.eq.${resolvedEntityId}`),
+        supabase
+          .from("entity_links")
+          .select("source_id, deals:source_id(id,title,property_address)")
+          .eq("source_type", "deal")
+          .eq("target_type", "contact")
+          .eq("target_id", resolvedEntityId),
+      );
+    }
+
+    const results = await Promise.all(baseQueries);
+    const { data: a } = results[0] || {};
+    const { data: e } = results[1] || {};
+    const { data: dealsLink1 } = results[2] || { data: [] };
+    const { data: dealsLink2 } = results[3] || { data: [] };
 
     let taskRows: CrmTask[] = [];
-    if (dealMap.size > 0) {
-      const ids = Array.from(dealMap.keys());
-      const { data: t } = await supabase
-        .from("crm_tasks")
-        .select("id,title,due_date,is_complete,assigned_to,deal_id,created_at")
-        .in("deal_id", ids)
-        .order("due_date", { ascending: true, nullsFirst: false });
-      taskRows = ((t as any[]) || []).map((x) => ({
-        ...x,
-        deal_title: x.deal_id ? dealMap.get(x.deal_id)?.title ?? null : null,
-        deal_address: x.deal_id ? dealMap.get(x.deal_id)?.address ?? null : null,
-      }));
+    if (isContactScope) {
+      const dealMap = new Map<string, { title: string | null; address: string | null }>();
+      ((dealsLink1 as any[]) || []).forEach((d) =>
+        dealMap.set(d.id, { title: d.title, address: d.property_address ?? null }),
+      );
+      ((dealsLink2 as any[]) || []).forEach((row) => {
+        const d = row.deals;
+        if (d && !dealMap.has(d.id)) dealMap.set(d.id, { title: d.title, address: d.property_address ?? null });
+      });
+
+      if (dealMap.size > 0) {
+        const ids = Array.from(dealMap.keys());
+        const { data: t } = await supabase
+          .from("crm_tasks")
+          .select("id,title,due_date,is_complete,assigned_to,deal_id,created_at")
+          .in("deal_id", ids)
+          .order("due_date", { ascending: true, nullsFirst: false });
+        taskRows = ((t as any[]) || []).map((x) => ({
+          ...x,
+          deal_title: x.deal_id ? dealMap.get(x.deal_id)?.title ?? null : null,
+          deal_address: x.deal_id ? dealMap.get(x.deal_id)?.address ?? null : null,
+        }));
+      }
     }
 
     setActs((a as CrmActivity[]) || []);
@@ -398,7 +429,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
       setProfiles(map);
     }
     setLoading(false);
-  }, [contact.id]);
+  }, [resolvedEntityId, resolvedEntityType, isContactScope]);
 
   useEffect(() => {
     void fetchAll();
@@ -409,13 +440,14 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
   useEffect(() => { fetchAllRef.current = fetchAll; }, [fetchAll]);
 
   useEffect(() => {
+    if (!resolvedEntityId) return;
     const ch = supabase
-      .channel(`contact-activity-${contact.id}-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
-      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
+      .channel(`activity-${resolvedEntityType}-${resolvedEntityId}-${Math.random().toString(36).slice(2, 8)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${resolvedEntityId}` }, () => fetchAllRef.current())
+      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${resolvedEntityId}` }, () => fetchAllRef.current())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [contact.id]);
+  }, [resolvedEntityId, resolvedEntityType]);
 
   const deleteActivity = async (id: string) => {
     const { error } = await supabase.from("crm_activities").delete().eq("id", id);
@@ -507,7 +539,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     <div className="flex h-full min-h-0 flex-col gap-4">
       {/* FILTER PILLS */}
       <div className="shrink-0 flex items-center gap-1.5 flex-wrap">
-        {FILTERS.map((f) => (
+        {FILTERS.filter((f) => f.id !== "tasks" || isContactScope).map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
@@ -551,7 +583,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
                       kind="note"
                       act={a}
                       actorName={a.actor_id ? profiles[a.actor_id] || "Someone" : "System"}
-                      contactEmail={contact.email}
+                      contactEmail={resolvedEmail}
                       onDelete={() => deleteActivity(a.id)}
                       onRefresh={fetchAll}
                       onTogglePin={() => togglePin(a)}
@@ -578,7 +610,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
                           kind={item.kind}
                           act={item.act}
                           actorName={item.act.actor_id ? profiles[item.act.actor_id] || "Someone" : "System"}
-                          contactEmail={contact.email}
+                          contactEmail={resolvedEmail}
                           onDelete={() => deleteActivity(item.act.id)}
                           onRefresh={fetchAll}
                           onTogglePin={item.kind === "note" ? () => togglePin(item.act) : undefined}

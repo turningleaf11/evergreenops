@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -622,7 +623,7 @@ export function TransactionDetailSheet({
                   {/* ACTIVITY */}
                   <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
-                      <ActivityPanel entityType="transaction" entityId={tx.id} hideHeader hideComposer />
+                      <ContactActivityTab entityType="transaction" entityId={tx.id} />
                     </div>
                   </TabsContent>
 

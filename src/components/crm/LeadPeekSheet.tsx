@@ -61,6 +61,7 @@ import { DocChecklist } from "./DocChecklist";
 import { BuyBoxButtons, BUY_BOX_META, type BuyBoxFit } from "./BuyBoxButtons";
 import { LeadFilesTab } from "./LeadFilesTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { ContactPicker } from "./ContactPicker";
 
 export interface Lead {
@@ -666,12 +667,10 @@ export function LeadPeekSheet({
 
                   <EntityTabPanel value="activity" className="p-6 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
-                      <ActivityPanel
+                      <ContactActivityTab
                         key={composerNonce}
                         entityType="lead"
                         entityId={lead.id}
-                        hideHeader
-                        hideComposer
                       />
                     </div>
                   </EntityTabPanel>
