@@ -1182,6 +1182,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deal_id: string | null
+          disposition_strategy: string | null
           due_diligence_end: string | null
           earnest_money_received: boolean
           earnest_money_received_date: string | null
@@ -1192,6 +1193,8 @@ export type Database = {
           lane: string
           lender_contact_id: string | null
           notes: string | null
+          owner_id: string | null
+          primary_contact_id: string | null
           property_address: string
           property_city: string | null
           property_state: string | null
@@ -1215,6 +1218,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id?: string | null
+          disposition_strategy?: string | null
           due_diligence_end?: string | null
           earnest_money_received?: boolean
           earnest_money_received_date?: string | null
@@ -1225,6 +1229,8 @@ export type Database = {
           lane?: string
           lender_contact_id?: string | null
           notes?: string | null
+          owner_id?: string | null
+          primary_contact_id?: string | null
           property_address?: string
           property_city?: string | null
           property_state?: string | null
@@ -1248,6 +1254,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id?: string | null
+          disposition_strategy?: string | null
           due_diligence_end?: string | null
           earnest_money_received?: boolean
           earnest_money_received_date?: string | null
@@ -1258,6 +1265,8 @@ export type Database = {
           lane?: string
           lender_contact_id?: string | null
           notes?: string | null
+          owner_id?: string | null
+          primary_contact_id?: string | null
           property_address?: string
           property_city?: string | null
           property_state?: string | null
@@ -1296,6 +1305,13 @@ export type Database = {
           {
             foreignKeyName: "crm_transactions_lender_contact_id_fkey"
             columns: ["lender_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_transactions_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
@@ -4889,6 +4905,38 @@ export type Database = {
           },
         ]
       }
+      transaction_team_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_team_members_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "crm_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_favorites: {
         Row: {
           created_at: string
@@ -5187,6 +5235,10 @@ export type Database = {
       is_primary_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reminder_assignee: {
         Args: { _reminder_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_transaction_team_member: {
+        Args: { _transaction_id: string; _user_id: string }
         Returns: boolean
       }
     }
