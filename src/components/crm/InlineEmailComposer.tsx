@@ -262,7 +262,7 @@ export function InlineEmailComposer({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-col">
       {/* Composer header — back arrow + title, matches sheet rhythm */}
       <div className="flex items-center justify-between gap-2 px-5 h-11 border-b border-border/40 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
