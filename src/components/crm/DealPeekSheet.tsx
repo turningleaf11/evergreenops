@@ -18,6 +18,9 @@ import {
   EntitySheetShell,
   EntitySheetHeader,
   EntityIdentityStrip,
+  StageProgressBar,
+  EntityIdentityBlock,
+  EntitySidebarSection,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Button } from "@/components/ui/button";
