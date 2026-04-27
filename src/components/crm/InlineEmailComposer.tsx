@@ -130,7 +130,25 @@ export function InlineEmailComposer({
     })();
   }, []);
 
+  // Load this user's email signature (PNG URL) so we can append it to outgoing mail.
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email_signature_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setSignatureUrl((data as any)?.email_signature_url ?? null);
+    })();
+  }, [user?.id]);
+
   const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
+
+  const buildSignatureHtml = (): string => {
+    if (!signatureUrl) return "";
+    return `<br/><br/><div class="email-signature"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
+  };
 
   const buildHtml = (): string => {
     let html = body || "";
