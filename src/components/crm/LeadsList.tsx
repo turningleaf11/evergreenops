@@ -95,24 +95,23 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
     const q = search.trim().toLowerCase();
     return leads.filter((l) => {
       if (!showArchived && (l.status === "archived" || l.status === "converted")) return false;
-      if (tempFilter.size > 0 && !tempFilter.has(l.temperature)) return false;
       if (q) {
         const blob = `${l.name} ${l.email ?? ""} ${l.company_name ?? ""}`.toLowerCase();
         if (!blob.includes(q)) return false;
       }
       return true;
     });
-  }, [leads, search, tempFilter, showArchived]);
+  }, [leads, search, showArchived]);
 
   const counts = useMemo(() => {
     const open = leads.filter((l) => l.status !== "archived" && l.status !== "converted");
-    return {
-      total: open.length,
-      hot: open.filter((l) => l.temperature === "hot").length,
-      warm: open.filter((l) => l.temperature === "warm").length,
-      cold: open.filter((l) => l.temperature === "cold").length,
-    };
+    return { total: open.length };
   }, [leads]);
+
+  // React to "New lead" button in the page header
+  useEffect(() => {
+    if (newSignal > 0) setNewOpen(true);
+  }, [newSignal]);
 
   const updateLead = async (id: string, patch: Partial<Lead>) => {
     setLeads((arr) => arr.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -124,24 +123,9 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
     }
   };
 
-  const cycleTemp = (lead: Lead) => {
-    const idx = TEMPS.indexOf(lead.temperature as any);
-    const next = TEMPS[(idx + 1) % TEMPS.length];
-    updateLead(lead.id, { temperature: next });
-  };
-
   const archive = (lead: Lead) => {
     updateLead(lead.id, { status: "archived" });
     toast({ title: "Lead archived" });
-  };
-
-  const toggleTempFilter = (t: string) => {
-    setTempFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
   };
 
   if (loading) {
