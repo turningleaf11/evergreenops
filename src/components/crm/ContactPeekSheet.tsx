@@ -2000,14 +2000,13 @@ function ContactMarketsInline({
   onChanged: () => void;
 }) {
   const [markets, setMarkets] = useState<string[]>(contact.markets || []);
-  const [draft, setDraft] = useState("");
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     setMarkets(contact.markets || []);
   }, [contact.id]);
 
   const persist = async (next: string[]) => {
+    setMarkets(next);
     const patch = { markets: next.length ? next : null };
     const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
     if (error) {
@@ -2018,76 +2017,14 @@ function ContactMarketsInline({
     onChanged();
   };
 
-  const add = () => {
-    const v = draft.trim();
-    setDraft("");
-    setAdding(false);
-    if (!v || markets.includes(v)) return;
-    const next = [...markets, v];
-    setMarkets(next);
-    void persist(next);
-  };
-
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {markets.length === 0 && !adding && (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="text-sm italic text-muted-foreground/70 hover:text-foreground"
-        >
-          Add markets
-        </button>
-      )}
-      {markets.map((m) => (
-        <span
-          key={m}
-          className="inline-flex items-center gap-1 rounded-full bg-brand-azure/15 text-brand-azure font-semibold"
-          style={{ borderRadius: 100, padding: "3px 10px", fontSize: 11 }}
-        >
-          {m}
-          <button
-            type="button"
-            onClick={() => {
-              const next = markets.filter((x) => x !== m);
-              setMarkets(next);
-              void persist(next);
-            }}
-            className="opacity-60 hover:opacity-100"
-            aria-label={`Remove ${m}`}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ))}
-      {adding ? (
-        <Input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={add}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === ",") {
-              e.preventDefault();
-              add();
-            } else if (e.key === "Escape") {
-              setDraft("");
-              setAdding(false);
-            }
-          }}
-          placeholder="Market"
-          className="h-6 text-xs w-24"
-        />
-      ) : markets.length > 0 ? (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5"
-        >
-          + Add
-        </button>
-      ) : null}
-    </div>
+    <MarketsEditor
+      workspaceId={contact.workspace_id}
+      value={markets}
+      onChange={persist}
+      variant="chips-outline"
+      emptyLabel="Add markets"
+    />
   );
 }
 
