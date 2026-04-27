@@ -9,6 +9,7 @@ import { uploadFile } from "@/lib/file-upload";
 import { handleGmailInvokeError } from "@/lib/gmail-error";
 import { cn } from "@/lib/utils";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
