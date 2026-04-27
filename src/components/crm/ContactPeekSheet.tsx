@@ -1606,6 +1606,13 @@ function ContactDetailBody({
     onChanged();
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openDealById = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("deal", id);
+    setSearchParams(next, { replace: false });
+  };
+
   const tabs: Array<{ id: EntityTabId; label: string }> = [
     { id: "overview", label: "Overview" },
     { id: "activity", label: "Activity" },
