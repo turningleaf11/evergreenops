@@ -52,6 +52,7 @@ interface CrmActivity {
   occurred_at: string;
   actor_id: string | null;
   metadata: Record<string, any> | null;
+  is_pinned?: boolean | null;
 }
 
 interface EntityEvent {
