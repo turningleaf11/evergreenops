@@ -477,6 +477,15 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     }
   };
 
+  // Pinned notes (always shown at top when filter shows notes)
+  const pinnedNotes = useMemo(() => {
+    return acts
+      .filter((a) => a.type === "note" && a.is_pinned)
+      .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+  }, [acts]);
+
+  const showPinnedSection = pinnedNotes.length > 0 && (filter === "all" || filter === "notes");
+
   // Build unified timeline (excluding tasks; tasks render in their own pane)
   const timeline = useMemo(() => {
     type Item =
@@ -484,16 +493,17 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
       | { kind: "update"; at: string; ev: EntityEvent };
     const items: Item[] = [];
     acts.forEach((a) => {
+      // Pinned notes are rendered separately at the top — exclude them from the date timeline
+      if (a.type === "note" && a.is_pinned && (filter === "all" || filter === "notes")) return;
       if (a.type === "note") items.push({ kind: "note", at: a.occurred_at, act: a });
       else if (a.type === "call") items.push({ kind: "call", at: a.occurred_at, act: a });
       else if (a.type === "email") items.push({ kind: "email", at: a.occurred_at, act: a });
       else if (a.type === "file" || (a.metadata as any)?.file_url) items.push({ kind: "file", at: a.occurred_at, act: a });
-      // stage_change/etc. roll up into "update" stream below via entity_activity, skip from acts
     });
     events.forEach((ev) => items.push({ kind: "update", at: ev.created_at, ev }));
 
     const filtered = items.filter((it) => {
-      if (filter === "all") return it.kind !== "update" ? true : true;
+      if (filter === "all") return true;
       if (filter === "notes") return it.kind === "note";
       if (filter === "emails") return it.kind === "email";
       if (filter === "calls") return it.kind === "call";
@@ -515,7 +525,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
   }, [timeline]);
 
   const showTasks = filter === "tasks";
-  const empty = !showTasks && timeline.length === 0;
+  const empty = !showTasks && timeline.length === 0 && !showPinnedSection;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
