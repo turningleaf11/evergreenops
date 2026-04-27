@@ -12,6 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  DataTableShell,
+  DataTableHeader,
+  DataTableRow,
+  DataTablePill,
+} from "@/components/ui/data-table-shell";
 import { NewTransactionDialog } from "./NewTransactionDialog";
 import { TransactionDetailSheet } from "./TransactionDetailSheet";
 import {
