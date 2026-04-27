@@ -440,13 +440,14 @@ export function ContactActivityTab({
   useEffect(() => { fetchAllRef.current = fetchAll; }, [fetchAll]);
 
   useEffect(() => {
+    if (!resolvedEntityId) return;
     const ch = supabase
-      .channel(`contact-activity-${contact.id}-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
-      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${contact.id}` }, () => fetchAllRef.current())
+      .channel(`activity-${resolvedEntityType}-${resolvedEntityId}-${Math.random().toString(36).slice(2, 8)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "crm_activities", filter: `entity_id=eq.${resolvedEntityId}` }, () => fetchAllRef.current())
+      .on("postgres_changes", { event: "*", schema: "public", table: "entity_activity", filter: `entity_id=eq.${resolvedEntityId}` }, () => fetchAllRef.current())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [contact.id]);
+  }, [resolvedEntityId, resolvedEntityType]);
 
   const deleteActivity = async (id: string) => {
     const { error } = await supabase.from("crm_activities").delete().eq("id", id);
