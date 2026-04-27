@@ -12,12 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import {
   DataTableShell,
   DataTableHeader,
   DataTableRow,
   DataTablePill,
 } from "@/components/ui/data-table-shell";
+import { InlinePopoverCell, InlineOptionList, InlineDateCell } from "../InlineCellEditors";
 import { NewTransactionDialog } from "./NewTransactionDialog";
 import { TransactionDetailSheet } from "./TransactionDetailSheet";
 import {
@@ -135,6 +137,16 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
     const c = contacts.find((x) => x.id === id);
     if (!c) return "—";
     return `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—";
+  };
+
+  const updateTx = async (id: string, patch: Partial<Tx>) => {
+    const prev = items;
+    setItems((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("crm_transactions").update(patch as any).eq("id", id);
+    if (error) {
+      setItems(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
   };
 
   return (
