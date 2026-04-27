@@ -94,8 +94,27 @@ export default function CrmPage() {
           </div>
           {tab === "contacts" && (
             <Button size="sm" onClick={() => setNewContactOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              New contact
+              <Plus className="h-4 w-4 mr-1" /> New contact
+            </Button>
+          )}
+          {tab === "leads" && (
+            <Button size="sm" onClick={() => setNewLeadSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New lead
+            </Button>
+          )}
+          {tab === "deals" && (
+            <Button size="sm" onClick={() => setNewDealSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New deal
+            </Button>
+          )}
+          {tab === "transactions" && (
+            <Button size="sm" onClick={() => setNewTxSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New transaction
+            </Button>
+          )}
+          {tab === "companies" && (
+            <Button size="sm" onClick={() => setNewCompanyOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> New company
             </Button>
           )}
         </div>
