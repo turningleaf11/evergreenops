@@ -722,7 +722,7 @@ export function DealPeekSheet({
                     </EntitySidebarSection>
 
                     <EntitySidebarSection title="Team members">
-                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} hideHeader />
+                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} />
                     </EntitySidebarSection>
 
                     <EntitySidebarSection title="Associated contacts">
