@@ -85,49 +85,134 @@ interface RendererProps {
   values: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
   compact?: boolean;
+  /**
+   * "contact" applies the contact-detail visual treatment:
+   * - Uppercase muted labels with letter-spacing
+   * - Pairs price_range_min + price_range_max into a single PRICE RANGE row
+   * - Multi-select chips with checkmark + brand-blue selected state
+   * - "Select…" placeholders, Switch for proof_of_funds_on_file, bordered textarea
+   * Other entity types keep the default rendering.
+   */
+  variant?: "default" | "contact";
 }
 
-export function CustomFieldsRenderer({ fields, values, onChange, compact }: RendererProps) {
+const CONTACT_LABEL_CLS = "text-[11px] font-semibold uppercase mb-1.5 block";
+const CONTACT_LABEL_STYLE: React.CSSProperties = {
+  letterSpacing: "0.12em",
+  color: "#9896B8",
+};
+
+export function CustomFieldsRenderer({
+  fields,
+  values,
+  onChange,
+  compact,
+  variant = "default",
+}: RendererProps) {
   if (fields.length === 0) return null;
   const set = (k: string, v: unknown) => onChange({ ...values, [k]: v });
+  const isContact = variant === "contact";
+
+  const renderNumber = (f: CustomField, val: unknown, prefix?: string) => (
+    <div className="relative">
+      {prefix && (
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+          {prefix}
+        </span>
+      )}
+      <Input
+        type="number"
+        value={(val as number | string) ?? ""}
+        onChange={(e) =>
+          set(f.field_key, e.target.value === "" ? null : Number(e.target.value))
+        }
+        className={`${isContact ? "h-9" : "h-8"} text-sm ${prefix ? "pl-6" : ""}`}
+      />
+    </div>
+  );
+
+  const minField = isContact ? fields.find((x) => x.field_key === "price_range_min") : undefined;
+  const maxField = isContact ? fields.find((x) => x.field_key === "price_range_max") : undefined;
 
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
       {fields.map((f) => {
         const v = values?.[f.field_key];
+
+        // Contact: render combined PRICE RANGE row at price_range_min position; skip max
+        if (isContact && f.field_key === "price_range_max" && minField) return null;
+        if (isContact && f.field_key === "price_range_min" && maxField) {
+          const vMax = values?.["price_range_max"];
+          return (
+            <div key={f.id}>
+              <span className={CONTACT_LABEL_CLS} style={CONTACT_LABEL_STYLE}>
+                Price Range
+              </span>
+              <div className="flex items-center gap-2">
+                {renderNumber(f, v, "$")}
+                <span className="text-muted-foreground text-sm">—</span>
+                {renderNumber(maxField, vMax, "$")}
+              </div>
+            </div>
+          );
+        }
+
+        // Contact: proof_of_funds_on_file becomes a Switch row (label left, switch right)
+        if (
+          isContact &&
+          f.field_type === "checkbox" &&
+          f.field_key === "proof_of_funds_on_file"
+        ) {
+          return (
+            <div key={f.id} className="flex items-center justify-between py-1">
+              <span className={CONTACT_LABEL_CLS + " mb-0"} style={CONTACT_LABEL_STYLE}>
+                {f.label}
+              </span>
+              <Switch checked={!!v} onCheckedChange={(c) => set(f.field_key, !!c)} />
+            </div>
+          );
+        }
+
         return (
           <div key={f.id}>
-            <Label className="text-xs flex items-center gap-1">
-              {f.label}
-              {f.required && <span className="text-destructive">*</span>}
-            </Label>
+            {isContact ? (
+              <span className={CONTACT_LABEL_CLS} style={CONTACT_LABEL_STYLE}>
+                {f.label}
+                {f.required && <span className="text-destructive ml-0.5">*</span>}
+              </span>
+            ) : (
+              <Label className="text-xs flex items-center gap-1">
+                {f.label}
+                {f.required && <span className="text-destructive">*</span>}
+              </Label>
+            )}
             {f.field_type === "text" || f.field_type === "url" ? (
               <Input
                 type={f.field_type === "url" ? "url" : "text"}
                 value={(v as string) ?? ""}
                 onChange={(e) => set(f.field_key, e.target.value)}
-                className="h-8 text-sm"
+                className={`${isContact ? "h-9" : "h-8"} text-sm`}
               />
             ) : f.field_type === "number" ? (
-              <Input
-                type="number"
-                value={(v as number | string) ?? ""}
-                onChange={(e) => set(f.field_key, e.target.value === "" ? null : Number(e.target.value))}
-                className="h-8 text-sm"
-              />
+              renderNumber(f, v)
             ) : f.field_type === "date" ? (
               <Input
                 type="date"
                 value={(v as string) ?? ""}
                 onChange={(e) => set(f.field_key, e.target.value)}
-                className="h-8 text-sm"
+                className={`${isContact ? "h-9" : "h-8"} text-sm`}
               />
             ) : f.field_type === "textarea" ? (
               <Textarea
                 value={(v as string) ?? ""}
                 onChange={(e) => set(f.field_key, e.target.value)}
                 rows={3}
-                className="text-sm"
+                className="text-sm bg-background"
+                style={
+                  isContact
+                    ? { border: "1px solid #E5E5E5", borderRadius: 8 }
+                    : undefined
+                }
               />
             ) : f.field_type === "checkbox" ? (
               <div className="pt-1">
@@ -141,8 +226,8 @@ export function CustomFieldsRenderer({ fields, values, onChange, compact }: Rend
                 value={(v as string) ?? ""}
                 onValueChange={(val) => set(f.field_key, val)}
               >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="—" />
+                <SelectTrigger className={`${isContact ? "h-9" : "h-8"} text-sm`}>
+                  <SelectValue placeholder={isContact ? "Select…" : "—"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(f.options || []).map((o) => (
@@ -157,6 +242,37 @@ export function CustomFieldsRenderer({ fields, values, onChange, compact }: Rend
                 {(f.options || []).map((o) => {
                   const arr = Array.isArray(v) ? (v as string[]) : [];
                   const on = arr.includes(o);
+                  if (isContact) {
+                    return (
+                      <button
+                        key={o}
+                        type="button"
+                        onClick={() =>
+                          set(
+                            f.field_key,
+                            on ? arr.filter((x) => x !== o) : [...arr, o],
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[12px] px-2.5 py-1 rounded-full border transition-colors"
+                        style={
+                          on
+                            ? {
+                                background: "#EEF1FC",
+                                color: "#3E54D3",
+                                borderColor: "#D6DEFB",
+                              }
+                            : {
+                                background: "#FFFFFF",
+                                color: "#6B7280",
+                                borderColor: "#E0E0E0",
+                              }
+                        }
+                      >
+                        {on && <Check className="h-3 w-3" />}
+                        {o}
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={o}
