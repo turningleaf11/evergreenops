@@ -56,6 +56,7 @@ import { NewTransactionDialog } from "./transactions/NewTransactionDialog";
 import { DealOverviewPanel } from "./DealOverviewPanel";
 import { DealUnderwritingTab } from "./DealUnderwritingTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { DealFilesTab } from "./DealFilesTab";
 import { ContactPicker } from "./ContactPicker";
 

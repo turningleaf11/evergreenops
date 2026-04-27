@@ -61,6 +61,7 @@ import { DocChecklist } from "./DocChecklist";
 import { BuyBoxButtons, BUY_BOX_META, type BuyBoxFit } from "./BuyBoxButtons";
 import { LeadFilesTab } from "./LeadFilesTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { ContactPicker } from "./ContactPicker";
 
 export interface Lead {
