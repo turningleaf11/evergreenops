@@ -588,6 +588,7 @@ export function DealPeekSheet({
                       </TabsList>
                     </div>
 
+                    <TabsContent value="overview" className="p-4 mt-0">
                       <DealOverviewPanel
                         deal={deal as any}
                         workspaceId={deal.workspace_id}
