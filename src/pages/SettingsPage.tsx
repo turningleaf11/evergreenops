@@ -514,6 +514,7 @@ interface DBUser {
   roles: string[];
   is_primary?: boolean;
   time_clock_enabled: boolean;
+  email_signature_url: string | null;
 }
 
 function UsersTab() {
@@ -536,7 +537,7 @@ function UsersTab() {
     // Fetch all profiles
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled");
+      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled, email_signature_url");
 
     if (!profiles) { setLoading(false); return; }
 
@@ -639,8 +640,27 @@ function UsersTab() {
     setDeleting(false);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>;
+  const handleUploadSignature = async (userId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please upload an image (PNG recommended)", variant: "destructive" });
+      return;
+    }
+    const { uploadFile } = await import("@/lib/file-upload");
+    const url = await uploadFile(file);
+    if (!url) {
+      toast({ title: "Upload failed", variant: "destructive" });
+      return;
+    }
+    await supabase.from("profiles").update({ email_signature_url: url } as any).eq("user_id", userId);
+    toast({ title: "Signature updated" });
+    fetchUsers();
+  };
 
+  const handleRemoveSignature = async (userId: string) => {
+    await supabase.from("profiles").update({ email_signature_url: null } as any).eq("user_id", userId);
+    toast({ title: "Signature removed" });
+    fetchUsers();
+  };
   return (
     <>
       <div className="flex items-center justify-between">
@@ -701,75 +721,116 @@ function UsersTab() {
 
         return (
           <Card key={u.user_id} className="group">
-            <CardContent className="p-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="h-9 w-9 shrink-0">
-                  <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5">
-                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-sm w-40" autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(u.user_id); if (e.key === "Escape") setEditingUserId(null); }} />
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleSaveName(u.user_id)}><Check className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingUserId(null)}><X className="h-3 w-3" /></Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">{u.full_name || "Unnamed"}</p>
-                      <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => { setEditingUserId(u.user_id); setEditName(u.full_name || ""); }}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground truncate">{deptName || "No department"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Select value={u.department_id || ""} onValueChange={(v) => handleDeptChange(u.user_id, v)}>
-                  <SelectTrigger className="w-36 h-8 text-xs">
-                    <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id} className="text-xs">{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-1.5" title="Time clock access">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Switch checked={u.time_clock_enabled} onCheckedChange={(v) => handleTimeClockToggle(u.user_id, v)} />
-                </div>
-                {u.is_primary ? (
-                  <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
-                  </Badge>
-                ) : (
-                  <>
-                    <Select value={currentRole} onValueChange={(v) => handleRoleChange(u.user_id, v as AppRole)}>
-                      <SelectTrigger className="w-24 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user" className="text-xs">User</SelectItem>
-                        <SelectItem value="admin" className="text-xs">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {deleteConfirmId === u.user_id ? (
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={deleting} onClick={() => handleDeleteUser(u.user_id)}>
-                          {deleting ? "..." : "Confirm"}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-sm w-40" autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(u.user_id); if (e.key === "Escape") setEditingUserId(null); }} />
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleSaveName(u.user_id)}><Check className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingUserId(null)}><X className="h-3 w-3" /></Button>
                       </div>
                     ) : (
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirmId(u.user_id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{u.full_name || "Unnamed"}</p>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => { setEditingUserId(u.user_id); setEditName(u.full_name || ""); }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
                     )}
-                  </>
+                    <p className="text-xs text-muted-foreground truncate">{deptName || "No department"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Select value={u.department_id || ""} onValueChange={(v) => handleDeptChange(u.user_id, v)}>
+                    <SelectTrigger className="w-36 h-8 text-xs">
+                      <SelectValue placeholder="Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id} className="text-xs">{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-1.5" title="Time clock access">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Switch checked={u.time_clock_enabled} onCheckedChange={(v) => handleTimeClockToggle(u.user_id, v)} />
+                  </div>
+                  {u.is_primary ? (
+                    <Badge variant="outline" className="h-8 px-3 text-xs gap-1.5 border-primary/30 text-primary">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Primary Admin
+                    </Badge>
+                  ) : (
+                    <>
+                      <Select value={currentRole} onValueChange={(v) => handleRoleChange(u.user_id, v as AppRole)}>
+                        <SelectTrigger className="w-24 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user" className="text-xs">User</SelectItem>
+                          <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {deleteConfirmId === u.user_id ? (
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={deleting} onClick={() => handleDeleteUser(u.user_id)}>
+                            {deleting ? "..." : "Confirm"}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirmId(u.user_id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Email signature (PNG) — appended automatically to outgoing emails and replies */}
+              <div className="flex items-center gap-3 pt-2 border-t border-border/40">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground w-28 shrink-0">
+                  Email signature
+                </div>
+                {u.email_signature_url ? (
+                  <img
+                    src={u.email_signature_url}
+                    alt="Signature"
+                    className="max-h-12 w-auto rounded border border-border/60 bg-white"
+                  />
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">None uploaded</span>
                 )}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleUploadSignature(u.user_id, f);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span className="inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-md border border-input hover:bg-accent">
+                      <Upload className="h-3 w-3" />
+                      {u.email_signature_url ? "Replace" : "Upload PNG"}
+                    </span>
+                  </label>
+                  {u.email_signature_url && (
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleRemoveSignature(u.user_id)} title="Remove signature">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -112,6 +112,7 @@ export function InlineEmailComposer({
   const [tplName, setTplName] = useState("");
   const [customWhen, setCustomWhen] = useState("");
   const [accountId, setAccountId] = useState<string | null>(defaultAccount?.id ?? null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -129,7 +130,25 @@ export function InlineEmailComposer({
     })();
   }, []);
 
+  // Load this user's email signature (PNG URL) so we can append it to outgoing mail.
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email_signature_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setSignatureUrl((data as any)?.email_signature_url ?? null);
+    })();
+  }, [user?.id]);
+
   const activeAccount = accounts.find((a) => a.id === accountId) ?? defaultAccount;
+
+  const buildSignatureHtml = (): string => {
+    if (!signatureUrl) return "";
+    return `<br/><br/><div class="email-signature"><img src="${signatureUrl}" alt="Signature" style="max-width:480px;height:auto;display:block;" /></div>`;
+  };
 
   const buildHtml = (): string => {
     let html = body || "";
@@ -139,6 +158,7 @@ export function InlineEmailComposer({
         attachments.map((a) => `<a href="${a.url}">${a.name}</a>`).join("<br/>") +
         `</div>`;
     }
+    html += buildSignatureHtml();
     return html;
   };
 
@@ -262,7 +282,7 @@ export function InlineEmailComposer({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-col">
       {/* Composer header — back arrow + title, matches sheet rhythm */}
       <div className="flex items-center justify-between gap-2 px-5 h-11 border-b border-border/40 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -414,8 +434,8 @@ export function InlineEmailComposer({
         </Popover>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      {/* Body — capped height so the composer never stretches the whole sheet */}
+      <div className="overflow-auto max-h-[260px]">
         <RichTextEditor
           content={body}
           onChange={setBody}
@@ -423,6 +443,18 @@ export function InlineEmailComposer({
           placeholder="Write your message…"
         />
       </div>
+
+      {/* Signature preview — appended automatically on send & replies */}
+      {signatureUrl && (
+        <div className="px-5 py-2 border-t border-border/40 shrink-0">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Signature</div>
+          <img
+            src={signatureUrl}
+            alt="Email signature"
+            className="max-h-20 w-auto rounded"
+          />
+        </div>
+      )}
 
       {/* Attachments preview */}
       {attachments.length > 0 && (
