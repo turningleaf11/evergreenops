@@ -92,37 +92,52 @@ export function CompaniesTable({ search, refreshKey = 0 }: { search: string; ref
             >
               {/* NAME */}
               <div className="min-w-0 pr-3">
-                <div className="text-[14px] font-semibold truncate text-foreground leading-tight">
-                  {c.name}
-                </div>
+                <InlineTextCell
+                  value={c.name}
+                  onSave={(v) => updateCompany(c.id, { name: v ?? c.name })}
+                  display={
+                    <span className="text-[14px] font-semibold truncate text-foreground leading-tight">
+                      {c.name}
+                    </span>
+                  }
+                />
               </div>
 
               {/* DOMAIN */}
               <div className="text-[13px] text-muted-foreground truncate pr-2">
-                {c.domain || <span className="italic text-muted-foreground/60">—</span>}
+                <InlineTextCell
+                  value={c.domain}
+                  onSave={(v) => updateCompany(c.id, { domain: v })}
+                  placeholder="—"
+                />
               </div>
 
               {/* INDUSTRY */}
               <div className="text-[13px] text-muted-foreground truncate pr-2">
-                {c.industry || <span className="italic text-muted-foreground/60">—</span>}
+                <InlineTextCell
+                  value={c.industry}
+                  onSave={(v) => updateCompany(c.id, { industry: v })}
+                  placeholder="—"
+                />
               </div>
 
               {/* WEBSITE */}
               <div className="text-[13px] truncate min-w-0">
-                {c.website ? (
-                  <a
-                    href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    <Globe className="h-3 w-3" />
-                    <span className="truncate">{c.website}</span>
-                  </a>
-                ) : (
-                  <span className="italic text-muted-foreground/60">—</span>
-                )}
+                <InlineTextCell
+                  value={c.website}
+                  type="url"
+                  onSave={(v) => updateCompany(c.id, { website: v })}
+                  display={
+                    c.website ? (
+                      <span className="text-primary inline-flex items-center gap-1 truncate">
+                        <Globe className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{c.website}</span>
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground/60">—</span>
+                    )
+                  }
+                />
               </div>
             </DataTableRow>
           ))}
