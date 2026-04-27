@@ -460,6 +460,7 @@ export function ContactPeekSheet({
             onCreateLead={() => setCreateLeadOpen(true)}
             hasCustomFields={hasCustomFields}
             stageMap={stageMap}
+            onOpenDeal={onOpenDeal}
           />
         )}
       </EntitySheetShell>
