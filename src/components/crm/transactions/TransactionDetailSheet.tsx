@@ -83,6 +83,9 @@ interface Transaction {
   lender_contact_id: string | null;
   source_contact_id: string | null;
   notes: string | null;
+  owner_id: string | null;
+  primary_contact_id: string | null;
+  disposition_strategy: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
