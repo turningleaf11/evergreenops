@@ -11,5 +11,6 @@ export { EntityStatusPill } from "./EntityStatusPill";
 export { EntitySectionHeader } from "./EntitySectionHeader";
 export { EntityTabs, EntityTabPanel, ENTITY_TAB_LABELS } from "./EntityTabs";
 export type { EntityTabId } from "./EntityTabs";
+export { OverviewCard } from "./OverviewCard";
 export { resolveStatus } from "./statusRegistry";
 export type { RegistryKind, StatusVariant } from "./statusRegistry";
