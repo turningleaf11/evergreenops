@@ -619,8 +619,10 @@ export function DealPeekSheet({
                       </section>
                     </TabsContent>
 
-                    <TabsContent value="activity" className="p-4 mt-0">
-                      <ActivityPanel entityType="deal" entityId={deal.id} />
+                    <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
+                      <div className="h-full flex flex-col max-w-3xl">
+                        <ActivityPanel entityType="deal" entityId={deal.id} hideHeader hideComposer />
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="files" className="p-4 mt-0">

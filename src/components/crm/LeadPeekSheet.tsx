@@ -671,6 +671,7 @@ export function LeadPeekSheet({
                         entityType="lead"
                         entityId={lead.id}
                         hideHeader
+                        hideComposer
                       />
                     </div>
                   </EntityTabPanel>
