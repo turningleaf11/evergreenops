@@ -181,7 +181,7 @@ export function TransactionDetailSheet({
       if (roleIds.length) {
         const { data: cs } = await supabase
           .from("contacts")
-          .select("id,first_name,last_name,email,phone,contact_type")
+          .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
           .in("id", roleIds);
         setPeople((cs as ContactDetail[]) || []);
       } else {
@@ -195,7 +195,7 @@ export function TransactionDetailSheet({
       if (uniqLinkIds.length) {
         const { data: cs } = await supabase
           .from("contacts")
-          .select("id,first_name,last_name,email,phone,contact_type")
+          .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
           .in("id", uniqLinkIds);
         setLinkedContacts((cs as ContactDetail[]) || []);
       } else {
@@ -245,7 +245,7 @@ export function TransactionDetailSheet({
     (async () => {
       const { data } = await supabase
         .from("contacts")
-        .select("id,first_name,last_name,email,phone,contact_type")
+        .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
         .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
         .limit(8);
       if (!cancelled) setSearchResults((data as ContactDetail[]) || []);
