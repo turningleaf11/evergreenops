@@ -344,58 +344,71 @@ export function ContactActivityTab({
 
 
   const fetchAll = useCallback(async () => {
+    if (!resolvedEntityId) return;
     setLoading(true);
-    const [{ data: a }, { data: e }, { data: dealsLink1 }, { data: dealsLink2 }] = await Promise.all([
+
+    const baseQueries: Promise<any>[] = [
       supabase
         .from("crm_activities")
         .select("id,type,subject,body,occurred_at,actor_id,metadata,is_pinned")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
+        .eq("entity_type", resolvedEntityType)
+        .eq("entity_id", resolvedEntityId)
         .order("occurred_at", { ascending: false })
         .limit(300),
       supabase
         .from("entity_activity")
         .select("id,action,metadata,actor_id,created_at")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
+        .eq("entity_type", resolvedEntityType)
+        .eq("entity_id", resolvedEntityId)
         .order("created_at", { ascending: false })
         .limit(200),
-      // Deals where this contact is primary or source
-      supabase
-        .from("deals")
-        .select("id,title,property_address")
-        .or(`primary_contact_id.eq.${contact.id},source_contact_id.eq.${contact.id}`),
-      // Deals linked via entity_links
-      supabase
-        .from("entity_links")
-        .select("source_id, deals:source_id(id,title,property_address)")
-        .eq("source_type", "deal")
-        .eq("target_type", "contact")
-        .eq("target_id", contact.id),
-    ]);
+    ];
 
-    const dealMap = new Map<string, { title: string | null; address: string | null }>();
-    ((dealsLink1 as any[]) || []).forEach((d) =>
-      dealMap.set(d.id, { title: d.title, address: d.property_address ?? null }),
-    );
-    ((dealsLink2 as any[]) || []).forEach((row) => {
-      const d = row.deals;
-      if (d && !dealMap.has(d.id)) dealMap.set(d.id, { title: d.title, address: d.property_address ?? null });
-    });
+    if (isContactScope) {
+      baseQueries.push(
+        supabase
+          .from("deals")
+          .select("id,title,property_address")
+          .or(`primary_contact_id.eq.${resolvedEntityId},source_contact_id.eq.${resolvedEntityId}`),
+        supabase
+          .from("entity_links")
+          .select("source_id, deals:source_id(id,title,property_address)")
+          .eq("source_type", "deal")
+          .eq("target_type", "contact")
+          .eq("target_id", resolvedEntityId),
+      );
+    }
+
+    const results = await Promise.all(baseQueries);
+    const { data: a } = results[0] || {};
+    const { data: e } = results[1] || {};
+    const { data: dealsLink1 } = results[2] || { data: [] };
+    const { data: dealsLink2 } = results[3] || { data: [] };
 
     let taskRows: CrmTask[] = [];
-    if (dealMap.size > 0) {
-      const ids = Array.from(dealMap.keys());
-      const { data: t } = await supabase
-        .from("crm_tasks")
-        .select("id,title,due_date,is_complete,assigned_to,deal_id,created_at")
-        .in("deal_id", ids)
-        .order("due_date", { ascending: true, nullsFirst: false });
-      taskRows = ((t as any[]) || []).map((x) => ({
-        ...x,
-        deal_title: x.deal_id ? dealMap.get(x.deal_id)?.title ?? null : null,
-        deal_address: x.deal_id ? dealMap.get(x.deal_id)?.address ?? null : null,
-      }));
+    if (isContactScope) {
+      const dealMap = new Map<string, { title: string | null; address: string | null }>();
+      ((dealsLink1 as any[]) || []).forEach((d) =>
+        dealMap.set(d.id, { title: d.title, address: d.property_address ?? null }),
+      );
+      ((dealsLink2 as any[]) || []).forEach((row) => {
+        const d = row.deals;
+        if (d && !dealMap.has(d.id)) dealMap.set(d.id, { title: d.title, address: d.property_address ?? null });
+      });
+
+      if (dealMap.size > 0) {
+        const ids = Array.from(dealMap.keys());
+        const { data: t } = await supabase
+          .from("crm_tasks")
+          .select("id,title,due_date,is_complete,assigned_to,deal_id,created_at")
+          .in("deal_id", ids)
+          .order("due_date", { ascending: true, nullsFirst: false });
+        taskRows = ((t as any[]) || []).map((x) => ({
+          ...x,
+          deal_title: x.deal_id ? dealMap.get(x.deal_id)?.title ?? null : null,
+          deal_address: x.deal_id ? dealMap.get(x.deal_id)?.address ?? null : null,
+        }));
+      }
     }
 
     setActs((a as CrmActivity[]) || []);
@@ -416,7 +429,7 @@ export function ContactActivityTab({
       setProfiles(map);
     }
     setLoading(false);
-  }, [contact.id]);
+  }, [resolvedEntityId, resolvedEntityType, isContactScope]);
 
   useEffect(() => {
     void fetchAll();
