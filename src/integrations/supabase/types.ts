@@ -1081,6 +1081,36 @@ export type Database = {
           },
         ]
       }
+      crm_markets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          name_normalized: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          name_normalized?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          name_normalized?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       crm_tasks: {
         Row: {
           assigned_to: string | null

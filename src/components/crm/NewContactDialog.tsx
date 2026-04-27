@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { MarketsEditor } from "./MarketsEditor";
 import {
   CONTACT_TYPES,
   CONTACT_TYPE_LABEL,
@@ -41,7 +42,6 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
   const [preferredMethod, setPreferredMethod] = useState<PreferredContactMethod | "">("");
   const [buyBox, setBuyBox] = useState("");
   const [markets, setMarkets] = useState<string[]>([]);
-  const [marketDraft, setMarketDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
@@ -54,14 +54,6 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
     setPreferredMethod("");
     setBuyBox("");
     setMarkets([]);
-    setMarketDraft("");
-  };
-
-  const addMarket = () => {
-    const v = marketDraft.trim();
-    if (!v) return;
-    if (!markets.includes(v)) setMarkets([...markets, v]);
-    setMarketDraft("");
   };
 
   const submit = async () => {
@@ -178,38 +170,19 @@ export function NewContactDialog({ open, onOpenChange, workspaceId, userId, onCr
 
           <div>
             <Label className="text-xs">Markets</Label>
-            <div className="flex gap-2">
-              <Input
-                value={marketDraft}
-                onChange={(e) => setMarketDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    addMarket();
-                  }
-                }}
-                placeholder="Add a market (e.g. Tampa) and press Enter"
+            <div className="mt-1.5">
+              <MarketsEditor
+                workspaceId={workspaceId}
+                value={markets}
+                onChange={setMarkets}
+                variant="chips-azure"
+                emptyLabel="Add a market (e.g. Tampa)"
+                placeholder="Search or create market…"
               />
-              <Button type="button" variant="outline" size="sm" onClick={addMarket}>
-                Add
-              </Button>
             </div>
-            {markets.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {markets.map((m) => (
-                  <Badge key={m} variant="secondary" className="gap-1">
-                    {m}
-                    <button
-                      type="button"
-                      onClick={() => setMarkets(markets.filter((x) => x !== m))}
-                      className="hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Pick from existing markets in your workspace, or type a new one to create it.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
