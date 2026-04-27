@@ -113,6 +113,9 @@ interface ContactLite {
   last_name: string;
   email: string | null;
   phone: string | null;
+  contact_type?: string | null;
+  last_contacted_at?: string | null;
+  created_at?: string | null;
 }
 interface LinkRow { id: string; target_id: string }
 interface Person { user_id: string; full_name: string | null; avatar_url?: string | null }
