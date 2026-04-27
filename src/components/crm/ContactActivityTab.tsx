@@ -240,41 +240,12 @@ export function ContactComposer({
       </div>
 
       {tab === "note" && (
-        <div className="p-3 space-y-2" style={{ backgroundColor: NOTE_BG_SOFT }}>
-          <Textarea
-            value={noteBody}
-            onChange={(e) => setNoteBody(e.target.value)}
+        <div className="p-3 contact-note-composer">
+          <ActivityComposer
             placeholder="Jot a sticky note about this contact…"
-            rows={3}
-            className="text-sm resize-none border-amber-200/80 focus-visible:ring-amber-300"
-            style={{ backgroundColor: NOTE_BG }}
+            onSubmit={submitNote}
+            submitting={savingNote}
           />
-          {noteAttach && (
-            <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-md px-2 py-1 text-xs">
-              <Paperclip className="h-3 w-3" /> {noteAttach.name}
-              <button onClick={() => setNoteAttach(null)} className="ml-1 text-muted-foreground hover:text-destructive">×</button>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Attach file">
-                <Paperclip className="h-3.5 w-3.5" />
-              </button>
-              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Mention">
-                <AtSign className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <Button
-              size="sm"
-              onClick={submitNote}
-              disabled={savingNote || !noteBody.trim()}
-              style={{ backgroundColor: "#3E54D3" }}
-              className="text-white hover:opacity-90"
-            >
-              {savingNote && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
-              Save Note
-            </Button>
-          </div>
         </div>
       )}
 
