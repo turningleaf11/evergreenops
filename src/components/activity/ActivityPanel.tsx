@@ -58,11 +58,13 @@ interface Props {
   entityType: string;
   entityId: string;
   hideHeader?: boolean;
+  /** Hide the bottom composer (when an external composer is already pinned above the tabs). */
+  hideComposer?: boolean;
   defaultFilter?: FilterMode;
   onReplyEmail?: (info: { threadId: string; subject: string }) => void;
 }
 
-export default function ActivityPanel({ entityType, entityId, hideHeader = false, defaultFilter = "all", onReplyEmail }: Props) {
+export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -575,9 +577,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
           <div className="pb-2">{StreamBody}</div>
         </div>
-        <div className="shrink-0 border-t pt-3 mt-3 bg-background">
-          <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
-        </div>
+        {!hideComposer && (
+          <div className="shrink-0 border-t pt-3 mt-3 bg-background">
+            <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
+          </div>
+        )}
       </div>
     );
   }
@@ -586,9 +590,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     <div className="space-y-4">
       {Header}
       {StreamBody}
-      <div className="border-t pt-3">
-        <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
-      </div>
+      {!hideComposer && (
+        <div className="border-t pt-3">
+          <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
+        </div>
+      )}
     </div>
   );
 }
