@@ -55,7 +55,7 @@ interface Pipeline {
 const formatMoney = (n: number, currency = "USD") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
-export function DealsKanban({ search }: { search: string }) {
+export function DealsKanban({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
   const [view, setView] = useViewPreference<"board" | "table">("crm:deals:view", "board");
