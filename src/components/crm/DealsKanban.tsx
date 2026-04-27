@@ -12,6 +12,7 @@ import { LostReasonDialog } from "./LostReasonDialog";
 import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { formatDistanceToNow } from "date-fns";
+import { DataTableShell, DataTableHeader, DataTableRow, DataTablePill, DataTableEmpty } from "@/components/ui/data-table-shell";
 
 interface Stage {
   id: string;
