@@ -440,7 +440,7 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
     );
   }
 
-  const template = "2.5fr 1.4fr 1fr 1fr 1fr 1.2fr";
+  const template = "2.4fr 1.4fr 1.1fr 1.1fr 1.1fr 1.2fr";
 
   const SortHeader = ({ k, label, className }: { k: typeof sortBy; label: string; className?: string }) => (
     <button
@@ -462,7 +462,7 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
       <DataTableHeader template={template}>
         <div><SortHeader k="title" label="Deal" /></div>
         <div><SortHeader k="stage" label="Stage" /></div>
-        <div className="text-right"><SortHeader k="value" label="Value" /></div>
+        <div><SortHeader k="value" label="Value" /></div>
         <div>Status</div>
         <div><SortHeader k="close" label="Close date" /></div>
         <div><SortHeader k="created" label="Created" /></div>
@@ -485,7 +485,7 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
                 </span>
               )}
             </div>
-            <div className="text-right tabular-nums">
+            <div className="tabular-nums truncate pr-3">
               {formatMoney(Number(d.value || 0), d.currency)}
             </div>
             <div>
