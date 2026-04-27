@@ -238,26 +238,27 @@ export function ContactComposer({
       </div>
 
       {tab === "note" && (
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2" style={{ backgroundColor: NOTE_BG_SOFT }}>
           <Textarea
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
-            placeholder="Add a note about this contact..."
+            placeholder="Jot a sticky note about this contact…"
             rows={3}
-            className="text-sm resize-none border-border/50"
+            className="text-sm resize-none border-amber-200/80 focus-visible:ring-amber-300"
+            style={{ backgroundColor: NOTE_BG }}
           />
           {noteAttach && (
-            <div className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
+            <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-md px-2 py-1 text-xs">
               <Paperclip className="h-3 w-3" /> {noteAttach.name}
               <button onClick={() => setNoteAttach(null)} className="ml-1 text-muted-foreground hover:text-destructive">×</button>
             </div>
           )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Attach file">
+              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Attach file">
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
-              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground" title="Mention">
+              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Mention">
                 <AtSign className="h-3.5 w-3.5" />
               </button>
             </div>
