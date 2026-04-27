@@ -242,7 +242,7 @@ export function TransactionDetailSheet({
 
   // Contact search
   useEffect(() => {
-    if (!addOpen || search.trim().length < 2) { setSearchResults([]); return; }
+    if (search.trim().length < 2) { setSearchResults([]); return; }
     let cancelled = false;
     const q = `%${search.trim()}%`;
     (async () => {
@@ -254,7 +254,7 @@ export function TransactionDetailSheet({
       if (!cancelled) setSearchResults((data as ContactDetail[]) || []);
     })();
     return () => { cancelled = true; };
-  }, [search, addOpen]);
+  }, [search]);
 
   // Contact link/unlink/primary
   const linkContact = async (contactId: string) => {
