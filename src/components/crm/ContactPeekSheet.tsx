@@ -2183,12 +2183,16 @@ function OverviewCard({
 }) {
   return (
     <section
-      className="rounded-xl bg-card p-5"
-      style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+      className="bg-card"
+      style={{
+        borderRadius: 12,
+        padding: 24,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
     >
       <h3
-        className="text-[11px] font-semibold uppercase text-muted-foreground mb-3"
-        style={{ letterSpacing: "0.14em" }}
+        className="text-[11px] font-semibold uppercase mb-4"
+        style={{ letterSpacing: "0.12em", color: "#9896B8" }}
       >
         {title}
       </h3>
