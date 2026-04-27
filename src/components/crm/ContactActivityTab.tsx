@@ -87,8 +87,8 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
 ];
 
-const NOTE_BG = "#FFF7B8"; // warm post-it yellow
-const NOTE_BG_SOFT = "#FFFBE0"; // softer composer background
+const NOTE_BG = "#FFFCE5"; // light post-it yellow
+const NOTE_BG_SOFT = "#FFFEF5"; // very soft tint (unused on composer wrapper now)
 const NOTE_SHADOW = "0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(180,150,40,0.10)";
 
 const TYPE_STYLE: Record<
