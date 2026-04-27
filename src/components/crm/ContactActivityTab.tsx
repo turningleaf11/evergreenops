@@ -35,6 +35,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { triggerFileInput, uploadFile } from "@/lib/file-upload";
 import { InlineEmailComposer } from "./InlineEmailComposer";
+import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
 
 interface Contact {
   id: string;
@@ -87,8 +88,8 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
 ];
 
-const NOTE_BG = "#FFFCE5"; // light post-it yellow
-const NOTE_BG_SOFT = "#FFFEF5"; // very soft tint (unused on composer wrapper now)
+const NOTE_BG = "#FFF7B8"; // warm post-it yellow
+const NOTE_BG_SOFT = "#FFFBE0"; // softer composer background
 const NOTE_SHADOW = "0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(180,150,40,0.10)";
 
 const TYPE_STYLE: Record<
@@ -144,9 +145,7 @@ export function ContactComposer({
   const { user } = useAuth();
   const [tab, setTab] = useState<"note" | "email" | "call">("note");
 
-  // Note composer
-  const [noteBody, setNoteBody] = useState("");
-  const [noteAttach, setNoteAttach] = useState<{ name: string; url: string } | null>(null);
+  // Note composer (rich)
   const [savingNote, setSavingNote] = useState(false);
 
   // Call composer
@@ -155,10 +154,19 @@ export function ContactComposer({
   const [callBody, setCallBody] = useState("");
   const [savingCall, setSavingCall] = useState(false);
 
-  const submitNote = async () => {
-    if (!user || !noteBody.trim()) return;
+  const submitNote = async (payload: ActivitySubmitPayload) => {
+    if (!user) return;
+    const { contentHtml, contentText, attachments, gifUrl, audioUrl } = payload;
+    if (!contentText.trim() && attachments.length === 0 && !gifUrl && !audioUrl) return;
     setSavingNote(true);
-    const body = noteAttach ? `${noteBody.trim()}\n\n📎 ${noteAttach.name}: ${noteAttach.url}` : noteBody.trim();
+
+    // Build a body that preserves the rich HTML and appends media references
+    const extras: string[] = [];
+    attachments.forEach((a) => extras.push(`<p>📎 <a href="${a.url}" target="_blank" rel="noreferrer">${a.name}</a></p>`));
+    if (gifUrl) extras.push(`<p><img src="${gifUrl}" alt="gif" /></p>`);
+    if (audioUrl) extras.push(`<p>🎙️ <a href="${audioUrl}" target="_blank" rel="noreferrer">Voice note</a></p>`);
+    const body = `${contentHtml}${extras.join("")}`;
+
     const { error } = await supabase.from("crm_activities").insert({
       workspace_id: contact.workspace_id,
       entity_type: "contact",
@@ -167,14 +175,18 @@ export function ContactComposer({
       subject: "",
       body,
       actor_id: user.id,
+      metadata: {
+        rich: true,
+        attachments,
+        gif_url: gifUrl,
+        audio_url: audioUrl,
+      } as any,
     });
     setSavingNote(false);
     if (error) {
       toast({ title: "Couldn't save note", description: error.message, variant: "destructive" });
       return;
     }
-    setNoteBody("");
-    setNoteAttach(null);
     onPosted?.();
   };
 
@@ -203,16 +215,6 @@ export function ContactComposer({
     onPosted?.();
   };
 
-  const handleAttach = () => {
-    triggerFileInput("*", async (file) => {
-      const url = await uploadFile(file);
-      if (!url) {
-        toast({ title: "Upload failed", variant: "destructive" });
-        return;
-      }
-      setNoteAttach({ name: file.name, url });
-    });
-  };
 
   return (
     <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
@@ -238,41 +240,12 @@ export function ContactComposer({
       </div>
 
       {tab === "note" && (
-        <div className="p-3 space-y-2">
-          <Textarea
-            value={noteBody}
-            onChange={(e) => setNoteBody(e.target.value)}
+        <div className="p-3 contact-note-composer">
+          <ActivityComposer
             placeholder="Jot a sticky note about this contact…"
-            rows={3}
-            className="text-sm resize-none border-amber-200/80 focus-visible:ring-amber-300"
-            style={{ backgroundColor: NOTE_BG }}
+            onSubmit={submitNote}
+            submitting={savingNote}
           />
-          {noteAttach && (
-            <div className="inline-flex items-center gap-1.5 bg-white/70 rounded-md px-2 py-1 text-xs">
-              <Paperclip className="h-3 w-3" /> {noteAttach.name}
-              <button onClick={() => setNoteAttach(null)} className="ml-1 text-muted-foreground hover:text-destructive">×</button>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <button onClick={handleAttach} className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Attach file">
-                <Paperclip className="h-3.5 w-3.5" />
-              </button>
-              <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white/60 text-amber-900/70" title="Mention">
-                <AtSign className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <Button
-              size="sm"
-              onClick={submitNote}
-              disabled={savingNote || !noteBody.trim()}
-              style={{ backgroundColor: "#3E54D3" }}
-              className="text-white hover:opacity-90"
-            >
-              {savingNote && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
-              Save Note
-            </Button>
-          </div>
         </div>
       )}
 
