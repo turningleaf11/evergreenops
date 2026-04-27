@@ -315,8 +315,26 @@ export function ContactComposer({
 
 /**
  * Timeline-only feed for the Activity tab. Composer lives separately above the tab bar.
+ *
+ * Generalized to support any entity_type stored on crm_activities / entity_activity
+ * (contact | deal | lead | transaction | ...). Contact-specific deal & task aggregation
+ * only runs when entityType === "contact".
  */
-export function ContactActivityTab({ contact }: { contact: Contact }) {
+export function ContactActivityTab({
+  contact,
+  entityType = "contact",
+  entityId,
+  contactEmail,
+}: {
+  contact?: Contact;
+  entityType?: "contact" | "deal" | "lead" | "transaction" | string;
+  entityId?: string;
+  contactEmail?: string | null;
+}) {
+  const resolvedEntityType = entityType;
+  const resolvedEntityId = entityId ?? contact?.id ?? "";
+  const resolvedEmail = contactEmail ?? contact?.email ?? null;
+  const isContactScope = resolvedEntityType === "contact" && !!contact;
   const [filter, setFilter] = useState<FilterId>("all");
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [acts, setActs] = useState<CrmActivity[]>([]);
