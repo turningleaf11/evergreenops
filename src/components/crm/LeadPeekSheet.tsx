@@ -215,19 +215,21 @@ export function LeadPeekSheet({
       setPeople((p as PersonLite[]) || []);
       setLoading(false);
 
-      // load source contact name
+      // load source contact (used as primary contact card)
       if (lead.source_contact_id) {
         const { data: c } = await supabase
           .from("contacts")
-          .select("first_name,last_name,email")
+          .select("id,first_name,last_name,email,phone,contact_type,last_contacted_at,created_at")
           .eq("id", lead.source_contact_id)
           .maybeSingle();
         if (active && c) {
+          setSourceContact(c);
           setSourceContactName(
             `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || null,
           );
         }
       } else if (active) {
+        setSourceContact(null);
         setSourceContactName(null);
       }
     })();
@@ -235,6 +237,22 @@ export function LeadPeekSheet({
       active = false;
     };
   }, [lead?.id]);
+
+  // Contact search for the primary contact picker
+  useEffect(() => {
+    if (contactSearch.trim().length < 2) { setContactSearchResults([]); return; }
+    let cancelled = false;
+    const q = `%${contactSearch.trim()}%`;
+    (async () => {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,first_name,last_name,email")
+        .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
+        .limit(8);
+      if (!cancelled) setContactSearchResults(data || []);
+    })();
+    return () => { cancelled = true; };
+  }, [contactSearch]);
 
   const planned = useMemo(
     () =>
