@@ -1822,19 +1822,6 @@ function ContactDetailBody({
             />
           </SidebarBlock>
 
-          {/* Meta — small muted footer with the date added and source */}
-          <div className="pt-2 flex items-end justify-end">
-            <div className="text-right text-[11px] text-muted-foreground/70 leading-snug space-y-0.5">
-              {contact.created_at && (
-                <div>
-                  Added {new Date(contact.created_at).toLocaleDateString()}
-                </div>
-              )}
-              {contact.source && (
-                <div className="capitalize">via {contact.source}</div>
-              )}
-            </div>
-          </div>
         </div>
       </aside>
 
