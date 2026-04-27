@@ -151,33 +151,55 @@ export function TransactionDetailSheet({
 
   const reload = async () => {
     if (!transactionId) return;
-    const [{ data: t }, { data: it }] = await Promise.all([
+    const [{ data: t }, { data: it }, { data: ls }] = await Promise.all([
       supabase.from("crm_transactions").select("*").eq("id", transactionId).maybeSingle(),
       supabase
         .from("transaction_checklist_items")
         .select("*")
         .eq("transaction_id", transactionId)
         .order("sort_order", { ascending: true }),
+      supabase
+        .from("entity_links")
+        .select("id,target_id")
+        .eq("source_type", "transaction")
+        .eq("source_id", transactionId)
+        .eq("target_type", "contact"),
     ]);
     const txRow = (t as Transaction) || null;
     setTx(txRow);
     setItems((it as ChecklistItem[]) || []);
+    setContactLinks((ls as { id: string; target_id: string }[]) || []);
     if (txRow) {
-      const ids = [
+      // Role contacts (buyer/title/attorney/lender/source)
+      const roleIds = [
         txRow.buyer_contact_id,
         txRow.title_contact_id,
         txRow.attorney_contact_id,
         txRow.lender_contact_id,
         txRow.source_contact_id,
       ].filter(Boolean) as string[];
-      if (ids.length) {
+      if (roleIds.length) {
         const { data: cs } = await supabase
           .from("contacts")
           .select("id,first_name,last_name,email,phone,contact_type")
-          .in("id", ids);
+          .in("id", roleIds);
         setPeople((cs as ContactDetail[]) || []);
       } else {
         setPeople([]);
+      }
+
+      // Linked contacts (primary + associated)
+      const linkIds = ((ls as { id: string; target_id: string }[]) || []).map((l) => l.target_id);
+      if (txRow.primary_contact_id) linkIds.unshift(txRow.primary_contact_id);
+      const uniqLinkIds = Array.from(new Set(linkIds));
+      if (uniqLinkIds.length) {
+        const { data: cs } = await supabase
+          .from("contacts")
+          .select("id,first_name,last_name,email,phone,contact_type")
+          .in("id", uniqLinkIds);
+        setLinkedContacts((cs as ContactDetail[]) || []);
+      } else {
+        setLinkedContacts([]);
       }
     }
   };
