@@ -21,6 +21,7 @@ import {
   StageProgressBar,
   EntityIdentityBlock,
   EntitySidebarSection,
+  PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Button } from "@/components/ui/button";
