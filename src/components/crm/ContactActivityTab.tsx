@@ -563,6 +563,27 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
           </div>
         ) : (
           <div className="space-y-6">
+            {showPinnedSection && (
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/80 font-semibold mb-2 pl-1 inline-flex items-center gap-1">
+                  <Pin className="h-3 w-3" /> Pinned
+                </div>
+                <div className="space-y-3">
+                  {pinnedNotes.map((a) => (
+                    <TimelineRow
+                      key={`p-${a.id}`}
+                      kind="note"
+                      act={a}
+                      actorName={a.actor_id ? profiles[a.actor_id] || "Someone" : "System"}
+                      contactEmail={contact.email}
+                      onDelete={() => deleteActivity(a.id)}
+                      onRefresh={fetchAll}
+                      onTogglePin={() => togglePin(a)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             {(["TODAY", "YESTERDAY", "LAST WEEK", "OLDER"] as const).map((bucket) => {
               const items = grouped[bucket];
               if (!items || items.length === 0) return null;
@@ -584,6 +605,7 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
                           contactEmail={contact.email}
                           onDelete={() => deleteActivity(item.act.id)}
                           onRefresh={fetchAll}
+                          onTogglePin={item.kind === "note" ? () => togglePin(item.act) : undefined}
                         />
                       ),
                     )}
