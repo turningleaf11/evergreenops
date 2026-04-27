@@ -24,6 +24,7 @@ import {
   DataTablePill,
   DataTableEmpty,
 } from "@/components/ui/data-table-shell";
+import { InlinePopoverCell, InlineOptionList } from "./InlineCellEditors";
 
 const TEMPLATE = "2.4fr 1fr 1.4fr 1.6fr 1.1fr 40px";
 
@@ -152,6 +153,18 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
     onChanged();
   };
 
+  const updateContact = async (id: string, patch: Partial<Contact>) => {
+    const prev = contacts;
+    setContacts((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("contacts").update(patch as any).eq("id", id);
+    if (error) {
+      setContacts(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+      return;
+    }
+    onChanged();
+  };
+
   return (
     <div className="px-6 py-5">
       {/* Filter pill bar */}
@@ -272,18 +285,74 @@ export function ContactsTable({ search, refreshKey, onOpen, onChanged }: Props) 
 
                 {/* TYPE */}
                 <div>
-                  <DataTablePill hsl={typeColor}>
-                    {contactTypeLabel(c.contact_type)}
-                  </DataTablePill>
+                  <InlinePopoverCell
+                    ariaLabel="Change type"
+                    trigger={
+                      <DataTablePill hsl={typeColor}>
+                        {contactTypeLabel(c.contact_type)}
+                      </DataTablePill>
+                    }
+                  >
+                    {(close) => (
+                      <InlineOptionList
+                        value={(c.contact_type as any) || "other"}
+                        options={CONTACT_TYPES.map((t) => ({
+                          value: t,
+                          label: CONTACT_TYPE_LABEL[t],
+                          color: contactTypeColor(t),
+                        }))}
+                        close={close}
+                        onChange={(v) => updateContact(c.id, { contact_type: v })}
+                      />
+                    )}
+                  </InlinePopoverCell>
                 </div>
 
                 {/* COMPANY */}
                 <div className="truncate min-w-0 pr-2">
-                  {company ? (
-                    <span className="text-[13px] text-foreground truncate">{company}</span>
-                  ) : (
-                    <span className="italic text-muted-foreground/60 text-[13px]">—</span>
-                  )}
+                  <InlinePopoverCell
+                    ariaLabel="Change company"
+                    trigger={
+                      company ? (
+                        <span className="text-[13px] text-foreground truncate">{company}</span>
+                      ) : (
+                        <span className="italic text-muted-foreground/60 text-[13px]">—</span>
+                      )
+                    }
+                  >
+                    {(close) => (
+                      <div className="max-h-64 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            close();
+                            void updateContact(c.id, { company_id: null });
+                          }}
+                          className="w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted/60 italic text-muted-foreground"
+                        >
+                          No company
+                        </button>
+                        {companies.map((co) => (
+                          <button
+                            key={co.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              close();
+                              if (co.id !== c.company_id) void updateContact(c.id, { company_id: co.id });
+                            }}
+                            className={cn(
+                              "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted/60 truncate",
+                              co.id === c.company_id && "bg-muted/40",
+                            )}
+                          >
+                            {co.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </InlinePopoverCell>
                 </div>
 
                 {/* MARKETS */}

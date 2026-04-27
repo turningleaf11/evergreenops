@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableShell, DataTableHeader, DataTableRow, DataTablePill, DataTableEmpty } from "@/components/ui/data-table-shell";
+import { InlinePopoverCell, InlineOptionList, InlineTextCell, InlineDateCell } from "./InlineCellEditors";
 
 interface Stage {
   id: string;
@@ -188,6 +189,16 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
     }
   };
 
+  const updateDeal = async (dealId: string, patch: Partial<Deal>) => {
+    const prev = deals;
+    setDeals((rows) => rows.map((d) => (d.id === dealId ? { ...d, ...patch } : d)));
+    const { error } = await supabase.from("deals").update(patch as any).eq("id", dealId);
+    if (error) {
+      setDeals(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleDrop = (stageId: string) => {
     if (!draggingId) return;
     const stage = stages.find((s) => s.id === stageId);
@@ -276,11 +287,13 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
       {view === "table" && (
         <DealsTableView
           deals={filteredSortedDeals}
+          stages={stages}
           stageMap={stageMap}
           onOpen={(id) => setOpenDealId(id)}
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={toggleSort}
+          onUpdate={updateDeal}
         />
       )}
 
@@ -422,14 +435,22 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
 
 interface DealsTableViewProps {
   deals: Deal[];
+  stages: Stage[];
   stageMap: Map<string, Stage>;
   onOpen: (id: string) => void;
   sortBy: "created" | "value" | "title" | "close" | "stage";
   sortDir: "asc" | "desc";
   onSort: (key: "created" | "value" | "title" | "close" | "stage") => void;
+  onUpdate: (dealId: string, patch: Partial<Deal>) => Promise<void>;
 }
 
-function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: DealsTableViewProps) {
+const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: "open", label: "Open", color: "210 70% 50%" },
+  { value: "won", label: "Won", color: "142 76% 36%" },
+  { value: "lost", label: "Lost", color: "0 70% 50%" },
+];
+
+function DealsTableView({ deals, stages, stageMap, onOpen, sortBy, sortDir, onSort, onUpdate }: DealsTableViewProps) {
   if (deals.length === 0) {
     return (
       <DataTableEmpty
@@ -440,7 +461,7 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
     );
   }
 
-  const template = "2.5fr 1.4fr 1fr 1fr 1fr 1.2fr";
+  const template = "2.4fr 1.4fr 1.1fr 1.1fr 1.1fr 1.2fr";
 
   const SortHeader = ({ k, label, className }: { k: typeof sortBy; label: string; className?: string }) => (
     <button
@@ -457,12 +478,18 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
     </button>
   );
 
+  const stageOptions = stages.map((s) => ({
+    value: s.id,
+    label: s.name,
+    color: s.color || "220 12% 60%",
+  }));
+
   return (
     <DataTableShell>
       <DataTableHeader template={template}>
         <div><SortHeader k="title" label="Deal" /></div>
         <div><SortHeader k="stage" label="Stage" /></div>
-        <div className="text-right"><SortHeader k="value" label="Value" /></div>
+        <div><SortHeader k="value" label="Value" /></div>
         <div>Status</div>
         <div><SortHeader k="close" label="Close date" /></div>
         <div><SortHeader k="created" label="Created" /></div>
@@ -475,25 +502,91 @@ function DealsTableView({ deals, stageMap, onOpen, sortBy, sortDir, onSort }: De
           d.status === "lost" ? "0 70% 50%" :
           "210 70% 50%";
         return (
-          <DataTableRow key={d.id} template={template} asButton onClick={() => onOpen(d.id)}>
-            <div className="font-medium truncate min-w-0 pr-2">{d.title}</div>
+          <DataTableRow key={d.id} template={template} onClick={() => onOpen(d.id)}>
+            {/* TITLE */}
+            <div className="font-medium truncate min-w-0 pr-2">
+              <InlineTextCell
+                value={d.title}
+                onSave={(v) => onUpdate(d.id, { title: v ?? d.title })}
+                display={<span className="truncate">{d.title}</span>}
+              />
+            </div>
+
+            {/* STAGE */}
             <div className="min-w-0">
-              {stage && (
-                <span className="inline-flex items-center gap-1.5 text-xs">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: `hsl(${stageColor})` }} />
-                  <span className="truncate">{stage.name}</span>
-                </span>
-              )}
+              <InlinePopoverCell
+                ariaLabel="Change stage"
+                trigger={
+                  stage ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: `hsl(${stageColor})` }} />
+                      <span className="truncate">{stage.name}</span>
+                    </span>
+                  ) : (
+                    <span className="italic text-muted-foreground/60 text-xs">—</span>
+                  )
+                }
+              >
+                {(close) => (
+                  <InlineOptionList
+                    value={d.stage_id}
+                    options={stageOptions}
+                    close={close}
+                    onChange={(v) => {
+                      const s = stages.find((x) => x.id === v);
+                      const status = s?.is_won ? "won" : s?.is_lost ? "lost" : "open";
+                      return onUpdate(d.id, { stage_id: v, status });
+                    }}
+                  />
+                )}
+              </InlinePopoverCell>
             </div>
-            <div className="text-right tabular-nums">
-              {formatMoney(Number(d.value || 0), d.currency)}
+
+            {/* VALUE */}
+            <div className="tabular-nums truncate pr-3">
+              <InlineTextCell
+                value={d.value != null ? String(d.value) : ""}
+                type="number"
+                onSave={(v) => onUpdate(d.id, { value: v ? Number(v) : 0 })}
+                display={<span>{formatMoney(Number(d.value || 0), d.currency)}</span>}
+              />
             </div>
+
+            {/* STATUS */}
             <div>
-              <DataTablePill hsl={statusColor} className="capitalize">{d.status}</DataTablePill>
+              <InlinePopoverCell
+                ariaLabel="Change status"
+                trigger={
+                  <DataTablePill hsl={statusColor} className="capitalize">{d.status}</DataTablePill>
+                }
+              >
+                {(close) => (
+                  <InlineOptionList
+                    value={d.status}
+                    options={STATUS_OPTIONS}
+                    close={close}
+                    onChange={(v) => onUpdate(d.id, { status: v })}
+                  />
+                )}
+              </InlinePopoverCell>
             </div>
+
+            {/* CLOSE DATE */}
             <div className="text-xs text-muted-foreground">
-              {d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString() : "—"}
+              <InlineDateCell
+                value={d.expected_close_date}
+                onSave={(v) => onUpdate(d.id, { expected_close_date: v })}
+                display={
+                  d.expected_close_date ? (
+                    <span>{new Date(d.expected_close_date).toLocaleDateString()}</span>
+                  ) : (
+                    <span className="italic text-muted-foreground/60">—</span>
+                  )
+                }
+              />
             </div>
+
+            {/* CREATED */}
             <div className="text-xs text-muted-foreground">
               {(d as any).created_at ? formatDistanceToNow(new Date((d as any).created_at), { addSuffix: true }) : "—"}
             </div>
