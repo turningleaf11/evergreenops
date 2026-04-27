@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableShell, DataTableHeader, DataTableRow, DataTablePill, DataTableEmpty } from "@/components/ui/data-table-shell";
+import { InlinePopoverCell, InlineOptionList, InlineTextCell, InlineDateCell } from "./InlineCellEditors";
 
 interface Stage {
   id: string;
@@ -188,7 +189,15 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
     }
   };
 
-  const handleDrop = (stageId: string) => {
+  const updateDeal = async (dealId: string, patch: Partial<Deal>) => {
+    const prev = deals;
+    setDeals((rows) => rows.map((d) => (d.id === dealId ? { ...d, ...patch } : d)));
+    const { error } = await supabase.from("deals").update(patch as any).eq("id", dealId);
+    if (error) {
+      setDeals(prev);
+      toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    }
+  };
     if (!draggingId) return;
     const stage = stages.find((s) => s.id === stageId);
     const deal = deals.find((d) => d.id === draggingId);
