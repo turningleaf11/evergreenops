@@ -496,10 +496,14 @@ export function DealPeekSheet({
           <>
             <EntitySheetHeader
               title={
+                deal.title?.trim() ||
                 deal.property_address?.trim() ||
-                deal.title ||
                 "Untitled deal"
               }
+              onTitleChange={async (next) => {
+                await saveField({ title: next });
+              }}
+              titlePlaceholder="Untitled deal"
               subtitle={
                 [deal.property_city, deal.property_state]
                   .filter(Boolean)
@@ -519,13 +523,6 @@ export function DealPeekSheet({
                       Create Transaction →
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={startNewEmail}
-                    disabled={contacts.filter((c) => c.email).length === 0}
-                  >
-                    <Send className="h-3.5 w-3.5 mr-1.5" /> Email
-                  </Button>
                   {canManage && (
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
