@@ -13,6 +13,7 @@ import { LeadsList } from "@/components/crm/LeadsList";
 import { ContactPeekSheet } from "@/components/crm/ContactPeekSheet";
 import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
+import { NewCompanyDialog } from "@/components/crm/NewCompanyDialog";
 import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
 
 type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
