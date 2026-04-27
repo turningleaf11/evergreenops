@@ -1574,6 +1574,7 @@ function ContactDetailBody({
   onCreateLead,
   hasCustomFields,
   stageMap,
+  onOpenDeal,
 }: {
   contact: Contact;
   companyName: string | null;
