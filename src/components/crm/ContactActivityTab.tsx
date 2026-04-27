@@ -35,6 +35,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { triggerFileInput, uploadFile } from "@/lib/file-upload";
 import { InlineEmailComposer } from "./InlineEmailComposer";
+import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
 
 interface Contact {
   id: string;
