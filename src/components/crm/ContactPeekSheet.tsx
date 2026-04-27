@@ -1628,6 +1628,9 @@ function ContactDetailBody({
     { id: "files", label: "Files" },
   ];
 
+  // Force-remount the timeline after a composer post so it re-fetches
+  const [timelineNonce, setTimelineNonce] = useState(0);
+
   return (
     <div className="flex-1 grid grid-cols-1 md:grid-cols-[360px_minmax(0,1fr)] min-h-0 overflow-hidden">
       {/* ─────────────── LEFT: Identity sidebar ─────────────── */}
