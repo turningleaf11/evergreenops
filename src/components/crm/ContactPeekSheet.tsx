@@ -1618,6 +1618,10 @@ function ContactDetailBody({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openDealById = (id: string) => {
+    if (onOpenDeal) {
+      onOpenDeal(id);
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set("deal", id);
     setSearchParams(next, { replace: false });
