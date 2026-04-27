@@ -140,9 +140,14 @@ export function TransactionDetailSheet({
   const [tx, setTx] = useState<Transaction | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [people, setPeople] = useState<ContactDetail[]>([]);
+  const [contactLinks, setContactLinks] = useState<{ id: string; target_id: string }[]>([]);
+  const [linkedContacts, setLinkedContacts] = useState<ContactDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [actualNetInput, setActualNetInput] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<ContactDetail[]>([]);
 
   const reload = async () => {
     if (!transactionId) return;
