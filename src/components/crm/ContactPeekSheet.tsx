@@ -1503,7 +1503,7 @@ function PreferredContactChip({
               <span className="text-foreground capitalize">Prefers {value}</span>
             </>
           ) : (
-            <span className="italic text-muted-foreground/70">Not set</span>
+            <span className="italic text-muted-foreground/70">Prefers —</span>
           )}
         </button>
       </PopoverTrigger>
