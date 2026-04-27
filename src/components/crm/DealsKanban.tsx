@@ -55,7 +55,7 @@ interface Pipeline {
 const formatMoney = (n: number, currency = "USD") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
-export function DealsKanban({ search }: { search: string }) {
+export function DealsKanban({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
   const [view, setView] = useViewPreference<"board" | "table">("crm:deals:view", "board");
@@ -88,6 +88,10 @@ export function DealsKanban({ search }: { search: string }) {
       setLoading(false);
     })();
   }, []);
+
+  useEffect(() => {
+    if (newSignal > 0) setNewOpen(true);
+  }, [newSignal]);
 
   useEffect(() => {
     if (!activePipelineId) return;
@@ -266,9 +270,6 @@ export function DealsKanban({ search }: { search: string }) {
               <TableIcon className="h-3.5 w-3.5" /> Table
             </button>
           </div>
-          <Button size="sm" onClick={() => setNewOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New deal
-          </Button>
         </div>
       </div>
 

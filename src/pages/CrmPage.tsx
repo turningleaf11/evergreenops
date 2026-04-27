@@ -13,6 +13,7 @@ import { LeadsList } from "@/components/crm/LeadsList";
 import { ContactPeekSheet } from "@/components/crm/ContactPeekSheet";
 import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
+import { NewCompanyDialog } from "@/components/crm/NewCompanyDialog";
 import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
 
 type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
@@ -36,6 +37,11 @@ export default function CrmPage() {
   const [openContactId, setOpenContactId] = useState<string | null>(null);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
   const [newContactOpen, setNewContactOpen] = useState(false);
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false);
+  // Per-tab "request new" signal counters; tabs watch their counter and open their own dialog.
+  const [newDealSignal, setNewDealSignal] = useState(0);
+  const [newLeadSignal, setNewLeadSignal] = useState(0);
+  const [newTxSignal, setNewTxSignal] = useState(0);
 
   useEffect(() => {
     setTab(initialTab);
@@ -88,8 +94,27 @@ export default function CrmPage() {
           </div>
           {tab === "contacts" && (
             <Button size="sm" onClick={() => setNewContactOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              New contact
+              <Plus className="h-4 w-4 mr-1" /> New contact
+            </Button>
+          )}
+          {tab === "leads" && (
+            <Button size="sm" onClick={() => setNewLeadSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New lead
+            </Button>
+          )}
+          {tab === "deals" && (
+            <Button size="sm" onClick={() => setNewDealSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New deal
+            </Button>
+          )}
+          {tab === "transactions" && (
+            <Button size="sm" onClick={() => setNewTxSignal((n) => n + 1)}>
+              <Plus className="h-4 w-4 mr-1" /> New transaction
+            </Button>
+          )}
+          {tab === "companies" && (
+            <Button size="sm" onClick={() => setNewCompanyOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> New company
             </Button>
           )}
         </div>
@@ -117,7 +142,7 @@ export default function CrmPage() {
         </div>
 
         <TabsContent value="leads" className="flex-1 min-h-0 overflow-auto m-0">
-          <LeadsList search={search} />
+          <LeadsList search={search} newSignal={newLeadSignal} />
         </TabsContent>
         <TabsContent value="contacts" className="flex-1 min-h-0 overflow-auto m-0">
           <ContactsTable
@@ -128,15 +153,44 @@ export default function CrmPage() {
           />
         </TabsContent>
         <TabsContent value="companies" className="flex-1 min-h-0 overflow-auto m-0">
-          <CompaniesTable search={search} />
+          <CompaniesTable search={search} refreshKey={refreshKey} />
         </TabsContent>
         <TabsContent value="deals" className="flex-1 min-h-0 overflow-auto m-0">
-          <DealsKanban search={search} />
+          <DealsKanban search={search} newSignal={newDealSignal} />
         </TabsContent>
         <TabsContent value="transactions" className="flex-1 min-h-0 overflow-auto m-0">
-          <TransactionsList search={search} />
+          <TransactionsList search={search} newSignal={newTxSignal} />
         </TabsContent>
       </Tabs>
+
+      <ContactPeekSheet
+        contactId={openContactId}
+        onClose={() => { setOpenContactId(null); clearPeekParam("contact"); }}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+        onOpenDeal={(id) => { setOpenContactId(null); clearPeekParam("contact"); setOpenDealId(id); }}
+      />
+
+      <DealPeekSheet
+        dealId={openDealId}
+        onClose={() => { setOpenDealId(null); clearPeekParam("deal"); }}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <NewContactDialog
+        open={newContactOpen}
+        onOpenChange={setNewContactOpen}
+        workspaceId={workspaceId}
+        userId={user?.id ?? null}
+        onCreated={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <NewCompanyDialog
+        open={newCompanyOpen}
+        onOpenChange={setNewCompanyOpen}
+        workspaceId={workspaceId}
+        userId={user?.id ?? null}
+        onCreated={() => setRefreshKey((k) => k + 1)}
+      />
 
       <ContactPeekSheet
         contactId={openContactId}

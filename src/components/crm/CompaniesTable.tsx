@@ -20,7 +20,7 @@ interface Company {
 
 const TEMPLATE = "2.4fr 1.4fr 1.4fr 2fr";
 
-export function CompaniesTable({ search }: { search: string }) {
+export function CompaniesTable({ search, refreshKey = 0 }: { search: string; refreshKey?: number }) {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function CompaniesTable({ search }: { search: string }) {
 
   useEffect(() => {
     void reload();
-  }, []);
+  }, [refreshKey]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
