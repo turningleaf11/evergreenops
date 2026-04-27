@@ -632,72 +632,38 @@ export function DealPeekSheet({
                   </Tabs>
                 </div>
 
-                {/* Right rail */}
+                {/* Right rail — identity-first sidebar */}
                 <aside className="border-l border-border/40 overflow-auto bg-background">
-                  <div className="p-6 space-y-8">
-                    {/* DEAL INFO */}
-                    <section className="space-y-4">
-                      <div className="crm-eyebrow">Deal info</div>
-                      <div>
-                        <Label className="crm-field-label">Stage</Label>
-                        <select
-                          value={deal.stage_id}
-                          onChange={(e) => saveField({ stage_id: e.target.value } as any)}
-                          className="w-full text-sm h-9 rounded-md border border-input bg-background px-2 mt-1"
-                        >
-                          {stages.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <Label className="crm-field-label">Assigned to</Label>
-                        <OwnerPicker
-                          ownerId={deal.owner_id}
-                          onChange={async (id) => {
-                            await saveField({ owner_id: id } as any);
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label className="crm-field-label">Source contact</Label>
-                        <ContactPicker
-                          value={deal.source_contact_id}
-                          onChange={(id) => saveField({ source_contact_id: id } as any)}
-                          placeholder="Who sent this?"
-                        />
-                      </div>
-                      <div>
-                        <Label className="crm-field-label">Disposition strategy</Label>
-                        <select
-                          value={deal.disposition_strategy ?? ""}
-                          onChange={(e) =>
-                            saveField({ disposition_strategy: e.target.value || null } as any)
-                          }
-                          className="w-full text-sm h-9 rounded-md border border-input bg-background px-2 mt-1"
-                        >
-                          <option value="">Choose a strategy</option>
-                          <option value="buy_hold">Buy &amp; Hold</option>
-                          <option value="assign">Assign</option>
-                          <option value="double_close">Double Close</option>
-                          <option value="pass">Pass</option>
-                        </select>
-                      </div>
-                    </section>
+                  <div className="p-5 space-y-5">
+                    <EntityIdentityBlock
+                      title={deal.property_address?.trim() || deal.title || "Untitled deal"}
+                      badges={
+                        <>
+                          {currentStage && (
+                            <Badge
+                              className={cn("text-[11px] capitalize font-semibold border-transparent", stageBadgeClass(currentStage.name))}
+                              style={{ borderRadius: 100, padding: "3px 10px" }}
+                            >
+                              {currentStage.name}
+                            </Badge>
+                          )}
+                          {deal.asking_price != null && (
+                            <span className="text-xs font-semibold tabular-nums text-foreground">
+                              {formatMoney(Number(deal.asking_price), deal.currency)}
+                            </span>
+                          )}
+                        </>
+                      }
+                      meta={
+                        [deal.property_city, deal.property_state].filter(Boolean).join(", ") ? (
+                          <div>{[deal.property_city, deal.property_state].filter(Boolean).join(", ")}</div>
+                        ) : null
+                      }
+                    />
 
-                    {/* Team members (Collaborators) */}
-                    <section>
-                      <DealTeamMembersPanel
-                        dealId={deal.id}
-                        canManage={canManage}
-                        currentUserId={user?.id ?? null}
-                      />
-                    </section>
-
-                    {/* Contacts */}
-                    <section>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="crm-eyebrow">Contacts</div>
+                    <EntitySidebarSection
+                      title="Contact"
+                      action={
                         <Popover open={addOpen} onOpenChange={setAddOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
@@ -708,47 +674,31 @@ export function DealPeekSheet({
                             <div className="p-2 border-b border-border/40">
                               <div className="relative">
                                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                <Input
-                                  value={search}
-                                  onChange={(e) => setSearch(e.target.value)}
-                                  placeholder="Search contacts…"
-                                  className="h-8 pl-7 text-sm"
-                                  autoFocus
-                                />
+                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts…" className="h-8 pl-7 text-sm" autoFocus />
                               </div>
                             </div>
                             <div className="max-h-60 overflow-auto">
-                              {searchResults
-                                .filter((c) => !linkedIds.has(c.id))
-                                .map((c) => (
-                                  <button
-                                    key={c.id}
-                                    onClick={() => { linkContact(c.id); setAddOpen(false); setSearch(""); }}
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
-                                  >
-                                    <div className="font-medium truncate">{contactName(c)}</div>
-                                    {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
-                                  </button>
-                                ))}
+                              {searchResults.filter((c) => !linkedIds.has(c.id)).map((c) => (
+                                <button key={c.id} onClick={() => { linkContact(c.id); setAddOpen(false); setSearch(""); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50">
+                                  <div className="font-medium truncate">{contactName(c)}</div>
+                                  {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
+                                </button>
+                              ))}
                               {searchResults.length === 0 && search.trim().length >= 2 && (
                                 <div className="px-3 py-3 text-xs text-muted-foreground">No matches</div>
                               )}
                             </div>
                             <div className="border-t border-border/40 p-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start gap-2 h-8 text-xs"
-                                onClick={() => { setAddOpen(false); setCreateOpen(true); }}
-                              >
+                              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs" onClick={() => { setAddOpen(false); setCreateOpen(true); }}>
                                 <UserPlus className="h-3.5 w-3.5" /> Create new contact
                               </Button>
                             </div>
                           </PopoverContent>
                         </Popover>
-                      </div>
+                      }
+                    >
                       {primaryContact ? (
-                        <div className="rounded-md border border-border/50 bg-card p-2 mb-2">
+                        <div className="rounded-md border border-border/50 bg-card p-2">
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <div className="text-sm font-medium truncate flex items-center gap-1.5">
@@ -761,19 +711,30 @@ export function DealPeekSheet({
                                 </a>
                               )}
                             </div>
-                            <button
-                              onClick={() => unlinkContact(primaryContact.id)}
-                              className="text-muted-foreground hover:text-destructive p-1 rounded"
-                            >
+                            <button onClick={() => unlinkContact(primaryContact.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-[11px] text-muted-foreground italic mb-2">No primary contact.</p>
+                        <p className="text-[11px] text-muted-foreground italic">No primary contact.</p>
+                      )}
+                    </EntitySidebarSection>
+
+                    <EntitySidebarSection title="Owner">
+                      <OwnerPicker ownerId={deal.owner_id} onChange={async (id) => { await saveField({ owner_id: id } as any); }} label="" />
+                    </EntitySidebarSection>
+
+                    <EntitySidebarSection title="Team members">
+                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} hideHeader />
+                    </EntitySidebarSection>
+
+                    <EntitySidebarSection title="Associated contacts">
+                      {associatedContacts.length === 0 && (
+                        <p className="text-[11px] text-muted-foreground italic">No additional contacts.</p>
                       )}
                       {associatedContacts.map((c) => (
-                        <div key={c.id} className="rounded-md border border-border/40 bg-card p-2 mb-1">
+                        <div key={c.id} className="rounded-md border border-border/40 bg-card p-2">
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <div className="text-sm truncate">{contactName(c)}</div>
@@ -784,27 +745,38 @@ export function DealPeekSheet({
                               )}
                             </div>
                             <div className="flex items-center gap-0.5">
-                              <button
-                                onClick={() => makePrimary(c.id)}
-                                className="text-muted-foreground hover:text-amber-500 p-1 rounded"
-                                title="Make primary"
-                              >
+                              <button onClick={() => makePrimary(c.id)} className="text-muted-foreground hover:text-amber-500 p-1 rounded" title="Make primary">
                                 <StarOff className="h-3.5 w-3.5" />
                               </button>
-                              <button
-                                onClick={() => unlinkContact(c.id)}
-                                className="text-muted-foreground hover:text-destructive p-1 rounded"
-                              >
+                              <button onClick={() => unlinkContact(c.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </div>
                         </div>
                       ))}
-                    </section>
+                    </EntitySidebarSection>
 
+                    <EntitySidebarSection title="Source">
+                      <ContactPicker value={deal.source_contact_id} onChange={(id) => saveField({ source_contact_id: id } as any)} placeholder="Who sent this?" />
+                    </EntitySidebarSection>
+
+                    <EntitySidebarSection title="Disposition strategy">
+                      <select
+                        value={deal.disposition_strategy ?? ""}
+                        onChange={(e) => saveField({ disposition_strategy: e.target.value || null } as any)}
+                        className="w-full text-sm h-9 rounded-md border border-input bg-background px-2"
+                      >
+                        <option value="">Choose a strategy</option>
+                        <option value="buy_hold">Buy &amp; Hold</option>
+                        <option value="assign">Assign</option>
+                        <option value="double_close">Double Close</option>
+                        <option value="pass">Pass</option>
+                      </select>
+                    </EntitySidebarSection>
                   </div>
                 </aside>
+              </div>
               </div>
           </>
         )}
