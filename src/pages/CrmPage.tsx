@@ -37,6 +37,11 @@ export default function CrmPage() {
   const [openContactId, setOpenContactId] = useState<string | null>(null);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
   const [newContactOpen, setNewContactOpen] = useState(false);
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false);
+  // Per-tab "request new" signal counters; tabs watch their counter and open their own dialog.
+  const [newDealSignal, setNewDealSignal] = useState(0);
+  const [newLeadSignal, setNewLeadSignal] = useState(0);
+  const [newTxSignal, setNewTxSignal] = useState(0);
 
   useEffect(() => {
     setTab(initialTab);
