@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
 import { NewLeadDialog } from "./NewLeadDialog";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
-import { FollowUpPicker, TEMPERATURE_META } from "./FollowUpPicker";
+import { FollowUpPicker } from "./FollowUpPicker";
 import { LeadPeekSheet } from "./LeadPeekSheet";
 
 interface Lead {
@@ -72,7 +72,7 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
   const [newOpen, setNewOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
   const [openLead, setOpenLead] = useState<Lead | null>(null);
-  const [tempFilter, setTempFilter] = useState<Set<string>>(new Set());
+  
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
