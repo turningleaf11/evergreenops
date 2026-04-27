@@ -32,6 +32,7 @@ import {
   EntitySidebarField,
   EntityEmpty,
   OverviewCard,
+  StageProgressBar,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
 import { Badge } from "@/components/ui/badge";
@@ -413,24 +414,38 @@ export function LeadPeekSheet({
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] min-h-0 overflow-hidden">
+            <>
+              {/* Full-width stage progression bar */}
+              <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
+                <StageProgressBar
+                  stages={[
+                    { id: "new", label: "New" },
+                    { id: "working", label: "Working" },
+                    { id: "qualified", label: "Qualified" },
+                    { id: "converted", label: "Converted", isWon: true },
+                    { id: "archived", label: "Archived", isLost: true },
+                  ]}
+                  currentId={lead.status}
+                  onChange={(id) => onUpdate(lead.id, { status: id } as any)}
+                  disabled={isConverted || isArchived}
+                />
+              </div>
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] min-h-0 overflow-hidden">
               {/* MAIN: composer + tabs */}
               <div className="flex flex-col min-h-0 bg-[#F8F8F8] dark:bg-muted/10">
                 {/* Composer pinned above the tabs */}
                 <div className="shrink-0 px-6 pt-5 pb-4 bg-background border-b border-border/50">
-                  <div className="max-w-3xl">
-                    <EntityComposer
-                      workspaceId={lead.workspace_id}
-                      entityType="lead"
-                      entityId={lead.id}
-                      defaultEmail={lead.email}
-                      notePlaceholder="Jot a note about this lead…"
-                      onPosted={() => {
-                        setComposerNonce((n) => n + 1);
-                        void reload();
-                      }}
-                    />
-                  </div>
+                  <EntityComposer
+                    workspaceId={lead.workspace_id}
+                    entityType="lead"
+                    entityId={lead.id}
+                    defaultEmail={lead.email}
+                    notePlaceholder="Jot a note about this lead…"
+                    onPosted={() => {
+                      setComposerNonce((n) => n + 1);
+                      void reload();
+                    }}
+                  />
                 </div>
 
                 <EntityTabs
@@ -740,6 +755,7 @@ export function LeadPeekSheet({
                 </div>
               </aside>
             </div>
+            </>
           )}
 
 

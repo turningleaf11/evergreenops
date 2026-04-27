@@ -530,42 +530,38 @@ export function DealPeekSheet({
                 </>
               }
             />
+            {/* Full-width stage progression bar */}
+            {stages.length > 0 && (
+              <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
+                <StageProgressBar
+                  stages={stages.map((s) => ({
+                    id: s.id,
+                    label: s.name,
+                    isWon: s.is_won,
+                    isLost: s.is_lost,
+                  }))}
+                  currentId={deal.stage_id}
+                  onChange={(stageId) => {
+                    const s = stages.find((x) => x.id === stageId);
+                    const status = s?.is_won ? "won" : s?.is_lost ? "lost" : "open";
+                    return saveField({ stage_id: stageId, status } as any);
+                  }}
+                />
+              </div>
+            )}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
-                  {/* Stage progression bar pinned at top */}
-                  {stages.length > 0 && (
-                    <div className="px-6 pt-5 pb-3 bg-background border-b border-border/50">
-                      <div className="max-w-3xl">
-                        <StageProgressBar
-                          stages={stages.map((s) => ({
-                            id: s.id,
-                            label: s.name,
-                            isWon: s.is_won,
-                            isLost: s.is_lost,
-                          }))}
-                          currentId={deal.stage_id}
-                          onChange={(stageId) => {
-                            const s = stages.find((x) => x.id === stageId);
-                            const status = s?.is_won ? "won" : s?.is_lost ? "lost" : "open";
-                            return saveField({ stage_id: stageId, status } as any);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
                   {/* Composer pinned above the tabs */}
                   <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
-                    <div className="max-w-3xl">
-                      <EntityComposer
-                        workspaceId={deal.workspace_id}
-                        entityType="deal"
-                        entityId={deal.id}
-                        defaultEmail={primaryContact?.email ?? null}
-                        notePlaceholder="Jot a note about this deal…"
-                        onPosted={() => { void reload(); onChanged(); }}
-                      />
-                    </div>
+                    <EntityComposer
+                      workspaceId={deal.workspace_id}
+                      entityType="deal"
+                      entityId={deal.id}
+                      defaultEmail={primaryContact?.email ?? null}
+                      notePlaceholder="Jot a note about this deal…"
+                      onPosted={() => { void reload(); onChanged(); }}
+                    />
                   </div>
                   <Tabs defaultValue="overview" className="w-full">
                     <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
@@ -726,7 +722,7 @@ export function DealPeekSheet({
                     </EntitySidebarSection>
 
                     <EntitySidebarSection title="Team members">
-                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} hideHeader />
+                      <DealTeamMembersPanel dealId={deal.id} canManage={canManage} currentUserId={user?.id ?? null} />
                     </EntitySidebarSection>
 
                     <EntitySidebarSection title="Associated contacts">
@@ -777,8 +773,8 @@ export function DealPeekSheet({
                   </div>
                 </aside>
               </div>
-              </div>
           </>
+
         )}
       </EntitySheetShell>
 
