@@ -87,6 +87,9 @@ export function ComposePanel({ open, onOpenChange, onSent, defaultTo = "", defau
       html += `<br/><br/><div style="border-top:1px solid #ddd;padding-top:8px;font-size:12px;color:#555;">Attachments:<br/>` +
         attachments.map(a => `<a href="${a.url}">${a.name}</a>`).join("<br/>") + `</div>`;
     }
+    if (signatureUrl && !html.includes('data-signature="1"')) {
+      html += buildSignatureHtml();
+    }
     const { error } = await supabase.functions.invoke("gmail-send", {
       body: { to, subject, body: html, threadId, inReplyTo, account_id: accountId ?? undefined },
     });
