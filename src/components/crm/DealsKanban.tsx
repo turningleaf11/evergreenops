@@ -198,6 +198,8 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
       toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
     }
   };
+
+  const handleDrop = (stageId: string) => {
     if (!draggingId) return;
     const stage = stages.find((s) => s.id === stageId);
     const deal = deals.find((d) => d.id === draggingId);
