@@ -1879,25 +1879,8 @@ function ContactDetailBody({
             </EntityTabPanel>
 
             <EntityTabPanel value="activity" className="p-6 overflow-hidden">
-              <div
-                className="h-full flex flex-col bg-card rounded-xl overflow-hidden max-w-3xl"
-                style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
-              >
-                <div className="flex-1 min-h-0 flex flex-col p-5">
-                  <ActivityPanel
-                    entityType="contact"
-                    entityId={contact.id}
-                    hideHeader
-                    onReplyEmail={({ threadId, subject }) => {
-                      setComposeCtx({
-                        to: contact.email || "",
-                        subject: subject?.toLowerCase().startsWith("re:") ? subject : `Re: ${subject || ""}`.trim(),
-                        threadId,
-                      });
-                      setComposeOpen(true);
-                    }}
-                  />
-                </div>
+              <div className="h-full flex flex-col max-w-3xl">
+                <ContactActivityTab contact={contact} />
               </div>
             </EntityTabPanel>
 
