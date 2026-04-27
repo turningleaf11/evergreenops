@@ -216,16 +216,20 @@ export function ContactPeekSheet({
   }, [contactId]);
 
   // Load the default pipeline once so we can offer "+ Create new deal" from this sheet.
+  // Also load all pipeline stages so we can map stage_id → stage name.
+  const [stageMap, setStageMap] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase
-        .from("pipelines")
-        .select("id")
-        .order("sort_order", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (active) setDefaultPipelineId((data as any)?.id ?? null);
+      const [{ data: pl }, { data: stages }] = await Promise.all([
+        supabase.from("pipelines").select("id").order("sort_order", { ascending: true }).limit(1).maybeSingle(),
+        supabase.from("pipeline_stages").select("id,name"),
+      ]);
+      if (!active) return;
+      setDefaultPipelineId((pl as any)?.id ?? null);
+      const m: Record<string, string> = {};
+      ((stages as any[]) || []).forEach((s) => { m[s.id] = s.name; });
+      setStageMap(m);
     })();
     return () => { active = false; };
   }, []);
