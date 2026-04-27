@@ -215,16 +215,6 @@ export function ContactComposer({
     onPosted?.();
   };
 
-  const handleAttach = () => {
-    triggerFileInput("*", async (file) => {
-      const url = await uploadFile(file);
-      if (!url) {
-        toast({ title: "Upload failed", variant: "destructive" });
-        return;
-      }
-      setNoteAttach({ name: file.name, url });
-    });
-  };
 
   return (
     <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
