@@ -17,6 +17,15 @@ import {
   contactTypeColor,
   contactTypeLabel,
 } from "./contactTypes";
+import {
+  DataTableShell,
+  DataTableHeader,
+  DataTableRow,
+  DataTablePill,
+  DataTableEmpty,
+} from "@/components/ui/data-table-shell";
+
+const TEMPLATE = "2.4fr 1fr 1.4fr 1.6fr 1.1fr 40px";
 
 export interface Contact {
   id: string;
