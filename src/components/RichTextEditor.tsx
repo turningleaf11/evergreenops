@@ -143,6 +143,20 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
     },
   });
 
+  // Sync external `content` changes into the editor (e.g. async-loaded
+  // signature, template insertion). Skip changes that came from the
+  // editor itself to avoid clobbering the user's caret/selection.
+  useEffect(() => {
+    if (!editor) return;
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      return;
+    }
+    const current = editor.getHTML();
+    if (current === content) return;
+    editor.commands.setContent(content || "", false);
+  }, [content, editor]);
+
   // Click below the editor content focuses cursor at the end (Notion-style)
   const handleSurfaceClick = (e: React.MouseEvent) => {
     if (!editor) return;
