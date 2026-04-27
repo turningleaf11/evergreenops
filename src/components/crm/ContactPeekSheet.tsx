@@ -85,10 +85,12 @@ export function ContactPeekSheet({
   contactId,
   onClose,
   onChanged,
+  onOpenDeal,
 }: {
   contactId: string | null;
   onClose: () => void;
   onChanged: () => void;
+  onOpenDeal?: (dealId: string) => void;
 }) {
   const { user } = useAuth();
   const [contact, setContact] = useState<Contact | null>(null);
