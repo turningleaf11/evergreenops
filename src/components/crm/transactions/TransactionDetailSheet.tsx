@@ -12,18 +12,21 @@ import {
   Scale,
   Banknote,
   Calendar as CalendarIcon,
+  Home,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   EntitySheetShell,
   EntitySheetHeader,
-  EntityIdentityStrip,
+  EntityIdentityBlock,
+  EntitySidebarSection,
+  StageProgressBar,
 } from "../_shell";
 import { EntityComposer } from "../EntityComposer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -127,7 +130,6 @@ export function TransactionDetailSheet({
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [people, setPeople] = useState<ContactDetail[]>([]);
   const [loading, setLoading] = useState(false);
-  const [notesDraft, setNotesDraft] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);
   const [actualNetInput, setActualNetInput] = useState("");
 
@@ -161,7 +163,6 @@ export function TransactionDetailSheet({
       } else {
         setPeople([]);
       }
-      setNotesDraft(txRow.notes || "");
     }
   };
 
@@ -241,6 +242,16 @@ export function TransactionDetailSheet({
   const total = items.length;
   const progressPct = total ? (progress / total) * 100 : 0;
 
+  // Stage progression for transaction lifecycle
+  const stages = useMemo(
+    () => [
+      { id: "active", label: "Active" },
+      { id: "closed", label: "Closed", isWon: true },
+      { id: "cancelled", label: "Cancelled", isLost: true },
+    ],
+    [],
+  );
+
   return (
     <>
       <EntitySheetShell
@@ -259,6 +270,7 @@ export function TransactionDetailSheet({
                   : undefined
               }
               titleClassName="text-xl"
+              leading={<Home className="h-5 w-5 text-primary" />}
               onClose={onClose}
               actions={
                 <>
@@ -280,195 +292,310 @@ export function TransactionDetailSheet({
                 </>
               }
             />
-            <EntityIdentityStrip
-              pills={
-                <>
-                  <Badge
-                    className="text-[10px] border-transparent"
-                    style={{
-                      backgroundColor: `hsl(${TX_LANE_COLOR[tx.lane]} / 0.15)`,
-                      color: `hsl(${TX_LANE_COLOR[tx.lane]})`,
-                    }}
-                  >
-                    {TX_LANE_LABEL[tx.lane]}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px]"
-                    style={{
-                      borderColor: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
-                      color: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
-                    }}
-                  >
-                    {TX_TYPE_LABEL[tx.transaction_type]}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] capitalize"
-                    style={{
-                      borderColor: `hsl(${TX_STATUS_COLOR[tx.status]})`,
-                      color: `hsl(${TX_STATUS_COLOR[tx.status]})`,
-                    }}
-                  >
-                    {tx.status}
-                  </Badge>
-                </>
-              }
-            />
 
-            <div className="flex-1 overflow-auto p-6 space-y-8">
-                {/* SECTION 2 — KEY DATES */}
-                <section className="space-y-3">
-                  <h3 className="crm-eyebrow">Key dates</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <DateCard
-                      label="Contract Date"
-                      value={tx.contract_date}
-                      onChange={(v) => saveField({ contract_date: v })}
-                    />
-                    <DateCard
-                      label="Inspection Deadline"
-                      value={tx.inspection_deadline}
-                      onChange={(v) => saveField({ inspection_deadline: v })}
-                    />
-                    <DateCard
-                      label="Due Diligence End"
-                      value={tx.due_diligence_end}
-                      onChange={(v) => saveField({ due_diligence_end: v })}
-                    />
-                    <DateCard
-                      label="Closing Date"
-                      value={tx.closing_date}
-                      onChange={(v) => saveField({ closing_date: v })}
-                      emphasized
-                      countdownClass={closingCountdownClass(closingDays)}
-                    />
+            {/* Full-width stage progression bar */}
+            <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
+              <StageProgressBar
+                stages={stages}
+                currentId={tx.status}
+                onChange={(id) => saveField({ status: id })}
+              />
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
+              {/* MAIN: composer + tabs */}
+              <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
+                {/* Composer */}
+                <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
+                  <EntityComposer
+                    workspaceId={tx.workspace_id}
+                    entityType="transaction"
+                    entityId={tx.id}
+                    defaultEmail={null}
+                    notePlaceholder="Jot a note about this transaction…"
+                    onPosted={() => { void reload(); onChanged(); }}
+                  />
+                </div>
+
+                <Tabs defaultValue="overview" className="w-full">
+                  <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
+                    <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
+                      {[
+                        { v: "overview", label: "Overview" },
+                        { v: "checklist", label: "Checklist" },
+                        { v: "activity", label: "Activity" },
+                        { v: "files", label: "Files" },
+                      ].map((t) => (
+                        <TabsTrigger
+                          key={t.v}
+                          value={t.v}
+                          className="text-[14px] font-medium px-3 h-11 rounded-none bg-transparent border-b-2 border-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-brand-azure data-[state=active]:border-brand-azure data-[state=active]:shadow-none"
+                        >
+                          {t.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
                   </div>
-                </section>
 
-                {/* SECTION 3 — KEY PEOPLE */}
-                <section className="space-y-3">
-                  <h3 className="crm-eyebrow">Key people</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
-                      const id = tx[roleKey];
-                      const contact = people.find((p) => p.id === id);
-                      return (
-                        <PersonCard
-                          key={roleKey}
-                          roleKey={roleKey}
-                          label={ROLE_LABELS[roleKey]}
-                          contact={contact || null}
-                          onPick={(newId) => saveField({ [roleKey]: newId } as any)}
+                  {/* OVERVIEW: Key Dates + Key People + P&L */}
+                  <TabsContent value="overview" className="p-6 mt-0 space-y-8">
+                    {/* Key Dates */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Key dates</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <DateCard
+                          label="Contract Date"
+                          value={tx.contract_date}
+                          onChange={(v) => saveField({ contract_date: v })}
                         />
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {/* SECTION 4 — CHECKLIST */}
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="crm-eyebrow">Closing checklist</h3>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {progress} of {total} complete
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-brand-mint transition-all"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-                  <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
-                    {items.map((item) => (
-                      <ChecklistRow
-                        key={item.id}
-                        item={item}
-                        onToggle={() => toggleItem(item)}
-                        onSetDue={(v) => setItemDueDate(item.id, v)}
-                      />
-                    ))}
-                    {items.length === 0 && (
-                      <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">
-                        No checklist items.
-                      </li>
-                    )}
-                  </ul>
-                </section>
-
-                {/* SECTION 5 — P&L */}
-                <section className="space-y-3">
-                  <h3 className="crm-eyebrow">P&amp;L summary</h3>
-                  <div className="crm-card grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <MoneyField
-                      label="Purchase price"
-                      value={tx.purchase_price}
-                      onSave={(v) => saveField({ purchase_price: v })}
-                    />
-                    <MoneyField
-                      label="Assignment fee"
-                      value={tx.assignment_fee}
-                      onSave={(v) => saveField({ assignment_fee: v })}
-                    />
-                    <MoneyField
-                      label="Earnest money required"
-                      value={tx.earnest_money_required}
-                      onSave={(v) => saveField({ earnest_money_required: v })}
-                    />
-                    <div className="space-y-1">
-                      <Label className="crm-field-label">EM received</Label>
-                      <button
-                        onClick={() =>
-                          saveField({
-                            earnest_money_received: !tx.earnest_money_received,
-                            earnest_money_received_date: !tx.earnest_money_received
-                              ? format(new Date(), "yyyy-MM-dd")
-                              : null,
-                          })
-                        }
-                        className={cn(
-                          "px-3 py-2 rounded-md text-sm font-medium border transition-colors",
-                          tx.earnest_money_received
-                            ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
-                            : "bg-muted text-muted-foreground border-border",
-                        )}
-                      >
-                        {tx.earnest_money_received ? "Received" : "Not received"}
-                      </button>
-                    </div>
-                    <MoneyField
-                      label="Estimated net"
-                      value={tx.estimated_net}
-                      onSave={(v) => saveField({ estimated_net: v })}
-                    />
-                    <div className="space-y-1">
-                      <Label className="crm-field-label">Actual net</Label>
-                      {tx.status === "closed" ? (
-                        <Input
-                          type="number"
-                          defaultValue={tx.actual_net ?? ""}
-                          onBlur={(e) =>
-                            saveField({ actual_net: e.target.value ? Number(e.target.value) : null })
-                          }
-                          className="h-9 text-base font-semibold text-brand-mint-deep tabular-nums"
+                        <DateCard
+                          label="Inspection Deadline"
+                          value={tx.inspection_deadline}
+                          onChange={(v) => saveField({ inspection_deadline: v })}
                         />
-                      ) : (
-                        <div className="px-3 py-2 text-sm crm-empty">
-                          Available after close
+                        <DateCard
+                          label="Due Diligence End"
+                          value={tx.due_diligence_end}
+                          onChange={(v) => saveField({ due_diligence_end: v })}
+                        />
+                        <DateCard
+                          label="Closing Date"
+                          value={tx.closing_date}
+                          onChange={(v) => saveField({ closing_date: v })}
+                          emphasized
+                          countdownClass={closingCountdownClass(closingDays)}
+                        />
+                      </div>
+                    </section>
+
+                    {/* Key People */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Key people</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
+                          const id = tx[roleKey];
+                          const contact = people.find((p) => p.id === id);
+                          return (
+                            <PersonCard
+                              key={roleKey}
+                              roleKey={roleKey}
+                              label={ROLE_LABELS[roleKey]}
+                              contact={contact || null}
+                              onPick={(newId) => saveField({ [roleKey]: newId } as any)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    {/* P&L */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">P&amp;L summary</h3>
+                      <div className="crm-card grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <MoneyField
+                          label="Purchase price"
+                          value={tx.purchase_price}
+                          onSave={(v) => saveField({ purchase_price: v })}
+                        />
+                        <MoneyField
+                          label="Assignment fee"
+                          value={tx.assignment_fee}
+                          onSave={(v) => saveField({ assignment_fee: v })}
+                        />
+                        <MoneyField
+                          label="Earnest money required"
+                          value={tx.earnest_money_required}
+                          onSave={(v) => saveField({ earnest_money_required: v })}
+                        />
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">EM received</Label>
+                          <button
+                            onClick={() =>
+                              saveField({
+                                earnest_money_received: !tx.earnest_money_received,
+                                earnest_money_received_date: !tx.earnest_money_received
+                                  ? format(new Date(), "yyyy-MM-dd")
+                                  : null,
+                              })
+                            }
+                            className={cn(
+                              "px-3 py-2 rounded-md text-sm font-medium border transition-colors",
+                              tx.earnest_money_received
+                                ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
+                                : "bg-muted text-muted-foreground border-border",
+                            )}
+                          >
+                            {tx.earnest_money_received ? "Received" : "Not received"}
+                          </button>
                         </div>
+                        <MoneyField
+                          label="Estimated net"
+                          value={tx.estimated_net}
+                          onSave={(v) => saveField({ estimated_net: v })}
+                        />
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">Actual net</Label>
+                          {tx.status === "closed" ? (
+                            <Input
+                              type="number"
+                              defaultValue={tx.actual_net ?? ""}
+                              onBlur={(e) =>
+                                saveField({ actual_net: e.target.value ? Number(e.target.value) : null })
+                              }
+                              className="h-9 text-base font-semibold text-brand-mint-deep tabular-nums"
+                            />
+                          ) : (
+                            <div className="px-3 py-2 text-sm crm-empty">
+                              Available after close
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+                  </TabsContent>
+
+                  {/* CHECKLIST */}
+                  <TabsContent value="checklist" className="p-6 mt-0">
+                    <section className="space-y-4 max-w-3xl">
+                      <div className="flex items-center justify-between">
+                        <h3 className="crm-eyebrow">Closing checklist</h3>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {progress} of {total} complete
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-brand-mint transition-all"
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                      <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
+                        {items.map((item) => (
+                          <ChecklistRow
+                            key={item.id}
+                            item={item}
+                            onToggle={() => toggleItem(item)}
+                            onSetDue={(v) => setItemDueDate(item.id, v)}
+                          />
+                        ))}
+                        {items.length === 0 && (
+                          <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">
+                            No checklist items.
+                          </li>
+                        )}
+                      </ul>
+                    </section>
+                  </TabsContent>
+
+                  {/* ACTIVITY */}
+                  <TabsContent value="activity" className="p-6 mt-0">
+                    <ActivityPanel entityType="transaction" entityId={tx.id} />
+                  </TabsContent>
+
+                  {/* FILES */}
+                  <TabsContent value="files" className="p-6 mt-0">
+                    <div className="crm-card text-sm text-muted-foreground italic">
+                      No files attached yet.
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              {/* RIGHT RAIL — identity-first sidebar */}
+              <aside className="border-l border-border/40 overflow-auto bg-background">
+                <div className="p-5 space-y-5">
+                  <EntityIdentityBlock
+                    title={tx.property_address || "Untitled property"}
+                    badges={
+                      <>
+                        <Badge
+                          className="text-[10px] border-transparent"
+                          style={{
+                            backgroundColor: `hsl(${TX_LANE_COLOR[tx.lane]} / 0.15)`,
+                            color: `hsl(${TX_LANE_COLOR[tx.lane]})`,
+                          }}
+                        >
+                          {TX_LANE_LABEL[tx.lane]}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px]"
+                          style={{
+                            borderColor: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
+                            color: `hsl(${TX_TYPE_COLOR[tx.transaction_type]})`,
+                          }}
+                        >
+                          {TX_TYPE_LABEL[tx.transaction_type]}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] capitalize"
+                          style={{
+                            borderColor: `hsl(${TX_STATUS_COLOR[tx.status]})`,
+                            color: `hsl(${TX_STATUS_COLOR[tx.status]})`,
+                          }}
+                        >
+                          {tx.status}
+                        </Badge>
+                      </>
+                    }
+                    meta={
+                      [tx.property_city, tx.property_state].filter(Boolean).join(", ") ? (
+                        <div>{[tx.property_city, tx.property_state].filter(Boolean).join(", ")}</div>
+                      ) : null
+                    }
+                  />
+
+                  <EntitySidebarSection title="Closing">
+                    <div className="text-sm">
+                      {tx.closing_date ? (
+                        <>
+                          <div className="font-medium">{tx.closing_date}</div>
+                          <div
+                            className={cn(
+                              "inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border mt-1",
+                              closingCountdownClass(closingDays),
+                            )}
+                          >
+                            {fmtCountdown(closingDays)}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground italic">Not scheduled</span>
                       )}
                     </div>
-                  </div>
-                </section>
+                  </EntitySidebarSection>
 
-                {/* SECTION 6 — ACTIVITY */}
-                <section className="space-y-3">
-                  <ActivityPanel entityType="transaction" entityId={tx.id} />
-                </section>
-              </div>
-            </>
-          )}
+                  <EntitySidebarSection title="Purchase price">
+                    <div className="text-sm font-semibold tabular-nums">
+                      {fmtMoney(tx.purchase_price)}
+                    </div>
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Estimated net">
+                    <div className="text-sm tabular-nums text-brand-mint-deep">
+                      {fmtMoney(tx.estimated_net)}
+                    </div>
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Source">
+                    <ContactPicker
+                      value={tx.source_contact_id}
+                      onChange={(id) => saveField({ source_contact_id: id })}
+                      placeholder="Who sent this?"
+                    />
+                  </EntitySidebarSection>
+
+                  <EntitySidebarSection title="Created">
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(tx.created_at), "MMM d, yyyy")}
+                    </div>
+                  </EntitySidebarSection>
+                </div>
+              </aside>
+            </div>
+          </>
+        )}
       </EntitySheetShell>
 
       {/* Mark as closed dialog */}
