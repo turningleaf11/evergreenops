@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, Mail, Phone, Send, X, Inbox, Briefcase, Sparkles, ExternalLink, MoreHorizontal, ArrowRight, Building2, Search, MessageSquare, Smartphone, Pencil, MapPin } from "lucide-react";
+import { Loader2, Mail, Phone, Send, X, Inbox, Briefcase, Sparkles, ExternalLink, MoreHorizontal, ArrowRight, Building2, Search, MessageSquare, Smartphone, Pencil, MapPin, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
