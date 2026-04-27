@@ -1910,22 +1910,42 @@ function ContactDetailBody({
                     <p>Deals sourced from this contact will appear here.</p>
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-card overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                    <ul className="divide-y divide-border/40">
-                      {linkedDeals.map((d) => (
-                        <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F9F9F9] transition-colors">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                  <ul className="space-y-2.5">
+                    {linkedDeals.map((d) => {
+                      const title = d.address || d.name || "Untitled deal";
+                      const stageLabel = d.stage ? (stageMap[d.stage] ?? null) : null;
+                      const price = d.asking_price != null
+                        ? `$${Number(d.asking_price).toLocaleString()}`
+                        : null;
+                      return (
+                        <li
+                          key={d.id}
+                          className="bg-card flex items-center justify-between gap-3 transition-shadow hover:[box-shadow:0_4px_12px_rgba(0,0,0,0.08)]"
+                          style={{
+                            borderRadius: 10,
+                            padding: "14px 16px",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm font-medium truncate">{d.name}</span>
+                            <span className="text-sm font-medium truncate" title={title}>{title}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {d.stage && <EntityStatusPill kind="deal_stage" value={d.stage} />}
-                            {d.status && <EntityStatusPill kind="deal_status" value={d.status} variant="outline" />}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {stageLabel && <EntityStatusPill kind="deal_stage" value={stageLabel} />}
+                            {price && <span className="text-sm text-muted-foreground">{price}</span>}
+                            <button
+                              type="button"
+                              onClick={() => openDealById(d.id)}
+                              className="text-[12px] text-primary hover:underline whitespace-nowrap"
+                            >
+                              Open →
+                            </button>
                           </div>
                         </li>
-                      ))}
-                    </ul>
-                  </div>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
             </EntityTabPanel>
