@@ -433,66 +433,6 @@ export function ContactActivityTab({ contact }: { contact: Contact }) {
     return () => { supabase.removeChannel(ch); };
   }, [contact.id, fetchAll]);
 
-  // Composer handlers
-  const submitNote = async () => {
-    if (!user || !noteBody.trim()) return;
-    setSavingNote(true);
-    const body = noteAttach ? `${noteBody.trim()}\n\n📎 ${noteAttach.name}: ${noteAttach.url}` : noteBody.trim();
-    const { error } = await supabase.from("crm_activities").insert({
-      workspace_id: contact.workspace_id,
-      entity_type: "contact",
-      entity_id: contact.id,
-      type: "note",
-      subject: "",
-      body,
-      actor_id: user.id,
-    });
-    setSavingNote(false);
-    if (error) {
-      toast({ title: "Couldn't save note", description: error.message, variant: "destructive" });
-      return;
-    }
-    setNoteBody("");
-    setNoteAttach(null);
-    void fetchAll();
-  };
-
-  const submitCall = async () => {
-    if (!user) return;
-    setSavingCall(true);
-    const outcomeLabel = callOutcome.replace(/_/g, " ");
-    const subject = `Call · ${outcomeLabel}${callDuration ? ` · ${callDuration}` : ""}`;
-    const { error } = await supabase.from("crm_activities").insert({
-      workspace_id: contact.workspace_id,
-      entity_type: "contact",
-      entity_id: contact.id,
-      type: "call",
-      subject,
-      body: callBody.trim(),
-      actor_id: user.id,
-    });
-    setSavingCall(false);
-    if (error) {
-      toast({ title: "Couldn't log call", description: error.message, variant: "destructive" });
-      return;
-    }
-    setCallBody("");
-    setCallDuration("");
-    setCallOutcome("answered");
-    void fetchAll();
-  };
-
-  const handleAttach = () => {
-    triggerFileInput("*", async (file) => {
-      const url = await uploadFile(file);
-      if (!url) {
-        toast({ title: "Upload failed", variant: "destructive" });
-        return;
-      }
-      setNoteAttach({ name: file.name, url });
-    });
-  };
-
   const deleteActivity = async (id: string) => {
     const { error } = await supabase.from("crm_activities").delete().eq("id", id);
     if (error) {
