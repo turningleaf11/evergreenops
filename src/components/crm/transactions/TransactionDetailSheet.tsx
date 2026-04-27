@@ -622,7 +622,7 @@ export function TransactionDetailSheet({
                   {/* ACTIVITY */}
                   <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
-                      <ActivityPanel entityType="transaction" entityId={tx.id} hideHeader hideComposer />
+                      <ContactActivityTab entityType="transaction" entityId={tx.id} />
                     </div>
                   </TabsContent>
 

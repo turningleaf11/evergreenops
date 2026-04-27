@@ -666,12 +666,10 @@ export function LeadPeekSheet({
 
                   <EntityTabPanel value="activity" className="p-6 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
-                      <ActivityPanel
+                      <ContactActivityTab
                         key={composerNonce}
                         entityType="lead"
                         entityId={lead.id}
-                        hideHeader
-                        hideComposer
                       />
                     </div>
                   </EntityTabPanel>
