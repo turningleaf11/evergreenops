@@ -447,9 +447,17 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
           {expanded && (
             <div className="border-t border-border/40 bg-background">
               {!isEmail && a.body && (
-                <p className="whitespace-pre-wrap text-sm text-foreground p-3">
-                  {a.body}
-                </p>
+                a.type === "note" ? (
+                  <div
+                    className="prose prose-sm max-w-none text-sm text-amber-950/90 p-3 [&_p]:my-1 [&_p:empty]:hidden"
+                    style={{ backgroundColor: "#FFF7B8" }}
+                    dangerouslySetInnerHTML={{ __html: a.body }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm text-foreground p-3">
+                    {a.body}
+                  </p>
+                )
               )}
               {isEmail && loadingThread && (
                 <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
