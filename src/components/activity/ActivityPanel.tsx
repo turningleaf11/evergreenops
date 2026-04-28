@@ -400,9 +400,16 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                 {actor} · {timeAgo(a.occurred_at)}
               </div>
               {!expanded && a.body && (
-                <p className="whitespace-pre-wrap text-xs text-muted-foreground line-clamp-2 mt-1">
-                  {a.body}
-                </p>
+                a.type === "note" ? (
+                  <div
+                    className="prose prose-sm max-w-none text-xs text-muted-foreground line-clamp-2 mt-1 [&_p]:my-0 [&_p:empty]:hidden"
+                    dangerouslySetInnerHTML={{ __html: a.body }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-xs text-muted-foreground line-clamp-2 mt-1">
+                    {a.body}
+                  </p>
+                )
               )}
             </div>
             {isEmail && (
