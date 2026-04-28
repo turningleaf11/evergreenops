@@ -601,24 +601,7 @@ export function DealPeekSheet({
                       />
                     </TabsContent>
 
-                    <TabsContent value="broker" className="p-4 mt-0 space-y-3">
-                      <section className="crm-card space-y-3">
-                        <h3 className="crm-eyebrow">Broker feedback</h3>
-                        {deal.broker_feedback ? (
-                          <p className="text-sm whitespace-pre-wrap text-foreground/90">
-                            {deal.broker_feedback}
-                          </p>
-                        ) : (
-                          <p className="text-sm italic text-muted-foreground">
-                            No broker feedback captured yet. Add notes in the Underwriting tab.
-                          </p>
-                        )}
-                      </section>
-                      <section className="crm-card">
-                        <h3 className="crm-eyebrow mb-3">Broker emails &amp; calls</h3>
-                        <ActivityPanel entityType="deal" entityId={deal.id} hideHeader />
-                      </section>
-                    </TabsContent>
+                    {/* Broker Comms tab removed — broker feedback shown in Underwriting; activity in Activity tab. */}
 
                     <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
                       <div className="h-full flex flex-col max-w-3xl">
