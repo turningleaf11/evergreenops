@@ -27,8 +27,11 @@ interface PrefillFromDeal {
   property_address: string;
   property_city?: string | null;
   property_state?: string | null;
+  property_zip?: string | null;
   property_type?: string | null;
   units?: number | null;
+  unit_mix?: string | null;
+  sqft?: number | null;
   asking_price?: number | null;
   source_contact_id?: string | null;
   expected_close_date?: string | null;
@@ -100,14 +103,18 @@ export function NewTransactionDialog({
         property_address: address.trim(),
         property_city: city.trim() || null,
         property_state: stateCode.trim() || null,
+        property_zip: prefillFromDeal?.property_zip ?? null,
         property_type: prefillFromDeal?.property_type ?? null,
         units: prefillFromDeal?.units ?? null,
+        unit_mix: prefillFromDeal?.unit_mix ?? null,
+        sqft: prefillFromDeal?.sqft ?? null,
+        asking_price: prefillFromDeal?.asking_price ?? null,
         contract_date: contractDate || null,
         closing_date: closingDate || null,
         purchase_price: purchasePrice ? Number(purchasePrice) : null,
         source_contact_id: prefillFromDeal?.source_contact_id ?? null,
         created_by: user.id,
-      })
+      } as any)
       .select("id")
       .single();
 
