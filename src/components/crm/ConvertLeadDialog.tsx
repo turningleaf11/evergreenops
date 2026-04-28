@@ -30,9 +30,9 @@ interface Lead {
   property_zip?: string | null;
   property_type?: string | null;
   units?: number | null;
+  unit_mix?: string | null;
+  sqft?: number | null;
   asking_price?: number | null;
-  listed_cap_rate?: number | null;
-  noi?: number | null;
   source_contact_id?: string | null;
 }
 
