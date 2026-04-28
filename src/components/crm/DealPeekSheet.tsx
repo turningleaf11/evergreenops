@@ -572,7 +572,6 @@ export function DealPeekSheet({
                         {[
                           { v: "overview", label: "Overview" },
                           { v: "underwriting", label: "Underwriting" },
-                          { v: "broker", label: "Broker Comms" },
                           { v: "activity", label: "Activity" },
                           { v: "files", label: "Files" },
                         ].map((t) => (
