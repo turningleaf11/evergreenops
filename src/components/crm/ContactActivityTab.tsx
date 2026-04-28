@@ -716,7 +716,10 @@ function TimelineRow({
           </div>
         </div>
         {act.body && (
-          <p className="whitespace-pre-wrap text-sm text-amber-950/90 mt-1 leading-relaxed">{act.body}</p>
+          <div
+            className="prose prose-sm max-w-none text-sm text-amber-950/90 mt-1 leading-relaxed [&_p]:my-1 [&_p:empty]:hidden"
+            dangerouslySetInnerHTML={{ __html: act.body }}
+          />
         )}
       </div>
     );
