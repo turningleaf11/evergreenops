@@ -127,6 +127,15 @@ export function DealOverviewPanel({
             />
           </div>
         </div>
+        <div>
+          <Label className="crm-field-label">Unit mix</Label>
+          <Input
+            value={draft.unit_mix ?? ""}
+            placeholder="e.g. 4×1BR / 2×2BR"
+            onChange={(e) => setDraft({ ...draft, unit_mix: e.target.value })}
+            onBlur={() => blur({ unit_mix: draft.unit_mix })}
+          />
+        </div>
       </section>
 
       {/* Pricing */}
