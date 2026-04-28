@@ -294,7 +294,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
 
   const CRM_ICON: Record<string, { icon: any; bg: string; fg: string }> = {
     email: { icon: Mail, bg: "bg-amber-100", fg: "text-amber-700" },
-    note: { icon: NotebookPen, bg: "bg-blue-100", fg: "text-blue-700" },
+    note: { icon: NotebookPen, bg: "bg-[#FCE588]", fg: "text-amber-800" },
     call: { icon: Phone, bg: "bg-violet-100", fg: "text-violet-700" },
     meeting: { icon: Users, bg: "bg-emerald-100", fg: "text-emerald-700" },
     sms: { icon: MessageSquare, bg: "bg-sky-100", fg: "text-sky-700" },
