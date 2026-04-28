@@ -22,6 +22,7 @@ interface OverviewDeal {
   property_zip: string | null;
   property_type: string | null;
   units: number | null;
+  unit_mix: string | null;
   sqft: number | null;
   asking_price: number | null;
   seller_stated_value: number | null;
