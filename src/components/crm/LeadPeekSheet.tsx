@@ -724,18 +724,8 @@ export function LeadPeekSheet({
                     />
                   </EntitySidebarSection>
 
-                  <EntitySidebarSection title="Status">
-                    <EntitySidebarField label="Buy box">
-                      <span className="text-sm text-foreground">
-                        {buyBoxMeta?.label || "Unchecked"}
-                      </span>
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Stage">
-                      <span className="text-sm text-foreground capitalize">
-                        {lead.status?.replace(/_/g, " ") || "—"}
-                      </span>
-                    </EntitySidebarField>
-                  </EntitySidebarSection>
+                  {/* Status / Buy box / Stage moved out of sidebar — managed via the
+                      stage progress bar and buy-box buttons in the main view. */}
 
                   <EntitySidebarSection title="Follow up">
                     <FollowUpPicker
