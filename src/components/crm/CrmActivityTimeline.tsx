@@ -79,6 +79,7 @@ export function CrmActivityTimeline({
           const threadId = meta?.gmail_thread_id as string | undefined;
           const isEmail = a.type === "email" && threadId;
           const isStage = a.type === "stage_change";
+          const isNote = a.type === "note";
 
           return (
             <div key={a.id} className="relative">
@@ -101,13 +102,21 @@ export function CrmActivityTimeline({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-border/40 bg-card p-3 text-sm">
+                <div
+                  className={cn(
+                    "rounded-lg p-3 text-sm",
+                    isNote
+                      ? "border border-amber-300/40"
+                      : "border border-border/40 bg-card",
+                  )}
+                  style={isNote ? { backgroundColor: "#FFF7B8" } : undefined}
+                >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="min-w-0 flex-1">
                       {a.subject && (
                         <div className="font-medium leading-tight truncate">{a.subject}</div>
                       )}
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                      <div className={cn("text-[11px] mt-0.5", isNote ? "text-amber-900/70" : "text-muted-foreground")}>
                         {new Date(a.occurred_at).toLocaleDateString()} ·{" "}
                         {actorName(a.actor_id, people)} ·{" "}
                         {formatDistanceToNow(new Date(a.occurred_at), { addSuffix: true })}
@@ -136,9 +145,16 @@ export function CrmActivityTimeline({
                     </div>
                   </div>
                   {a.body && (
-                    <p className="whitespace-pre-wrap text-muted-foreground line-clamp-6">
-                      {a.body}
-                    </p>
+                    isNote ? (
+                      <div
+                        className="prose prose-sm max-w-none text-amber-950/90 [&_p]:my-1 [&_p:empty]:hidden"
+                        dangerouslySetInnerHTML={{ __html: a.body }}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-muted-foreground line-clamp-6">
+                        {a.body}
+                      </p>
+                    )
                   )}
                 </div>
               )}
