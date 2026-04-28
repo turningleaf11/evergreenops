@@ -135,39 +135,19 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
                 <Input type="number" value={units} onChange={(e) => setUnits(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label className="text-xs">Beds</Label>
-                <Input type="number" value={beds} onChange={(e) => setBeds(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Baths</Label>
-                <Input type="number" step="0.5" value={baths} onChange={(e) => setBaths(e.target.value)} />
-              </div>
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Sqft</Label>
                 <Input type="number" value={sqft} onChange={(e) => setSqft(e.target.value)} />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">Asking price ($)</Label>
-                <Input type="number" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Listed cap rate (%)</Label>
-                <Input type="number" step="0.01" value={capRate} onChange={(e) => setCapRate(e.target.value)} />
+                <Label className="text-xs">Unit mix</Label>
+                <Input value={unitMix} onChange={(e) => setUnitMix(e.target.value)} placeholder="e.g. 4×1BR / 2×2BR" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Gross income ($)</Label>
-                <Input type="number" value={grossIncome} onChange={(e) => setGrossIncome(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">NOI ($)</Label>
-                <Input type="number" value={noi} onChange={(e) => setNoi(e.target.value)} />
-              </div>
+            <div>
+              <Label className="text-xs">Asking price ($)</Label>
+              <Input type="number" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} />
             </div>
           </section>
 
