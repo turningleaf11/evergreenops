@@ -294,7 +294,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
 
   const CRM_ICON: Record<string, { icon: any; bg: string; fg: string }> = {
     email: { icon: Mail, bg: "bg-amber-100", fg: "text-amber-700" },
-    note: { icon: NotebookPen, bg: "bg-blue-100", fg: "text-blue-700" },
+    note: { icon: NotebookPen, bg: "bg-[#FCE588]", fg: "text-amber-800" },
     call: { icon: Phone, bg: "bg-violet-100", fg: "text-violet-700" },
     meeting: { icon: Users, bg: "bg-emerald-100", fg: "text-emerald-700" },
     sms: { icon: MessageSquare, bg: "bg-sky-100", fg: "text-sky-700" },
@@ -400,9 +400,16 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
                 {actor} · {timeAgo(a.occurred_at)}
               </div>
               {!expanded && a.body && (
-                <p className="whitespace-pre-wrap text-xs text-muted-foreground line-clamp-2 mt-1">
-                  {a.body}
-                </p>
+                a.type === "note" ? (
+                  <div
+                    className="prose prose-sm max-w-none text-xs text-muted-foreground line-clamp-2 mt-1 [&_p]:my-0 [&_p:empty]:hidden"
+                    dangerouslySetInnerHTML={{ __html: a.body }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-xs text-muted-foreground line-clamp-2 mt-1">
+                    {a.body}
+                  </p>
+                )
               )}
             </div>
             {isEmail && (
@@ -440,9 +447,17 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
           {expanded && (
             <div className="border-t border-border/40 bg-background">
               {!isEmail && a.body && (
-                <p className="whitespace-pre-wrap text-sm text-foreground p-3">
-                  {a.body}
-                </p>
+                a.type === "note" ? (
+                  <div
+                    className="prose prose-sm max-w-none text-sm text-amber-950/90 p-3 [&_p]:my-1 [&_p:empty]:hidden"
+                    style={{ backgroundColor: "#FFF7B8" }}
+                    dangerouslySetInnerHTML={{ __html: a.body }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm text-foreground p-3">
+                    {a.body}
+                  </p>
+                )
               )}
               {isEmail && loadingThread && (
                 <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
