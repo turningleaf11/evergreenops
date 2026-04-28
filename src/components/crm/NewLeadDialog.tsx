@@ -46,21 +46,17 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
   const [address, setAddress] = useState("");
   const [propType, setPropType] = useState<string>("");
   const [units, setUnits] = useState("");
-  const [beds, setBeds] = useState("");
-  const [baths, setBaths] = useState("");
+  const [unitMix, setUnitMix] = useState("");
   const [sqft, setSqft] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
-  const [capRate, setCapRate] = useState("");
-  const [grossIncome, setGrossIncome] = useState("");
-  const [noi, setNoi] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setName(""); setTemperature("warm");
     setSourceContactId(null); setSourceContactName("");
     setAddress("");
-    setPropType(""); setUnits(""); setBeds(""); setBaths(""); setSqft("");
-    setAskingPrice(""); setCapRate(""); setGrossIncome(""); setNoi("");
+    setPropType(""); setUnits(""); setUnitMix(""); setSqft("");
+    setAskingPrice("");
   };
 
   // Pre-select source contact when opened from a contact context.
@@ -83,16 +79,12 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
       property_address: address.trim() || null,
       property_type: propType || null,
       units: units ? Number(units) : null,
-      beds: beds ? Number(beds) : null,
-      baths: baths ? Number(baths) : null,
+      unit_mix: unitMix.trim() || null,
       sqft: sqft ? Number(sqft) : null,
       asking_price: askingPrice ? Number(askingPrice) : null,
-      listed_cap_rate: capRate ? Number(capRate) : null,
-      gross_income: grossIncome ? Number(grossIncome) : null,
-      noi: noi ? Number(noi) : null,
       created_by: userId,
       owner_id: userId,
-    });
+    } as any);
     setSaving(false);
     if (error) {
       toast({ title: "Couldn't create lead", description: error.message, variant: "destructive" });
