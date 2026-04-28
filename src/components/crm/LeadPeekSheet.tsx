@@ -566,23 +566,21 @@ export function LeadPeekSheet({
                             onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <NumField
-                            label="Beds"
-                            value={lead.beds ?? null}
-                            onSave={(n) => onUpdate(lead.id, { beds: n } as any)}
-                          />
-                          <NumField
-                            label="Baths"
-                            value={lead.baths ?? null}
-                            step="0.5"
-                            onSave={(n) => onUpdate(lead.id, { baths: n } as any)}
+                        <div>
+                          <div className="crm-field-label">Unit mix</div>
+                          <Input
+                            defaultValue={(lead as any).unit_mix ?? ""}
+                            placeholder="e.g. 4×1BR / 2×2BR"
+                            className="h-9"
+                            onBlur={(e) =>
+                              onUpdate(lead.id, { unit_mix: e.target.value || null } as any)
+                            }
                           />
                         </div>
                       </OverviewCard>
 
-                      {/* Financials */}
-                      <OverviewCard title="Financials">
+                      {/* Pricing */}
+                      <OverviewCard title="Pricing">
                         <div>
                           <div className="crm-field-label">Asking price</div>
                           <div className="relative">
@@ -603,26 +601,6 @@ export function LeadPeekSheet({
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <NumField
-                            label="Listed cap rate (%)"
-                            value={lead.listed_cap_rate ?? null}
-                            step="0.01"
-                            onSave={(n) =>
-                              onUpdate(lead.id, { listed_cap_rate: n } as any)
-                            }
-                          />
-                          <NumField
-                            label="Gross income ($)"
-                            value={lead.gross_income ?? null}
-                            onSave={(n) => onUpdate(lead.id, { gross_income: n } as any)}
-                          />
-                        </div>
-                        <NumField
-                          label="NOI ($)"
-                          value={lead.noi ?? null}
-                          onSave={(n) => onUpdate(lead.id, { noi: n } as any)}
-                        />
                       </OverviewCard>
 
                       {/* Source */}
@@ -724,18 +702,8 @@ export function LeadPeekSheet({
                     />
                   </EntitySidebarSection>
 
-                  <EntitySidebarSection title="Status">
-                    <EntitySidebarField label="Buy box">
-                      <span className="text-sm text-foreground">
-                        {buyBoxMeta?.label || "Unchecked"}
-                      </span>
-                    </EntitySidebarField>
-                    <EntitySidebarField label="Stage">
-                      <span className="text-sm text-foreground capitalize">
-                        {lead.status?.replace(/_/g, " ") || "—"}
-                      </span>
-                    </EntitySidebarField>
-                  </EntitySidebarSection>
+                  {/* Status / Buy box / Stage moved out of sidebar — managed via the
+                      stage progress bar and buy-box buttons in the main view. */}
 
                   <EntitySidebarSection title="Follow up">
                     <FollowUpPicker

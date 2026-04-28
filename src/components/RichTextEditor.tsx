@@ -154,7 +154,7 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
     }
     const current = editor.getHTML();
     if (current === content) return;
-    editor.commands.setContent(content || "", false);
+    editor.commands.setContent(content || "", { emitUpdate: false });
   }, [content, editor]);
 
   // Click below the editor content focuses cursor at the end (Notion-style)

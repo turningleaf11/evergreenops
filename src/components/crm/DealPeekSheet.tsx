@@ -84,6 +84,7 @@ interface Deal {
   property_zip: string | null;
   property_type: string | null;
   units: number | null;
+  unit_mix: string | null;
   sqft: number | null;
   asking_price: number | null;
   seller_stated_value: number | null;
@@ -777,8 +778,11 @@ export function DealPeekSheet({
             property_address: deal.property_address || deal.title,
             property_city: deal.property_city,
             property_state: deal.property_state,
+            property_zip: (deal as any).property_zip ?? null,
             property_type: deal.property_type,
             units: deal.units,
+            unit_mix: (deal as any).unit_mix ?? null,
+            sqft: (deal as any).sqft ?? null,
             asking_price: deal.asking_price ?? deal.value,
             source_contact_id: deal.source_contact_id,
             expected_close_date: deal.expected_close_date,

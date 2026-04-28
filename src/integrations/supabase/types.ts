@@ -1174,6 +1174,7 @@ export type Database = {
       crm_transactions: {
         Row: {
           actual_net: number | null
+          asking_price: number | null
           assignment_fee: number | null
           attorney_contact_id: string | null
           buyer_contact_id: string | null
@@ -1199,17 +1200,21 @@ export type Database = {
           property_city: string | null
           property_state: string | null
           property_type: string | null
+          property_zip: string | null
           purchase_price: number | null
           source_contact_id: string | null
+          sqft: number | null
           status: string
           title_contact_id: string | null
           transaction_type: string
+          unit_mix: string | null
           units: number | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
           actual_net?: number | null
+          asking_price?: number | null
           assignment_fee?: number | null
           attorney_contact_id?: string | null
           buyer_contact_id?: string | null
@@ -1235,17 +1240,21 @@ export type Database = {
           property_city?: string | null
           property_state?: string | null
           property_type?: string | null
+          property_zip?: string | null
           purchase_price?: number | null
           source_contact_id?: string | null
+          sqft?: number | null
           status?: string
           title_contact_id?: string | null
           transaction_type?: string
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
           actual_net?: number | null
+          asking_price?: number | null
           assignment_fee?: number | null
           attorney_contact_id?: string | null
           buyer_contact_id?: string | null
@@ -1271,11 +1280,14 @@ export type Database = {
           property_city?: string | null
           property_state?: string | null
           property_type?: string | null
+          property_zip?: string | null
           purchase_price?: number | null
           source_contact_id?: string | null
+          sqft?: number | null
           status?: string
           title_contact_id?: string | null
           transaction_type?: string
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           workspace_id?: string
@@ -1797,6 +1809,7 @@ export type Database = {
           status: string
           tags: string[]
           title: string
+          unit_mix: string | null
           units: number | null
           updated_at: string
           vacancy_rate: number | null
@@ -1851,6 +1864,7 @@ export type Database = {
           status?: string
           tags?: string[]
           title: string
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           vacancy_rate?: number | null
@@ -1905,6 +1919,7 @@ export type Database = {
           status?: string
           tags?: string[]
           title?: string
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           vacancy_rate?: number | null
@@ -3142,6 +3157,7 @@ export type Database = {
           status: string
           temperature: string
           title: string | null
+          unit_mix: string | null
           units: number | null
           updated_at: string
           workspace_id: string | null
@@ -3184,6 +3200,7 @@ export type Database = {
           status?: string
           temperature?: string
           title?: string | null
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           workspace_id?: string | null
@@ -3226,6 +3243,7 @@ export type Database = {
           status?: string
           temperature?: string
           title?: string | null
+          unit_mix?: string | null
           units?: number | null
           updated_at?: string
           workspace_id?: string | null

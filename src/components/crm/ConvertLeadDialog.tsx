@@ -30,9 +30,9 @@ interface Lead {
   property_zip?: string | null;
   property_type?: string | null;
   units?: number | null;
+  unit_mix?: string | null;
+  sqft?: number | null;
   asking_price?: number | null;
-  listed_cap_rate?: number | null;
-  noi?: number | null;
   source_contact_id?: string | null;
 }
 
@@ -138,7 +138,8 @@ export function ConvertLeadDialog({
       contactId = (c as { id: string }).id;
     }
 
-    // 2. create deal
+    // 2. create deal — carry property + financial fields directly so the deal
+    //    inherits everything entered on the lead.
     const { data: d, error: dErr } = await supabase
       .from("deals")
       .insert({
@@ -146,13 +147,24 @@ export function ConvertLeadDialog({
         title: dealTitle.trim() || lead.name || "New deal",
         pipeline_id: pipelineId,
         stage_id: stageId,
-        value: Number(value) || 0,
+        value: Number(value) || lead.asking_price || 0,
         currency: "USD",
         primary_contact_id: contactId,
         owner_id: lead.owner_id || userId,
         created_by: userId,
         status: "open",
-      })
+        lead_id: lead.id,
+        property_address: lead.property_address ?? null,
+        property_city: lead.property_city ?? null,
+        property_state: lead.property_state ?? null,
+        property_zip: lead.property_zip ?? null,
+        property_type: lead.property_type ?? null,
+        units: lead.units ?? null,
+        unit_mix: lead.unit_mix ?? null,
+        sqft: lead.sqft ?? null,
+        asking_price: lead.asking_price ?? null,
+        source_contact_id: lead.source_contact_id ?? null,
+      } as any)
       .select("id,workspace_id")
       .single();
     if (dErr) {
@@ -162,19 +174,8 @@ export function ConvertLeadDialog({
     }
     const dealId = (d as { id: string }).id;
 
-    // 3. carry over notes + property snapshot as activity
-    const summaryLines: string[] = [];
-    if (lead.property_address) {
-      summaryLines.push(
-        `Property: ${[lead.property_address, lead.property_city, lead.property_state, lead.property_zip].filter(Boolean).join(", ")}`,
-      );
-    }
-    if (lead.property_type) summaryLines.push(`Type: ${lead.property_type}`);
-    if (lead.units) summaryLines.push(`Units: ${lead.units}`);
-    if (lead.asking_price) summaryLines.push(`Asking: $${lead.asking_price.toLocaleString()}`);
-    if (lead.listed_cap_rate) summaryLines.push(`Listed cap: ${lead.listed_cap_rate}%`);
-    if (lead.noi) summaryLines.push(`NOI: $${lead.noi.toLocaleString()}`);
-    const body = [summaryLines.join("\n"), lead.notes?.trim()].filter(Boolean).join("\n\n");
+    // 3. carry over freeform lead notes as a single activity entry.
+    const body = (lead.notes || "").trim();
     if (body) {
       await supabase.from("crm_activities").insert({
         workspace_id: lead.workspace_id,

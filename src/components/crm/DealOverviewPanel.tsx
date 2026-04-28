@@ -22,6 +22,7 @@ interface OverviewDeal {
   property_zip: string | null;
   property_type: string | null;
   units: number | null;
+  unit_mix: string | null;
   sqft: number | null;
   asking_price: number | null;
   seller_stated_value: number | null;
@@ -125,6 +126,15 @@ export function DealOverviewPanel({
               onBlur={() => blur({ sqft: draft.sqft })}
             />
           </div>
+        </div>
+        <div>
+          <Label className="crm-field-label">Unit mix</Label>
+          <Input
+            value={draft.unit_mix ?? ""}
+            placeholder="e.g. 4×1BR / 2×2BR"
+            onChange={(e) => setDraft({ ...draft, unit_mix: e.target.value })}
+            onBlur={() => blur({ unit_mix: draft.unit_mix })}
+          />
         </div>
       </section>
 
