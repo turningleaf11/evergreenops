@@ -13,7 +13,6 @@ interface UWDeal {
   id: string;
   asking_price: number | null;
   units: number | null;
-  sqft: number | null;
   quick_arv: number | null;
   repair_estimate: number | null;
   mao: number | null;
@@ -26,7 +25,6 @@ interface UWDeal {
   our_value: number | null;
   our_cap_rate: number | null;
   price_per_unit: number | null;
-  price_per_sqft: number | null;
   loi_date: string | null;
   loi_amount: number | null;
   value: number | null; // final offer / deal value
@@ -90,7 +88,6 @@ export function DealUnderwritingTab({
   const ourValue = noi > 0 ? noi / TARGET_CAP_RATE : 0;
   const ourCapRate = ourValue > 0 ? noi / ourValue : 0;
   const pricePerUnit = deal.units && askingN ? askingN / Number(deal.units) : null;
-  const pricePerSqft = deal.sqft && askingN ? askingN / Number(deal.sqft) : null;
 
   const saveQuick = async () => {
     setSavingQuick(true);
@@ -125,7 +122,6 @@ export function DealUnderwritingTab({
         our_value: ourValue || null,
         our_cap_rate: ourCapRate || null,
         price_per_unit: pricePerUnit,
-        price_per_sqft: pricePerSqft,
         value: num(finalOffer) ?? deal.value,
         loi_date: loiDate || null,
         loi_amount: num(loiAmount),
@@ -230,7 +226,6 @@ export function DealUnderwritingTab({
           <Row label={`Our Value (NOI ÷ ${(TARGET_CAP_RATE * 100).toFixed(1)}%)`} value={fmtMoney(ourValue || null)} />
           <Row label="Our Cap Rate" value={ourCapRate ? `${(ourCapRate * 100).toFixed(2)}%` : "—"} />
           <Row label="Price / Unit" value={fmtMoney(pricePerUnit)} />
-          <Row label="Price / Sqft" value={pricePerSqft ? `$${pricePerSqft.toFixed(2)}` : "—"} />
         </div>
 
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/40">

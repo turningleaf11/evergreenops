@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, CheckCircle2, Building2 } from "lucide-react";
+import { Loader2, CheckCircle2, Building2, Upload, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,16 @@ const PROPERTY_TYPES = [
   "Mixed Use", "Commercial", "Land", "Other",
 ];
 
+const MAX_FILES = 8;
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB
+
 type PublicForm = { id: string; name: string; kind: string; active: boolean };
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 export default function PublicLeadFormPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +32,7 @@ export default function PublicLeadFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<File[]>([]);
   const [hp, setHp] = useState(""); // honeypot
 
   useEffect(() => {
@@ -43,6 +53,36 @@ export default function PublicLeadFormPage() {
 
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
+  const addFiles = (list: FileList | File[]) => {
+    const incoming = Array.from(list);
+    const accepted: File[] = [];
+    for (const f of incoming) {
+      if (f.size > MAX_FILE_BYTES) {
+        toast.error(`${f.name} is over 20MB and was skipped.`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    setFiles((prev) => {
+      const merged = [...prev, ...accepted];
+      if (merged.length > MAX_FILES) {
+        toast.error(`Only ${MAX_FILES} files allowed — extras were skipped.`);
+        return merged.slice(0, MAX_FILES);
+      }
+      return merged;
+    });
+  };
+
+  const pickFiles = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.onchange = () => input.files && addFiles(input.files);
+    input.click();
+  };
+
+  const removeFile = (idx: number) => setFiles((p) => p.filter((_, i) => i !== idx));
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!values.property_address?.trim() && !values.name?.trim()) {
@@ -52,11 +92,10 @@ export default function PublicLeadFormPage() {
     setSubmitting(true);
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lead-form-submit/${slug}`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ values: { ...values, hp_company: hp } }),
-      });
+      const fd = new FormData();
+      fd.append("values", JSON.stringify({ ...values, hp_company: hp }));
+      files.forEach((f) => fd.append("files", f, f.name));
+      const resp = await fetch(url, { method: "POST", body: fd });
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         toast.error(out?.error || "Could not submit. Please try again.");
@@ -101,7 +140,7 @@ export default function PublicLeadFormPage() {
           <p className="text-muted-foreground mb-6">
             Thanks — we’ve received your deal and the acquisitions team will review it shortly.
           </p>
-          <Button variant="outline" onClick={() => { setValues({}); setSubmitted(false); }}>
+          <Button variant="outline" onClick={() => { setValues({}); setFiles([]); setSubmitted(false); }}>
             Submit another deal
           </Button>
         </div>
@@ -140,24 +179,7 @@ export default function PublicLeadFormPage() {
               <Label htmlFor="property_address">Property address *</Label>
               <Input id="property_address" value={values.property_address ?? ""}
                 onChange={(e) => set("property_address", e.target.value)}
-                placeholder="123 Main St" required />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-1 space-y-2">
-                <Label htmlFor="property_city">City</Label>
-                <Input id="property_city" value={values.property_city ?? ""}
-                  onChange={(e) => set("property_city", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="property_state">State</Label>
-                <Input id="property_state" value={values.property_state ?? ""}
-                  onChange={(e) => set("property_state", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="property_zip">Zip</Label>
-                <Input id="property_zip" value={values.property_zip ?? ""}
-                  onChange={(e) => set("property_zip", e.target.value)} />
-              </div>
+                placeholder="123 Main St, City, ST 00000" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -182,15 +204,10 @@ export default function PublicLeadFormPage() {
                   onChange={(e) => set("unit_mix", e.target.value)} placeholder="e.g. 4×1BR, 8×2BR" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sqft">Sqft</Label>
-                <Input id="sqft" type="number" inputMode="numeric" value={values.sqft ?? ""}
-                  onChange={(e) => set("sqft", e.target.value)} />
+                <Label htmlFor="asking_price">Asking price ($)</Label>
+                <Input id="asking_price" type="number" inputMode="decimal" value={values.asking_price ?? ""}
+                  onChange={(e) => set("asking_price", e.target.value)} />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="asking_price">Asking price ($)</Label>
-              <Input id="asking_price" type="number" inputMode="decimal" value={values.asking_price ?? ""}
-                onChange={(e) => set("asking_price", e.target.value)} />
             </div>
           </section>
 
@@ -227,6 +244,43 @@ export default function PublicLeadFormPage() {
             <Textarea id="notes" rows={4} value={values.notes ?? ""}
               onChange={(e) => set("notes", e.target.value)}
               placeholder="Anything else we should know — disposition strategy, timing, financials…" />
+          </section>
+
+          <section className="space-y-2 pt-2 border-t">
+            <Label>Attachments</Label>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+              }}
+              className="rounded-xl border border-dashed border-border/60 p-5 text-center"
+            >
+              <Upload className="h-5 w-5 mx-auto mb-1.5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mb-2">
+                Attach OMs, T12s, rent rolls, photos. Up to {MAX_FILES} files, 20MB each.
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={pickFiles}>
+                Choose files
+              </Button>
+            </div>
+            {files.length > 0 && (
+              <ul className="divide-y divide-border/40 rounded-lg border border-border/50 overflow-hidden bg-background">
+                {files.map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 px-3 py-2">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">{f.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{fmtSize(f.size)}</div>
+                    </div>
+                    <button type="button" onClick={() => removeFile(i)}
+                      className="text-muted-foreground hover:text-destructive p-1 rounded">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <Button type="submit" className="w-full" disabled={submitting}>

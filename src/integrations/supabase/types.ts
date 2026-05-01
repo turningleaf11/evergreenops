@@ -1203,7 +1203,6 @@ export type Database = {
           property_zip: string | null
           purchase_price: number | null
           source_contact_id: string | null
-          sqft: number | null
           status: string
           title_contact_id: string | null
           transaction_type: string
@@ -1243,7 +1242,6 @@ export type Database = {
           property_zip?: string | null
           purchase_price?: number | null
           source_contact_id?: string | null
-          sqft?: number | null
           status?: string
           title_contact_id?: string | null
           transaction_type?: string
@@ -1283,7 +1281,6 @@ export type Database = {
           property_zip?: string | null
           purchase_price?: number | null
           source_contact_id?: string | null
-          sqft?: number | null
           status?: string
           title_contact_id?: string | null
           transaction_type?: string
@@ -1789,7 +1786,6 @@ export type Database = {
           our_value: number | null
           owner_id: string | null
           pipeline_id: string
-          price_per_sqft: number | null
           price_per_unit: number | null
           primary_contact_id: string | null
           probability: number
@@ -1803,7 +1799,6 @@ export type Database = {
           seller_stated_value: number | null
           source_contact_id: string | null
           spread: number | null
-          sqft: number | null
           stage_entered_at: string | null
           stage_id: string
           status: string
@@ -1844,7 +1839,6 @@ export type Database = {
           our_value?: number | null
           owner_id?: string | null
           pipeline_id: string
-          price_per_sqft?: number | null
           price_per_unit?: number | null
           primary_contact_id?: string | null
           probability?: number
@@ -1858,7 +1852,6 @@ export type Database = {
           seller_stated_value?: number | null
           source_contact_id?: string | null
           spread?: number | null
-          sqft?: number | null
           stage_entered_at?: string | null
           stage_id: string
           status?: string
@@ -1899,7 +1892,6 @@ export type Database = {
           our_value?: number | null
           owner_id?: string | null
           pipeline_id?: string
-          price_per_sqft?: number | null
           price_per_unit?: number | null
           primary_contact_id?: string | null
           probability?: number
@@ -1913,7 +1905,6 @@ export type Database = {
           seller_stated_value?: number | null
           source_contact_id?: string | null
           spread?: number | null
-          sqft?: number | null
           stage_entered_at?: string | null
           stage_id?: string
           status?: string
@@ -3251,7 +3242,6 @@ export type Database = {
           property_zip: string | null
           source: string | null
           source_contact_id: string | null
-          sqft: number | null
           status: string
           temperature: string
           title: string | null
@@ -3294,7 +3284,6 @@ export type Database = {
           property_zip?: string | null
           source?: string | null
           source_contact_id?: string | null
-          sqft?: number | null
           status?: string
           temperature?: string
           title?: string | null
@@ -3337,7 +3326,6 @@ export type Database = {
           property_zip?: string | null
           source?: string | null
           source_contact_id?: string | null
-          sqft?: number | null
           status?: string
           temperature?: string
           title?: string | null

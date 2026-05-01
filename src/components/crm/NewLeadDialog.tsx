@@ -47,7 +47,6 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
   const [propType, setPropType] = useState<string>("");
   const [units, setUnits] = useState("");
   const [unitMix, setUnitMix] = useState("");
-  const [sqft, setSqft] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -55,7 +54,7 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
     setName(""); setTemperature("warm");
     setSourceContactId(null); setSourceContactName("");
     setAddress("");
-    setPropType(""); setUnits(""); setUnitMix(""); setSqft("");
+    setPropType(""); setUnits(""); setUnitMix("");
     setAskingPrice("");
   };
 
@@ -80,7 +79,6 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
       property_type: propType || null,
       units: units ? Number(units) : null,
       unit_mix: unitMix.trim() || null,
-      sqft: sqft ? Number(sqft) : null,
       asking_price: askingPrice ? Number(askingPrice) : null,
       created_by: userId,
       owner_id: userId,
@@ -135,15 +133,9 @@ export function NewLeadDialog({ open, onOpenChange, workspaceId, userId, onCreat
                 <Input type="number" value={units} onChange={(e) => setUnits(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Sqft</Label>
-                <Input type="number" value={sqft} onChange={(e) => setSqft(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Unit mix</Label>
-                <Input value={unitMix} onChange={(e) => setUnitMix(e.target.value)} placeholder="e.g. 4×1BR / 2×2BR" />
-              </div>
+            <div>
+              <Label className="text-xs">Unit mix</Label>
+              <Input value={unitMix} onChange={(e) => setUnitMix(e.target.value)} placeholder="e.g. 4×1BR / 2×2BR" />
             </div>
             <div>
               <Label className="text-xs">Asking price ($)</Label>

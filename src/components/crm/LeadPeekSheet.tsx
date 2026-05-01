@@ -93,7 +93,6 @@ export interface Lead {
   units?: number | null;
   beds?: number | null;
   baths?: number | null;
-  sqft?: number | null;
   asking_price?: number | null;
   listed_cap_rate?: number | null;
   gross_income?: number | null;
@@ -559,11 +558,6 @@ export function LeadPeekSheet({
                             label="Units"
                             value={lead.units ?? null}
                             onSave={(n) => onUpdate(lead.id, { units: n } as any)}
-                          />
-                          <NumField
-                            label="Sqft"
-                            value={lead.sqft ?? null}
-                            onSave={(n) => onUpdate(lead.id, { sqft: n } as any)}
                           />
                         </div>
                         <div>
