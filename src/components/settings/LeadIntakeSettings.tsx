@@ -83,7 +83,17 @@ export default function LeadIntakeSettings() {
     toast.success(`${label} copied`);
   };
 
-  const formUrl = (slug: string) => `${window.location.origin}/submit-lead/${slug}`;
+  const publicOrigin = (() => {
+    const host = window.location.hostname;
+    // On Lovable editor/preview hosts, point users to the published app URL instead.
+    if (host.endsWith("lovable.dev") || host.includes("-preview--") || host.endsWith("lovable.app") === false && host.includes("lovable")) {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      // Default published URL pattern; users can override via custom domain.
+      return "https://evergreenops.lovable.app";
+    }
+    return window.location.origin;
+  })();
+  const formUrl = (slug: string) => `${publicOrigin}/submit-lead/${slug}`;
   const webhookUrl = (slug: string) => `${supabaseUrl}/functions/v1/lead-webhook-in/${slug}`;
 
   return (
