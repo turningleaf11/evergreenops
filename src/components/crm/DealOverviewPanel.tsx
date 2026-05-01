@@ -23,7 +23,6 @@ interface OverviewDeal {
   property_type: string | null;
   units: number | null;
   unit_mix: string | null;
-  sqft: number | null;
   asking_price: number | null;
   seller_stated_value: number | null;
   source_contact_id: string | null;
@@ -115,15 +114,6 @@ export function DealOverviewPanel({
               value={draft.units ?? ""}
               onChange={(e) => setDraft({ ...draft, units: e.target.value === "" ? null : Number(e.target.value) })}
               onBlur={() => blur({ units: draft.units })}
-            />
-          </div>
-          <div>
-            <Label className="crm-field-label">Sqft</Label>
-            <Input
-              type="number"
-              value={draft.sqft ?? ""}
-              onChange={(e) => setDraft({ ...draft, sqft: e.target.value === "" ? null : Number(e.target.value) })}
-              onBlur={() => blur({ sqft: draft.sqft })}
             />
           </div>
         </div>

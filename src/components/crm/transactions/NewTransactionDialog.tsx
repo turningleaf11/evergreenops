@@ -31,7 +31,6 @@ interface PrefillFromDeal {
   property_type?: string | null;
   units?: number | null;
   unit_mix?: string | null;
-  sqft?: number | null;
   asking_price?: number | null;
   source_contact_id?: string | null;
   expected_close_date?: string | null;
@@ -107,7 +106,6 @@ export function NewTransactionDialog({
         property_type: prefillFromDeal?.property_type ?? null,
         units: prefillFromDeal?.units ?? null,
         unit_mix: prefillFromDeal?.unit_mix ?? null,
-        sqft: prefillFromDeal?.sqft ?? null,
         asking_price: prefillFromDeal?.asking_price ?? null,
         contract_date: contractDate || null,
         closing_date: closingDate || null,

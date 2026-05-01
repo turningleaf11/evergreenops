@@ -31,7 +31,6 @@ interface Lead {
   property_type?: string | null;
   units?: number | null;
   unit_mix?: string | null;
-  sqft?: number | null;
   asking_price?: number | null;
   source_contact_id?: string | null;
 }
@@ -161,7 +160,6 @@ export function ConvertLeadDialog({
         property_type: lead.property_type ?? null,
         units: lead.units ?? null,
         unit_mix: lead.unit_mix ?? null,
-        sqft: lead.sqft ?? null,
         asking_price: lead.asking_price ?? null,
         source_contact_id: lead.source_contact_id ?? null,
       } as any)

@@ -85,7 +85,6 @@ interface Deal {
   property_type: string | null;
   units: number | null;
   unit_mix: string | null;
-  sqft: number | null;
   asking_price: number | null;
   seller_stated_value: number | null;
   source_contact_id: string | null;
@@ -104,7 +103,6 @@ interface Deal {
   our_value: number | null;
   our_cap_rate: number | null;
   price_per_unit: number | null;
-  price_per_sqft: number | null;
   loi_date: string | null;
   loi_amount: number | null;
   broker_feedback: string | null;
@@ -764,7 +762,6 @@ export function DealPeekSheet({
             property_type: deal.property_type,
             units: deal.units,
             unit_mix: (deal as any).unit_mix ?? null,
-            sqft: (deal as any).sqft ?? null,
             asking_price: deal.asking_price ?? deal.value,
             source_contact_id: deal.source_contact_id,
             expected_close_date: deal.expected_close_date,
