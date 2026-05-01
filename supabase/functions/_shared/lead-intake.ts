@@ -161,13 +161,15 @@ export async function recordSubmission(
   });
 
   if (args.status === "ok") {
-    await client.rpc("noop", {}).then(() => {}).catch(() => {});
+    const { data: cur } = await client
+      .from("lead_intake_sources")
+      .select("submission_count")
+      .eq("id", args.sourceId)
+      .single();
+    const next = (cur?.submission_count ?? 0) + 1;
     await client
       .from("lead_intake_sources")
-      .update({
-        submission_count: (await client.from("lead_intake_sources").select("submission_count").eq("id", args.sourceId).single()).data?.submission_count + 1 || 1,
-        last_submission_at: new Date().toISOString(),
-      })
+      .update({ submission_count: next, last_submission_at: new Date().toISOString() })
       .eq("id", args.sourceId);
   }
 }
