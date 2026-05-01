@@ -1,50 +1,105 @@
-## Why nothing is syncing
+## Goal
 
-I called the live Fathom API with your stored `FATHOM_API_KEY` and confirmed the account has 1 meeting available. I also called the deployed `fathom-sync` edge function — it returns `{ "fetched": 0, "synced": 0 }`. The cause is that the edge function was written against a guessed Fathom schema that doesn't match the real API.
+Allow new property leads to flow into the **CRM → Inbox (Leads)** tab from two sources:
+1. **Public submission form** — shareable URL for brokers, wholesalers, or your own website.
+2. **Inbound webhook** — secure HMAC-signed endpoint for GHL, Zapier, Make, email parsers, etc.
 
-Real Fathom response (verified):
-```
-GET https://api.fathom.ai/external/v1/meetings
-{
-  "items": [ { "recording_id": 139825347, "title": "...", "scheduled_start_time": "...",
-               "recording_start_time": "...", "share_url": "...", "url": "...",
-               "default_summary": null, "transcript": null, "action_items": null,
-               "calendar_invitees": [...], "recorded_by": { "email": "..." } } ],
-  "next_cursor": null,
-  "limit": 10
-}
-```
+Both create a `leads` row, land in the inbox unassigned, and trigger a header-bell notification.
 
-Bugs in current `supabase/functions/fathom-sync/index.ts`:
+---
 
-1. Response unwrapping looks for `meetings` / `data` / `results` — Fathom uses **`items`**. Falls through to `[]`, so `fetched: 0`.
-2. ID extraction uses `m.id || m.meeting_id`. Fathom's identifier is **`recording_id`** (number). Even if items were unwrapped, every row would be skipped as "no id".
-3. Summary mapping misses **`default_summary`**.
-4. Host email is at **`recorded_by.email`**, not a top-level `host_email`.
-5. Attendees field is **`calendar_invitees`**, not `invitees`/`attendees`.
-6. Started-at: `recording_start_time` is missing from the field list (only `scheduled_start_time` is checked).
-7. The `since` filter is built from `meetings.synced_at` (when we last synced), not from the newest meeting time. After one successful sync this becomes "now", which would hide future meetings if Fathom honored it. Safer to omit `since` entirely (upsert is idempotent) and rely on `recording_id` conflict.
-8. No pagination. Fathom returns `next_cursor`; we should follow it so accounts with >limit meetings sync fully. (Not blocking your case since you only have 1, but worth fixing now.)
+## What gets built
 
-## Fix
+### 1. Database
 
-Rewrite the mapper and fetch loop in `supabase/functions/fathom-sync/index.ts`:
+Add a single table `lead_intake_sources` to track configured intake channels (form + webhook share the same model):
 
-- Unwrap `json.items` (keep the existing fallbacks as belt-and-suspenders).
-- `fathom_id = String(m.recording_id ?? m.id ?? m.meeting_id ?? '')`.
-- `started_at = m.recording_start_time ?? m.scheduled_start_time ?? m.started_at ?? null`.
-- `summary = m.default_summary ?? m.summary ?? m.ai_summary ?? null`.
-- `host_email = m.recorded_by?.email ?? m.host_email ?? null`.
-- `attendees = m.calendar_invitees ?? m.attendees ?? m.invitees ?? []`.
-- `recording_url = m.share_url ?? m.url ?? m.recording_url ?? null` (already close, just reorder so `share_url` wins).
-- Compute `duration_seconds` from `recording_end_time - recording_start_time` when not explicitly provided.
-- Drop the `since` query param (idempotent upsert handles dedupe). Add a small pagination loop that follows `next_cursor` until empty or a sane safety cap (e.g., 20 pages).
-- Log `fetched` and `synced` counts on the server for future debugging.
+- `id`, `workspace_id`, `name` (e.g. "Broker Submissions", "GHL Pipeline")
+- `kind` ('form' | 'webhook')
+- `slug` (used in form URL: `/submit-lead/<slug>`)
+- `secret` (HMAC secret for webhook signing)
+- `active` (bool)
+- `default_source_label` (auto-fills the lead's `source` field, e.g. "Public Form – Brokers")
+- `field_config` (jsonb — which standard fields to show on the form, plus optional custom fields)
+- `submission_count`, `last_submission_at`, `created_by`, `created_at`
 
-No DB schema changes. No client changes. After redeploy, the user clicks "Sync from Fathom" on `/meetings` and the existing recording will appear; future ones will sync on each click.
+RLS: workspace members read; admins manage. Public form endpoint reads via a SECURITY DEFINER helper using the slug — no auth required for submitters.
 
-## Verification
+A lightweight `lead_intake_submissions` log table records each raw payload (for debugging + audit), 30-day retention.
 
-1. Redeploy `fathom-sync`.
-2. Call it via the test endpoint and confirm `fetched >= 1, synced >= 1`.
-3. Open Meetings page → Recordings tab → confirm the row, share URL, host, and recording link render.
+No schema changes to `leads` itself — new leads just land with `status = 'new'`, `owner_id = null`, and `source` populated.
+
+### 2. Public submission form
+
+**Route:** `/submit-lead/:slug` (no auth, similar to existing `/forms/:id` pattern)
+
+**Fields** (matching your standardized property model):
+- Property Address, City, State, Zip
+- Property Type (dropdown), Units, Unit Mix, Sqft, Asking Price
+- Submitter contact: Name, Email, Phone, Company
+- Notes (free text)
+- Optional file upload (OM, T12, Rent Roll → stored in `files` bucket, attached as lead files)
+
+Clean, branded, mobile-friendly. Honeypot field + simple rate limit (60/min per IP) to deter spam. Success screen confirms submission.
+
+### 3. Inbound webhook
+
+**Endpoint:** `POST /functions/v1/lead-webhook-in/<slug>`
+
+**Auth:** HMAC-SHA256 signature in `X-Lovable-Signature` header (same pattern as existing `list-webhook-in`).
+
+**Body:** flexible JSON — accepts standard field names directly, or a `values` wrapper. Unknown fields go into `custom_fields`.
+
+Returns the created lead `{ ok: true, lead: {...} }`.
+
+### 4. Settings UI — "Lead Intake" section
+
+New tab in **Settings → CRM** (or under existing CRM Custom Fields area) where admins can:
+- Create/rename/disable intake sources
+- Copy the public form URL
+- Copy the webhook URL + reveal the signing secret
+- See a sample cURL for the webhook
+- View recent submissions log (last 50, with payload preview)
+
+### 5. Inbox surfacing
+
+- New leads appear in `LeadsList` immediately (already real-time via existing query patterns).
+- Header bell notification fires for each new inbound lead (uses existing `activity_notifications` plumbing).
+- Lead row shows a small badge with the source label (e.g. "Form" / "Webhook") so triage knows where it came from.
+
+---
+
+## Technical details
+
+**Edge functions:**
+- `lead-form-submit` (public, `verify_jwt = false`) — accepts form POST, validates with Zod, inserts lead.
+- `lead-webhook-in` (public, `verify_jwt = false`) — validates HMAC, inserts lead.
+
+Both share helper logic for: looking up the intake source by slug, mapping payload → `leads` columns, populating `source`, logging to `lead_intake_submissions`, and emitting an activity notification.
+
+**Validation (Zod):** address required; email format if provided; numeric coercion for units/sqft/price; max lengths on all text fields; reject if intake source is inactive or workspace mismatch.
+
+**Security:**
+- Form endpoint: rate-limited per IP, honeypot, no auth needed.
+- Webhook endpoint: HMAC required, rate-limited per slug.
+- Both use SERVICE_ROLE only inside the edge function; raw client never touches the DB directly.
+
+**Files (form uploads):** uploaded to `files` bucket under `lead-intake/<lead_id>/`, then linked via existing lead files mechanism.
+
+---
+
+## Out of scope for this round
+
+- Custom REST API with bearer tokens (can add later if needed).
+- Round-robin assignment (you chose unassigned-to-inbox).
+- Email-to-lead parsing (would need a Mailparser/Zapier hop into the webhook — works today via webhook, no extra build).
+
+---
+
+## Deliverables
+
+1. Migration: `lead_intake_sources` + `lead_intake_submissions` tables with RLS.
+2. Edge functions: `lead-form-submit`, `lead-webhook-in`.
+3. Public page: `/submit-lead/:slug` (clean branded form).
+4. Settings UI: Lead Intake management panel.
+5. Inbox: source badge on lead rows + bell notification on new inbound.
