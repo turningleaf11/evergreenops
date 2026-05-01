@@ -18,3 +18,9 @@ verify_jwt = false
 [functions.scheduled-email-dispatch]
 verify_jwt = false
 
+[functions.lead-form-submit]
+verify_jwt = false
+
+[functions.lead-webhook-in]
+verify_jwt = false
+

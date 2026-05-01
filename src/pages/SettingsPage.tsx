@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
+import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -124,6 +125,7 @@ export default function SettingsPage() {
       label: "CRM",
       items: [
         { value: "crm_fields", icon: Briefcase, label: "Custom Fields" },
+        { value: "lead_intake", icon: Briefcase, label: "Lead Intake" },
       ],
     },
     {
@@ -495,6 +497,10 @@ export default function SettingsPage() {
 
         <TabsContent value="crm_fields" className="mt-4">
           <CrmCustomFieldsSettings />
+        </TabsContent>
+
+        <TabsContent value="lead_intake" className="mt-4">
+          <LeadIntakeSettings />
         </TabsContent>
 
         <TabsContent value="api" className="mt-4">

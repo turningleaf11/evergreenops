@@ -40,6 +40,7 @@ import ScorecardPage from "./pages/ScorecardPage";
 import GmailCallbackPage from "./pages/GmailCallbackPage";
 import PublicNotePage from "./pages/PublicNotePage";
 import PublicFormPage from "./pages/PublicFormPage";
+import PublicLeadFormPage from "./pages/PublicLeadFormPage";
 import InternalFormPage from "./pages/InternalFormPage";
 import { MentionClickHandler } from "./components/MentionClickHandler";
 import { MentionPeekProvider } from "./components/mention-peek/MentionPeekProvider";
@@ -121,6 +122,9 @@ const App = () => (
 
             {/* Public list form (no auth required) */}
             <Route path="/f/:slug" element={<PublicFormPage />} />
+
+            {/* Public lead intake form (no auth required) */}
+            <Route path="/submit-lead/:slug" element={<PublicLeadFormPage />} />
 
             {/* Public auth routes */}
             <Route element={<PublicRoute />}>

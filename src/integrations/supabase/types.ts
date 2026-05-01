@@ -3020,6 +3020,104 @@ export type Database = {
           },
         ]
       }
+      lead_intake_sources: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          default_source_label: string | null
+          field_config: Json
+          id: string
+          kind: string
+          last_submission_at: string | null
+          name: string
+          secret: string
+          slug: string
+          submission_count: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          default_source_label?: string | null
+          field_config?: Json
+          id?: string
+          kind: string
+          last_submission_at?: string | null
+          name: string
+          secret?: string
+          slug: string
+          submission_count?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          default_source_label?: string | null
+          field_config?: Json
+          id?: string
+          kind?: string
+          last_submission_at?: string | null
+          name?: string
+          secret?: string
+          slug?: string
+          submission_count?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      lead_intake_submissions: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          ip: string | null
+          lead_id: string | null
+          payload: Json
+          source_id: string
+          status: string
+          user_agent: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip?: string | null
+          lead_id?: string | null
+          payload?: Json
+          source_id: string
+          status?: string
+          user_agent?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip?: string | null
+          lead_id?: string | null
+          payload?: Json
+          source_id?: string
+          status?: string
+          user_agent?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_intake_submissions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_intake_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leadership_meeting_action_items: {
         Row: {
           agenda_item_id: string | null
@@ -5261,6 +5359,17 @@ export type Database = {
       is_transaction_team_member: {
         Args: { _transaction_id: string; _user_id: string }
         Returns: boolean
+      }
+      lead_intake_get_public_form: {
+        Args: { _slug: string }
+        Returns: {
+          active: boolean
+          field_config: Json
+          id: string
+          kind: string
+          name: string
+          workspace_id: string
+        }[]
       }
     }
     Enums: {
