@@ -226,7 +226,6 @@ export function DealUnderwritingTab({
           <Row label={`Our Value (NOI ÷ ${(TARGET_CAP_RATE * 100).toFixed(1)}%)`} value={fmtMoney(ourValue || null)} />
           <Row label="Our Cap Rate" value={ourCapRate ? `${(ourCapRate * 100).toFixed(2)}%` : "—"} />
           <Row label="Price / Unit" value={fmtMoney(pricePerUnit)} />
-          <Row label="Price / Sqft" value={pricePerSqft ? `$${pricePerSqft.toFixed(2)}` : "—"} />
         </div>
 
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/40">
