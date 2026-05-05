@@ -43,6 +43,7 @@ export function AppSidebar() {
   const timeClockEnabled = useAddonEnabled("time-clock");
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
   const contentStudioEnabled = useAddonEnabled("content-studio");
+  const aiWorkshopEnabled = useAddonEnabled("ai-workshop");
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
   const { hasAccess: gmailAccess } = useGmailAccess();
 
@@ -80,6 +81,7 @@ export function AppSidebar() {
     ...(timeClockEnabled && (isAdmin || userTimeClockEnabled) ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
     ...(marketResearchEnabled ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
     ...(contentStudioEnabled ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
+    ...(aiWorkshopEnabled ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
   // Click anywhere on the empty space of the collapsed sidebar to expand
