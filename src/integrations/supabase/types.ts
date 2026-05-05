@@ -146,6 +146,180 @@ export type Database = {
           },
         ]
       }
+      ai_project_collaborators: {
+        Row: {
+          added_at: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_project_collaborators_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_project_files: {
+        Row: {
+          created_at: string
+          id: string
+          mime_type: string | null
+          name: string
+          project_id: string
+          size_bytes: number | null
+          storage_path: string | null
+          uploaded_by: string | null
+          url: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name: string
+          project_id: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name?: string
+          project_id?: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          url?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_project_links: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          project_id: string
+          sort_order: number
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          project_id: string
+          sort_order?: number
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          project_id?: string
+          sort_order?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_project_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_projects: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          live_url: string | null
+          name: string
+          notes_content: string | null
+          owner_id: string | null
+          platforms: string[]
+          prompt: string | null
+          repo_url: string | null
+          shared_department_ids: string[]
+          shared_member_ids: string[]
+          stage: string
+          tags: string[]
+          updated_at: string
+          visibility: string
+          workspace_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          live_url?: string | null
+          name: string
+          notes_content?: string | null
+          owner_id?: string | null
+          platforms?: string[]
+          prompt?: string | null
+          repo_url?: string | null
+          shared_department_ids?: string[]
+          shared_member_ids?: string[]
+          stage?: string
+          tags?: string[]
+          updated_at?: string
+          visibility?: string
+          workspace_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          live_url?: string | null
+          name?: string
+          notes_content?: string | null
+          owner_id?: string | null
+          platforms?: string[]
+          prompt?: string | null
+          repo_url?: string | null
+          shared_department_ids?: string[]
+          shared_member_ids?: string[]
+          stage?: string
+          tags?: string[]
+          updated_at?: string
+          visibility?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       ai_strategy_messages: {
         Row: {
           content: string
@@ -5304,12 +5478,20 @@ export type Database = {
     }
     Functions: {
       api_token_touch: { Args: { _token_id: string }; Returns: undefined }
+      can_access_ai_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_access_contact: {
         Args: { _contact_id: string; _user_id: string }
         Returns: boolean
       }
       can_access_deal: {
         Args: { _deal_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_edit_ai_project: {
+        Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       can_use_gmail: { Args: { _user_id: string }; Returns: boolean }
@@ -5329,6 +5511,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_ai_project_collaborator: {
+        Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       is_deal_team_member: {
