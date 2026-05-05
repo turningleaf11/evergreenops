@@ -39,7 +39,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
     const { data } = await (supabase.from("ai_tools" as any).select("*").order("name") as any);
     setTools((data as AiTool[]) || []);
   }, []);
-  useEffect(() => { loadTools(); }, [loadTools]);
+  useEffect(() => { if (projectId) loadTools(); }, [projectId, loadTools]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
