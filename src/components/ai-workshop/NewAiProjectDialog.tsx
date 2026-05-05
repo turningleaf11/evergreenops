@@ -25,16 +25,14 @@ export default function NewAiProjectDialog({ open, onClose, onCreated }: Props) 
   const reset = () => { setName(""); setStage("idea"); setLiveUrl(""); };
 
   const handleCreate = async () => {
-    if (!name.trim() || !user || !profile?.workspace_id) return;
+    if (!name.trim() || !user) return;
     setSaving(true);
+    // workspace_id, created_by, owner_id are set server-side by trigger
     const { data, error } = await (supabase.from("ai_projects" as any).insert({
-      workspace_id: profile.workspace_id,
       name: name.trim(),
       stage,
       live_url: liveUrl.trim() || null,
-      owner_id: user.id,
-      created_by: user.id,
-    }).select("id").single() as any);
+    } as any).select("id").single() as any);
     setSaving(false);
     if (error) { toast({ title: "Could not create project", description: error.message, variant: "destructive" }); return; }
     reset();
