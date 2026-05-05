@@ -400,6 +400,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_tools: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string
+          id: string
+          login_email: string | null
+          login_password: string | null
+          login_username: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+          url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          login_email?: string | null
+          login_password?: string | null
+          login_username?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+          url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          login_email?: string | null
+          login_password?: string | null
+          login_username?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          url?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       announcement_acknowledgments: {
         Row: {
           acknowledged_at: string
