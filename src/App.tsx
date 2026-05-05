@@ -28,6 +28,7 @@ import NotesPage from "./pages/NotesPage";
 import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
 import ContentStudioPage from "./pages/ContentStudioPage";
+import AiWorkshopPage from "./pages/AiWorkshopPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
@@ -175,6 +176,7 @@ const App = () => (
                 <Route path="/time-clock" element={<TimeClockPage />} />
                 <Route path="/market-research" element={<MarketResearchPage />} />
                 <Route path="/content-studio" element={<ContentStudioPage />} />
+                <Route path="/ai-workshop" element={<AiWorkshopPage />} />
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>

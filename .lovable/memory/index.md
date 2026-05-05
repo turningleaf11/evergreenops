@@ -63,3 +63,4 @@
 - [Add-On Packs](mem://features/addon-packs) — SaaS-ready gating with addon_packs/workspace_addons tables and useAddonEnabled hook
 - [Reminders Multi-Delegation](mem://features/reminders-multi-delegation) — Multi-user delegation via junction table
 - [CRM Module](mem://features/crm-module) — Contacts/Companies/Deals/Pipelines with activity timeline and Gmail email_links integration
+- [AI Workshop](mem://features/ai-workshop) — Add-on tracker for AI projects (idea→live), prompts, links, files, team sharing
