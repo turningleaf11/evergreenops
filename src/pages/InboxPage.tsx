@@ -11,6 +11,7 @@ import { ComposePanel } from "@/components/inbox/ComposePanel";
 import { ThreadDetail } from "@/components/inbox/ThreadDetail";
 import { LabelManager, type EmailLabel } from "@/components/inbox/LabelManager";
 import { getSystemLabelMeta, SYSTEM_GROUP_LABELS, type SystemLabelGroup } from "@/components/inbox/gmailSystemLabels";
+import { handleGmailInvokeError } from "@/lib/gmail-error";
 
 interface ThreadSummary {
   id: string;
@@ -80,12 +81,11 @@ export default function InboxPage() {
   };
 
   const loadGmailLabels = async () => {
-    const { data } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
+    const { data, error } = await supabase.functions.invoke("gmail-list-labels", { method: "GET" } as any);
+    if (error) { await handleGmailInvokeError(error); return; }
     if (!data?.labels) return;
     const all = data.labels as { id: string; path: string[] }[];
     setGmailLabels(all as any);
-    // Default every Gmail label group AND the synthetic system groups
-    // (Categories / Stars & flags) to collapsed on first load.
     setCollapsedGroups((prev) => {
       if (prev.size > 0) return prev;
       const next = new Set<string>();
@@ -95,6 +95,7 @@ export default function InboxPage() {
       return next;
     });
   };
+
 
   useEffect(() => { if (hasAccess) { loadLabels(); loadGmailLabels(); } }, [hasAccess]);
 
@@ -111,7 +112,8 @@ export default function InboxPage() {
     const { data, error } = await supabase.functions.invoke(`gmail-list-threads?${params}`, {
       method: "GET",
     } as any);
-    if (!error && data?.threads) setThreads(data.threads);
+    if (error) { await handleGmailInvokeError(error); setLoading(false); return; }
+    if (data?.threads) setThreads(data.threads);
     setLoading(false);
   };
 
