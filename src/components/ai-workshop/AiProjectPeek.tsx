@@ -228,7 +228,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                         <Wrench className="h-3 w-3 mr-1" /> Manage stack
                       </Button>
                     </div>
-                    <Popover>
+                    <Popover onOpenChange={(o) => o && loadTools()}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 w-full justify-start font-normal">
                           {project.platforms.length ? project.platforms.join(", ") : "Pick tools..."}
