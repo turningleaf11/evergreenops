@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Plus, LayoutGrid, List as ListIcon, Sparkles, ExternalLink, Github } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Sparkles, ExternalLink, Github, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AI_STAGES, type AiProject } from "@/components/ai-workshop/types";
 import NewAiProjectDialog from "@/components/ai-workshop/NewAiProjectDialog";
 import AiProjectPeek from "@/components/ai-workshop/AiProjectPeek";
+import AiToolsManager from "@/components/ai-workshop/AiToolsManager";
 
 export default function AiWorkshopPage() {
   const [projects, setProjects] = useState<AiProject[]>([]);
@@ -15,6 +16,7 @@ export default function AiWorkshopPage() {
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -50,6 +52,9 @@ export default function AiWorkshopPage() {
             <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("board")}><LayoutGrid className="h-3.5 w-3.5" /></Button>
             <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" className="h-7 px-2" onClick={() => setView("list")}><ListIcon className="h-3.5 w-3.5" /></Button>
           </div>
+          <Button variant="outline" size="icon" className="h-9 w-9" title="Tool stack" onClick={() => setToolsOpen(true)}>
+            <Wrench className="h-3.5 w-3.5" />
+          </Button>
           <Button size="sm" onClick={() => setNewOpen(true)}><Plus className="h-3.5 w-3.5 mr-1" /> New project</Button>
         </div>
       </div>
@@ -127,6 +132,7 @@ export default function AiWorkshopPage() {
 
       <NewAiProjectDialog open={newOpen} onClose={() => setNewOpen(false)} onCreated={(id) => { load(); setOpenId(id); }} />
       <AiProjectPeek projectId={openId} onClose={() => setOpenId(null)} onChange={load} />
+      <AiToolsManager open={toolsOpen} onOpenChange={setToolsOpen} />
     </div>
   );
 }
