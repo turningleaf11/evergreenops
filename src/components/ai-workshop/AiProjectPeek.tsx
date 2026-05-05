@@ -370,6 +370,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
           </div>
         )}
       </SheetContent>
+      <AiToolsManager open={toolsManagerOpen} onOpenChange={setToolsManagerOpen} onChanged={loadTools} />
     </Sheet>
   );
 }
