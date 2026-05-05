@@ -112,7 +112,8 @@ export default function InboxPage() {
     const { data, error } = await supabase.functions.invoke(`gmail-list-threads?${params}`, {
       method: "GET",
     } as any);
-    if (!error && data?.threads) setThreads(data.threads);
+    if (error) { await handleGmailInvokeError(error); setLoading(false); return; }
+    if (data?.threads) setThreads(data.threads);
     setLoading(false);
   };
 
