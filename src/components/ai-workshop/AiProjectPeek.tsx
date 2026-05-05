@@ -9,14 +9,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ExternalLink, Github, Copy, Trash2, Plus, X, Upload, FileText } from "lucide-react";
+import { ExternalLink, Github, Copy, Trash2, Plus, X, Upload, FileText, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import RichTextEditor from "@/components/RichTextEditor";
 import AccessPicker from "@/components/AccessPicker";
 import { uploadFileWithPath, openStoredFile } from "@/lib/file-upload";
-import { AI_STAGES, PLATFORM_OPTIONS, type AiProject, type AiProjectLink } from "./types";
+import { AI_STAGES, type AiProject, type AiProjectLink } from "./types";
+import AiToolsManager, { type AiTool } from "./AiToolsManager";
 
 interface Props {
   projectId: string | null;
@@ -31,6 +32,14 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
   const [files, setFiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [collaboratorIds, setCollaboratorIds] = useState<string[]>([]);
+  const [tools, setTools] = useState<AiTool[]>([]);
+  const [toolsManagerOpen, setToolsManagerOpen] = useState(false);
+
+  const loadTools = useCallback(async () => {
+    const { data } = await (supabase.from("ai_tools" as any).select("*").order("name") as any);
+    setTools((data as AiTool[]) || []);
+  }, []);
+  useEffect(() => { loadTools(); }, [loadTools]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -213,21 +222,34 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Built with</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Built with</Label>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setToolsManagerOpen(true)}>
+                        <Wrench className="h-3 w-3 mr-1" /> Manage stack
+                      </Button>
+                    </div>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="h-9 w-full justify-start font-normal">
-                          {project.platforms.length ? project.platforms.join(", ") : "Pick platforms..."}
+                          {project.platforms.length ? project.platforms.join(", ") : "Pick tools..."}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-72 p-2">
-                        <div className="grid grid-cols-2 gap-1 max-h-60 overflow-y-auto">
-                          {PLATFORM_OPTIONS.map((p) => (
-                            <label key={p} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-xs">
-                              <Checkbox checked={project.platforms.includes(p)} onCheckedChange={() => togglePlatform(p)} />
-                              {p}
+                        <div className="space-y-1 max-h-60 overflow-y-auto">
+                          {tools.length === 0 && (
+                            <p className="text-xs text-muted-foreground px-2 py-2">No tools in your stack yet.</p>
+                          )}
+                          {tools.map((t) => (
+                            <label key={t.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-xs">
+                              <Checkbox checked={project.platforms.includes(t.name)} onCheckedChange={() => togglePlatform(t.name)} />
+                              <span className="flex-1 truncate">{t.name}</span>
                             </label>
                           ))}
+                        </div>
+                        <div className="border-t mt-2 pt-2">
+                          <Button variant="ghost" size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setToolsManagerOpen(true)}>
+                            <Plus className="h-3 w-3 mr-1.5" /> Add new tool
+                          </Button>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -348,6 +370,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
           </div>
         )}
       </SheetContent>
+      <AiToolsManager open={toolsManagerOpen} onOpenChange={setToolsManagerOpen} onChanged={loadTools} />
     </Sheet>
   );
 }
