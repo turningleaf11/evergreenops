@@ -26,17 +26,24 @@ export default function NewAiProjectDialog({ open, onClose, onCreated }: Props) 
 
   const handleCreate = async () => {
     if (!name.trim() || !user) return;
+    if (!profile?.workspace_id) {
+      toast({ title: "Could not create project", description: "Your account is missing workspace access.", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
+    const id = crypto.randomUUID();
     // workspace_id, created_by, owner_id are set server-side by trigger
-    const { data, error } = await (supabase.from("ai_projects" as any).insert({
+    const { error } = await (supabase.from("ai_projects" as any).insert({
+      id,
       name: name.trim(),
       stage,
       live_url: liveUrl.trim() || null,
-    } as any).select("id").single() as any);
+    } as any) as any);
     setSaving(false);
     if (error) { toast({ title: "Could not create project", description: error.message, variant: "destructive" }); return; }
     reset();
-    onCreated(data.id);
+    onCreated(id);
     onClose();
   };
 
