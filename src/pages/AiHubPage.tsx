@@ -124,8 +124,8 @@ export default function AiHubPage() {
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("tasks");
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchAll = async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     const [tasksRes, agentsRes, profilesRes] = await Promise.all([
       supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("agents").select("id,name,slug,emoji,avatar_url,subtitle,role,status,accent_color").order("position"),
@@ -148,7 +148,7 @@ export default function AiHubPage() {
   };
 
   useEffect(() => {
-    fetchAll();
+    fetchAll(true);
     const channel = supabase
       .channel("ai-hub-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "agent_tasks" }, fetchAll)
