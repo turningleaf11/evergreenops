@@ -400,6 +400,13 @@ const AssigneeOption = ({ assignee }: { assignee: Assignee }) => (
   </div>
 );
 
+// Strip raw tool call XML from PM2 worker results
+const cleanResult = (raw: string) =>
+  raw.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
+     .replace(/<tool_response>[\s\S]*?<\/tool_response>/g, "")
+     .replace(/^\s*\n/gm, "")
+     .trim();
+
 const TaskDetailDialog = ({
   task, assignees, repos, onClose, onRefresh,
 }: { task: AgentTask; assignees: Assignee[]; repos: Repo[]; onClose: () => void; onRefresh: () => void }) => {
@@ -410,65 +417,82 @@ const TaskDetailDialog = ({
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("agent_tasks").update({ status, assigned_to: assignedTo, repo: repo || null }).eq("id", task.id);
+    const { error } = await supabase
+      .from("agent_tasks")
+      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null })
+      .eq("id", task.id);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Saved" }); onRefresh(); onClose(); }
     setSaving(false);
   };
 
   const assignee = assignees.find(a => a.key === assignedTo);
+  const col = COLUMNS.find(c => c.key === status);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="pr-8 leading-snug">{task.title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={`capitalize ${PRIORITY_BADGE[task.priority]}`}>{task.priority}</Badge>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-border">
+          <div className="flex items-start gap-3 pr-8">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{task.type}</p>
+              <h2 className="text-lg font-semibold leading-snug">{task.title}</h2>
+            </div>
           </div>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE[task.priority]}`}>
+              {task.priority}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium bg-secondary`}>
+              {col?.icon}<span className="capitalize">{status.replace("_", " ")}</span>
+            </span>
+            {task.repo && (
+              <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-mono text-teal-700">
+                {task.repo}
+              </span>
+            )}
+          </div>
+        </div>
 
+        <div className="px-6 py-4 space-y-5">
+          {/* Description */}
           {task.description && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
-              <p className="text-sm whitespace-pre-wrap">{task.description}</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</p>
+              <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{task.description}</p>
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label>Assigned to</Label>
-            <Select value={assignedTo} onValueChange={setAssignedTo}>
-              <SelectTrigger>
-                <div className="flex items-center gap-2">
-                  {assignee && <AssigneeAvatar assignee={assignee} size="sm" />}
-                  <span>{assignee?.name ?? assignedTo}</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {assignees.filter(a => a.kind === "agent").length > 0 && (
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
-                )}
-                {assignees.filter(a => a.kind === "agent").map(a => (
-                  <SelectItem key={a.key} value={a.key}>
-                    <AssigneeOption assignee={a} />
-                  </SelectItem>
-                ))}
-                {assignees.filter(a => a.kind === "human").length > 0 && (
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
-                )}
-                {assignees.filter(a => a.kind === "human").map(a => (
-                  <SelectItem key={a.key} value={a.key}>
-                    <AssigneeOption assignee={a} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* Controls */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Status</Label>
+              <Label className="text-xs">Assigned to</Label>
+              <Select value={assignedTo} onValueChange={setAssignedTo}>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    {assignee && <AssigneeAvatar assignee={assignee} size="sm" />}
+                    <span className="truncate">{assignee?.name ?? assignedTo}</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {assignees.filter(a => a.kind === "agent").length > 0 && (
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
+                  )}
+                  {assignees.filter(a => a.kind === "agent").map(a => (
+                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
+                  ))}
+                  {assignees.filter(a => a.kind === "human").length > 0 && (
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
+                  )}
+                  {assignees.filter(a => a.kind === "human").map(a => (
+                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Status</Label>
               <Select value={status} onValueChange={v => setStatus(v as Status)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -476,51 +500,64 @@ const TaskDetailDialog = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Repo</Label>
-              <Select value={repo} onValueChange={setRepo}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {repos.map(r => (
-                    <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs">Repo</Label>
+            <Select value={repo} onValueChange={setRepo}>
+              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {repos.map(r => (
+                  <SelectItem key={r.slug} value={r.slug}>
+                    <span className="font-mono text-sm">{r.github_repo}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Notes */}
+          {task.notes && (
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes from Albus</p>
+              <p className="text-sm leading-relaxed">{task.notes}</p>
+            </div>
+          )}
+
+          {/* Result */}
           {task.result && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
-              <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap max-h-48 overflow-y-auto">{task.result}</div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Result</p>
+              <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
+                {cleanResult(task.result)}
+              </div>
             </div>
           )}
+
+          {/* Error */}
           {task.error && (
-            <div>
-              <p className="text-xs font-medium text-red-500 mb-1">Error</p>
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{task.error}</div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">Error</p>
+              <p className="text-sm text-red-700">{task.error}</p>
             </div>
           )}
-          {task.notes && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-              <p className="text-sm">{task.notes}</p>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-            <div>Created {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
-            {task.due_date && <div>Due {format(parseISO(task.due_date), "MMM d")}</div>}
-            {task.started_at && <div>Started {format(parseISO(task.started_at), "MMM d, h:mm a")}</div>}
-            {task.completed_at && <div>Completed {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
+
+          {/* Timestamps */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
+            <div>Created · {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
+            {task.due_date && <div>Due · {format(parseISO(task.due_date), "MMM d")}</div>}
+            {task.started_at && <div>Started · {format(parseISO(task.started_at), "MMM d, h:mm a")}</div>}
+            {task.completed_at && <div>Completed · {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
           </div>
         </div>
-        <DialogFooter>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save changes
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
