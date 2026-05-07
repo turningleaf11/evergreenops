@@ -15,6 +15,7 @@ on:
       task_notes:
         description: Additional notes from Albus
         required: false
+        default: ''
 
 jobs:
   run-task:
@@ -45,12 +46,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          PROMPT="${{ inputs.task_description }}"
           NOTES="${{ inputs.task_notes }}"
           if [ -n "$NOTES" ]; then
-            PROMPT="$PROMPT"$'\n\n'"Additional context from Albus:"$'\n'"$NOTES"
+            claude --print "${{ inputs.task_description }}"$'\n\n'"Additional context from Albus: $NOTES"
+          else
+            claude --print "${{ inputs.task_description }}"
           fi
-          claude --print "$PROMPT"
 
       - name: Commit and push
         run: |
@@ -66,12 +67,7 @@ jobs:
         run: |
           gh pr create \
             --title "${{ inputs.task_title }}" \
-            --body "## Summary
-Implemented by Claude Code.
-
-**Task ID:** \`${{ inputs.task_id }}\`
-
-${{ inputs.task_description }}" \
+            --body "Implemented by Claude Code. Task ID: ${{ inputs.task_id }}" \
             --base main \
             --head "${{ steps.branch.outputs.name }}"
 
