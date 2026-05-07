@@ -413,13 +413,14 @@ const TaskDetailDialog = ({
   const [status, setStatus] = useState<Status>(task.status);
   const [assignedTo, setAssignedTo] = useState(task.assigned_to);
   const [repo, setRepo] = useState(task.repo ?? "none");
+  const [type, setType] = useState<TaskType>(task.type ?? "general");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     const { error } = await supabase
       .from("agent_tasks")
-      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null })
+      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null, type })
       .eq("id", task.id);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Saved" }); onRefresh(); onClose(); }
@@ -466,6 +467,17 @@ const TaskDetailDialog = ({
 
           {/* Controls */}
           <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Type</Label>
+              <Select value={type} onValueChange={v => setType(v as TaskType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["general", "research", "code", "decision", "communication"] as TaskType[]).map(t => (
+                    <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Assigned to</Label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>
