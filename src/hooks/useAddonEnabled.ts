@@ -35,18 +35,32 @@ export function useAllAddons() {
   const [enabledIds, setEnabledIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetch = async () => {
-    if (!workspaceId) return;
-    const [packsRes, enabledRes] = await Promise.all([
-      supabase.from("addon_packs").select("*").eq("is_active", true).order("name"),
-      supabase.from("workspace_addons").select("addon_id").eq("workspace_id", workspaceId),
-    ]);
-    if (packsRes.data) setPacks(packsRes.data);
-    if (enabledRes.data) setEnabledIds(enabledRes.data.map((r) => r.addon_id));
-    setLoading(false);
-  };
+  // Packs are global — load immediately, no workspace needed
+  useEffect(() => {
+    const loadPacks = async () => {
+      const { data } = await supabase
+        .from("addon_packs")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (data) setPacks(data);
+      setLoading(false);
+    };
+    loadPacks();
+  }, []);
 
-  useEffect(() => { fetch(); }, [workspaceId]);
+  // Enabled state is per-workspace
+  useEffect(() => {
+    if (!workspaceId) return;
+    const loadEnabled = async () => {
+      const { data } = await supabase
+        .from("workspace_addons")
+        .select("addon_id")
+        .eq("workspace_id", workspaceId);
+      if (data) setEnabledIds(data.map((r) => r.addon_id));
+    };
+    loadEnabled();
+  }, [workspaceId]);
 
   const toggle = async (addonId: string) => {
     if (!workspaceId) return;
@@ -60,5 +74,5 @@ export function useAllAddons() {
     }
   };
 
-  return { packs, enabledIds, loading, toggle, refetch: fetch };
+  return { packs, enabledIds, loading, toggle };
 }
