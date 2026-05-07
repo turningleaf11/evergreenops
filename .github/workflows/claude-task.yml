@@ -1,0 +1,98 @@
+name: Claude Code Task Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: Task ID from Supabase
+        required: true
+      task_title:
+        description: Task title
+        required: true
+      task_description:
+        description: Task description and plan from Claude
+        required: true
+      task_notes:
+        description: Additional notes from Albus
+        required: false
+
+jobs:
+  run-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Create task branch
+        id: branch
+        run: |
+          SLUG=$(echo "${{ inputs.task_title }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g' | cut -c1-50)
+          BRANCH="task/${SLUG}"
+          git checkout -b "$BRANCH"
+          echo "name=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PROMPT="${{ inputs.task_description }}"
+          if [ -n "${{ inputs.task_notes }}" ]; then
+            PROMPT="$PROMPT
+
+Additional context from Albus:
+${{ inputs.task_notes }}"
+          fi
+          claude --print "$PROMPT"
+
+      - name: Commit and push
+        run: |
+          git config user.name "Claude Code"
+          git config user.email "claude-code@anthropic.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "task: ${{ inputs.task_title }}"
+          git push origin "${{ steps.branch.outputs.name }}"
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "${{ inputs.task_title }}" \
+            --body "## Summary
+Implemented by Claude Code.
+
+**Task ID:** \`${{ inputs.task_id }}\`
+
+${{ inputs.task_description }}" \
+            --base main \
+            --head "${{ steps.branch.outputs.name }}"
+
+      - name: Mark task done in Supabase
+        if: success()
+        run: |
+          curl -s -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/agent_tasks?id=eq.${{ inputs.task_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"done\",\"completed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Mark task failed in Supabase
+        if: failure()
+        run: |
+          curl -s -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/agent_tasks?id=eq.${{ inputs.task_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"needs_input\",\"error\":\"GitHub Actions workflow failed — check the Actions tab for details\"}"
