@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
@@ -48,10 +48,11 @@ jobs:
         run: |
           NOTES="${{ inputs.task_notes }}"
           if [ -n "$NOTES" ]; then
-            claude --print "${{ inputs.task_description }}"$'\n\n'"Additional context from Albus: $NOTES"
+            PROMPT="${{ inputs.task_description }}"$'\n\n'"Additional context from Albus: $NOTES"
           else
-            claude --print "${{ inputs.task_description }}"
+            PROMPT="${{ inputs.task_description }}"
           fi
+          claude -p "$PROMPT" --dangerously-skip-permissions
 
       - name: Commit and push
         run: |
