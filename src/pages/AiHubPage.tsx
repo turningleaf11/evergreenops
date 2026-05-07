@@ -123,6 +123,8 @@ export default function AiHubPage() {
           </p>
         </div>
         <Button onClick={fetchClawBuddy} variant="outline" size="sm">
+                <a href="/ai-hub/docs" className="text-inherit underline">Docs</a>
+
           <Activity className="h-4 w-4 mr-2" />
           Refresh
         </Button>
