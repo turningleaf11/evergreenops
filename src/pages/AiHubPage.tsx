@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   Sparkles, CheckCircle2, Clock, AlertCircle, Play,
-  Activity, Plus, Loader2, Calendar, ChevronDown,
+  Activity, Plus, Loader2, Calendar,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,13 +43,50 @@ interface AgentTask {
   completed_at: string | null;
 }
 
+interface Agent {
+  id: string;
+  name: string;
+  slug: string;
+  emoji: string;
+  avatar_url: string | null;
+  subtitle: string | null;
+  role: string | null;
+  status: string;
+  accent_color: string | null;
+}
+
+interface HumanProfile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+type Assignee = {
+  key: string;           // slug for agents, user_id for humans
+  name: string;
+  subtitle: string | null;
+  emoji: string | null;
+  avatar_url: string | null;
+  status: string;
+  kind: "agent" | "human";
+  accent_color: string | null;
+};
+
+const STATUS_DOT: Record<string, string> = {
+  active:  "bg-green-400",
+  idle:    "bg-yellow-400",
+  offline: "bg-slate-400",
+  error:   "bg-red-400",
+  online:  "bg-green-400",
+};
+
 const COLUMNS: { key: Status; label: string; color: string; icon: React.ReactNode }[] = [
-  { key: "backlog",     label: "Backlog",     color: "border-slate-400",   icon: <Clock className="h-3.5 w-3.5 text-slate-400" /> },
-  { key: "pending",     label: "Pending",     color: "border-blue-400",    icon: <Clock className="h-3.5 w-3.5 text-blue-400" /> },
-  { key: "doing",       label: "Doing",       color: "border-yellow-400",  icon: <Play className="h-3.5 w-3.5 text-yellow-400" /> },
-  { key: "needs_input", label: "Needs Input", color: "border-purple-400",  icon: <AlertCircle className="h-3.5 w-3.5 text-purple-400" /> },
-  { key: "done",        label: "Done",        color: "border-green-400",   icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> },
-  { key: "cancelled",   label: "Cancelled",   color: "border-slate-600",   icon: <AlertCircle className="h-3.5 w-3.5 text-slate-500" /> },
+  { key: "backlog",     label: "Backlog",     color: "border-slate-400",  icon: <Clock className="h-3.5 w-3.5 text-slate-400" /> },
+  { key: "pending",     label: "Pending",     color: "border-blue-400",   icon: <Clock className="h-3.5 w-3.5 text-blue-400" /> },
+  { key: "doing",       label: "Doing",       color: "border-yellow-400", icon: <Play className="h-3.5 w-3.5 text-yellow-400" /> },
+  { key: "needs_input", label: "Needs Input", color: "border-purple-400", icon: <AlertCircle className="h-3.5 w-3.5 text-purple-400" /> },
+  { key: "done",        label: "Done",        color: "border-green-400",  icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> },
+  { key: "cancelled",   label: "Cancelled",   color: "border-slate-600",  icon: <AlertCircle className="h-3.5 w-3.5 text-slate-500" /> },
 ];
 
 const PRIORITY_BADGE: Record<Priority, string> = {
@@ -59,39 +96,68 @@ const PRIORITY_BADGE: Record<Priority, string> = {
   low:    "bg-slate-100 text-slate-700 border-slate-200",
 };
 
+const AVATAR_COLORS = ["#6366f1","#f59e0b","#10b981","#06b6d4","#f43f5e","#a78bfa","#34d399","#60a5fa"];
+const colorFor = (s: string) => AVATAR_COLORS[Math.abs(s.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % AVATAR_COLORS.length];
+const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
+function AssigneeAvatar({ assignee, size = "sm" }: { assignee: Assignee | undefined; size?: "sm" | "md" }) {
+  const sz = size === "sm" ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs";
+  if (!assignee) return (
+    <span className={`flex items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground ${sz}`}>?</span>
+  );
+  if (assignee.avatar_url) return (
+    <img src={assignee.avatar_url} alt={assignee.name} className={`rounded-full object-cover ${sz}`} />
+  );
+  const bg = assignee.accent_color ?? colorFor(assignee.name);
+  return (
+    <span className={`flex items-center justify-center rounded-full font-semibold text-white ${sz}`} style={{ background: bg }}>
+      {assignee.emoji ?? initials(assignee.name)}
+    </span>
+  );
+}
+
 export default function AiHubPage() {
   const [tasks, setTasks] = useState<AgentTask[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<AgentTask | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("tasks");
 
-  const fetchTasks = async () => {
+  const fetchAll = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("agent_tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const [tasksRes, agentsRes, profilesRes] = await Promise.all([
+      supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
+      supabase.from("agents").select("id,name,slug,emoji,avatar_url,subtitle,role,status,accent_color").order("position"),
+      supabase.from("profiles").select("user_id,full_name,avatar_url"),
+    ]);
 
-    if (error) {
-      toast({ title: "Failed to load tasks", description: error.message, variant: "destructive" });
-    } else {
-      setTasks((data ?? []) as AgentTask[]);
-    }
+    if (tasksRes.error) toast({ title: "Failed to load tasks", description: tasksRes.error.message, variant: "destructive" });
+    else setTasks((tasksRes.data ?? []) as AgentTask[]);
+
+    const agentList: Assignee[] = (agentsRes.data ?? []).map((a: Agent) => ({
+      key: a.slug, name: a.name, subtitle: a.subtitle ?? a.role, emoji: a.emoji,
+      avatar_url: a.avatar_url, status: a.status, kind: "agent", accent_color: a.accent_color,
+    }));
+    const humanList: Assignee[] = (profilesRes.data ?? []).map((p: HumanProfile) => ({
+      key: p.user_id, name: p.full_name ?? "Human", subtitle: "Team member", emoji: null,
+      avatar_url: p.avatar_url, status: "online", kind: "human", accent_color: null,
+    }));
+    setAssignees([...agentList, ...humanList]);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchTasks();
-
+    fetchAll();
     const channel = supabase
-      .channel("ai-hub-tasks")
-      .on("postgres_changes", { event: "*", schema: "public", table: "agent_tasks" }, fetchTasks)
+      .channel("ai-hub-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "agent_tasks" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "agents" }, fetchAll)
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const findAssignee = (key: string) => assignees.find(a => a.key === key);
   const tasksByStatus = (status: Status) => tasks.filter(t => t.status === status);
 
   const stats = {
@@ -99,12 +165,6 @@ export default function AiHubPage() {
     doing: tasksByStatus("doing").length,
     done: tasksByStatus("done").length,
     needsInput: tasksByStatus("needs_input").length,
-  };
-
-  const moveTask = async (taskId: string, newStatus: Status) => {
-    const { error } = await supabase.from("agent_tasks").update({ status: newStatus }).eq("id", taskId);
-    if (error) toast({ title: "Update failed", description: error.message, variant: "destructive" });
-    else fetchTasks();
   };
 
   return (
@@ -117,7 +177,7 @@ export default function AiHubPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Agent task board</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchTasks}>
+          <Button variant="outline" size="sm" onClick={fetchAll}>
             <Activity className="h-4 w-4 mr-2" /> Refresh
           </Button>
           <Button size="sm" onClick={() => setNewTaskOpen(true)}>
@@ -129,10 +189,10 @@ export default function AiHubPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Queued", value: stats.pending, color: "bg-blue-100", icon: <Clock className="h-5 w-5 text-blue-600" /> },
-          { label: "In Progress", value: stats.doing, color: "bg-yellow-100", icon: <Play className="h-5 w-5 text-yellow-600" /> },
+          { label: "Queued",      value: stats.pending,    color: "bg-blue-100",   icon: <Clock className="h-5 w-5 text-blue-600" /> },
+          { label: "In Progress", value: stats.doing,      color: "bg-yellow-100", icon: <Play className="h-5 w-5 text-yellow-600" /> },
           { label: "Needs Input", value: stats.needsInput, color: "bg-purple-100", icon: <AlertCircle className="h-5 w-5 text-purple-600" /> },
-          { label: "Done", value: stats.done, color: "bg-green-100", icon: <CheckCircle2 className="h-5 w-5 text-green-600" /> },
+          { label: "Done",        value: stats.done,       color: "bg-green-100",  icon: <CheckCircle2 className="h-5 w-5 text-green-600" /> },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="pt-6">
@@ -151,13 +211,14 @@ export default function AiHubPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks" className="mt-4">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading tasks…
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading…
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -170,17 +231,11 @@ export default function AiHubPage() {
                       <span className="text-sm font-semibold">{col.label}</span>
                       <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colTasks.length}</span>
                     </div>
-                    <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto pr-0.5">
+                    <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
                       {colTasks.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">
-                          No tasks
-                        </div>
+                        <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
                       ) : colTasks.map(task => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onClick={() => setSelectedTask(task)}
-                        />
+                        <TaskCard key={task.id} task={task} assignee={findAssignee(task.assigned_to)} onClick={() => setSelectedTask(task)} />
                       ))}
                     </div>
                   </div>
@@ -190,34 +245,55 @@ export default function AiHubPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="agents" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {assignees.filter(a => a.kind === "agent").map(agent => (
+              <Card key={agent.key}>
+                <CardContent className="pt-5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <AssigneeAvatar assignee={agent} size="md" />
+                      <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background ${STATUS_DOT[agent.status] ?? "bg-slate-400"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{agent.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{agent.subtitle}</p>
+                    </div>
+                    <Badge variant={agent.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{agent.status}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="activity" className="mt-4">
           <Card>
             <CardContent className="pt-6 space-y-3">
-              {tasks.filter(t => t.status === "done" || t.status === "doing").slice(0, 20).map(task => (
-                <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="mt-0.5">
-                    {task.status === "done"
-                      ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      : <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{task.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">{task.assigned_to}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {task.completed_at
-                          ? `Completed ${format(parseISO(task.completed_at), "MMM d, h:mm a")}`
-                          : task.started_at
-                            ? `Started ${format(parseISO(task.started_at), "MMM d, h:mm a")}`
-                            : format(parseISO(task.created_at), "MMM d, h:mm a")}
-                      </span>
+              {tasks.filter(t => t.status === "done" || t.status === "doing").slice(0, 20).map(task => {
+                const assignee = findAssignee(task.assigned_to);
+                return (
+                  <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="relative shrink-0 mt-0.5">
+                      <AssigneeAvatar assignee={assignee} size="sm" />
+                      <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${task.status === "doing" ? "bg-yellow-400" : "bg-green-400"}`} />
                     </div>
-                    {task.result && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.result}</p>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{task.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">{assignee?.name ?? task.assigned_to}</span>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground">
+                          {task.completed_at ? format(parseISO(task.completed_at), "MMM d, h:mm a")
+                            : task.started_at ? format(parseISO(task.started_at), "MMM d, h:mm a")
+                            : format(parseISO(task.created_at), "MMM d, h:mm a")}
+                        </span>
+                      </div>
+                      {task.result && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.result}</p>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {tasks.filter(t => t.status === "done" || t.status === "doing").length === 0 && (
                 <p className="text-center text-sm text-muted-foreground py-8">No activity yet.</p>
               )}
@@ -226,37 +302,37 @@ export default function AiHubPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Task detail sheet */}
       {selectedTask && (
         <TaskDetailDialog
           task={selectedTask}
+          assignees={assignees}
           onClose={() => setSelectedTask(null)}
-          onMove={moveTask}
-          onRefresh={fetchTasks}
+          onRefresh={fetchAll}
         />
       )}
 
-      {/* New task dialog */}
-      <NewTaskDialog
-        open={newTaskOpen}
-        onOpenChange={setNewTaskOpen}
-        onCreated={fetchTasks}
-      />
+      <NewTaskDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} assignees={assignees} onCreated={fetchAll} />
     </div>
   );
 }
 
-const TaskCard = ({ task, onClick }: { task: AgentTask; onClick: () => void }) => (
-  <div
-    onClick={onClick}
-    className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 hover:border-primary/40 transition-colors space-y-2"
-  >
+const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assignee | undefined; onClick: () => void }) => (
+  <div onClick={onClick} className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 hover:border-primary/40 transition-colors space-y-2.5">
     <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
-    <div className="flex items-center justify-between gap-1 flex-wrap">
-      <span className={`rounded-full border px-2 py-0.5 text-[10px] capitalize ${PRIORITY_BADGE[task.priority]}`}>
+    <div className="flex items-center gap-2">
+      <div className="relative shrink-0">
+        <AssigneeAvatar assignee={assignee} size="sm" />
+        {assignee && (
+          <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${STATUS_DOT[assignee.status] ?? "bg-slate-400"}`} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{assignee?.name ?? task.assigned_to}</p>
+        {assignee?.subtitle && <p className="text-[10px] text-muted-foreground truncate">{assignee.subtitle}</p>}
+      </div>
+      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${PRIORITY_BADGE[task.priority]}`}>
         {task.priority}
       </span>
-      <span className="text-[10px] text-muted-foreground">{task.assigned_to}</span>
     </div>
     {task.due_date && (
       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -267,24 +343,35 @@ const TaskCard = ({ task, onClick }: { task: AgentTask; onClick: () => void }) =
   </div>
 );
 
+const AssigneeOption = ({ assignee }: { assignee: Assignee }) => (
+  <div className="flex items-center gap-2.5 py-0.5">
+    <div className="relative shrink-0">
+      <AssigneeAvatar assignee={assignee} size="sm" />
+      <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${STATUS_DOT[assignee.status] ?? "bg-slate-400"}`} />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-medium">{assignee.name}</p>
+      {assignee.subtitle && <p className="text-xs text-muted-foreground">{assignee.subtitle}</p>}
+    </div>
+  </div>
+);
+
 const TaskDetailDialog = ({
-  task, onClose, onMove, onRefresh,
-}: {
-  task: AgentTask;
-  onClose: () => void;
-  onMove: (id: string, status: Status) => void;
-  onRefresh: () => void;
-}) => {
+  task, assignees, onClose, onRefresh,
+}: { task: AgentTask; assignees: Assignee[]; onClose: () => void; onRefresh: () => void }) => {
   const [status, setStatus] = useState<Status>(task.status);
+  const [assignedTo, setAssignedTo] = useState(task.assigned_to);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("agent_tasks").update({ status }).eq("id", task.id);
+    const { error } = await supabase.from("agent_tasks").update({ status, assigned_to: assignedTo }).eq("id", task.id);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Saved" }); onRefresh(); onClose(); }
     setSaving(false);
   };
+
+  const assignee = assignees.find(a => a.key === assignedTo);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -292,11 +379,9 @@ const TaskDetailDialog = ({
         <DialogHeader>
           <DialogTitle className="pr-8 leading-snug">{task.title}</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4 py-2">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className={`capitalize ${PRIORITY_BADGE[task.priority]}`}>{task.priority}</Badge>
-            <Badge variant="outline">{task.assigned_to}</Badge>
           </div>
 
           {task.description && (
@@ -307,13 +392,41 @@ const TaskDetailDialog = ({
           )}
 
           <div className="space-y-1.5">
+            <Label>Assigned to</Label>
+            <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <SelectTrigger>
+                <div className="flex items-center gap-2">
+                  {assignee && <AssigneeAvatar assignee={assignee} size="sm" />}
+                  <span>{assignee?.name ?? assignedTo}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {assignees.filter(a => a.kind === "agent").length > 0 && (
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
+                )}
+                {assignees.filter(a => a.kind === "agent").map(a => (
+                  <SelectItem key={a.key} value={a.key}>
+                    <AssigneeOption assignee={a} />
+                  </SelectItem>
+                ))}
+                {assignees.filter(a => a.kind === "human").length > 0 && (
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
+                )}
+                {assignees.filter(a => a.kind === "human").map(a => (
+                  <SelectItem key={a.key} value={a.key}>
+                    <AssigneeOption assignee={a} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Status</Label>
             <Select value={status} onValueChange={v => setStatus(v as Status)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {COLUMNS.map(c => (
-                  <SelectItem key={c.key} value={c.key} className="capitalize">{c.label}</SelectItem>
-                ))}
+                {COLUMNS.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -321,28 +434,21 @@ const TaskDetailDialog = ({
           {task.result && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
-              <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap max-h-48 overflow-y-auto">
-                {task.result}
-              </div>
+              <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap max-h-48 overflow-y-auto">{task.result}</div>
             </div>
           )}
-
           {task.error && (
             <div>
               <p className="text-xs font-medium text-red-500 mb-1">Error</p>
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-                {task.error}
-              </div>
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{task.error}</div>
             </div>
           )}
-
           {task.notes && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
               <p className="text-sm">{task.notes}</p>
             </div>
           )}
-
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
             <div>Created {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
             {task.due_date && <div>Due {format(parseISO(task.due_date), "MMM d")}</div>}
@@ -350,7 +456,6 @@ const TaskDetailDialog = ({
             {task.completed_at && <div>Completed {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
           </div>
         </div>
-
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving}>
@@ -363,12 +468,8 @@ const TaskDetailDialog = ({
 };
 
 const NewTaskDialog = ({
-  open, onOpenChange, onCreated,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onCreated: () => void;
-}) => {
+  open, onOpenChange, assignees, onCreated,
+}: { open: boolean; onOpenChange: (v: boolean) => void; assignees: Assignee[]; onCreated: () => void }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("claude");
@@ -386,8 +487,7 @@ const NewTaskDialog = ({
       title: title.trim(),
       description: description.trim() || title.trim(),
       assigned_to: assignedTo,
-      priority,
-      status,
+      priority, status,
       due_date: dueDate || null,
       created_by: "human",
     });
@@ -395,12 +495,12 @@ const NewTaskDialog = ({
       toast({ title: "Create failed", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Task created" });
-      reset();
-      onOpenChange(false);
-      onCreated();
+      reset(); onOpenChange(false); onCreated();
     }
     setSaving(false);
   };
+
+  const selectedAssignee = assignees.find(a => a.key === assignedTo);
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
@@ -419,12 +519,25 @@ const NewTaskDialog = ({
             <div className="space-y-1.5">
               <Label>Assign to</Label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    {selectedAssignee && <AssigneeAvatar assignee={selectedAssignee} size="sm" />}
+                    <span className="truncate">{selectedAssignee?.name ?? assignedTo}</span>
+                  </div>
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="claude">Claude</SelectItem>
-                  <SelectItem value="albus">Albus</SelectItem>
-                  <SelectItem value="haiku">Haiku</SelectItem>
-                  <SelectItem value="human">Human</SelectItem>
+                  {assignees.filter(a => a.kind === "agent").length > 0 && (
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
+                  )}
+                  {assignees.filter(a => a.kind === "agent").map(a => (
+                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
+                  ))}
+                  {assignees.filter(a => a.kind === "human").length > 0 && (
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
+                  )}
+                  {assignees.filter(a => a.kind === "human").map(a => (
+                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -446,9 +559,7 @@ const NewTaskDialog = ({
               <Select value={status} onValueChange={v => setStatus(v as Status)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {COLUMNS.map(c => (
-                    <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
-                  ))}
+                  {COLUMNS.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
