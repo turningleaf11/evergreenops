@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Sparkles, CheckCircle2, Clock, AlertCircle, Play,
-  Activity, Plus, Loader2, Calendar,
+  Activity, Plus, Loader2, Calendar, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ interface AgentTask {
   created_at: string;
   updated_at: string;
   repo: string | null;
+  followers: string[] | null;
   started_at: string | null;
   completed_at: string | null;
 }
@@ -256,7 +257,13 @@ export default function AiHubPage() {
                       {colTasks.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
                       ) : colTasks.map(task => (
-                        <TaskCard key={task.id} task={task} assignee={findAssignee(task.assigned_to)} onClick={() => setSelectedTask(task)} />
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          assignee={findAssignee(task.assigned_to)}
+                          followers={(task.followers ?? []).map(f => assignees.find(a => a.key === f)).filter(Boolean) as Assignee[]}
+                          onClick={() => setSelectedTask(task)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -338,7 +345,7 @@ export default function AiHubPage() {
   );
 }
 
-const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assignee | undefined; onClick: () => void }) => (
+const TaskCard = ({ task, assignee, followers, onClick }: { task: AgentTask; assignee: Assignee | undefined; followers: Assignee[]; onClick: () => void }) => (
   <div
     onClick={onClick}
     className={`cursor-pointer rounded-lg border bg-card p-3 transition-all space-y-2.5 ${
@@ -378,10 +385,28 @@ const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assi
         )}
       </div>
     </div>
-    {task.due_date && (
-      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-        <Calendar className="h-3 w-3" />
-        {format(parseISO(task.due_date), "MMM d")}
+    {(task.due_date || followers.length > 0) && (
+      <div className="flex items-center justify-between">
+        {task.due_date ? (
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {format(parseISO(task.due_date), "MMM d")}
+          </div>
+        ) : <span />}
+        {followers.length > 0 && (
+          <div className="flex items-center -space-x-1.5">
+            {followers.slice(0, 3).map(f => (
+              <div key={f.key} className="ring-1 ring-background rounded-full">
+                <AssigneeAvatar assignee={f} size="sm" />
+              </div>
+            ))}
+            {followers.length > 3 && (
+              <span className="ring-1 ring-background rounded-full flex items-center justify-center h-6 w-6 bg-secondary text-[9px] font-semibold text-muted-foreground">
+                +{followers.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     )}
   </div>
@@ -414,13 +439,19 @@ const TaskDetailDialog = ({
   const [assignedTo, setAssignedTo] = useState(task.assigned_to);
   const [repo, setRepo] = useState(task.repo ?? "none");
   const [type, setType] = useState<TaskType>(task.type ?? "general");
+  const [followers, setFollowers] = useState<string[]>(task.followers ?? []);
   const [saving, setSaving] = useState(false);
+
+  const addFollower = (key: string) => {
+    if (!followers.includes(key)) setFollowers(prev => [...prev, key]);
+  };
+  const removeFollower = (key: string) => setFollowers(prev => prev.filter(f => f !== key));
 
   const save = async () => {
     setSaving(true);
     const { error } = await supabase
       .from("agent_tasks")
-      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null, type })
+      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null, type, followers })
       .eq("id", task.id);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Saved" }); onRefresh(); onClose(); }
@@ -524,6 +555,46 @@ const TaskDetailDialog = ({
                   <SelectItem key={r.slug} value={r.slug}>
                     <span className="font-mono text-sm">{r.github_repo}</span>
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Followers */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Followers</Label>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {followers.map(key => {
+                const f = assignees.find(a => a.key === key);
+                if (!f) return null;
+                return (
+                  <span key={key} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary pl-1 pr-2 py-0.5 text-xs">
+                    <AssigneeAvatar assignee={f} size="sm" />
+                    <span className="font-medium">{f.name}</span>
+                    <button onClick={() => removeFollower(key)} className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+            <Select value="none" onValueChange={v => v !== "none" && addFollower(v)}>
+              <SelectTrigger>
+                <span className="text-muted-foreground text-sm">Add follower…</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-muted-foreground">Add follower…</SelectItem>
+                {assignees.filter(a => a.key !== assignedTo && !followers.includes(a.key)).length > 0 && (
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
+                )}
+                {assignees.filter(a => a.kind === "agent" && a.key !== assignedTo && !followers.includes(a.key)).map(a => (
+                  <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
+                ))}
+                {assignees.filter(a => a.kind === "human" && a.key !== assignedTo && !followers.includes(a.key)).length > 0 && (
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
+                )}
+                {assignees.filter(a => a.kind === "human" && a.key !== assignedTo && !followers.includes(a.key)).map(a => (
+                  <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
                 ))}
               </SelectContent>
             </Select>
