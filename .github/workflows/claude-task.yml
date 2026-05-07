@@ -44,20 +44,21 @@ jobs:
           git checkout -b "$BRANCH"
           echo "name=$BRANCH" >> $GITHUB_OUTPUT
 
-      - name: Run Claude Code
+      - name: Build prompt file
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TASK_DESCRIPTION: ${{ inputs.task_description }}
           TASK_NOTES: ${{ inputs.task_notes }}
         run: |
+          echo "$TASK_DESCRIPTION" > /tmp/prompt.txt
           if [ -n "$TASK_NOTES" ]; then
-            PROMPT="$TASK_DESCRIPTION
-
-Additional context from Albus: $TASK_NOTES"
-          else
-            PROMPT="$TASK_DESCRIPTION"
+            echo "" >> /tmp/prompt.txt
+            echo "Additional context from Albus: $TASK_NOTES" >> /tmp/prompt.txt
           fi
-          claude -p "$PROMPT" --dangerously-skip-permissions
+
+      - name: Run Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: claude -p "$(cat /tmp/prompt.txt)" --dangerously-skip-permissions
 
       - name: Commit and push
         env:
@@ -72,29 +73,39 @@ Additional context from Albus: $TASK_NOTES"
       - name: Open PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TASK_TITLE: ${{ inputs.task_title }}
+          TASK_ID: ${{ inputs.task_id }}
         run: |
           gh pr create \
-            --title "${{ inputs.task_title }}" \
-            --body "Implemented by Claude Code. Task ID: ${{ inputs.task_id }}" \
+            --title "$TASK_TITLE" \
+            --body "Implemented by Claude Code. Task ID: $TASK_ID" \
             --base main \
             --head "${{ steps.branch.outputs.name }}"
 
       - name: Mark task done in Supabase
         if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TASK_ID: ${{ inputs.task_id }}
         run: |
           curl -s -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/agent_tasks?id=eq.${{ inputs.task_id }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "$SUPABASE_URL/rest/v1/agent_tasks?id=eq.$TASK_ID" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"done\",\"completed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
       - name: Mark task failed in Supabase
         if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TASK_ID: ${{ inputs.task_id }}
         run: |
           curl -s -X PATCH \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/agent_tasks?id=eq.${{ inputs.task_id }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "$SUPABASE_URL/rest/v1/agent_tasks?id=eq.$TASK_ID" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"status\":\"needs_input\",\"error\":\"GitHub Actions workflow failed — check the Actions tab for details\"}"
