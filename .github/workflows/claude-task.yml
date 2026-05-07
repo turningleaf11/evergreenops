@@ -46,11 +46,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           PROMPT="${{ inputs.task_description }}"
-          if [ -n "${{ inputs.task_notes }}" ]; then
-            PROMPT="$PROMPT
-
-Additional context from Albus:
-${{ inputs.task_notes }}"
+          NOTES="${{ inputs.task_notes }}"
+          if [ -n "$NOTES" ]; then
+            PROMPT="$PROMPT"$'\n\n'"Additional context from Albus:"$'\n'"$NOTES"
           fi
           claude --print "$PROMPT"
 
