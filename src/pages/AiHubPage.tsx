@@ -229,6 +229,12 @@ export default function AiHubPage() {
                     <div className={`flex items-center gap-2 rounded-lg border-l-4 ${col.color} bg-card px-3 py-2`}>
                       {col.icon}
                       <span className="text-sm font-semibold">{col.label}</span>
+                      {col.key === "doing" && colTasks.length > 0 && (
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" />
+                        </span>
+                      )}
                       <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colTasks.length}</span>
                     </div>
                     <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
@@ -317,8 +323,20 @@ export default function AiHubPage() {
 }
 
 const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assignee | undefined; onClick: () => void }) => (
-  <div onClick={onClick} className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 hover:border-primary/40 transition-colors space-y-2.5">
-    <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+  <div
+    onClick={onClick}
+    className={`cursor-pointer rounded-lg border bg-card p-3 transition-all space-y-2.5 ${
+      task.status === "doing"
+        ? "border-yellow-400/70 ring-2 ring-yellow-400/20 shadow-[0_0_14px_3px_rgba(250,204,21,0.12)] hover:border-yellow-400"
+        : "border-border/60 hover:border-primary/40"
+    }`}
+  >
+    <div className="flex items-start justify-between gap-1">
+      <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+      {task.status === "doing" && (
+        <Loader2 className="h-3.5 w-3.5 text-yellow-500 animate-spin shrink-0 mt-0.5" />
+      )}
+    </div>
     <div className="flex items-center gap-2">
       <div className="relative shrink-0">
         <AssigneeAvatar assignee={assignee} size="sm" />
