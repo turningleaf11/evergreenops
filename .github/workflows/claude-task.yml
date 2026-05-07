@@ -61,16 +61,23 @@ jobs:
         run: claude -p "$(cat /tmp/prompt.txt)" --dangerously-skip-permissions
 
       - name: Commit and push
+        id: commit
         env:
           TASK_TITLE: ${{ inputs.task_title }}
         run: |
           git config user.name "Claude Code"
           git config user.email "claude-code@anthropic.com"
           git add -A
-          git diff --staged --quiet || git commit -m "task: $TASK_TITLE"
-          git push origin "${{ steps.branch.outputs.name }}"
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "task: $TASK_TITLE"
+            git push origin "${{ steps.branch.outputs.name }}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Open PR
+        if: steps.commit.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TASK_TITLE: ${{ inputs.task_title }}
@@ -81,6 +88,10 @@ jobs:
             --body "Implemented by Claude Code. Task ID: $TASK_ID" \
             --base main \
             --head "${{ steps.branch.outputs.name }}"
+
+      - name: No changes made
+        if: steps.commit.outputs.has_changes == 'false'
+        run: echo "Claude Code completed but made no file changes. Task may need a more specific implementation prompt."
 
       - name: Mark task done in Supabase
         if: success()
