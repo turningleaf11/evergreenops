@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 
-type Status = "backlog" | "pending" | "doing" | "review" | "needs_input" | "done" | "cancelled";
+type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 type TaskType = "general" | "research" | "code" | "decision" | "communication";
 type Priority = "low" | "normal" | "high" | "urgent";
 
@@ -87,6 +87,7 @@ const COLUMNS: { key: Status; label: string; color: string; icon: React.ReactNod
   { key: "pending",     label: "Pending",     color: "border-blue-400",   icon: <Clock className="h-3.5 w-3.5 text-blue-400" /> },
   { key: "doing",       label: "Doing",       color: "border-yellow-400", icon: <Play className="h-3.5 w-3.5 text-yellow-400" /> },
   { key: "review",      label: "Review",      color: "border-orange-400", icon: <Sparkles className="h-3.5 w-3.5 text-orange-400" /> },
+  { key: "approved",    label: "Approved",    color: "border-teal-400",   icon: <CheckCircle2 className="h-3.5 w-3.5 text-teal-400" /> },
   { key: "needs_input", label: "Needs Input", color: "border-purple-400", icon: <AlertCircle className="h-3.5 w-3.5 text-purple-400" /> },
   { key: "done",        label: "Done",        color: "border-green-400",  icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> },
   { key: "cancelled",   label: "Cancelled",   color: "border-slate-600",  icon: <AlertCircle className="h-3.5 w-3.5 text-slate-500" /> },
@@ -225,7 +226,7 @@ export default function AiHubPage() {
               <Loader2 className="h-5 w-5 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               {COLUMNS.map(col => {
                 const colTasks = tasksByStatus(col.key);
                 return (
