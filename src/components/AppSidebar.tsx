@@ -84,6 +84,11 @@ export function AppSidebar() {
     ...(aiWorkshopEnabled ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
+  // AI Hub - always visible (ClawBuddy integration)
+  const aiHubNav = [
+    { title: "AI Hub", url: "/ai-hub", icon: Sparkles },
+  ];
+
   // Click anywhere on the empty space of the collapsed sidebar to expand
   const handleRailClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!collapsed) return;
@@ -247,6 +252,20 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        {/* AI Hub */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px]">AI Hub</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {aiHubNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <NavItem item={item} />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       {!collapsed && (
