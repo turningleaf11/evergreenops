@@ -41,6 +41,7 @@ interface AgentTask {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  repo: string | null;
   started_at: string | null;
   completed_at: string | null;
 }
@@ -61,6 +62,12 @@ interface HumanProfile {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+}
+
+interface Repo {
+  slug: string;
+  name: string;
+  github_repo: string;
 }
 
 type Assignee = {
@@ -123,6 +130,7 @@ function AssigneeAvatar({ assignee, size = "sm" }: { assignee: Assignee | undefi
 export default function AiHubPage() {
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<AgentTask | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
@@ -130,10 +138,11 @@ export default function AiHubPage() {
 
   const fetchAll = async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
-    const [tasksRes, agentsRes, profilesRes] = await Promise.all([
+    const [tasksRes, agentsRes, profilesRes, reposRes] = await Promise.all([
       supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("agents").select("id,name,slug,emoji,avatar_url,subtitle,role,status,accent_color").order("position"),
       supabase.from("profiles").select("user_id,full_name,avatar_url"),
+      supabase.from("repos").select("slug,name,github_repo").eq("active", true),
     ]);
 
     if (tasksRes.error) toast({ title: "Failed to load tasks", description: tasksRes.error.message, variant: "destructive" });
@@ -148,6 +157,7 @@ export default function AiHubPage() {
       avatar_url: p.avatar_url, status: "online", kind: "human", accent_color: null,
     }));
     setAssignees([...agentList, ...humanList]);
+    setRepos((reposRes.data ?? []) as Repo[]);
     setLoading(false);
   };
 
@@ -317,12 +327,13 @@ export default function AiHubPage() {
         <TaskDetailDialog
           task={selectedTask}
           assignees={assignees}
+          repos={repos}
           onClose={() => setSelectedTask(null)}
           onRefresh={fetchAll}
         />
       )}
 
-      <NewTaskDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} assignees={assignees} onCreated={fetchAll} />
+      <NewTaskDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} assignees={assignees} repos={repos} onCreated={fetchAll} />
     </div>
   );
 }
@@ -360,6 +371,11 @@ const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assi
         <span className="shrink-0 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
           {task.type}
         </span>
+        {task.repo && (
+          <span className="shrink-0 rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] text-teal-700 font-mono">
+            {task.repo}
+          </span>
+        )}
       </div>
     </div>
     {task.due_date && (
@@ -385,15 +401,16 @@ const AssigneeOption = ({ assignee }: { assignee: Assignee }) => (
 );
 
 const TaskDetailDialog = ({
-  task, assignees, onClose, onRefresh,
-}: { task: AgentTask; assignees: Assignee[]; onClose: () => void; onRefresh: () => void }) => {
+  task, assignees, repos, onClose, onRefresh,
+}: { task: AgentTask; assignees: Assignee[]; repos: Repo[]; onClose: () => void; onRefresh: () => void }) => {
   const [status, setStatus] = useState<Status>(task.status);
   const [assignedTo, setAssignedTo] = useState(task.assigned_to);
+  const [repo, setRepo] = useState(task.repo ?? "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("agent_tasks").update({ status, assigned_to: assignedTo }).eq("id", task.id);
+    const { error } = await supabase.from("agent_tasks").update({ status, assigned_to: assignedTo, repo: repo || null }).eq("id", task.id);
     if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
     else { toast({ title: "Saved" }); onRefresh(); onClose(); }
     setSaving(false);
@@ -449,14 +466,28 @@ const TaskDetailDialog = ({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={v => setStatus(v as Status)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {COLUMNS.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={v => setStatus(v as Status)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {COLUMNS.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Repo</Label>
+              <Select value={repo} onValueChange={setRepo}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {repos.map(r => (
+                    <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {task.result && (
@@ -496,18 +527,19 @@ const TaskDetailDialog = ({
 };
 
 const NewTaskDialog = ({
-  open, onOpenChange, assignees, onCreated,
-}: { open: boolean; onOpenChange: (v: boolean) => void; assignees: Assignee[]; onCreated: () => void }) => {
+  open, onOpenChange, assignees, repos, onCreated,
+}: { open: boolean; onOpenChange: (v: boolean) => void; assignees: Assignee[]; repos: Repo[]; onCreated: () => void }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("claude");
   const [priority, setPriority] = useState<Priority>("normal");
   const [status, setStatus] = useState<Status>("pending");
   const [type, setType] = useState<TaskType>("general");
+  const [repo, setRepo] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("normal"); setStatus("pending"); setType("general"); setDueDate(""); };
+  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("normal"); setStatus("pending"); setType("general"); setRepo(""); setDueDate(""); };
 
   const create = async () => {
     if (!title.trim()) return;
@@ -517,6 +549,7 @@ const NewTaskDialog = ({
       description: description.trim() || title.trim(),
       assigned_to: assignedTo,
       priority, status, type,
+      repo: repo || null,
       due_date: dueDate || null,
       created_by: "human",
     });
@@ -604,9 +637,23 @@ const NewTaskDialog = ({
               </Select>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Due date</Label>
-            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Repo</Label>
+              <Select value={repo} onValueChange={setRepo}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {repos.map(r => (
+                    <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Due date</Label>
+              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
           </div>
         </div>
         <DialogFooter>
