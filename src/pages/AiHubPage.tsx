@@ -20,7 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 
-type Status = "backlog" | "pending" | "doing" | "needs_input" | "done" | "cancelled";
+type Status = "backlog" | "pending" | "doing" | "review" | "needs_input" | "done" | "cancelled";
+type TaskType = "general" | "research" | "code" | "decision" | "communication";
 type Priority = "low" | "normal" | "high" | "urgent";
 
 interface AgentTask {
@@ -31,6 +32,7 @@ interface AgentTask {
   status: Status;
   priority: Priority;
   context: Record<string, unknown> | null;
+  type: TaskType;
   result: string | null;
   error: string | null;
   created_by: string | null;
@@ -84,6 +86,7 @@ const COLUMNS: { key: Status; label: string; color: string; icon: React.ReactNod
   { key: "backlog",     label: "Backlog",     color: "border-slate-400",  icon: <Clock className="h-3.5 w-3.5 text-slate-400" /> },
   { key: "pending",     label: "Pending",     color: "border-blue-400",   icon: <Clock className="h-3.5 w-3.5 text-blue-400" /> },
   { key: "doing",       label: "Doing",       color: "border-yellow-400", icon: <Play className="h-3.5 w-3.5 text-yellow-400" /> },
+  { key: "review",      label: "Review",      color: "border-orange-400", icon: <Sparkles className="h-3.5 w-3.5 text-orange-400" /> },
   { key: "needs_input", label: "Needs Input", color: "border-purple-400", icon: <AlertCircle className="h-3.5 w-3.5 text-purple-400" /> },
   { key: "done",        label: "Done",        color: "border-green-400",  icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> },
   { key: "cancelled",   label: "Cancelled",   color: "border-slate-600",  icon: <AlertCircle className="h-3.5 w-3.5 text-slate-500" /> },
@@ -222,7 +225,7 @@ export default function AiHubPage() {
               <Loader2 className="h-5 w-5 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {COLUMNS.map(col => {
                 const colTasks = tasksByStatus(col.key);
                 return (
@@ -349,9 +352,14 @@ const TaskCard = ({ task, assignee, onClick }: { task: AgentTask; assignee: Assi
         <p className="text-xs font-medium truncate">{assignee?.name ?? task.assigned_to}</p>
         {assignee?.subtitle && <p className="text-[10px] text-muted-foreground truncate">{assignee.subtitle}</p>}
       </div>
-      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${PRIORITY_BADGE[task.priority]}`}>
-        {task.priority}
-      </span>
+      <div className="flex flex-col items-end gap-1">
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${PRIORITY_BADGE[task.priority]}`}>
+          {task.priority}
+        </span>
+        <span className="shrink-0 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
+          {task.type}
+        </span>
+      </div>
     </div>
     {task.due_date && (
       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -494,10 +502,11 @@ const NewTaskDialog = ({
   const [assignedTo, setAssignedTo] = useState("claude");
   const [priority, setPriority] = useState<Priority>("normal");
   const [status, setStatus] = useState<Status>("pending");
+  const [type, setType] = useState<TaskType>("general");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("normal"); setStatus("pending"); setDueDate(""); };
+  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("normal"); setStatus("pending"); setType("general"); setDueDate(""); };
 
   const create = async () => {
     if (!title.trim()) return;
@@ -506,7 +515,7 @@ const NewTaskDialog = ({
       title: title.trim(),
       description: description.trim() || title.trim(),
       assigned_to: assignedTo,
-      priority, status,
+      priority, status, type,
       due_date: dueDate || null,
       created_by: "human",
     });
@@ -574,6 +583,17 @@ const NewTaskDialog = ({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={v => setType(v as TaskType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["general", "research", "code", "decision", "communication"] as TaskType[]).map(t => (
+                    <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label>Status</Label>
               <Select value={status} onValueChange={v => setStatus(v as Status)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -582,10 +602,10 @@ const NewTaskDialog = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Due date</Label>
-              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Due date</Label>
+            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
