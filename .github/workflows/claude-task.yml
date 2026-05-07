@@ -36,8 +36,10 @@ jobs:
 
       - name: Create task branch
         id: branch
+        env:
+          TASK_TITLE: ${{ inputs.task_title }}
         run: |
-          SLUG=$(echo "${{ inputs.task_title }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g' | cut -c1-50)
+          SLUG=$(echo "$TASK_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g' | cut -c1-50)
           BRANCH="task/${SLUG}"
           git checkout -b "$BRANCH"
           echo "name=$BRANCH" >> $GITHUB_OUTPUT
@@ -45,21 +47,26 @@ jobs:
       - name: Run Claude Code
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TASK_DESCRIPTION: ${{ inputs.task_description }}
+          TASK_NOTES: ${{ inputs.task_notes }}
         run: |
-          NOTES="${{ inputs.task_notes }}"
-          if [ -n "$NOTES" ]; then
-            PROMPT="${{ inputs.task_description }}"$'\n\n'"Additional context from Albus: $NOTES"
+          if [ -n "$TASK_NOTES" ]; then
+            PROMPT="$TASK_DESCRIPTION
+
+Additional context from Albus: $TASK_NOTES"
           else
-            PROMPT="${{ inputs.task_description }}"
+            PROMPT="$TASK_DESCRIPTION"
           fi
           claude -p "$PROMPT" --dangerously-skip-permissions
 
       - name: Commit and push
+        env:
+          TASK_TITLE: ${{ inputs.task_title }}
         run: |
           git config user.name "Claude Code"
           git config user.email "claude-code@anthropic.com"
           git add -A
-          git diff --staged --quiet || git commit -m "task: ${{ inputs.task_title }}"
+          git diff --staged --quiet || git commit -m "task: $TASK_TITLE"
           git push origin "${{ steps.branch.outputs.name }}"
 
       - name: Open PR
