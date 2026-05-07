@@ -405,7 +405,7 @@ const TaskDetailDialog = ({
 }: { task: AgentTask; assignees: Assignee[]; repos: Repo[]; onClose: () => void; onRefresh: () => void }) => {
   const [status, setStatus] = useState<Status>(task.status);
   const [assignedTo, setAssignedTo] = useState(task.assigned_to);
-  const [repo, setRepo] = useState(task.repo ?? "");
+  const [repo, setRepo] = useState(task.repo ?? "none");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -481,7 +481,7 @@ const TaskDetailDialog = ({
               <Select value={repo} onValueChange={setRepo}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {repos.map(r => (
                     <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
                   ))}
@@ -549,7 +549,7 @@ const NewTaskDialog = ({
       description: description.trim() || title.trim(),
       assigned_to: assignedTo,
       priority, status, type,
-      repo: repo || null,
+      repo: (repo && repo !== "none") ? repo : null,
       due_date: dueDate || null,
       created_by: "human",
     });
@@ -643,7 +643,7 @@ const NewTaskDialog = ({
               <Select value={repo} onValueChange={setRepo}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {repos.map(r => (
                     <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
                   ))}
