@@ -153,8 +153,9 @@ export default function AiHubPage() {
       .channel("ai-hub-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "agent_tasks" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "agents" }, fetchAll)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .subscribe((status) => console.log("[AI Hub realtime]", status));
+    const poll = setInterval(fetchAll, 5000);
+    return () => { supabase.removeChannel(channel); clearInterval(poll); };
   }, []);
 
   const findAssignee = (key: string) => assignees.find(a => a.key === key);
