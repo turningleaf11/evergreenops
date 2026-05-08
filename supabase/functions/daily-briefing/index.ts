@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: userData } = await userClient.auth.getUser();
     const user = userData?.user;
     if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -256,7 +256,7 @@ ${JSON.JSON.stringify(context, null, 2)}`;
       );
 
     return new Response(
-      JSON.stringify({
+      JSON.JSON.stringify({
         bullets,
         focus,
         generated_at: generatedAt,
