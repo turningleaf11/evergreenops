@@ -1,5 +1,5 @@
 // Daily AI briefing for the CEO Today tab.
-// Assembles real workspace context and asks Lovable AI to produce
+// Assembles real workspace context and asks AI to produce
 // 4-6 concise bullets + one "most important thing" focus sentence.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -12,7 +12,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+// Placeholder for Vercel environment variable for AI API Key
+const VERCEL_AI_API_KEY = Deno.env.get("VERCEL_AI_API_KEY")!;
 
 function isoDate(d: Date) {
   return d.toISOString().split("T")[0];
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: userData } = await userClient.auth.getUser();
     const user = userData?.user;
     if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -171,7 +172,7 @@ Deno.serve(async (req) => {
       stale_projects_7d: staleProjects ?? [],
     };
 
-    // ---- Call Lovable AI ----
+    // ---- Call AI Service ----
     const systemPrompt =
       "You are the chief of staff for a CEO. You read structured business data and produce a concise, direct daily briefing. Use real names, numbers, and titles from the data. Never invent facts. If a section has no data, do not mention it.";
 
@@ -184,18 +185,21 @@ Return STRICT JSON of the form:
 }
 
 Data:
-${JSON.stringify(context, null, 2)}`;
+${JSON.JSON.stringify(context, null, 2)}`;
 
+    // Placeholder for AI service endpoint configured in Vercel
+    const AI_SERVICE_ENDPOINT = Deno.env.get("AI_SERVICE_ENDPOINT") || "https://your-vercel-ai-endpoint.com/v1/chat/completions";
     const aiRes = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      AI_SERVICE_ENDPOINT,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          // Use the Vercel environment variable for the API key
+          Authorization: `Bearer ${VERCEL_AI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+        body: JSON.JSON.stringify({
+          model: "google/gemini-2.5-flash", // This model name might need to be configured based on the actual AI service
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -225,7 +229,7 @@ ${JSON.stringify(context, null, 2)}`;
     const raw = aiData?.choices?.[0]?.message?.content ?? "{}";
     let parsed: { bullets?: string[]; focus?: string } = {};
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.JSON.parse(raw);
     } catch {
       // try to extract from text
       parsed = { bullets: [raw], focus: "" };
@@ -252,7 +256,7 @@ ${JSON.stringify(context, null, 2)}`;
       );
 
     return new Response(
-      JSON.stringify({
+      JSON.JSON.stringify({
         bullets,
         focus,
         generated_at: generatedAt,
