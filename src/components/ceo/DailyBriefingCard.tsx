@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
 
@@ -35,13 +34,126 @@ function relativeTime(iso: string | null): string {
   return `Generated ${day} day${day === 1 ? "" : "s"} ago`;
 }
 
+function todayIso() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function isoInDays(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+async function safeSelect<T>(label: string, query: PromiseLike<{ data: T | null; error: any }>): Promise<T | null> {
+  const { data, error } = await query;
+  if (error) {
+    console.warn(`[DailyBriefingCard] ${label} failed`, error.message ?? error);
+    return null;
+  }
+  return data;
+}
+
+async function buildLocalBriefing(userId: string): Promise<Briefing> {
+  const in3Days = isoInDays(3);
+  const [tasks, reminders, issues, projects, goals] = await Promise.all([
+    safeSelect<any[]>(
+      "tasks",
+      sb
+        .from("tasks")
+        .select("title, status, priority, due_date")
+        .eq("assigned_to", userId)
+        .neq("status", "done")
+        .lte("due_date", in3Days)
+        .order("due_date", { ascending: true })
+        .limit(10),
+    ),
+    safeSelect<any[]>(
+      "reminders",
+      sb
+        .from("reminders")
+        .select("title, status, due_at, due_date, created_at")
+        .neq("status", "done")
+        .order("created_at", { ascending: true })
+        .limit(10),
+    ),
+    safeSelect<any[]>(
+      "issues",
+      sb
+        .from("issues")
+        .select("title, priority, status")
+        .neq("status", "resolved")
+        .order("priority", { ascending: true })
+        .limit(10),
+    ),
+    safeSelect<any[]>(
+      "projects",
+      sb
+        .from("projects")
+        .select("title, status, updated_at")
+        .neq("status", "done")
+        .order("updated_at", { ascending: true })
+        .limit(10),
+    ),
+    safeSelect<any[]>(
+      "goals",
+      sb
+        .from("goals")
+        .select("title, progress, status, quarter, year")
+        .neq("status", "done")
+        .order("year", { ascending: false })
+        .order("quarter", { ascending: true })
+        .limit(10),
+    ),
+  ]);
+
+  const bullets: string[] = [];
+  const taskList = tasks ?? [];
+  const reminderList = reminders ?? [];
+  const issueList = issues ?? [];
+  const projectList = projects ?? [];
+  const goalList = goals ?? [];
+
+  if (taskList.length) {
+    bullets.push(`${taskList.length} assigned task${taskList.length === 1 ? " is" : "s are"} due soon; top item: ${taskList[0].title}.`);
+  }
+  if (reminderList.length) {
+    bullets.push(`${reminderList.length} delegation/reminder item${reminderList.length === 1 ? " is" : "s are"} still open; oldest item: ${reminderList[0].title}.`);
+  }
+  if (issueList.length) {
+    bullets.push(`${issueList.length} open issue${issueList.length === 1 ? " needs" : "s need"} attention; first visible item: ${issueList[0].title}.`);
+  }
+  if (goalList.length) {
+    bullets.push(`${goalList.length} active goal${goalList.length === 1 ? " is" : "s are"} still in motion; most recent: ${goalList[0].title}.`);
+  }
+  if (projectList.length) {
+    bullets.push(`Oldest active project update is ${projectList[0].title}; check whether it needs movement today.`);
+  }
+  if (!bullets.length) {
+    bullets.push("No urgent assigned tasks, open reminders, issues, goals, or stale projects were found in the current workspace data.");
+  }
+
+  const focus = taskList[0]?.title
+    ? `Focus today on moving "${taskList[0].title}" forward.`
+    : issueList[0]?.title
+      ? `Focus today on resolving "${issueList[0].title}".`
+      : reminderList[0]?.title
+        ? `Focus today on closing the loop on "${reminderList[0].title}".`
+        : "Focus today on choosing the highest-leverage priority and making it visible.";
+
+  return {
+    bullets: bullets.slice(0, 6),
+    focus,
+    generated_at: new Date().toISOString(),
+  };
+}
+
 export function DailyBriefingCard() {
   const { user, profile } = useAuth() as any;
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [firstLoad, setFirstLoad] = useState(true);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayIso();
 
   const firstName = (() => {
     const full =
@@ -56,6 +168,9 @@ export function DailyBriefingCard() {
       const { data, error } = await supabase.functions.invoke("daily-briefing");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (data?.cache_error) console.warn("daily-briefing cache warning", data.cache_error);
+      if (data?.ai_error) console.warn("daily-briefing AI warning", data.ai_error);
+
       setBriefing({
         bullets: data?.bullets ?? [],
         focus: data?.focus ?? "",
@@ -63,28 +178,35 @@ export function DailyBriefingCard() {
       });
     } catch (e: any) {
       console.error(e);
+      const fallback = await buildLocalBriefing(user.id);
+      setBriefing(fallback);
       toast({
-        title: "Could not generate briefing",
-        description: e?.message ?? "Please try again.",
-        variant: "destructive",
+        title: "Using a basic briefing for now",
+        description: "The AI briefing service did not respond, so I built one from your workspace data.",
       });
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  // Load cached briefing on mount; auto-generate if none for today
+  // Load cached briefing on mount; auto-generate if none for today.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("daily_briefings")
         .select("bullets, focus, generated_at")
         .eq("user_id", user.id)
         .eq("briefing_date", today)
         .maybeSingle();
       if (cancelled) return;
+      if (error) {
+        console.warn("daily_briefings cache read failed", error.message ?? error);
+        setFirstLoad(false);
+        generate();
+        return;
+      }
       if (data) {
         setBriefing({
           bullets: Array.isArray(data.bullets) ? data.bullets : [],
