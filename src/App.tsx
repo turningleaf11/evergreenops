@@ -30,6 +30,7 @@ import MarketResearchPage from "./pages/MarketResearchPage";
 import ContentStudioPage from "./pages/ContentStudioPage";
 import AiWorkshopPage from "./pages/AiWorkshopPage";
 import AiHubPage from "./pages/AiHubPage";
+import AiHubAgentTasksPage from "./pages/AiHubAgentTasksPage";
 import AiHubDocsPage from "./pages/AiHubDocsPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
@@ -179,6 +180,7 @@ const App = () => (
                 <Route path="/market-research" element={<MarketResearchPage />} />
                 <Route path="/content-studio" element={<ContentStudioPage />} />
                 <Route path="/ai-workshop" element={<AiWorkshopPage />} />
+                <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />
                 <Route path="/ai-hub" element={<AiHubPage />} />
                 <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
               </Route>
