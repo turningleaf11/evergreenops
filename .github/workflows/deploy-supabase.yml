@@ -35,10 +35,10 @@ jobs:
           test -n "$SUPABASE_PROJECT_ID" || (echo "Missing SUPABASE_PROJECT_ID secret" && exit 1)
 
       - name: Link Supabase project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Apply database migrations
-        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
 
       - name: Deploy daily briefing function
         run: supabase functions deploy daily-briefing --project-ref "$SUPABASE_PROJECT_ID"
