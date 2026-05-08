@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.notes (
   folder TEXT,
   notebook_id UUID REFERENCES public.note_folders(id) ON DELETE SET NULL,
   pinned BOOLEAN NOT NULL DEFAULT false,
-  converted_doc_id UUID REFERENCES public.documents(id) ON DELETE SET NULL,
+  converted_doc_id UUID,
   is_public BOOLEAN NOT NULL DEFAULT false,
   share_token TEXT UNIQUE,
   shared_with JSONB NOT NULL DEFAULT '{"memberIds": []}'::jsonb,
