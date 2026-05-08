@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
+import type { AiLog, AiLogCategory } from "@/types/aiLogs";
+import { subscribeToAiLogs } from "@/lib/aiLogService";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 type TaskType = "general" | "research" | "code" | "decision" | "communication";
@@ -128,6 +130,13 @@ function AssigneeAvatar({ assignee, size = "sm" }: { assignee: Assignee | undefi
   );
 }
 
+const CATEGORY_BADGE: Record<AiLogCategory, { label: string; className: string }> = {
+  task_started:    { label: "Started",   className: "bg-blue-100 text-blue-800 border-blue-200" },
+  task_completed:  { label: "Completed", className: "bg-green-100 text-green-800 border-green-200" },
+  task_failed:     { label: "Failed",    className: "bg-red-100 text-red-800 border-red-200" },
+  agent_message:   { label: "Message",   className: "bg-slate-100 text-slate-700 border-slate-200" },
+};
+
 export default function AiHubPage() {
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -136,6 +145,8 @@ export default function AiHubPage() {
   const [selectedTask, setSelectedTask] = useState<AgentTask | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("tasks");
+  const [activityLogs, setActivityLogs] = useState<AiLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
 
   const fetchAll = async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -171,6 +182,14 @@ export default function AiHubPage() {
       .subscribe((status) => console.log("[AI Hub realtime]", status));
     const poll = setInterval(fetchAll, 5000);
     return () => { supabase.removeChannel(channel); clearInterval(poll); };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAiLogs((logs) => {
+      setActivityLogs(logs);
+      setLogsLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   const findAssignee = (key: string) => assignees.find(a => a.key === key);
@@ -297,33 +316,46 @@ export default function AiHubPage() {
 
         <TabsContent value="activity" className="mt-4">
           <Card>
-            <CardContent className="pt-6 space-y-3">
-              {tasks.filter(t => t.status === "done" || t.status === "doing").slice(0, 20).map(task => {
-                const assignee = findAssignee(task.assigned_to);
-                return (
-                  <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className="relative shrink-0 mt-0.5">
-                      <AssigneeAvatar assignee={assignee} size="sm" />
-                      <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${task.status === "doing" ? "bg-yellow-400" : "bg-green-400"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">{assignee?.name ?? task.assigned_to}</span>
-                        <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground">
-                          {task.completed_at ? format(parseISO(task.completed_at), "MMM d, h:mm a")
-                            : task.started_at ? format(parseISO(task.started_at), "MMM d, h:mm a")
-                            : format(parseISO(task.created_at), "MMM d, h:mm a")}
-                        </span>
+            <CardContent className="pt-6 space-y-3 max-h-[70vh] overflow-y-auto">
+              {logsLoading ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" /> Loading activity…
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No activity yet. Run an agent to see logs here.
+                </p>
+              ) : (
+                activityLogs.slice(0, 50).map(log => {
+                  const badge = CATEGORY_BADGE[log.category];
+                  const accent = log.agent_id
+                    ? assignees.find(a => a.kind === "agent" && a.name === log.agent_name)?.accent_color
+                    : null;
+                  return (
+                    <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <span
+                        className="flex items-center justify-center rounded-full font-semibold text-white h-8 w-8 text-sm shrink-0"
+                        style={{ background: accent ?? colorFor(log.agent_name) }}
+                      >
+                        {log.agent_emoji ?? initials(log.agent_name)}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold">{log.agent_name}</p>
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(parseISO(log.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground/80 mt-1 whitespace-pre-wrap break-words">
+                          {log.message}
+                        </p>
                       </div>
-                      {task.result && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.result}</p>}
                     </div>
-                  </div>
-                );
-              })}
-              {tasks.filter(t => t.status === "done" || t.status === "doing").length === 0 && (
-                <p className="text-center text-sm text-muted-foreground py-8">No activity yet.</p>
+                  );
+                })
               )}
             </CardContent>
           </Card>
