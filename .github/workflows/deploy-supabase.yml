@@ -136,3 +136,6 @@ jobs:
 
       - name: Deploy daily briefing function
         run: supabase functions deploy daily-briefing --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Deploy CEO triage function
+        run: supabase functions deploy ceo-triage --project-ref "$SUPABASE_PROJECT_ID"
