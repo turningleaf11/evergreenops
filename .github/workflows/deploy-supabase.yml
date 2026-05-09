@@ -1,6 +1,6 @@
 name: Deploy Supabase
 
-# Re-run deploy after aligning remote Supabase migration history.
+# Deploy database migrations and edge functions to the opshq Supabase project.
 on:
   push:
     branches:
@@ -38,7 +38,7 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Apply database migrations
-        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --include-all --yes
 
       - name: Deploy daily briefing function
         run: supabase functions deploy daily-briefing --project-ref "$SUPABASE_PROJECT_ID"
