@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   workspace_id UUID REFERENCES public.workspaces(id) ON DELETE SET NULL,
   full_name TEXT,
   avatar_url TEXT,
-  department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL,
+  department_id TEXT,
   title TEXT,
   phone TEXT,
   email TEXT,
@@ -106,7 +106,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES aut
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES public.workspaces(id) ON DELETE SET NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS department_id TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
@@ -131,7 +131,7 @@ SELECT
   (SELECT id FROM public.workspaces ORDER BY created_at LIMIT 1),
   COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
   u.email,
-  (SELECT id FROM public.departments ORDER BY sort_order, created_at LIMIT 1),
+  (SELECT id::text FROM public.departments ORDER BY sort_order, created_at LIMIT 1),
   'Admin',
   true,
   COALESCE(u.created_at, now()),
@@ -144,7 +144,7 @@ SET
   workspace_id = COALESCE(p.workspace_id, (SELECT id FROM public.workspaces ORDER BY created_at LIMIT 1)),
   email = COALESCE(p.email, u.email),
   full_name = COALESCE(p.full_name, u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
-  department_id = COALESCE(p.department_id, (SELECT id FROM public.departments ORDER BY sort_order, created_at LIMIT 1)),
+  department_id = COALESCE(p.department_id, (SELECT id::text FROM public.departments ORDER BY sort_order, created_at LIMIT 1)),
   time_clock_enabled = COALESCE(p.time_clock_enabled, true)
 FROM auth.users u
 WHERE p.user_id = u.id;
@@ -169,7 +169,6 @@ SELECT u.id, 'user', false
 FROM auth.users u
 WHERE NOT EXISTS (SELECT 1 FROM public.user_roles r WHERE r.user_id = u.id AND r.role = 'user');
 
--- Bootstrap exactly one primary admin if the workspace currently has none.
 WITH first_user AS (
   SELECT u.id
   FROM auth.users u
@@ -219,7 +218,7 @@ SET search_path = public
 AS $$
 DECLARE
   default_workspace uuid;
-  default_department uuid;
+  default_department text;
   should_be_primary boolean;
 BEGIN
   SELECT id INTO default_workspace FROM public.workspaces ORDER BY created_at LIMIT 1;
@@ -227,11 +226,11 @@ BEGIN
     INSERT INTO public.workspaces (name, description) VALUES ('OpsHQ', 'EvergreenOps workspace') RETURNING id INTO default_workspace;
   END IF;
 
-  SELECT id INTO default_department FROM public.departments ORDER BY sort_order, created_at LIMIT 1;
+  SELECT id::text INTO default_department FROM public.departments ORDER BY sort_order, created_at LIMIT 1;
   IF default_department IS NULL THEN
     INSERT INTO public.departments (workspace_id, name, description, icon, sort_order)
     VALUES (default_workspace, 'Leadership', 'Company leadership and strategy', 'ShieldCheck', 0)
-    RETURNING id INTO default_department;
+    RETURNING id::text INTO default_department;
   END IF;
 
   INSERT INTO public.profiles (user_id, workspace_id, full_name, email, department_id, time_clock_enabled)
@@ -382,7 +381,6 @@ CREATE TABLE IF NOT EXISTS public.cadence_runs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Add any columns missing from older partial versions.
 ALTER TABLE public.goals ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES public.workspaces(id) ON DELETE SET NULL;
 ALTER TABLE public.goals ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
 ALTER TABLE public.goals ADD COLUMN IF NOT EXISTS quarter TEXT NOT NULL DEFAULT 'Q1';
@@ -565,7 +563,6 @@ CREATE POLICY "user_roles authenticated read" ON public.user_roles FOR SELECT TO
 DROP POLICY IF EXISTS "user_roles admins write" ON public.user_roles;
 CREATE POLICY "user_roles admins write" ON public.user_roles FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
--- Execution data is collaborative inside the authenticated workspace.
 DROP POLICY IF EXISTS "goals authenticated all" ON public.goals;
 CREATE POLICY "goals authenticated all" ON public.goals FOR ALL TO authenticated USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "projects authenticated all" ON public.projects;
@@ -588,7 +585,6 @@ CREATE POLICY "workspace_addons authenticated read" ON public.workspace_addons F
 DROP POLICY IF EXISTS "workspace_addons admins write" ON public.workspace_addons;
 CREATE POLICY "workspace_addons admins write" ON public.workspace_addons FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
--- Updated-at triggers ----------------------------------------------------------
 DO $$
 DECLARE
   t text;
