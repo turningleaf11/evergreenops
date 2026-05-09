@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,9 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
   const [collaboratorIds, setCollaboratorIds] = useState<string[]>([]);
   const [tools, setTools] = useState<AiTool[]>([]);
   const [toolsManagerOpen, setToolsManagerOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const filesInputRef = useRef<HTMLInputElement>(null);
 
   const loadTools = useCallback(async () => {
     const { data } = await (supabase.from("ai_tools" as any).select("*").order("name") as any);
@@ -84,26 +87,68 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, asCover = false) => {
-    const file = e.target.files?.[0];
-    if (!file || !project || !user || !profile?.workspace_id) return;
-    const uploaded = await uploadFileWithPath(file);
-    if (!uploaded) { toast({ title: "Upload failed", variant: "destructive" }); return; }
-    if (asCover) {
-      await update({ cover_url: uploaded.publicUrl });
-    } else {
-      const { data, error } = await (supabase.from("ai_project_files" as any).insert({
-        workspace_id: profile.workspace_id,
-        project_id: project.id,
-        uploaded_by: user.id,
-        name: file.name,
-        url: uploaded.publicUrl,
-        storage_path: uploaded.path,
-        size_bytes: file.size,
-        mime_type: file.type,
-      }).select().single() as any);
-      if (!error && data) setFiles([data, ...files]);
-    }
+    const selectedFiles = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (selectedFiles.length === 0) return;
+    if (!project || !user || !profile?.workspace_id) {
+      toast({
+        title: "Upload unavailable",
+        description: "Your account needs workspace access before files can be attached.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      if (asCover) {
+        const file = selectedFiles[0];
+        if (!file.type.startsWith("image/")) {
+          toast({ title: "Choose an image file", variant: "destructive" });
+          return;
+        }
+
+        const uploaded = await uploadFileWithPath(file);
+        if (!uploaded) {
+          toast({ title: "Upload failed", description: file.name, variant: "destructive" });
+          return;
+        }
+        await update({ cover_url: uploaded.publicUrl });
+        return;
+      }
+
+      const uploadedRows: any[] = [];
+      for (const file of selectedFiles) {
+        const uploaded = await uploadFileWithPath(file);
+        if (!uploaded) {
+          toast({ title: "Upload failed", description: file.name, variant: "destructive" });
+          continue;
+        }
+
+        const { data, error } = await (supabase.from("ai_project_files" as any).insert({
+          workspace_id: profile.workspace_id,
+          project_id: project.id,
+          uploaded_by: user.id,
+          name: file.name,
+          url: uploaded.publicUrl,
+          storage_path: uploaded.path,
+          size_bytes: file.size,
+          mime_type: file.type || "application/octet-stream",
+        }).select().single() as any);
+
+        if (error) {
+          toast({ title: "Could not attach file", description: error.message, variant: "destructive" });
+        } else if (data) {
+          uploadedRows.push(data);
+        }
+      }
+
+      if (uploadedRows.length > 0) {
+        setFiles((current) => [...uploadedRows, ...current]);
+      }
+    } finally {
+      setUploading(false);
+    }
   };
   const deleteFile = async (id: string) => {
     setFiles(files.filter((f) => f.id !== id));
@@ -148,14 +193,20 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
             {project.cover_url ? (
               <div className="relative h-36 bg-muted">
                 <img src={project.cover_url} alt="" className="w-full h-full object-cover" />
-                <label className="absolute top-2 right-2 cursor-pointer">
-                  <input type="file" accept="image/*" hidden onChange={(e) => handleUpload(e, true)} />
-                  <Button asChild size="sm" variant="secondary"><span><Upload className="h-3 w-3 mr-1" /> Replace</span></Button>
-                </label>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="absolute top-2 right-2"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <Upload className="h-3 w-3 mr-1" /> {uploading ? "Uploading..." : "Replace"}
+                </Button>
               </div>
             ) : (
               <div className="h-12 border-b" />
             )}
+            <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={(e) => handleUpload(e, true)} />
 
             <div className="px-6 py-4 space-y-4 flex-1">
               <div className="flex items-start gap-3">
@@ -309,10 +360,9 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                     </Popover>
                   </div>
                   {!project.cover_url && (
-                    <label className="block">
-                      <input type="file" accept="image/*" hidden onChange={(e) => handleUpload(e, true)} />
-                      <Button asChild variant="outline" size="sm"><span><Upload className="h-3 w-3 mr-1.5" /> Add cover image</span></Button>
-                    </label>
+                    <Button variant="outline" size="sm" onClick={() => coverInputRef.current?.click()} disabled={uploading}>
+                      <Upload className="h-3 w-3 mr-1.5" /> {uploading ? "Uploading..." : "Add cover image"}
+                    </Button>
                   )}
                 </TabsContent>
 
@@ -342,10 +392,10 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                 </TabsContent>
 
                 <TabsContent value="files" className="space-y-3 pt-3">
-                  <label className="block">
-                    <input type="file" hidden onChange={(e) => handleUpload(e)} />
-                    <Button asChild variant="outline" size="sm"><span><Upload className="h-3 w-3 mr-1.5" /> Upload file</span></Button>
-                  </label>
+                  <input ref={filesInputRef} type="file" multiple hidden onChange={(e) => handleUpload(e)} />
+                  <Button variant="outline" size="sm" onClick={() => filesInputRef.current?.click()} disabled={uploading}>
+                    <Upload className="h-3 w-3 mr-1.5" /> {uploading ? "Uploading..." : "Upload files"}
+                  </Button>
                   <div className="space-y-1">
                     {files.length === 0 && <p className="text-xs text-muted-foreground">No files yet.</p>}
                     {files.map((f) => (
