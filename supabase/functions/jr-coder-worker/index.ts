@@ -41,16 +41,30 @@ Be specific. Name actual files, functions, and variables. Do not be vague.
 Do not write the actual code — write the plan that tells the coding agent exactly what to write.
 End with a one-line summary: "Ready to implement: [brief description]"`;
 
+const buildCouncilSystemPrompt = (agent: { name?: string; role?: string | null; subtitle?: string | null } | null) => `You are ${agent?.name ?? 'an AI agent'} participating in a council thread.
+Role: ${agent?.role ?? agent?.subtitle ?? 'general advisor'}
+
+Answer the user's question from your role's perspective. Build on prior agent responses when they exist, but do not repeat them. Be direct, practical, and concise.`;
+
 Deno.serve(async (req) => {
   try {
     const payload = await req.json();
     const { type, record, old_record } = payload;
 
-    // Only act on tasks assigned to jr-coder moving to pending
+    const context = (record.context && typeof record.context === 'object') ? record.context : {};
+    const councilSessionId = typeof context.council_session_id === 'string'
+      ? context.council_session_id
+      : null;
+    const councilPosition = typeof context.council_position === 'number'
+      ? context.council_position
+      : Number(context.council_position ?? 0);
+    const isCouncilTask = Boolean(councilSessionId);
+
+    // Only act on JR Coder tasks, plus council tasks assigned to any agent.
     if (type !== 'INSERT' && type !== 'UPDATE') {
       return new Response('ignored', { status: 200 });
     }
-    if (record.assigned_to !== 'jr-coder' || record.status !== 'pending') {
+    if ((!isCouncilTask && record.assigned_to !== 'jr-coder') || record.status !== 'pending') {
       return new Response('ignored', { status: 200 });
     }
     // Avoid re-processing
@@ -61,14 +75,14 @@ Deno.serve(async (req) => {
     // Look up agent record once for log enrichment
     const { data: agent } = await supabase
       .from('agents')
-      .select('id, name, emoji')
-      .eq('slug', 'jr-coder')
+      .select('id, name, emoji, role, subtitle')
+      .eq('slug', record.assigned_to)
       .maybeSingle();
 
     const agentMeta = {
       task_id: record.id,
       agent_id: agent?.id ?? null,
-      agent_name: agent?.name ?? 'JR Coder',
+      agent_name: agent?.name ?? record.assigned_to ?? 'JR Coder',
       agent_emoji: agent?.emoji ?? null,
     };
 
@@ -85,9 +99,31 @@ Deno.serve(async (req) => {
     });
 
     // Build prompt
+    let priorCouncilMessages = '';
+    if (isCouncilTask && councilSessionId) {
+      const { data: priorMessages, error: priorError } = await supabase
+        .from('council_messages')
+        .select('agent_name, body, position')
+        .eq('session_id', councilSessionId)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (priorError) {
+        console.warn('[JR Coder] council prior messages fetch failed (non-fatal):', priorError.message);
+      } else if (priorMessages?.length) {
+        priorCouncilMessages = priorMessages
+          .map((message) => `${message.agent_name}: ${message.body}`)
+          .join('\n\n');
+      }
+    }
+
     const userMessage = record.context && Object.keys(record.context).length > 0
       ? `${record.description}\n\nAdditional context:\n${JSON.stringify(record.context, null, 2)}`
       : record.description;
+
+    const prompt = priorCouncilMessages
+      ? `${userMessage}\n\nPrior council responses:\n${priorCouncilMessages}`
+      : userMessage;
 
     let result: string;
     try {
@@ -95,8 +131,8 @@ Deno.serve(async (req) => {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 8096,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
+        system: isCouncilTask ? buildCouncilSystemPrompt(agent) : SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
       });
 
       result = response.content
@@ -109,6 +145,12 @@ Deno.serve(async (req) => {
         .from('agent_tasks')
         .update({ status: 'needs_input', error: errMessage })
         .eq('id', record.id);
+      if (isCouncilTask && councilSessionId) {
+        await supabase
+          .from('council_sessions')
+          .update({ status: 'failed' })
+          .eq('id', councilSessionId);
+      }
       await logActivity({
         ...agentMeta,
         category: 'task_failed',
@@ -137,6 +179,57 @@ Deno.serve(async (req) => {
       category: 'agent_message',
       message: result.slice(0, 500),
     });
+
+    if (isCouncilTask && councilSessionId) {
+      const { error: messageError } = await supabase
+        .from('council_messages')
+        .insert({
+          session_id: councilSessionId,
+          agent_id: agent?.id ?? null,
+          agent_name: agentMeta.agent_name,
+          agent_emoji: agentMeta.agent_emoji,
+          body: result,
+          position: Number.isFinite(councilPosition) ? councilPosition : 0,
+        });
+
+      if (messageError) {
+        console.warn('[JR Coder] council message insert failed:', messageError.message);
+        await supabase
+          .from('council_sessions')
+          .update({ status: 'failed' })
+          .eq('id', councilSessionId);
+        return new Response('council message insert failed', { status: 500 });
+      }
+
+      const nextPosition = (Number.isFinite(councilPosition) ? councilPosition : 0) + 1;
+      const { data: nextTask, error: nextTaskError } = await supabase
+        .from('agent_tasks')
+        .select('id')
+        .eq('status', 'backlog')
+        .contains('context', {
+          council_session_id: councilSessionId,
+          council_position: nextPosition,
+        })
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (nextTaskError) {
+        console.warn('[JR Coder] next council task lookup failed:', nextTaskError.message);
+      }
+
+      if (nextTask?.id) {
+        await supabase
+          .from('agent_tasks')
+          .update({ status: 'pending' })
+          .eq('id', nextTask.id);
+      } else {
+        await supabase
+          .from('council_sessions')
+          .update({ status: 'done' })
+          .eq('id', councilSessionId);
+      }
+    }
 
     console.log(`[JR Coder] Task ${record.id} complete — moved to review`);
 

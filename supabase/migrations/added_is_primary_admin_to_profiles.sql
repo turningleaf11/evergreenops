@@ -1,0 +1,1 @@
+ALTER TABLE profiles ADD COLUMN is_primary_admin BOOLEAN DEFAULT false;
