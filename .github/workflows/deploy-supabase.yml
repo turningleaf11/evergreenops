@@ -139,3 +139,6 @@ jobs:
 
       - name: Deploy CEO triage function
         run: supabase functions deploy ceo-triage --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Deploy cadence generator function
+        run: supabase functions deploy cadences-generate --project-ref "$SUPABASE_PROJECT_ID"
