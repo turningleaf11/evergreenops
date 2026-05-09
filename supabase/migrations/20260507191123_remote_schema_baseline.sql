@@ -1,0 +1,3 @@
+-- Remote migration history marker.
+-- This version already exists in the opshq Supabase project's migration history.
+-- It is intentionally empty so `supabase db push` can align local and remote history.
