@@ -1,5 +1,6 @@
 name: Deploy Supabase
 
+# Re-run deploy after aligning remote Supabase migration history.
 on:
   push:
     branches:
