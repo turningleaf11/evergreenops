@@ -93,20 +93,29 @@ const readAgentAvatarDataUrl = (file: File) =>
 
           council_component = r'''const NewCouncilDialog = ({
   open, onOpenChange, agents, onCreated,
-}: { open: boolean; onOpenChange: (v: boolean) => void; agents: Assignee[]; onCreated: () => void }) => {
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  agents: Assignee[];
+  onCreated: (sessionId: string) => void;
+}) => {
   const [question, setQuestion] = useState("");
   const [selectedAgentKeys, setSelectedAgentKeys] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (open && selectedAgentKeys.length === 0 && agents.length > 0) {
+      setSelectedAgentKeys(agents.slice(0, 3).map(a => a.key));
+    }
+  }, [open, agents, selectedAgentKeys.length]);
+
   const reset = () => {
     setQuestion("");
-    setSelectedAgentKeys([]);
+    setSelectedAgentKeys(agents.slice(0, 3).map(a => a.key));
   };
 
   const toggleAgent = (key: string) => {
-    setSelectedAgentKeys(current => (
-      current.includes(key) ? current.filter(k => k !== key) : [...current, key]
-    ));
+    setSelectedAgentKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
   const buildCouncilResponse = (agent: Assignee, prompt: string, index: number) => {
@@ -118,25 +127,25 @@ const readAgentAvatarDataUrl = (file: File) =>
   };
 
   const create = async () => {
+    const selectedAgents = selectedAgentKeys
+      .map(key => agents.find(a => a.key === key))
+      .filter(Boolean) as Assignee[];
+
     const trimmedQuestion = question.trim();
-    if (!trimmedQuestion || selectedAgentKeys.length === 0) return;
+    if (!trimmedQuestion || selectedAgents.length === 0) return;
+
+    const participants: CouncilParticipant[] = selectedAgents.map((agent, index) => ({
+      id: agent.agent_id,
+      key: agent.key,
+      name: agent.name,
+      emoji: agent.emoji,
+      subtitle: agent.subtitle,
+      accent_color: agent.accent_color,
+      position: index,
+    }));
 
     setSaving(true);
     try {
-      const selectedAgents = selectedAgentKeys
-        .map(key => agents.find(agent => agent.key === key))
-        .filter(Boolean) as Assignee[];
-
-      const participants = selectedAgents.map((agent, index) => ({
-        id: agent.agent_id,
-        key: agent.key,
-        name: agent.name,
-        emoji: agent.emoji,
-        subtitle: agent.subtitle,
-        accent_color: agent.accent_color,
-        position: index,
-      }));
-
       const { data: session, error: sessionError } = await supabase
         .from("council_sessions")
         .insert({
@@ -147,8 +156,8 @@ const readAgentAvatarDataUrl = (file: File) =>
         .select("id")
         .single();
 
-      if (sessionError) {
-        toast({ title: "Could not start council", description: sessionError.message, variant: "destructive" });
+      if (sessionError || !session) {
+        toast({ title: "Could not start council", description: sessionError?.message ?? "Session was not created.", variant: "destructive" });
         return;
       }
 
@@ -161,19 +170,17 @@ const readAgentAvatarDataUrl = (file: File) =>
         position: index,
       }));
 
-      if (messages.length > 0) {
-        const { error: messageError } = await supabase.from("council_messages").insert(messages);
-        if (messageError) {
-          toast({ title: "Council started without replies", description: messageError.message, variant: "destructive" });
-          onCreated();
-          return;
-        }
+      const { error: messageError } = await supabase.from("council_messages").insert(messages);
+      if (messageError) {
+        toast({ title: "Council started without replies", description: messageError.message, variant: "destructive" });
+        onCreated(session.id);
+        return;
       }
 
-      toast({ title: "Council started" });
+      toast({ title: "Council started", description: `${participants.length} agent replies added.` });
       reset();
       onOpenChange(false);
-      onCreated();
+      onCreated(session.id);
     } finally {
       setSaving(false);
     }
@@ -182,7 +189,7 @@ const readAgentAvatarDataUrl = (file: File) =>
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Start Council</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>New Council</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Question</Label>
@@ -194,22 +201,23 @@ const readAgentAvatarDataUrl = (file: File) =>
               placeholder="What should the agents weigh in on?"
             />
           </div>
+
           <div className="space-y-2">
-            <Label>Agents</Label>
-            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
-              {agents.map(agent => (
+            <Label>Participants</Label>
+            <div className="rounded-lg border border-border divide-y max-h-64 overflow-y-auto">
+              {agents.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4">No agents are available.</p>
+              ) : agents.map(agent => (
                 <button
                   key={agent.key}
                   type="button"
                   onClick={() => toggleAgent(agent.key)}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
-                    selectedAgentKeys.includes(agent.key) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/60"
-                  }`}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
                 >
                   <Checkbox checked={selectedAgentKeys.includes(agent.key)} className="pointer-events-none" />
                   <AssigneeAvatar assignee={agent} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{agent.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{agent.name}</p>
                     {agent.subtitle && <p className="text-xs text-muted-foreground truncate">{agent.subtitle}</p>}
                   </div>
                   {selectedAgentKeys.includes(agent.key) && (
@@ -260,3 +268,4 @@ const readAgentAvatarDataUrl = (file: File) =>
             git commit -m "Fix AI Hub avatar uploads and council replies"
             git push
           fi
+# trigger: 2026-05-10T02:01:00Z
