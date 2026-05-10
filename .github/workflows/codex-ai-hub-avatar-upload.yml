@@ -1,0 +1,139 @@
+name: Codex AI Hub Avatar Upload Patch
+
+on:
+  push:
+    paths:
+      - .github/workflows/codex-ai-hub-avatar-upload.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ai-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply AI Hub avatar upload patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/AiHubPage.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(source: str, old: str, new: str) -> str:
+              if new in source:
+                  return source
+              if old not in source:
+                  raise SystemExit(f'Missing expected snippet: {old[:80]!r}')
+              return source.replace(old, new, 1)
+
+          text = replace_once(
+              text,
+              'import { useEffect, useState } from "react";',
+              'import { useEffect, useRef, useState } from "react";',
+          )
+          text = replace_once(
+              text,
+              '  Activity, Plus, Loader2, Calendar, X, MessageCircle, Users, Send,',
+              '  Activity, Plus, Loader2, Calendar, X, Upload, MessageCircle, Users, Send,',
+          )
+          text = replace_once(
+              text,
+              'import { toast } from "@/hooks/use-toast";\n',
+              'import { toast } from "@/hooks/use-toast";\nimport { uploadFile } from "@/lib/file-upload";\n',
+          )
+          text = replace_once(
+              text,
+              '  const [selectedCouncilId, setSelectedCouncilId] = useState<string | null>(null);\n',
+              '  const [selectedCouncilId, setSelectedCouncilId] = useState<string | null>(null);\n'
+              '  const [avatarUploadingKey, setAvatarUploadingKey] = useState<string | null>(null);\n'
+              '  const avatarInputRef = useRef<HTMLInputElement>(null);\n'
+              '  const avatarAgentKeyRef = useRef<string | null>(null);\n',
+          )
+          text = replace_once(
+              text,
+              '  const findAssignee = (key: string) => assignees.find(a => a.key === key);\n  const tasksByStatus = (status: Status) => tasks.filter(t => t.status === status);\n',
+              '  const findAssignee = (key: string) => assignees.find(a => a.key === key);\n'
+              '  const tasksByStatus = (status: Status) => tasks.filter(t => t.status === status);\n'
+              '\n'
+              '  const pickAgentAvatar = (agentKey: string) => {\n'
+              '    avatarAgentKeyRef.current = agentKey;\n'
+              '    avatarInputRef.current?.click();\n'
+              '  };\n'
+              '\n'
+              '  const handleAgentAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {\n'
+              '    const file = event.target.files?.[0];\n'
+              '    event.target.value = "";\n'
+              '    const agentKey = avatarAgentKeyRef.current;\n'
+              '    avatarAgentKeyRef.current = null;\n'
+              '\n'
+              '    if (!file || !agentKey) return;\n'
+              '\n'
+              '    if (!file.type.startsWith("image/")) {\n'
+              '      toast({ title: "Choose an image file", variant: "destructive" });\n'
+              '      return;\n'
+              '    }\n'
+              '\n'
+              '    setAvatarUploadingKey(agentKey);\n'
+              '    try {\n'
+              '      const url = await uploadFile(file);\n'
+              '      if (!url) {\n'
+              '        toast({ title: "Upload failed", description: file.name, variant: "destructive" });\n'
+              '        return;\n'
+              '      }\n'
+              '\n'
+              '      const { error } = await supabase\n'
+              '        .from("agents")\n'
+              '        .update({ avatar_url: url })\n'
+              '        .eq("slug", agentKey);\n'
+              '\n'
+              '      if (error) {\n'
+              '        toast({ title: "Could not save agent photo", description: error.message, variant: "destructive" });\n'
+              '        return;\n'
+              '      }\n'
+              '\n'
+              '      setAssignees(current => current.map(a => a.key === agentKey ? { ...a, avatar_url: url } : a));\n'
+              '      toast({ title: "Agent photo updated" });\n'
+              '    } finally {\n'
+              '      setAvatarUploadingKey(null);\n'
+              '    }\n'
+              '  };\n',
+          )
+          text = replace_once(
+              text,
+              '        <TabsContent value="agents" className="mt-4">\n          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">\n',
+              '        <TabsContent value="agents" className="mt-4">\n'
+              '          <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={handleAgentAvatarUpload} />\n'
+              '          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">\n',
+          )
+          text = replace_once(
+              text,
+              '                    <Badge variant={agent.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{agent.status}</Badge>\n',
+              '                    <Badge variant={agent.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{agent.status}</Badge>\n'
+              '                    <Button\n'
+              '                      variant="ghost"\n'
+              '                      size="icon"\n'
+              '                      className="h-8 w-8"\n'
+              '                      title="Upload agent photo"\n'
+              '                      onClick={() => pickAgentAvatar(agent.key)}\n'
+              '                      disabled={avatarUploadingKey === agent.key}\n'
+              '                    >\n'
+              '                      {avatarUploadingKey === agent.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}\n'
+              '                    </Button>\n',
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit patch and remove workflow
+        run: |
+          rm .github/workflows/codex-ai-hub-avatar-upload.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/AiHubPage.tsx .github/workflows/codex-ai-hub-avatar-upload.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add AI Hub agent avatar uploads"
+            git push
+          fi
