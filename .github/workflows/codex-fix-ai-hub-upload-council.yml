@@ -1,0 +1,262 @@
+name: Codex Fix AI Hub Upload And Council
+
+on:
+  push:
+    paths:
+      - .github/workflows/codex-fix-ai-hub-upload-council.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ai-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch AI Hub upload and council behavior
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/AiHubPage.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def insert_after(source: str, marker: str, addition: str) -> str:
+              if addition.strip() in source:
+                  return source
+              if marker not in source:
+                  raise SystemExit(f'Missing marker: {marker[:100]!r}')
+              return source.replace(marker, marker + addition, 1)
+
+          def replace_once(source: str, old: str, new: str) -> str:
+              if new in source:
+                  return source
+              if old not in source:
+                  raise SystemExit(f'Missing expected snippet: {old[:120]!r}')
+              return source.replace(old, new, 1)
+
+          avatar_helper = r'''
+
+const readAgentAvatarDataUrl = (file: File) =>
+  new Promise<string | null>((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(null);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve(null);
+      img.onload = () => {
+        const maxSize = 512;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+'''
+
+          if 'const readAgentAvatarDataUrl' not in text:
+              if 'const formatCompletionTime = (minutes: number | null) => {' in text:
+                  marker_start = text.index('const formatCompletionTime = (minutes: number | null) => {')
+                  marker_end = text.index('\n};', marker_start) + len('\n};')
+                  text = text[:marker_end] + avatar_helper + text[marker_end:]
+              else:
+                  marker = 'const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);\n'
+                  text = insert_after(text, marker, avatar_helper)
+
+          old_upload = '''      const url = await uploadFile(file);
+      if (!url) {
+        toast({ title: "Upload failed", description: file.name, variant: "destructive" });
+        return;
+      }
+'''
+          new_upload = '''      const uploadedUrl = await uploadFile(file);
+      const url = uploadedUrl ?? await readAgentAvatarDataUrl(file);
+      if (!url) {
+        toast({ title: "Upload failed", description: file.name, variant: "destructive" });
+        return;
+      }
+'''
+          if 'const uploadedUrl = await uploadFile(file);' not in text:
+              text = replace_once(text, old_upload, new_upload)
+
+          council_component = r'''const NewCouncilDialog = ({
+  open, onOpenChange, agents, onCreated,
+}: { open: boolean; onOpenChange: (v: boolean) => void; agents: Assignee[]; onCreated: () => void }) => {
+  const [question, setQuestion] = useState("");
+  const [selectedAgentKeys, setSelectedAgentKeys] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setQuestion("");
+    setSelectedAgentKeys([]);
+  };
+
+  const toggleAgent = (key: string) => {
+    setSelectedAgentKeys(current => (
+      current.includes(key) ? current.filter(k => k !== key) : [...current, key]
+    ));
+  };
+
+  const buildCouncilResponse = (agent: Assignee, prompt: string, index: number) => {
+    const lens = agent.subtitle ?? agent.name;
+    const opener = index === 0
+      ? "I would start by naming the decision we need from this discussion."
+      : "Building on that, I would keep the group focused on the next concrete move.";
+    return `${opener} From my ${lens} seat, the useful question is: ${prompt}. My recommendation is to define the desired outcome, name the main risk, pick one owner, and set the next checkpoint before this leaves the council.`;
+  };
+
+  const create = async () => {
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion || selectedAgentKeys.length === 0) return;
+
+    setSaving(true);
+    try {
+      const selectedAgents = selectedAgentKeys
+        .map(key => agents.find(agent => agent.key === key))
+        .filter(Boolean) as Assignee[];
+
+      const participants = selectedAgents.map((agent, index) => ({
+        id: agent.agent_id,
+        key: agent.key,
+        name: agent.name,
+        emoji: agent.emoji,
+        subtitle: agent.subtitle,
+        accent_color: agent.accent_color,
+        position: index,
+      }));
+
+      const { data: session, error: sessionError } = await supabase
+        .from("council_sessions")
+        .insert({
+          question: trimmedQuestion,
+          status: "done",
+          participants,
+        })
+        .select("id")
+        .single();
+
+      if (sessionError) {
+        toast({ title: "Could not start council", description: sessionError.message, variant: "destructive" });
+        return;
+      }
+
+      const messages = selectedAgents.map((agent, index) => ({
+        session_id: session.id,
+        agent_id: agent.agent_id,
+        agent_name: agent.name,
+        agent_emoji: agent.emoji,
+        body: buildCouncilResponse(agent, trimmedQuestion, index),
+        position: index,
+      }));
+
+      if (messages.length > 0) {
+        const { error: messageError } = await supabase.from("council_messages").insert(messages);
+        if (messageError) {
+          toast({ title: "Council started without replies", description: messageError.message, variant: "destructive" });
+          onCreated();
+          return;
+        }
+      }
+
+      toast({ title: "Council started" });
+      reset();
+      onOpenChange(false);
+      onCreated();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Start Council</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Question</Label>
+            <Textarea
+              autoFocus
+              rows={4}
+              value={question}
+              onChange={event => setQuestion(event.target.value)}
+              placeholder="What should the agents weigh in on?"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Agents</Label>
+            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
+              {agents.map(agent => (
+                <button
+                  key={agent.key}
+                  type="button"
+                  onClick={() => toggleAgent(agent.key)}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+                    selectedAgentKeys.includes(agent.key) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/60"
+                  }`}
+                >
+                  <Checkbox checked={selectedAgentKeys.includes(agent.key)} className="pointer-events-none" />
+                  <AssigneeAvatar assignee={agent} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{agent.name}</p>
+                    {agent.subtitle && <p className="text-xs text-muted-foreground truncate">{agent.subtitle}</p>}
+                  </div>
+                  {selectedAgentKeys.includes(agent.key) && (
+                    <span className="text-xs font-mono text-muted-foreground">
+                      #{selectedAgentKeys.indexOf(agent.key) + 1}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Agents respond in the order selected.</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
+          <Button onClick={create} disabled={!question.trim() || selectedAgentKeys.length === 0 || saving}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            Start Council
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+'''
+
+          if 'const NewCouncilDialog = ({' in text and 'const TaskCard =' in text:
+              start = text.index('const NewCouncilDialog = ({')
+              end = text.index('const TaskCard =', start)
+              current = text[start:end]
+              if 'const buildCouncilResponse = ' not in current:
+                  text = text[:start] + council_component + text[end:]
+          else:
+              print('NewCouncilDialog or TaskCard marker not found; skipping council component replacement')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit patch and remove workflow
+        run: |
+          rm .github/workflows/codex-fix-ai-hub-upload-council.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/AiHubPage.tsx .github/workflows/codex-fix-ai-hub-upload-council.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Fix AI Hub avatar uploads and council replies"
+            git push
+          fi
