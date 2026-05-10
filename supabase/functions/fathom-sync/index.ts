@@ -29,12 +29,65 @@ interface FathomMeeting {
   transcript_text?: string;
   summary?: string;
   ai_summary?: string;
+  ai_insights?: string;
+  key_decisions?: any[];
+  decisions?: any[];
+  sentiment?: string;
   host_email?: string;
   invitees?: any[];
   attendees?: any[];
   action_items?: any[];
+  external_participants?: any[];
   [k: string]: any;
 }
+
+const asArray = (value: any): any[] => Array.isArray(value) ? value : [];
+
+const pickText = (value: any): string => {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  return String(value.text || value.description || value.title || value.decision || value.name || "").trim();
+};
+
+const normalizeKeyDecisions = (m: any): string[] => {
+  const decisions = asArray(m.key_decisions || m.decisions || m.ai_decisions);
+  return decisions.map(pickText).filter(Boolean);
+};
+
+const normalizeActionItems = (items: any[]) => items
+  .map((item) => {
+    if (typeof item === "string") {
+      return { text: item, owner: null, due_date: null, status: "open" };
+    }
+    if (!item || typeof item !== "object") return null;
+    const text = pickText(item);
+    if (!text) return null;
+    return {
+      text,
+      owner: item.owner || item.assignee || item.assignee_email || item.person || null,
+      due_date: item.due_date || item.due || item.deadline || null,
+      status: item.status || (item.completed ? "completed" : "open"),
+    };
+  })
+  .filter(Boolean);
+
+const attendeeEmail = (attendee: any): string | null => {
+  if (typeof attendee === "string" && attendee.includes("@")) return attendee;
+  if (!attendee || typeof attendee !== "object") return null;
+  return attendee.email || attendee.email_address || attendee.user_email || null;
+};
+
+const hasExternalParticipants = (m: any, attendees: any[], hostEmail: string | null): boolean => {
+  if (typeof m.has_external_participants === "boolean") return m.has_external_participants;
+  if (asArray(m.external_participants).length > 0) return true;
+  const hostDomain = hostEmail?.split("@")[1]?.toLowerCase();
+  if (!hostDomain) return false;
+  return attendees.some((attendee) => {
+    const email = attendeeEmail(attendee);
+    const domain = email?.split("@")[1]?.toLowerCase();
+    return Boolean(domain && domain !== hostDomain);
+  });
+};
 
 const norm = (m: any) => {
   const start = m.recording_start_time || m.scheduled_start_time || m.started_at || null;
@@ -45,17 +98,29 @@ const norm = (m: any) => {
     const e = new Date(end).getTime();
     if (Number.isFinite(s) && Number.isFinite(e) && e > s) duration = Math.round((e - s) / 1000);
   }
+  const recordingId = String(m.recording_id ?? m.id ?? m.meeting_id ?? "");
+  const recordingUrl = m.share_url || m.url || m.recording_url || m.fathom_url || null;
+  const hostEmail = m.recorded_by?.email || m.host_email || null;
+  const attendees = m.calendar_invitees || m.attendees || m.invitees || [];
+  const actionItems = normalizeActionItems(m.action_items || []);
+  const aiInsights = m.ai_insights || m.default_summary || m.summary || m.ai_summary || null;
   return {
-    fathom_id: String(m.recording_id ?? m.id ?? m.meeting_id ?? ""),
+    fathom_id: recordingId,
+    recording_id: recordingId,
     title: m.meeting_title || m.title || "Untitled meeting",
     started_at: start,
     duration_seconds: duration,
-    recording_url: m.share_url || m.url || m.recording_url || null,
+    recording_url: recordingUrl,
+    fathom_url: recordingUrl,
     transcript_text: typeof m.transcript === "string" ? m.transcript : (m.transcript_text || null),
     summary: m.default_summary || m.summary || m.ai_summary || null,
-    host_email: m.recorded_by?.email || m.host_email || null,
-    attendees: m.calendar_invitees || m.attendees || m.invitees || [],
-    action_items: m.action_items || [],
+    ai_insights: aiInsights,
+    key_decisions: normalizeKeyDecisions(m),
+    sentiment: m.sentiment || m.meeting_sentiment || null,
+    host_email: hostEmail,
+    attendees,
+    action_items: actionItems,
+    has_external_participants: hasExternalParticipants(m, attendees, hostEmail),
   };
 };
 
@@ -154,8 +219,15 @@ Deno.serve(async (req) => {
         started_at: m.started_at,
         duration_seconds: m.duration_seconds,
         recording_url: m.recording_url,
+        fathom_url: m.fathom_url,
+        recording_id: m.recording_id,
         transcript_text: m.transcript_text,
         summary: m.summary,
+        ai_insights: m.ai_insights,
+        key_decisions: m.key_decisions,
+        action_items: m.action_items,
+        sentiment: m.sentiment,
+        has_external_participants: m.has_external_participants,
         host_email: m.host_email,
         attendees: m.attendees,
         raw_payload: raw,
@@ -173,8 +245,13 @@ Deno.serve(async (req) => {
     const items = m.action_items || [];
     for (let i = 0; i < items.length; i++) {
       const it: any = items[i];
-      const text = typeof it === "string" ? it : (it.text || it.description || it.title || "");
-      const email = typeof it === "object" ? (it.assignee_email || it.assignee || null) : null;
+      const text = pickText(it);
+      const owner = typeof it === "object" ? it.owner : null;
+      const email = typeof owner === "string" && owner.includes("@")
+        ? owner
+        : typeof it === "object"
+          ? (it.assignee_email || null)
+          : null;
       const userId = email ? emailMap.get(String(email).toLowerCase()) || null : null;
       if (!text) continue;
       await supabase.from("meeting_action_items").insert({
@@ -182,6 +259,7 @@ Deno.serve(async (req) => {
         text,
         assignee_email: email,
         assignee_user_id: userId,
+        completed: String(it.status || "").toLowerCase() === "completed" || String(it.status || "").toLowerCase() === "done",
         sort_order: i,
       });
     }

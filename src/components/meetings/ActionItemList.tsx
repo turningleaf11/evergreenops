@@ -20,7 +20,7 @@ interface ActionItem {
   sort_order: number;
 }
 
-export function ActionItemList({ meetingId }: { meetingId: string }) {
+export function ActionItemList({ meetingId, showEmpty = true }: { meetingId: string; showEmpty?: boolean }) {
   const { user } = useAuth();
   const [items, setItems] = useState<ActionItem[]>([]);
 
@@ -63,6 +63,7 @@ export function ActionItemList({ meetingId }: { meetingId: string }) {
   };
 
   if (items.length === 0) {
+    if (!showEmpty) return null;
     return (
       <Card>
         <CardContent className="py-8 text-center text-sm text-muted-foreground">

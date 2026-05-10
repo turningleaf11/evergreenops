@@ -3789,14 +3789,21 @@ export type Database = {
       }
       meetings: {
         Row: {
+          action_items: Json
+          ai_insights: string | null
           attendees: Json
           created_at: string
           duration_seconds: number | null
+          fathom_url: string | null
           fathom_meeting_id: string | null
+          has_external_participants: boolean
           host_email: string | null
           id: string
+          key_decisions: string[]
           raw_payload: Json | null
+          recording_id: string | null
           recording_url: string | null
+          sentiment: string | null
           started_at: string | null
           summary: string | null
           synced_at: string | null
@@ -3806,14 +3813,21 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          action_items?: Json
+          ai_insights?: string | null
           attendees?: Json
           created_at?: string
           duration_seconds?: number | null
+          fathom_url?: string | null
           fathom_meeting_id?: string | null
+          has_external_participants?: boolean
           host_email?: string | null
           id?: string
+          key_decisions?: string[]
           raw_payload?: Json | null
+          recording_id?: string | null
           recording_url?: string | null
+          sentiment?: string | null
           started_at?: string | null
           summary?: string | null
           synced_at?: string | null
@@ -3823,14 +3837,21 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          action_items?: Json
+          ai_insights?: string | null
           attendees?: Json
           created_at?: string
           duration_seconds?: number | null
+          fathom_url?: string | null
           fathom_meeting_id?: string | null
+          has_external_participants?: boolean
           host_email?: string | null
           id?: string
+          key_decisions?: string[]
           raw_payload?: Json | null
+          recording_id?: string | null
           recording_url?: string | null
+          sentiment?: string | null
           started_at?: string | null
           summary?: string | null
           synced_at?: string | null

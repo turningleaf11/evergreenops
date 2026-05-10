@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Video, RefreshCw, Clock, Users, FileText, ListChecks, Play, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Video, RefreshCw, Clock, Users, FileText, ListChecks, Play, AlertCircle, Brain, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -15,15 +16,82 @@ import { LeadershipMeetingsTab } from "@/components/meetings/LeadershipMeetingsT
 interface Meeting {
   id: string;
   fathom_meeting_id: string | null;
+  recording_id: string | null;
   title: string;
   started_at: string | null;
   duration_seconds: number | null;
   recording_url: string | null;
+  fathom_url: string | null;
   transcript_text: string | null;
   summary: string | null;
+  ai_insights: string | null;
+  key_decisions: string[] | null;
+  action_items: any[] | null;
+  sentiment: string | null;
+  has_external_participants: boolean | null;
   host_email: string | null;
   attendees: any[];
   synced_at: string | null;
+}
+
+interface IntelligenceActionItem {
+  text: string;
+  owner: string | null;
+  due_date: string | null;
+  status: string | null;
+}
+
+const normalizeActionItems = (items: any[] | null | undefined): IntelligenceActionItem[] => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (typeof item === "string") return { text: item, owner: null, due_date: null, status: "open" };
+      if (!item || typeof item !== "object") return null;
+      const text = item.text || item.description || item.title || "";
+      if (!text) return null;
+      return {
+        text: String(text),
+        owner: item.owner || item.assignee || item.assignee_email || null,
+        due_date: item.due_date || item.due || item.deadline || null,
+        status: item.status || (item.completed ? "completed" : "open"),
+      };
+    })
+    .filter(Boolean) as IntelligenceActionItem[];
+};
+
+const sentimentClass = (sentiment: string | null | undefined) => {
+  switch (sentiment?.toLowerCase()) {
+    case "positive":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "negative":
+      return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+    default:
+      return "border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300";
+  }
+};
+
+function IntelligenceActionItems({ items }: { items: IntelligenceActionItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {items.map((item, index) => (
+        <Card key={`${item.text}-${index}`}>
+          <CardContent className="p-3 flex items-start gap-3">
+            <CheckCircle2 className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">{item.text}</p>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {item.owner && <Badge variant="outline" className="text-[10px]">Owner: {item.owner}</Badge>}
+                {item.due_date && <Badge variant="outline" className="text-[10px]">Due: {item.due_date}</Badge>}
+                {item.status && <Badge variant="secondary" className="text-[10px] capitalize">{item.status}</Badge>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 export default function MeetingsPage() {
@@ -145,8 +213,28 @@ export default function MeetingsPage() {
             </div>
           ) : (
             <div className="p-6 space-y-4">
+              {(() => {
+                const aiInsights = selected.ai_insights || selected.summary;
+                const decisions = selected.key_decisions || [];
+                const actionItems = normalizeActionItems(selected.action_items);
+                const recordingUrl = selected.fathom_url || selected.recording_url;
+
+                return (
+                  <>
               <div>
-                <h2 className="text-lg font-semibold">{selected.title}</h2>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-lg font-semibold">{selected.title}</h2>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {selected.sentiment && (
+                      <Badge variant="outline" className={cn("text-[10px] capitalize", sentimentClass(selected.sentiment))}>
+                        {selected.sentiment}
+                      </Badge>
+                    )}
+                    {selected.has_external_participants && (
+                      <Badge variant="outline" className="text-[10px]">External</Badge>
+                    )}
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                   {selected.started_at && <span>{format(new Date(selected.started_at), "EEE, MMM d, yyyy · h:mm a")}</span>}
                   <span>{fmtDuration(selected.duration_seconds)}</span>
@@ -172,17 +260,48 @@ export default function MeetingsPage() {
                 </TabsList>
 
                 <TabsContent value="summary" className="mt-4">
-                  <Card>
-                    <CardContent className="p-4 prose prose-sm max-w-none dark:prose-invert">
-                      {selected.summary
-                        ? selected.summary.split("\n").map((line, i) => <p key={i}>{line}</p>)
-                        : <p className="text-muted-foreground text-sm">No summary available.</p>}
-                    </CardContent>
-                  </Card>
+                  <div className="space-y-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Brain className="h-4 w-4 text-muted-foreground" />
+                          <h3 className="text-sm font-medium">AI insights</h3>
+                        </div>
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          {aiInsights
+                            ? aiInsights.split("\n").map((line, i) => <p key={i}>{line}</p>)
+                            : <p className="text-muted-foreground text-sm">No AI insights available.</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {decisions.length > 0 && (
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-sm font-medium">Key decisions</h3>
+                          </div>
+                          <ul className="space-y-2">
+                            {decisions.map((decision, i) => (
+                              <li key={`${decision}-${i}`} className="text-sm flex gap-2">
+                                <span className="text-muted-foreground">•</span>
+                                <span>{decision}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="actions" className="mt-4">
-                  <ActionItemList meetingId={selected.id} />
+                  {actionItems.length > 0 ? (
+                    <IntelligenceActionItems items={actionItems} />
+                  ) : (
+                    <ActionItemList meetingId={selected.id} />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="transcript" className="mt-4">
@@ -202,9 +321,9 @@ export default function MeetingsPage() {
                 <TabsContent value="recording" className="mt-4">
                   <Card>
                     <CardContent className="p-4">
-                      {selected.recording_url ? (
+                      {recordingUrl ? (
                         <a
-                          href={selected.recording_url}
+                          href={recordingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
@@ -220,6 +339,9 @@ export default function MeetingsPage() {
                   </Card>
                 </TabsContent>
               </Tabs>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
