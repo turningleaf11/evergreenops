@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { retrieveMemories, storeMemory } from "./src/lib/memoryUtils.ts";
+import { retrieveMemories, storeMemory } from "./server/memory/memoryUtils.ts";
 
 const loadDotEnv = () => {
   const envPath = resolve(process.cwd(), ".env");
@@ -36,7 +36,7 @@ const main = async () => {
   loadDotEnv();
 
   requireEnv("VITE_SUPABASE_URL");
-  requireEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
+  requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   requireEnv("VERCEL_AI_API_KEY");
 
   const agentId = "memory-system-smoke-test";

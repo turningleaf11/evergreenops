@@ -22,14 +22,7 @@ export type RetrieveMemoryOptions = {
 };
 
 const getRuntimeEnv = (): RuntimeEnv => {
-  const viteEnv = ((import.meta as unknown as { env?: RuntimeEnv }).env ?? {}) as RuntimeEnv;
-  const processEnv =
-    ((globalThis as unknown as { process?: { env?: RuntimeEnv } }).process?.env ?? {}) as RuntimeEnv;
-
-  return {
-    ...viteEnv,
-    ...processEnv,
-  };
+  return (process.env ?? {}) as RuntimeEnv;
 };
 
 const getRequiredEnv = (name: string): string => {
@@ -42,11 +35,21 @@ const getRequiredEnv = (name: string): string => {
   return value;
 };
 
-const getSupabaseClient = () => {
-  const supabaseUrl = getRequiredEnv("VITE_SUPABASE_URL");
-  const supabaseKey = getRequiredEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
+const getEmbeddingApiKey = (): string => {
+  const apiKey = getRuntimeEnv().VERCEL_AI_API_KEY ?? getRuntimeEnv().OPENAI_API_KEY;
 
-  return createClient(supabaseUrl, supabaseKey, {
+  if (!apiKey) {
+    throw new Error("Missing required environment variable: VERCEL_AI_API_KEY or OPENAI_API_KEY");
+  }
+
+  return apiKey;
+};
+
+const getSupabaseClient = () => {
+  const supabaseUrl = getRuntimeEnv().SUPABASE_URL ?? getRequiredEnv("VITE_SUPABASE_URL");
+  const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -57,16 +60,10 @@ const getSupabaseClient = () => {
 const toVectorLiteral = (embedding: number[]) => `[${embedding.join(",")}]`;
 
 export const getEmbeddings = async (input: string): Promise<number[]> => {
-  const apiKey = getRuntimeEnv().VERCEL_AI_API_KEY ?? getRuntimeEnv().OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing required environment variable: VERCEL_AI_API_KEY");
-  }
-
   const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${getEmbeddingApiKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
