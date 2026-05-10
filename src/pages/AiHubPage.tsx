@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sparkles, CheckCircle2, Clock, AlertCircle, Play,
-  Activity, Plus, Loader2, Calendar, X, MessageCircle, Users, Send,
+  Activity, Plus, Loader2, Calendar, X, Upload, MessageCircle, Users, Send,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { uploadFile } from "@/lib/file-upload";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import type { AiLog, AiLogCategory } from "@/types/aiLogs";
 import { subscribeToAiLogs } from "@/lib/aiLogService";
@@ -206,6 +207,9 @@ export default function AiHubPage() {
   const [councilSessions, setCouncilSessions] = useState<CouncilSession[]>([]);
   const [councilMessages, setCouncilMessages] = useState<CouncilMessage[]>([]);
   const [selectedCouncilId, setSelectedCouncilId] = useState<string | null>(null);
+  const [avatarUploadingKey, setAvatarUploadingKey] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const avatarAgentKeyRef = useRef<string | null>(null);
 
   const fetchAll = async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -268,6 +272,49 @@ export default function AiHubPage() {
 
   const findAssignee = (key: string) => assignees.find(a => a.key === key);
   const tasksByStatus = (status: Status) => tasks.filter(t => t.status === status);
+
+  const pickAgentAvatar = (agentKey: string) => {
+    avatarAgentKeyRef.current = agentKey;
+    avatarInputRef.current?.click();
+  };
+
+  const handleAgentAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const agentKey = avatarAgentKeyRef.current;
+    avatarAgentKeyRef.current = null;
+
+    if (!file || !agentKey) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Choose an image file", variant: "destructive" });
+      return;
+    }
+
+    setAvatarUploadingKey(agentKey);
+    try {
+      const url = await uploadFile(file);
+      if (!url) {
+        toast({ title: "Upload failed", description: file.name, variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("agents")
+        .update({ avatar_url: url })
+        .eq("slug", agentKey);
+
+      if (error) {
+        toast({ title: "Could not save agent photo", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      setAssignees(current => current.map(a => a.key === agentKey ? { ...a, avatar_url: url } : a));
+      toast({ title: "Agent photo updated" });
+    } finally {
+      setAvatarUploadingKey(null);
+    }
+  };
 
   const completionDurations = tasks
     .filter(t => t.started_at && t.completed_at)
@@ -437,6 +484,7 @@ export default function AiHubPage() {
         </TabsContent>
 
         <TabsContent value="agents" className="mt-4">
+          <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={handleAgentAvatarUpload} />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {assignees.filter(a => a.kind === "agent").map(agent => (
               <Card key={agent.key}>
@@ -451,6 +499,16 @@ export default function AiHubPage() {
                       <p className="text-xs text-muted-foreground truncate">{agent.subtitle}</p>
                     </div>
                     <Badge variant={agent.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{agent.status}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Upload agent photo"
+                      onClick={() => pickAgentAvatar(agent.key)}
+                      disabled={avatarUploadingKey === agent.key}
+                    >
+                      {avatarUploadingKey === agent.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
