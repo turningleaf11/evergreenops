@@ -193,6 +193,36 @@ const formatCompletionTime = (minutes: number | null) => {
   return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
 };
 
+const readAgentAvatarDataUrl = (file: File) =>
+  new Promise<string | null>((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(null);
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => resolve(null);
+      image.onload = () => {
+        const maxSize = 512;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+          resolve(null);
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+
 export default function AiHubPage() {
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -293,7 +323,8 @@ export default function AiHubPage() {
 
     setAvatarUploadingKey(agentKey);
     try {
-      const url = await uploadFile(file);
+      const uploadedUrl = await uploadFile(file);
+      const url = uploadedUrl ?? await readAgentAvatarDataUrl(file);
       if (!url) {
         toast({ title: "Upload failed", description: file.name, variant: "destructive" });
         return;
@@ -844,7 +875,10 @@ const NewCouncilDialog = ({
       },
     }));
 
-    const { error: tasksError } = await supabase.from("agent_tasks").insert(taskRows);
+    const { data: createdTasks, error: tasksError } = await supabase
+      .from("agent_tasks")
+      .insert(taskRows)
+      .select("*");
 
     if (tasksError) {
       await supabase.from("council_sessions").update({ status: "failed" }).eq("id", session.id);
