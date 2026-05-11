@@ -32,6 +32,7 @@ import AiWorkshopPage from "./pages/AiWorkshopPage";
 import AiHubPage from "./pages/AiHubPage";
 import AiHubAgentTasksPage from "./pages/AiHubAgentTasksPage";
 import AiHubDocsPage from "./pages/AiHubDocsPage";
+import ProcessMapPage from "./pages/ProcessMapPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
@@ -183,6 +184,7 @@ const App = () => (
                 <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />
                 <Route path="/ai-hub" element={<AiHubPage />} />
                 <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
+                <Route path="/process-map" element={<ProcessMapPage />} />
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>
