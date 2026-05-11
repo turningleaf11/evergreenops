@@ -1,0 +1,143 @@
+name: Codex AI Hub Fix
+
+on:
+  push:
+    paths:
+      - ".codex-ai-hub-fix-trigger"
+      - ".github/workflows/codex-ai-hub-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch AI Hub
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("src/pages/AiHubPage.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          helper = '''const readAgentAvatarDataUrl = (file: File) =>
+            new Promise<string | null>((resolve) => {
+              const reader = new FileReader();
+              reader.onerror = () => resolve(null);
+              reader.onload = () => {
+                const image = new Image();
+                image.onerror = () => resolve(null);
+                image.onload = () => {
+                  const maxSize = 512;
+                  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+                  const width = Math.max(1, Math.round(image.width * scale));
+                  const height = Math.max(1, Math.round(image.height * scale));
+                  const canvas = document.createElement("canvas");
+                  canvas.width = width;
+                  canvas.height = height;
+                  const context = canvas.getContext("2d");
+
+                  if (!context) {
+                    resolve(null);
+                    return;
+                  }
+
+                  context.drawImage(image, 0, 0, width, height);
+                  resolve(canvas.toDataURL("image/jpeg", 0.82));
+                };
+                image.src = String(reader.result);
+              };
+              reader.readAsDataURL(file);
+            });'''
+
+          marker = "const readAgentAvatarDataUrl ="
+          if marker not in text:
+            anchor = '''const formatCompletionTime = (minutes: number | null) => {
+            if (minutes === null) return "—";
+            if (minutes < 60) return `${minutes}m`;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
+          };
+
+          export default function AiHubPage() {'''
+            replacement = '''const formatCompletionTime = (minutes: number | null) => {
+            if (minutes === null) return "—";
+            if (minutes < 60) return `${minutes}m`;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
+          };
+
+          ''' + helper + '''
+
+          export default function AiHubPage() {'''
+            if anchor not in text:
+              raise SystemExit("formatCompletionTime anchor not found")
+            text = text.replace(anchor, replacement)
+
+          text = text.replace(
+            '''      const url = await uploadFile(file);
+                if (!url) {''',
+            '''      const uploadedUrl = await uploadFile(file);
+                const url = uploadedUrl ?? await readAgentAvatarDataUrl(file);
+                if (!url) {'''
+          )
+
+          text = text.replace(
+            '''    const { error: tasksError } = await supabase.from("agent_tasks").insert(taskRows);''',
+            '''    const { data: createdTasks, error: tasksError } = await supabase
+                .from("agent_tasks")
+                .insert(taskRows)
+                .select("*");'''
+          )
+
+          text = text.replace(
+            '''    } else {
+              toast({ title: "Council started", description: `${participants.length} agents queued.` });
+              reset();
+              onOpenChange(false);
+              onCreated(session.id);''',
+            '''    } else {
+              toast({ title: "Council started", description: `${participants.length} agents queued.` });
+              void (async () => {
+                const orderedTasks = [...(createdTasks ?? [])].sort((a, b) => {
+                  const aPosition = Number((a.context as Record<string, unknown> | null)?.council_position ?? 0);
+                  const bPosition = Number((b.context as Record<string, unknown> | null)?.council_position ?? 0);
+                  return aPosition - bPosition;
+                });
+
+                for (const task of orderedTasks) {
+                  const { error } = await supabase.functions.invoke("jr-coder-worker", {
+                    body: {
+                      type: "INSERT",
+                      record: { ...task, status: "pending" },
+                      old_record: null,
+                    },
+                  });
+
+                  if (error) {
+                    console.warn("[AI Hub council] worker invocation failed:", error.message);
+                    await supabase.from("council_sessions").update({ status: "failed" }).eq("id", session.id);
+                    break;
+                  }
+                }
+              })();
+              reset();
+              onOpenChange(false);
+              onCreated(session.id);'''
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "codex"
+          git config user.email "codex@openai.com"
+          git add src/pages/AiHubPage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix AI Hub uploads and council start"
+          git push
