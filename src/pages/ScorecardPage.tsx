@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Navigate } from "react-router-dom";
+import { GhlKpiBoard } from "@/components/ceo/GhlKpiBoard";
 
 interface Metric {
   id: string;
@@ -206,6 +207,11 @@ export default function ScorecardPage() {
         <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
           <Plus className="h-4 w-4" /> Add Metric
         </Button>
+      </div>
+
+      {/* GHL Live Metrics */}
+      <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
+        <GhlKpiBoard />
       </div>
 
       <Tabs defaultValue="week" className="space-y-4">

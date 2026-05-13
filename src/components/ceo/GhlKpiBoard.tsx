@@ -3,19 +3,41 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   RefreshCw, Loader2, TrendingUp, Users, MessageSquare,
   FileText, PenLine, CheckCircle, Building2, Phone, Mail, Smartphone,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// ── Types ───────────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
+type DtsFunnel = {
+  coldReplied: number;
+  coldFollowUp: number;
+  warmEngaged: number;
+  warmInterested: number;
+  apptSet: number;
+};
+type DtaFunnel = {
+  offerRocketTotal: number;
+  unresponsive: number;
+  engaged: number;
+  interested: number;
+  followUp: number;
+  notAFit: number;
+};
+type DealTags = {
+  offerSubmitted: number;
+  contractSigned: number;
+  dealClosed: number;
+};
 type GhlKpis = {
   period: string;
   periodLabel: string;
   generatedAt: string;
-  note?: string;
   wholesale: {
     leadsBySource: { tag: string; label: string; count: number }[];
     conversations: { total: number; sms: number; phone: number; email: number };
+    dtsFunnel: DtsFunnel;
+    dtaFunnel: DtaFunnel;
     funnel: {
       newOppsInPeriod: number;
       offersSubmitted: number;
@@ -23,6 +45,7 @@ type GhlKpis = {
       contractsSigned: number;
       dealsClosed: number;
     };
+    dealTags: DealTags;
   };
   portfolio: {
     newDealsInPeriod: number;
@@ -35,22 +58,22 @@ type GhlKpis = {
   };
 };
 
-// ── Period options ───────────────────────────────────────────
+// ── Period options ───────────────────────────────────────────────────────────
 const PERIODS = [
-  { value: "today",       label: "Today" },
-  { value: "yesterday",   label: "Yesterday" },
-  { value: "this_week",   label: "This Week" },
-  { value: "last_week",   label: "Last Week" },
-  { value: "this_month",  label: "This Month" },
-  { value: "last_month",  label: "Last Month" },
-  { value: "this_qtr",    label: "This Quarter" },
-  { value: "last_qtr",    label: "Last Quarter" },
-  { value: "this_year",   label: "This Year" },
-  { value: "last_year",   label: "Last Year" },
-  { value: "all",         label: "All Time" },
+  { value: "today",      label: "Today" },
+  { value: "yesterday",  label: "Yesterday" },
+  { value: "this_week",  label: "This Week" },
+  { value: "last_week",  label: "Last Week" },
+  { value: "this_month", label: "This Month" },
+  { value: "last_month", label: "Last Month" },
+  { value: "this_qtr",   label: "This Quarter" },
+  { value: "last_qtr",   label: "Last Quarter" },
+  { value: "this_year",  label: "This Year" },
+  { value: "last_year",  label: "Last Year" },
+  { value: "all",        label: "All Time" },
 ];
 
-// ── Sub-components ───────────────────────────────────────────
+// ── Sub-components ───────────────────────────────────────────────────────────
 function KpiTile({
   label, value, icon: Icon, accent = false, sub,
 }: {
@@ -80,12 +103,15 @@ function KpiTile({
 }
 
 function FunnelBar({
-  label, value, max, color,
-}: { label: string; value: number; max: number; color: string }) {
+  label, value, max, color, sublabel,
+}: { label: string; value: number; max: number; color: string; sublabel?: string }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
   return (
     <div className="flex items-center gap-3 py-0.5">
-      <span className="text-xs text-muted-foreground w-40 shrink-0">{label}</span>
+      <div className="w-36 shrink-0">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {sublabel && <span className="block text-[10px] text-muted-foreground/50">{sublabel}</span>}
+      </div>
       <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
@@ -97,6 +123,14 @@ function FunnelBar({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2.5">
+      {children}
+    </p>
+  );
+}
+
 function relTime(iso: string): string {
   const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (diff < 1) return "just now";
@@ -104,32 +138,13 @@ function relTime(iso: string): string {
   return `${Math.round(diff / 60)}h ago`;
 }
 
-// ── Main component ───────────────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
 export function GhlKpiBoard() {
   const [period, setPeriod] = useState("this_month");
   const [data, setData] = useState<GhlKpis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (p: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: result, error: err } = await supabase.functions.invoke("ghl-kpis", {
-        body: {},
-        headers: { "x-period": p },
-      });
-      if (err) throw err;
-      if (result?.error) throw new Error(result.error);
-      setData(result as GhlKpis);
-    } catch (e: any) {
-      setError(e.message || "Failed to load GHL data");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Pass period as query param via the function URL instead
   const loadWithPeriod = useCallback(async (p: string) => {
     setLoading(true);
     setError(null);
@@ -168,7 +183,7 @@ export function GhlKpiBoard() {
           {data?.generatedAt && (
             <p className="text-[11px] text-muted-foreground/60 mt-0.5">
               Updated {relTime(data.generatedAt)}
-              {data.note && <span className="ml-2 text-amber-500/80">· Lead counts = all-time</span>}
+              <span className="ml-2 opacity-60">· Contact funnels = all-time · Pipeline = {data.periodLabel}</span>
             </p>
           )}
         </div>
@@ -212,21 +227,24 @@ export function GhlKpiBoard() {
       {data && (
         <div className={cn("space-y-6 transition-opacity", loading && "opacity-60 pointer-events-none")}>
 
-          {/* ── Wholesale ──────────────────────────────────── */}
+          {/* ── Wholesale ─────────────────────────────────────────────── */}
           <section>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-3.5 w-3.5 text-primary" />
               <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Wholesale — {data.periodLabel}
+                Wholesale
               </h4>
             </div>
 
-            {/* Leads by source (all-time) */}
+            {/* Leads by Source */}
             {data.wholesale.leadsBySource.length > 0 && (
-              <div className="rounded-xl border border-border/40 bg-card/40 p-4 mb-3">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2.5">
-                  Leads by Source <span className="text-muted-foreground/50 normal-case font-normal">(all-time totals)</span>
-                </p>
+              <div className="rounded-xl border border-amber-200/30 bg-amber-50/5 dark:bg-amber-950/5 p-4 mb-3">
+                <div className="flex items-center justify-between mb-2.5">
+                  <SectionLabel>Leads by Source</SectionLabel>
+                  <span className="text-[10px] text-amber-600/70 dark:text-amber-400/60 font-medium uppercase tracking-wide">
+                    All-time only · period filter n/a
+                  </span>
+                </div>
                 <div className="space-y-1.5">
                   {data.wholesale.leadsBySource.map(({ label, count }) => {
                     const max = data.wholesale.leadsBySource[0]?.count || 1;
@@ -245,45 +263,84 @@ export function GhlKpiBoard() {
               </div>
             )}
 
-            {/* KPI tiles */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-              <KpiTile
-                label="New Opps"
-                value={data.wholesale.funnel.newOppsInPeriod}
-                icon={Users}
-                accent
-                sub={period === 'all' ? 'Total in pipeline' : `Created ${data.periodLabel.toLowerCase()}`}
-              />
-              <KpiTile
-                label="Offers Out"
-                value={data.wholesale.funnel.offersSubmitted}
-                icon={FileText}
-                sub="Current pipeline stage"
-              />
-              <KpiTile
-                label="Negotiating"
-                value={data.wholesale.funnel.negotiating}
-                icon={PenLine}
-              />
-              <KpiTile
-                label="Contracts"
-                value={data.wholesale.funnel.contractsSigned}
-                icon={PenLine}
-              />
-              <KpiTile
-                label="Deals Closed"
-                value={data.wholesale.funnel.dealsClosed}
-                icon={CheckCircle}
-                accent
-              />
-              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Conversations
-                </p>
-                <p className="text-2xl font-bold tabular-nums text-foreground mb-1.5">
-                  {data.wholesale.conversations.total.toLocaleString()}
-                </p>
-                <div className="space-y-0.5">
+            {/* DTS + DTA funnels side-by-side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              {/* DTS — Seller Lead Funnel */}
+              <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+                <SectionLabel>
+                  DTS Seller Funnel
+                  <span className="ml-1.5 normal-case font-normal text-muted-foreground/60">(all-time · ever-reached)</span>
+                </SectionLabel>
+                {(() => {
+                  const f = data.wholesale.dtsFunnel;
+                  const max = Math.max(f.coldReplied, 1);
+                  return (
+                    <div className="space-y-1.5">
+                      <FunnelBar label="Cold – Replied"    value={f.coldReplied}    max={max} color="#6366f1" />
+                      <FunnelBar label="Cold – Follow Up"  value={f.coldFollowUp}   max={max} color="#8b5cf6" />
+                      <FunnelBar label="Warm – Engaged"    value={f.warmEngaged}    max={max} color="#a855f7" />
+                      <FunnelBar label="Warm – Interested" value={f.warmInterested} max={max} color="#ec4899" />
+                      <FunnelBar label="Appt Set"          value={f.apptSet}        max={max} color="#10b981" />
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* DTA — Agent Lead Funnel (OfferRocket) */}
+              <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+                <SectionLabel>
+                  DTA Agent Funnel
+                  <span className="ml-1.5 normal-case font-normal text-muted-foreground/60">(all-time · OfferRocket)</span>
+                </SectionLabel>
+                {(() => {
+                  const f = data.wholesale.dtaFunnel;
+                  const max = Math.max(f.offerRocketTotal, f.unresponsive, 1);
+                  return (
+                    <div className="space-y-1.5">
+                      <FunnelBar label="Total Leads"   value={f.offerRocketTotal} max={max} color="#6366f1" sublabel="src - offerrocket" />
+                      <FunnelBar label="Unresponsive"  value={f.unresponsive}     max={max} color="#94a3b8" />
+                      <FunnelBar label="Follow Up"     value={f.followUp}         max={max} color="#f59e0b" />
+                      <FunnelBar label="Interested"    value={f.interested}       max={max} color="#a855f7" />
+                      <FunnelBar label="Engaged"       value={f.engaged}          max={max} color="#10b981" />
+                      <FunnelBar label="Not a Fit"     value={f.notAFit}          max={max} color="#ef4444" />
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Deal Lifecycle Tags */}
+            {(() => {
+              const d = data.wholesale.dealTags;
+              return (
+                <div className="rounded-xl border border-border/40 bg-card/40 p-4 mb-3">
+                  <SectionLabel>Deal Lifecycle <span className="normal-case font-normal">(cumulative tags — all time)</span></SectionLabel>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Offer Submitted", value: d.offerSubmitted, color: "text-amber-600 dark:text-amber-400" },
+                      { label: "Contract Signed", value: d.contractSigned, color: "text-emerald-600 dark:text-emerald-400" },
+                      { label: "Deal Closed",     value: d.dealClosed,     color: "text-primary" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="text-center">
+                        <p className={cn("text-2xl font-bold tabular-nums", color)}>{value.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Conversations */}
+            <div className="rounded-xl border border-border/50 bg-card/60 p-4 mb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <SectionLabel>Conversations — {data.periodLabel}</SectionLabel>
+                  <p className="text-2xl font-bold tabular-nums text-foreground">
+                    {data.wholesale.conversations.total.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-1">
                   {data.wholesale.conversations.sms > 0 && (
                     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                       <Smartphone className="h-3 w-3" />
@@ -306,33 +363,53 @@ export function GhlKpiBoard() {
               </div>
             </div>
 
-            {/* Acquisitions funnel bar */}
+            {/* Acquisitions Opportunity Pipeline */}
             <div className="rounded-xl border border-border/40 bg-card/40 p-4">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                Acquisitions Funnel <span className="normal-case font-normal">(current pipeline state)</span>
-              </p>
+              <SectionLabel>
+                Acquisitions Pipeline
+                <span className="normal-case font-normal"> — {data.periodLabel} · new opps; stage counts = current state</span>
+              </SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+                {[
+                  { label: "New Opps",       value: data.wholesale.funnel.newOppsInPeriod, accent: true },
+                  { label: "Offers Out",     value: data.wholesale.funnel.offersSubmitted,  accent: false },
+                  { label: "Negotiating",    value: data.wholesale.funnel.negotiating,      accent: false },
+                  { label: "Contracts",      value: data.wholesale.funnel.contractsSigned,  accent: false },
+                  { label: "Closed",         value: data.wholesale.funnel.dealsClosed,      accent: true },
+                ].map(({ label, value, accent }) => (
+                  <div key={label} className={cn(
+                    "rounded-lg border p-3 text-center",
+                    accent ? "border-primary/30 bg-primary/[0.06]" : "border-border/40 bg-card/40",
+                  )}>
+                    <p className={cn("text-xl font-bold tabular-nums", accent ? "text-primary" : "text-foreground")}>
+                      {value.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
               {(() => {
                 const f = data.wholesale.funnel;
                 const max = Math.max(f.newOppsInPeriod, f.offersSubmitted, f.negotiating, f.contractsSigned, f.dealsClosed, 1);
                 return (
                   <div className="space-y-1.5">
-                    <FunnelBar label="In Pipeline" value={f.newOppsInPeriod} max={max} color="#6366f1" />
-                    <FunnelBar label="Offer Submitted" value={f.offersSubmitted} max={max} color="#8b5cf6" />
-                    <FunnelBar label="Negotiating" value={f.negotiating} max={max} color="#a855f7" />
-                    <FunnelBar label="Contract Signed" value={f.contractsSigned} max={max} color="#10b981" />
-                    <FunnelBar label="Closed – Won" value={f.dealsClosed} max={max} color="#059669" />
+                    <FunnelBar label="In Pipeline"     value={f.newOppsInPeriod}  max={max} color="#6366f1" />
+                    <FunnelBar label="Offer Submitted" value={f.offersSubmitted}  max={max} color="#8b5cf6" />
+                    <FunnelBar label="Negotiating"     value={f.negotiating}      max={max} color="#a855f7" />
+                    <FunnelBar label="Contract Signed" value={f.contractsSigned}  max={max} color="#10b981" />
+                    <FunnelBar label="Closed – Won"    value={f.dealsClosed}      max={max} color="#059669" />
                   </div>
                 );
               })()}
             </div>
           </section>
 
-          {/* ── Portfolio ──────────────────────────────────── */}
+          {/* ── Portfolio ─────────────────────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Building2 className="h-3.5 w-3.5 text-primary" />
               <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Portfolio — {data.periodLabel}
+                Portfolio
               </h4>
             </div>
 
@@ -344,42 +421,30 @@ export function GhlKpiBoard() {
                 accent
                 sub={period === 'all' ? 'Total in pipeline' : `Created ${data.periodLabel.toLowerCase()}`}
               />
-              <KpiTile label="Passed Napkin" value={data.portfolio.funnel.passedNapkin} icon={FileText}
-                sub="Current in UW+" />
-              <KpiTile label="Offer Sent (LOI)" value={data.portfolio.funnel.offerSent} icon={PenLine} />
-              <KpiTile label="Closed Won" value={data.portfolio.funnel.dealsClosed} icon={CheckCircle} accent />
+              <KpiTile label="Passed Napkin" value={data.portfolio.funnel.passedNapkin} icon={FileText} sub="In UW+" />
+              <KpiTile label="LOI / Offer"   value={data.portfolio.funnel.offerSent}    icon={PenLine} />
+              <KpiTile label="Closed Won"    value={data.portfolio.funnel.dealsClosed}  icon={CheckCircle} accent />
             </div>
 
             <div className="rounded-xl border border-border/40 bg-card/40 p-4">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                Portfolio Funnel <span className="normal-case font-normal">(current pipeline state)</span>
-              </p>
+              <SectionLabel>Portfolio Funnel <span className="normal-case font-normal">(current pipeline state)</span></SectionLabel>
               {(() => {
                 const f = data.portfolio.funnel;
                 const tot = data.portfolio.newDealsInPeriod || 1;
                 const max = Math.max(tot, f.newAndGathering, f.passedNapkin, f.offerSent, f.dealsClosed, 1);
                 return (
                   <div className="space-y-1.5">
-                    <FunnelBar label="In Pipeline" value={tot} max={max} color="#6366f1" />
-                    <FunnelBar label="New / Gathering Info" value={f.newAndGathering} max={max} color="#8b5cf6" />
-                    <FunnelBar label="Passed Napkin / UW" value={f.passedNapkin} max={max} color="#a855f7" />
-                    <FunnelBar label="LOI / Negotiating" value={f.offerSent} max={max} color="#f59e0b" />
-                    <FunnelBar label="Closed – Won" value={f.dealsClosed} max={max} color="#059669" />
+                    <FunnelBar label="In Pipeline"        value={tot}               max={max} color="#6366f1" />
+                    <FunnelBar label="New / Gathering"    value={f.newAndGathering} max={max} color="#8b5cf6" />
+                    <FunnelBar label="Passed Napkin / UW" value={f.passedNapkin}    max={max} color="#a855f7" />
+                    <FunnelBar label="LOI / Negotiating"  value={f.offerSent}       max={max} color="#f59e0b" />
+                    <FunnelBar label="Closed – Won"       value={f.dealsClosed}     max={max} color="#059669" />
                   </div>
                 );
               })()}
             </div>
           </section>
 
-          {/* Lead Status note */}
-          <div className="rounded-lg border border-amber-200/40 bg-amber-50/10 dark:bg-amber-950/10 p-3">
-            <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
-              <strong>Replied / Lead Status tracking:</strong> GHL's API doesn't support filtering contacts by custom field values.
-              The quickest fix: add a <code className="text-[10px] bg-muted/60 px-1 rounded">ls-cold-replied</code> <strong>tag</strong> to your
-              V2 Imported Leads workflow at the same step where it sets Lead Status → "Cold - Replied".
-              Once that tag exists, it'll auto-populate here.
-            </p>
-          </div>
         </div>
       )}
     </div>

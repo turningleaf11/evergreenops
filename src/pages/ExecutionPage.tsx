@@ -33,6 +33,7 @@ import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FolderKanban } from "lucide-react";
+import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 
 type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
@@ -425,6 +426,7 @@ export default function ExecutionPage() {
               )}
             </TabsTrigger>
             {isAdmin && <TabsTrigger value="submissions">Submissions</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="lead-review">Lead Review</TabsTrigger>}
           </TabsList>
           <div className="flex gap-2">
             {tab === "goals" && (
@@ -943,6 +945,13 @@ export default function ExecutionPage() {
         {isAdmin && (
           <TabsContent value="submissions" className="space-y-4">
             <SubmissionsReviewTab />
+          </TabsContent>
+        )}
+
+        {/* Lead Review tab */}
+        {isAdmin && (
+          <TabsContent value="lead-review" className="space-y-4">
+            <LeadReviewTab />
           </TabsContent>
         )}
       </Tabs>
