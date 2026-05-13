@@ -186,14 +186,19 @@ export function LeadReviewTab() {
             AI-suggested status updates for seller leads and realtors
           </p>
           {lastBatch && (
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Last batch {relTime(lastBatch.started_at)}
-              {lastBatch.status === "completed" && ` · ${lastBatch.contacts_queued} queued · ${lastBatch.contacts_fetched} fetched`}
-              {lastBatch.status === "failed" && (
-                <span className="text-destructive"> · failed: {lastBatch.error}</span>
+            <div className="text-xs text-muted-foreground/60 mt-1 space-y-0.5">
+              <p>
+                Last batch {relTime(lastBatch.started_at)}
+                {lastBatch.status === "completed" && ` · ${lastBatch.contacts_queued} queued · ${lastBatch.contacts_fetched} fetched`}
+                {lastBatch.status === "failed" && (
+                  <span className="text-destructive"> · failed: {lastBatch.error}</span>
+                )}
+                {lastBatch.status === "running" && " · running…"}
+              </p>
+              {lastBatch.status === "completed" && lastBatch.contacts_queued === 0 && lastBatch.error && (
+                <p className="text-muted-foreground/50 italic">{lastBatch.error}</p>
               )}
-              {lastBatch.status === "running" && " · running…"}
-            </p>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">
