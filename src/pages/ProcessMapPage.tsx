@@ -19,6 +19,7 @@ import "@xyflow/react/dist/style.css";
 import {
   AlertCircle,
   ArrowUpCircle,
+  ChevronRight,
   Eye,
   Lightbulb,
   Plus,
@@ -55,7 +56,7 @@ import {
   updateBucket,
 } from "@/lib/processMap";
 
-// ── Annotation icon map ─────────────────────────────────────────────────────
+// ── Icon map ────────────────────────────────────────────────────────────────
 
 const ANNOTATION_ICONS: Record<AnnotationType, React.ElementType> = {
   pain_point: AlertCircle,
@@ -64,32 +65,41 @@ const ANNOTATION_ICONS: Record<AnnotationType, React.ElementType> = {
   improvement: ArrowUpCircle,
 };
 
+// ── Node type badges ────────────────────────────────────────────────────────
+
+const NODE_TYPE_STYLES: Record<string, string> = {
+  area:    "bg-gray-100 text-gray-500",
+  source:  "bg-emerald-50 text-emerald-600",
+  process: "bg-blue-50 text-blue-600",
+  outcome: "bg-purple-50 text-purple-600",
+  decision:"bg-amber-50 text-amber-600",
+};
+
 // ── Custom canvas node ──────────────────────────────────────────────────────
 
 type AreaNodeData = {
   bucket: ProcessBucket;
   onDelete: (id: string) => void;
+  isSubprocess: boolean;
 };
 
 const AreaNode = React.memo(({ data, selected }: NodeProps) => {
-  const { bucket, onDelete } = data as AreaNodeData;
+  const { bucket, onDelete, isSubprocess } = data as AreaNodeData;
+  const minW = isSubprocess ? 150 : 168;
+
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ width: 8, height: 8, background: "#94a3b8" }}
-      />
+      <Handle type="target" position={Position.Left}  style={{ width: 8, height: 8, background: "#94a3b8" }} />
       <div
         className="group"
         style={{
-          minWidth: 168,
-          maxWidth: 230,
+          minWidth: minW,
+          maxWidth: isSubprocess ? 200 : 230,
           background: "white",
-          borderRadius: 10,
+          borderRadius: isSubprocess ? 8 : 10,
           border: `1.5px solid ${selected ? bucket.color : "#e2e8f0"}`,
           borderTop: `4px solid ${bucket.color}`,
-          padding: "10px 14px",
+          padding: isSubprocess ? "8px 12px" : "10px 14px",
           boxShadow: selected
             ? `0 0 0 3px ${bucket.color}33, 0 2px 8px rgba(0,0,0,0.1)`
             : "0 1px 4px rgba(0,0,0,0.08)",
@@ -98,19 +108,23 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
         }}
       >
         <div className="flex items-start justify-between gap-2">
-          <p className="font-semibold text-sm text-gray-900 leading-snug">
-            {bucket.name}
-          </p>
+          <div className="flex-1 min-w-0">
+            {isSubprocess && bucket.node_type !== "area" && (
+              <span className={cn("inline-block mb-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide", NODE_TYPE_STYLES[bucket.node_type] ?? NODE_TYPE_STYLES.process)}>
+                {bucket.node_type}
+              </span>
+            )}
+            <p className={cn("font-semibold text-gray-900 leading-snug", isSubprocess ? "text-[12px]" : "text-sm")}>
+              {bucket.name}
+            </p>
+          </div>
           <button
             className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400 hover:text-red-500"
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(bucket.id);
-            }}
+            onClick={(e) => { e.stopPropagation(); onDelete(bucket.id); }}
             title="Delete node"
           >
-            <X size={13} />
+            <X size={isSubprocess ? 11 : 13} />
           </button>
         </div>
         {bucket.description && (
@@ -119,11 +133,7 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
           </p>
         )}
       </div>
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ width: 8, height: 8, background: "#94a3b8" }}
-      />
+      <Handle type="source" position={Position.Right} style={{ width: 8, height: 8, background: "#94a3b8" }} />
     </>
   );
 });
@@ -136,18 +146,15 @@ const NODE_TYPES = { areaNode: AreaNode };
 const toFlowNode = (
   bucket: ProcessBucket,
   onDelete: (id: string) => void,
+  isSubprocess: boolean,
 ): Node => ({
   id: bucket.id,
   position: { x: bucket.position_x, y: bucket.position_y },
   type: "areaNode",
-  data: { bucket, onDelete },
+  data: { bucket, onDelete, isSubprocess },
 });
 
-const toFlowEdge = (e: {
-  id: string;
-  source_id: string;
-  target_id: string;
-}): Edge => ({
+const toFlowEdge = (e: { id: string; source_id: string; target_id: string }): Edge => ({
   id: e.id,
   source: e.source_id,
   target: e.target_id,
@@ -158,10 +165,13 @@ const toFlowEdge = (e: {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProcessMapPage() {
+  // View mode: null = overview, ProcessBucket = subprocess of that area
+  const [viewingArea, setViewingArea] = useState<ProcessBucket | null>(null);
+
   // Canvas state
-  const [buckets, setBuckets] = useState<ProcessBucket[]>([]);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [buckets, setBuckets] = useState<ProcessBucket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Sidebar state
@@ -184,24 +194,22 @@ export default function ProcessMapPage() {
   const [noteContent, setNoteContent] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
-  // Stable delete ref (avoids re-creating all nodes on every render)
+  // Stable delete ref
   const deleteNodeRef = useRef<(id: string) => void>(() => {});
+  const stableOnDelete = useCallback((id: string) => deleteNodeRef.current(id), []);
 
   // ── Load canvas ────────────────────────────────────────────────────────────
 
-  const stableOnDelete = useCallback(
-    (id: string) => deleteNodeRef.current(id),
-    [],
-  );
-
-  const loadCanvas = useCallback(async () => {
+  const loadCanvas = useCallback(async (parentId: string | null) => {
     try {
       setIsLoading(true);
-      const rows = await getProcessBuckets(null); // top-level only
+      setSelected(null);
+      const rows = await getProcessBuckets(parentId);
       const ids = rows.map((b) => b.id);
       const edgeRows = await getProcessEdges(ids);
       setBuckets(rows);
-      setNodes(rows.map((b) => toFlowNode(b, stableOnDelete)));
+      const isSubprocess = parentId !== null;
+      setNodes(rows.map((b) => toFlowNode(b, stableOnDelete, isSubprocess)));
       setEdges(edgeRows.map(toFlowEdge));
     } catch (e) {
       toast({ title: "Failed to load map", description: String(e), variant: "destructive" });
@@ -211,29 +219,25 @@ export default function ProcessMapPage() {
   }, [setNodes, setEdges, stableOnDelete]);
 
   useEffect(() => {
-    void loadCanvas();
-  }, [loadCanvas]);
+    void loadCanvas(viewingArea?.id ?? null);
+  }, [viewingArea, loadCanvas]);
 
   // ── Node delete ────────────────────────────────────────────────────────────
 
-  const handleDeleteNode = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this node and all its annotations?")) return;
-      try {
-        await deleteBucket(id);
-        setBuckets((prev) => prev.filter((b) => b.id !== id));
-        setNodes((prev) => prev.filter((n) => n.id !== id));
-        setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id));
-        if (selected?.id === id) setSelected(null);
-        toast({ title: "Node deleted" });
-      } catch (e) {
-        toast({ title: "Delete failed", description: String(e), variant: "destructive" });
-      }
-    },
-    [selected, setNodes, setEdges],
-  );
+  const handleDeleteNode = useCallback(async (id: string) => {
+    if (!confirm("Delete this node and all its annotations?")) return;
+    try {
+      await deleteBucket(id);
+      setBuckets((prev) => prev.filter((b) => b.id !== id));
+      setNodes((prev) => prev.filter((n) => n.id !== id));
+      setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id));
+      if (selected?.id === id) setSelected(null);
+      toast({ title: "Node deleted" });
+    } catch (e) {
+      toast({ title: "Delete failed", description: String(e), variant: "destructive" });
+    }
+  }, [selected, setNodes, setEdges]);
 
-  // Keep ref in sync
   deleteNodeRef.current = handleDeleteNode;
 
   // ── Add node ────────────────────────────────────────────────────────────────
@@ -242,89 +246,70 @@ export default function ProcessMapPage() {
     const name = prompt("Node name:");
     if (!name?.trim()) return;
     try {
-      // Place new node offset from center of existing nodes, or default position
-      const offsetX = 80 + buckets.length * 60;
-      const offsetY = 80 + (buckets.length % 3) * 240;
-      const bucket = await createBucket(name.trim(), null, { x: offsetX, y: offsetY }, buckets.length);
+      const offsetX = 80 + buckets.length * 40;
+      const offsetY = 80 + (buckets.length % 4) * 200;
+      const bucket = await createBucket(name.trim(), viewingArea?.id ?? null, { x: offsetX, y: offsetY }, buckets.length);
       setBuckets((prev) => [...prev, bucket]);
-      setNodes((prev) => [...prev, toFlowNode(bucket, stableOnDelete)]);
+      setNodes((prev) => [...prev, toFlowNode(bucket, stableOnDelete, viewingArea !== null)]);
       toast({ title: `"${bucket.name}" added` });
     } catch (e) {
       toast({ title: "Failed to add node", description: String(e), variant: "destructive" });
     }
-  }, [buckets, setNodes, stableOnDelete]);
+  }, [buckets, viewingArea, setNodes, stableOnDelete]);
 
   // ── Edge connect / delete ──────────────────────────────────────────────────
 
-  const handleConnect = useCallback(
-    async (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
-      try {
-        const saved = await createDbEdge(connection.source, connection.target);
-        setEdges((prev) => addEdge({ ...toFlowEdge(saved) }, prev));
-      } catch {
-        // If duplicate, just update canvas
-        setEdges((prev) => addEdge({ id: `${connection.source}-${connection.target}`, source: connection.source!, target: connection.target!, type: "smoothstep", style: { stroke: "#94a3b8", strokeWidth: 1.5 } }, prev));
-      }
-    },
-    [setEdges],
-  );
+  const handleConnect = useCallback(async (connection: Connection) => {
+    if (!connection.source || !connection.target) return;
+    try {
+      const saved = await createDbEdge(connection.source, connection.target);
+      setEdges((prev) => addEdge(toFlowEdge(saved), prev));
+    } catch {
+      setEdges((prev) => addEdge({ id: `${connection.source}-${connection.target}`, source: connection.source!, target: connection.target!, type: "smoothstep", style: { stroke: "#94a3b8", strokeWidth: 1.5 } }, prev));
+    }
+  }, [setEdges]);
 
-  const handleEdgesChange = useCallback(
-    async (changes: EdgeChange[]) => {
-      for (const change of changes) {
-        if (change.type === "remove") {
-          const edge = edges.find((e) => e.id === change.id);
-          if (edge) {
-            try { await deleteDbEdge(edge.source, edge.target); } catch { /* best effort */ }
-          }
-        }
+  const handleEdgesChange = useCallback(async (changes: EdgeChange[]) => {
+    for (const change of changes) {
+      if (change.type === "remove") {
+        const edge = edges.find((e) => e.id === change.id);
+        if (edge) { try { await deleteDbEdge(edge.source, edge.target); } catch { /* best effort */ } }
       }
-      onEdgesChange(changes);
-    },
-    [edges, onEdgesChange],
-  );
+    }
+    onEdgesChange(changes);
+  }, [edges, onEdgesChange]);
 
   // ── Position persistence ───────────────────────────────────────────────────
 
-  const handleNodeDragStop = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      void saveBucketPosition(node.id, node.position.x, node.position.y);
-    },
-    [],
-  );
+  const handleNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
+    void saveBucketPosition(node.id, node.position.x, node.position.y);
+  }, []);
 
-  // ── Node select → load sidebar ─────────────────────────────────────────────
+  // ── Node select ────────────────────────────────────────────────────────────
 
-  const handleNodeClick = useCallback(
-    async (_: React.MouseEvent, node: Node) => {
-      const bucket = (node.data as AreaNodeData).bucket;
-      setSelected(bucket);
-      setEditName(bucket.name);
-      setEditDesc(bucket.description ?? "");
-      setNameChanged(false);
-      setDescChanged(false);
-      setAddingNote(false);
-      setSidebarLoading(true);
-      try {
-        const [ann, stepRows, projRows] = await Promise.all([
-          getAnnotations(bucket.id),
-          getProcessSteps(bucket.id),
-          getBucketProjects(bucket.id),
-        ]);
-        setAnnotations(ann);
-        setSteps(stepRows);
-        setProjects(projRows);
-      } catch {
-        /* ignore */
-      } finally {
-        setSidebarLoading(false);
-      }
-    },
-    [],
-  );
+  const handleNodeClick = useCallback(async (_: React.MouseEvent, node: Node) => {
+    const bucket = (node.data as AreaNodeData).bucket;
+    setSelected(bucket);
+    setEditName(bucket.name);
+    setEditDesc(bucket.description ?? "");
+    setNameChanged(false);
+    setDescChanged(false);
+    setAddingNote(false);
+    setSidebarLoading(true);
+    try {
+      const [ann, stepRows, projRows] = await Promise.all([
+        getAnnotations(bucket.id),
+        getProcessSteps(bucket.id),
+        getBucketProjects(bucket.id),
+      ]);
+      setAnnotations(ann);
+      setSteps(stepRows);
+      setProjects(projRows);
+    } catch { /* ignore */ }
+    finally { setSidebarLoading(false); }
+  }, []);
 
-  // ── Save node name / desc ──────────────────────────────────────────────────
+  // ── Save name / desc ───────────────────────────────────────────────────────
 
   const handleSaveName = useCallback(async () => {
     if (!selected || !nameChanged) return;
@@ -332,13 +317,10 @@ export default function ProcessMapPage() {
       await updateBucket(selected.id, { name: editName });
       setBuckets((prev) => prev.map((b) => b.id === selected.id ? { ...b, name: editName } : b));
       setNodes((prev) => prev.map((n) =>
-        n.id === selected.id
-          ? { ...n, data: { ...(n.data as object), bucket: { ...(n.data as AreaNodeData).bucket, name: editName } } }
-          : n,
+        n.id === selected.id ? { ...n, data: { ...(n.data as object), bucket: { ...(n.data as AreaNodeData).bucket, name: editName } } } : n,
       ));
       setSelected((prev) => prev ? { ...prev, name: editName } : prev);
       setNameChanged(false);
-      toast({ title: "Name saved" });
     } catch (e) {
       toast({ title: "Save failed", description: String(e), variant: "destructive" });
     }
@@ -350,13 +332,10 @@ export default function ProcessMapPage() {
       await updateBucket(selected.id, { description: editDesc });
       setBuckets((prev) => prev.map((b) => b.id === selected.id ? { ...b, description: editDesc } : b));
       setNodes((prev) => prev.map((n) =>
-        n.id === selected.id
-          ? { ...n, data: { ...(n.data as object), bucket: { ...(n.data as AreaNodeData).bucket, description: editDesc } } }
-          : n,
+        n.id === selected.id ? { ...n, data: { ...(n.data as object), bucket: { ...(n.data as AreaNodeData).bucket, description: editDesc } } } : n,
       ));
       setSelected((prev) => prev ? { ...prev, description: editDesc } : prev);
       setDescChanged(false);
-      toast({ title: "Description saved" });
     } catch (e) {
       toast({ title: "Save failed", description: String(e), variant: "destructive" });
     }
@@ -376,9 +355,7 @@ export default function ProcessMapPage() {
       toast({ title: "Note added" });
     } catch (e) {
       toast({ title: "Failed", description: String(e), variant: "destructive" });
-    } finally {
-      setSavingNote(false);
-    }
+    } finally { setSavingNote(false); }
   }, [selected, noteType, noteTitle, noteContent]);
 
   const handleDeleteAnnotation = useCallback(async (id: string) => {
@@ -392,13 +369,30 @@ export default function ProcessMapPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const isSubprocess = viewingArea !== null;
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Toolbar */}
+      {/* Toolbar / breadcrumb */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-800">Process Map</h2>
-          <span className="text-xs text-gray-400">— drag nodes, connect with arrows, click to annotate</span>
+        <div className="flex items-center gap-1.5 text-sm">
+          <button
+            onClick={() => setViewingArea(null)}
+            className={cn("font-semibold hover:text-indigo-600 transition-colors", isSubprocess ? "text-gray-500" : "text-gray-800")}
+          >
+            Process Map
+          </button>
+          {isSubprocess && (
+            <>
+              <ChevronRight size={14} className="text-gray-400" />
+              <span className="font-semibold text-gray-800" style={{ color: viewingArea.color }}>
+                {viewingArea.name}
+              </span>
+            </>
+          )}
+          {!isSubprocess && (
+            <span className="text-gray-400 text-xs ml-1">— drag nodes, connect with arrows, double-click to drill in</span>
+          )}
         </div>
         <Button size="sm" onClick={handleAddNode} className="gap-1.5 h-8">
           <Plus size={14} />
@@ -410,9 +404,7 @@ export default function ProcessMapPage() {
         {/* Canvas */}
         <div className="flex-1 relative">
           {isLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-500">
-              Loading...
-            </div>
+            <div className="flex h-full items-center justify-center text-sm text-gray-500">Loading...</div>
           ) : (
             <ReactFlow
               nodes={nodes}
@@ -422,9 +414,15 @@ export default function ProcessMapPage() {
               onEdgesChange={handleEdgesChange}
               onConnect={handleConnect}
               onNodeClick={handleNodeClick}
+              onNodeDoubleClick={(_e, node) => {
+                if (!isSubprocess) {
+                  const bucket = (node.data as AreaNodeData).bucket;
+                  setViewingArea(bucket);
+                }
+              }}
               onNodeDragStop={handleNodeDragStop}
               fitView
-              fitViewOptions={{ padding: 0.3 }}
+              fitViewOptions={{ padding: 0.25 }}
               deleteKeyCode="Delete"
               attributionPosition="bottom-left"
             >
@@ -445,18 +443,19 @@ export default function ProcessMapPage() {
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                 <Eye size={18} className="text-gray-400" />
               </div>
-              <p className="text-sm font-medium text-gray-600">Select a node</p>
+              <p className="text-sm font-medium text-gray-600">
+                {isSubprocess ? "Select a step" : "Select an area"}
+              </p>
               <p className="mt-1 text-xs text-gray-400">
-                Click any area on the canvas to view and add notes
+                {isSubprocess
+                  ? "Click a process step to view notes"
+                  : "Click to select · Double-click to drill into subprocess"}
               </p>
             </div>
           ) : (
             <div className="flex flex-col h-full overflow-y-auto">
               {/* Node header */}
-              <div
-                className="px-4 py-3 border-b border-gray-100"
-                style={{ borderTop: `3px solid ${selected.color}` }}
-              >
+              <div className="px-4 py-3 border-b border-gray-100" style={{ borderTop: `3px solid ${selected.color}` }}>
                 <div className="flex items-center gap-2">
                   <Input
                     className="h-7 text-sm font-semibold border-transparent hover:border-gray-200 focus:border-gray-300 px-1.5"
@@ -479,6 +478,16 @@ export default function ProcessMapPage() {
                   onChange={(e) => { setEditDesc(e.target.value); setDescChanged(true); }}
                   onBlur={handleSaveDesc}
                 />
+                {/* Drill-in button for top-level area nodes */}
+                {!isSubprocess && (
+                  <button
+                    onClick={() => setViewingArea(selected)}
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium border transition-colors hover:bg-gray-50"
+                    style={{ borderColor: selected.color, color: selected.color }}
+                  >
+                    View Subprocess <ChevronRight size={12} />
+                  </button>
+                )}
               </div>
 
               {sidebarLoading ? (
@@ -499,10 +508,8 @@ export default function ProcessMapPage() {
                       </button>
                     </div>
 
-                    {/* Add form */}
                     {addingNote && (
                       <div className="mb-3 p-3 rounded-lg border border-indigo-100 bg-indigo-50/50 space-y-2">
-                        {/* Type selector */}
                         <div className="flex flex-wrap gap-1">
                           {ANNOTATION_TYPES.map((t) => {
                             const Icon = ANNOTATION_ICONS[t];
@@ -512,9 +519,7 @@ export default function ProcessMapPage() {
                                 onClick={() => setNoteType(t)}
                                 className={cn(
                                   "flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all",
-                                  noteType === t
-                                    ? ANNOTATION_COLORS[t] + " border-current"
-                                    : "bg-white text-gray-400 border-gray-200 hover:border-gray-300",
+                                  noteType === t ? ANNOTATION_COLORS[t] + " border-current" : "bg-white text-gray-400 border-gray-200 hover:border-gray-300",
                                 )}
                               >
                                 <Icon size={10} />
@@ -548,39 +553,22 @@ export default function ProcessMapPage() {
                       </div>
                     )}
 
-                    {/* Annotation list */}
                     {annotations.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">
-                        No notes yet. Add a pain point, idea, or observation.
-                      </p>
+                      <p className="text-xs text-gray-400 italic">No notes yet.</p>
                     ) : (
                       <div className="space-y-2">
                         {annotations.map((ann) => {
                           const Icon = ANNOTATION_ICONS[ann.annotation_type];
                           return (
-                            <div
-                              key={ann.id}
-                              className="group rounded-lg border border-gray-100 bg-gray-50 p-2.5 hover:border-gray-200 transition-colors"
-                            >
+                            <div key={ann.id} className="group rounded-lg border border-gray-100 bg-gray-50 p-2.5 hover:border-gray-200 transition-colors">
                               <div className="flex items-start gap-2">
-                                <span
-                                  className={cn(
-                                    "mt-0.5 shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
-                                    ANNOTATION_COLORS[ann.annotation_type],
-                                  )}
-                                >
+                                <span className={cn("mt-0.5 shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium", ANNOTATION_COLORS[ann.annotation_type])}>
                                   <Icon size={9} />
                                   {ANNOTATION_LABELS[ann.annotation_type]}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-800 leading-snug">
-                                    {ann.title}
-                                  </p>
-                                  {ann.content && (
-                                    <p className="mt-0.5 text-[11px] text-gray-500 leading-snug">
-                                      {ann.content}
-                                    </p>
-                                  )}
+                                  <p className="text-xs font-medium text-gray-800 leading-snug">{ann.title}</p>
+                                  {ann.content && <p className="mt-0.5 text-[11px] text-gray-500 leading-snug">{ann.content}</p>}
                                 </div>
                                 <button
                                   onClick={() => handleDeleteAnnotation(ann.id)}
@@ -599,18 +587,11 @@ export default function ProcessMapPage() {
                   {/* Process Steps */}
                   {steps.length > 0 && (
                     <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                        Process Steps
-                      </h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Process Steps</h4>
                       <div className="space-y-1.5">
                         {steps.map((step, i) => (
-                          <div
-                            key={step.id}
-                            className="flex items-start gap-2 text-xs text-gray-700"
-                          >
-                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-bold">
-                              {i + 1}
-                            </span>
+                          <div key={step.id} className="flex items-start gap-2 text-xs text-gray-700">
+                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                             <span className="leading-snug">{step.title}</span>
                           </div>
                         ))}
@@ -621,19 +602,12 @@ export default function ProcessMapPage() {
                   {/* Linked Projects */}
                   {projects.length > 0 && (
                     <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                        Projects
-                      </h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Projects</h4>
                       <div className="space-y-1.5">
                         {projects.map((proj) => (
-                          <div
-                            key={proj.id}
-                            className="flex items-center justify-between text-xs"
-                          >
+                          <div key={proj.id} className="flex items-center justify-between text-xs">
                             <span className="text-gray-700 truncate pr-2">{proj.title}</span>
-                            <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-medium">
-                              {proj.status}
-                            </span>
+                            <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-medium">{proj.status}</span>
                           </div>
                         ))}
                       </div>
