@@ -65,6 +65,7 @@ export function AppSidebar() {
 
   const workNav = [
     { title: "Execution Hub", url: "/execution", icon: Target },
+    { title: "Process Map", url: "/process-map", icon: Briefcase },
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     { title: "Deals", url: "/crm/deals", icon: Rocket },
     { title: "Meetings", url: "/meetings", icon: Video },

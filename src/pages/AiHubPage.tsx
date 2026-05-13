@@ -885,6 +885,29 @@ const NewCouncilDialog = ({
       toast({ title: "Council tasks failed", description: tasksError.message, variant: "destructive" });
     } else {
       toast({ title: "Council started", description: `${participants.length} agents queued.` });
+      void (async () => {
+        const orderedTasks = [...(createdTasks ?? [])].sort((a, b) => {
+          const aPosition = Number((a.context as Record<string, unknown> | null)?.council_position ?? 0);
+          const bPosition = Number((b.context as Record<string, unknown> | null)?.council_position ?? 0);
+          return aPosition - bPosition;
+        });
+
+        for (const task of orderedTasks) {
+          const { error } = await supabase.functions.invoke("jr-coder-worker", {
+            body: {
+              type: "INSERT",
+              record: { ...task, status: "pending" },
+              old_record: null,
+            },
+          });
+
+          if (error) {
+            console.warn("[AI Hub council] worker invocation failed:", error.message);
+            await supabase.from("council_sessions").update({ status: "failed" }).eq("id", session.id);
+            break;
+          }
+        }
+      })();
       reset();
       onOpenChange(false);
       onCreated(session.id);
