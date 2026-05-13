@@ -25,6 +25,7 @@ import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
 import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
+import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -134,6 +135,7 @@ export default function SettingsPage() {
         { value: "addons", icon: Package, label: "Add-Ons" },
         { value: "forms", icon: FileSpreadsheet, label: "Forms" },
         { value: "integrations", icon: Mail, label: "Integrations" },
+        { value: "credentials", icon: KeyRound, label: "Credentials" },
         { value: "api", icon: KeyRound, label: "API" },
       ],
     },
@@ -501,6 +503,10 @@ export default function SettingsPage() {
 
         <TabsContent value="lead_intake" className="mt-4">
           <LeadIntakeSettings />
+        </TabsContent>
+
+        <TabsContent value="credentials" className="mt-4">
+          <IntegrationCredentials />
         </TabsContent>
 
         <TabsContent value="api" className="mt-4">
