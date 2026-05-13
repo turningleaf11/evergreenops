@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CheckCircle2, Circle, AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
 import { TeamHealthWidget } from "@/components/ceo/TeamHealthWidget";
 import { ThisWeeksMeetingWidget } from "@/components/ceo/ThisWeeksMeetingWidget";
+import { GhlKpiBoard } from "@/components/ceo/GhlKpiBoard";
 
 interface Metric {
   id: string;
@@ -247,7 +248,12 @@ export function ThisWeekTab() {
         </div>
       </div>
 
-      {/* SECTION 1B — TEAM HEALTH */}
+      {/* SECTION 1B — GHL LIVE METRICS */}
+      <div className="rounded-2xl border border-border/50 bg-card/80 p-6 elevation-1">
+        <GhlKpiBoard />
+      </div>
+
+      {/* SECTION 1C — TEAM HEALTH */}
       <TeamHealthWidget />
 
       {/* SECTION 1C — THIS WEEK'S LEADERSHIP MEETING */}
