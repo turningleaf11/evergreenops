@@ -17,6 +17,8 @@ import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { StrategicQuestionCard } from "@/components/ceo/StrategicQuestionCard";
+import { PersonalTodos } from "@/components/ceo/PersonalTodos";
+import { AssignedTasks } from "@/components/ceo/AssignedTasks";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -250,23 +252,35 @@ export default function CeoDashboard() {
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
 
-          {/* Today Tab (formerly Brain Dump) */}
-          <TabsContent value="today" className="space-y-6">
-            {isPrimaryAdmin && <DailyBriefingCard />}
-            {isPrimaryAdmin && <TodaysPriorities />}
-            {isPrimaryAdmin && <StrategicQuestionCard />}
+          {/* Today Tab — two-column diary layout */}
+          <TabsContent value="today">
+            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
+              {/* Left column — priorities, todos, assigned tasks */}
+              <div className="space-y-4">
+                {isPrimaryAdmin && <TodaysPriorities />}
+                {isPrimaryAdmin && <PersonalTodos />}
+                {isPrimaryAdmin && <AssignedTasks />}
+                {isPrimaryAdmin && <StrategicQuestionCard />}
+              </div>
 
-            <div className="rounded-2xl bg-primary/[0.03] p-8 elevation-2">
-              <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
+              {/* Right column — AI briefing + scratchpad always visible */}
+              <div className="space-y-4">
+                {isPrimaryAdmin && <DailyBriefingCard compact />}
+                <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
+                  <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
+                </div>
+              </div>
             </div>
 
             {triageItems.length > 0 && (
-              <AiTriage
-                items={triageItems}
-                profiles={profiles}
-                onItemProcessed={(id) => setTriageItems(prev => prev.filter((it) => it.id !== id))}
-                onClear={() => setTriageItems([])}
-              />
+              <div className="mt-6">
+                <AiTriage
+                  items={triageItems}
+                  profiles={profiles}
+                  onItemProcessed={(id) => setTriageItems(prev => prev.filter((it) => it.id !== id))}
+                  onClear={() => setTriageItems([])}
+                />
+              </div>
             )}
           </TabsContent>
 
