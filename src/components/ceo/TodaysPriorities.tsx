@@ -8,9 +8,12 @@ const sb = supabase as any;
 
 type Slot = 1 | 2 | 3;
 
-function localToday(): string {
-  const d = new Date();
+function localDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function localToday(): string {
+  return localDateString(new Date());
 }
 
 export function TodaysPriorities() {
@@ -42,6 +45,27 @@ export function TodaysPriorities() {
           nextMentions[r.slot as Slot] = Array.isArray(r.mentions) ? r.mentions : [];
         }
       });
+
+      // If today has no entries yet, carry forward yesterday's non-empty priorities
+      const hasAnyToday = (data ?? []).some((r: any) => r.text?.trim());
+      if (!hasAnyToday) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const { data: yData } = await sb
+          .from("daily_priorities")
+          .select("slot, text, mentions")
+          .eq("user_id", user.id)
+          .eq("priority_date", localDateString(yesterday));
+        if (!cancelled) {
+          (yData ?? []).forEach((r: any) => {
+            if (r.slot >= 1 && r.slot <= 3 && r.text?.trim()) {
+              nextVals[r.slot as Slot] = r.text;
+              nextMentions[r.slot as Slot] = Array.isArray(r.mentions) ? r.mentions : [];
+            }
+          });
+        }
+      }
+
       setValues(nextVals);
       setMentionsBySlot(nextMentions);
       setLoaded(true);
