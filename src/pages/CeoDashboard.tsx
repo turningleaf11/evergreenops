@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCEOContext } from "@/lib/ceo-context";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,8 +22,7 @@ import { AssignedTasks } from "@/components/ceo/AssignedTasks";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2, Binoculars } from "lucide-react";
+import { Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type VisionSection = {
@@ -59,20 +58,8 @@ export default function CeoDashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
-  // Big Picture tab state — for binoculars scroll-to-vision behaviour
   const [activeTab, setActiveTab] = useState<string>("today");
-  const [visionHighlight, setVisionHighlight] = useState(false);
-  const visionSectionRef = useRef<HTMLDivElement | null>(null);
-
-  const focusVisionSection = useCallback(() => {
-    setActiveTab("bigpicture");
-    // Wait for tab content to mount
-    setTimeout(() => {
-      visionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setVisionHighlight(true);
-      setTimeout(() => setVisionHighlight(false), 1600);
-    }, 80);
-  }, []);
+  const [briefingOpen, setBriefingOpen] = useState(false);
 
   const loadPendingTriage = useCallback(async () => {
     if (!user) return;
@@ -191,24 +178,6 @@ export default function CeoDashboard() {
             <div className="mt-3 h-px w-24 bg-gradient-to-r from-primary/60 to-transparent" />
           </div>
 
-          {/* Vision Portal — Binoculars icon now jumps to Big Picture › Vision */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={focusVisionSection}
-                  className="rounded-full h-10 w-10 shrink-0 elevation-1 hover:elevation-2 transition-shadow duration-200"
-                >
-                  <Binoculars className="h-4 w-4 text-primary" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p>Vision &amp; Long-Term Targets</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </div>
 
@@ -252,23 +221,38 @@ export default function CeoDashboard() {
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
 
-          {/* Today Tab — two-column diary layout */}
+          {/* Today Tab — single-column layout */}
           <TabsContent value="today">
-            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
-              {/* Left column — priorities, todos, assigned tasks */}
-              <div className="space-y-4">
-                {isPrimaryAdmin && <TodaysPriorities />}
-                {isPrimaryAdmin && <PersonalTodos />}
-                {isPrimaryAdmin && <AssignedTasks />}
-                {isPrimaryAdmin && <StrategicQuestionCard />}
-              </div>
+            <div className="space-y-4">
+              {isPrimaryAdmin && <TodaysPriorities />}
+              {isPrimaryAdmin && <PersonalTodos />}
+              {isPrimaryAdmin && <AssignedTasks />}
 
-              {/* Right column — AI briefing + scratchpad always visible */}
-              <div className="space-y-4">
-                {isPrimaryAdmin && <DailyBriefingCard compact />}
-                <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
-                  <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
+              {/* Daily Briefing — collapsible */}
+              {isPrimaryAdmin && (
+                <div>
+                  <button
+                    onClick={() => setBriefingOpen((o) => !o)}
+                    className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    Daily Briefing
+                    {briefingOpen
+                      ? <ChevronUp className="h-3 w-3 ml-0.5" />
+                      : <ChevronDown className="h-3 w-3 ml-0.5" />}
+                  </button>
+                  {briefingOpen && (
+                    <div className="mt-3 space-y-4">
+                      <DailyBriefingCard compact />
+                      <StrategicQuestionCard />
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {/* Scratchpad — full width */}
+              <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
+                <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
               </div>
             </div>
 
@@ -294,12 +278,7 @@ export default function CeoDashboard() {
           {/* Big Picture Tab */}
           <TabsContent value="bigpicture" className="space-y-12 divide-y divide-border/40">
             {/* Section 1 — Vision */}
-            <section
-              ref={visionSectionRef}
-              className={`rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 transition-all duration-500 ${
-                visionHighlight ? "ring-2 ring-primary/60 elevation-3" : ""
-              }`}
-            >
+            <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1">
               <div className="mb-5">
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2 tracking-tight">
                   <Eye className="h-4 w-4 text-primary" />
