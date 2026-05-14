@@ -77,8 +77,8 @@ export function TodaysPriorities() {
       <h3 className="text-sm font-semibold text-foreground mb-3">Priorities</h3>
       <div className="space-y-3">
         {([1, 2, 3] as Slot[]).map((slot) => (
-          <div key={slot} className="flex items-start gap-3">
-            <span className="text-xs font-medium text-muted-foreground/60 w-4 tabular-nums mt-2 shrink-0">
+          <div key={slot} className="flex items-center gap-3 border-b border-transparent focus-within:border-border/50 transition-colors pb-0.5">
+            <span className="text-xs font-medium text-muted-foreground/60 w-4 tabular-nums shrink-0">
               {slot}.
             </span>
             <MentionInput
@@ -88,11 +88,7 @@ export function TodaysPriorities() {
               onMentionsChange={(m) => onMentionsChange(slot, m)}
               placeholder="What are you committing to today?"
               disabled={!loaded}
-              className={cn(
-                "w-full bg-transparent text-sm text-foreground border-none outline-none",
-                "placeholder:text-muted-foreground/40 py-1.5 px-0",
-                "border-b border-transparent focus:border-border/50 transition-colors",
-              )}
+              inputClassName="text-sm text-foreground placeholder:text-muted-foreground/40 py-1"
             />
           </div>
         ))}

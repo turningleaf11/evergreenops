@@ -221,38 +221,48 @@ export default function CeoDashboard() {
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
 
-          {/* Today Tab — single-column layout */}
+          {/* Today Tab */}
           <TabsContent value="today">
-            <div className="space-y-4">
-              {isPrimaryAdmin && <TodaysPriorities />}
-              {isPrimaryAdmin && <PersonalTodos />}
-              {isPrimaryAdmin && <AssignedTasks />}
+            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-start">
+              {/* Left — action items */}
+              <div className="space-y-4">
+                {isPrimaryAdmin && <TodaysPriorities />}
+                {isPrimaryAdmin && <PersonalTodos />}
+                {isPrimaryAdmin && <AssignedTasks />}
+              </div>
 
-              {/* Daily Briefing — collapsible */}
-              {isPrimaryAdmin && (
-                <div>
-                  <button
-                    onClick={() => setBriefingOpen((o) => !o)}
-                    className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    Daily Briefing
-                    {briefingOpen
-                      ? <ChevronUp className="h-3 w-3 ml-0.5" />
-                      : <ChevronDown className="h-3 w-3 ml-0.5" />}
-                  </button>
-                  {briefingOpen && (
-                    <div className="mt-3 space-y-4">
-                      <DailyBriefingCard compact />
-                      <StrategicQuestionCard />
-                    </div>
-                  )}
+              {/* Right — AI briefing + scratchpad */}
+              <div className="space-y-4">
+                {isPrimaryAdmin && (
+                  <div>
+                    {/* AI Daily Briefing — premium styled trigger */}
+                    <button
+                      onClick={() => setBriefingOpen((o) => !o)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-primary/25 bg-gradient-to-r from-primary/[0.06] to-primary/[0.02] hover:border-primary/40 hover:from-primary/[0.10] hover:to-primary/[0.05] transition-all text-xs font-medium text-primary/70 hover:text-primary"
+                    >
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-50" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary/70" />
+                      </span>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>AI Daily Briefing</span>
+                      <span className="ml-auto opacity-60">
+                        {briefingOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </span>
+                    </button>
+                    {briefingOpen && (
+                      <div className="mt-3 space-y-4">
+                        <DailyBriefingCard compact />
+                        <StrategicQuestionCard />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Scratchpad — owns the right column */}
+                <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
+                  <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
                 </div>
-              )}
-
-              {/* Scratchpad — full width */}
-              <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
-                <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
               </div>
             </div>
 

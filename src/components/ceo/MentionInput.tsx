@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X } from "lucide-react";
+import { X, Building2, CheckCircle2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MentionRef = {
@@ -9,11 +9,16 @@ export type MentionRef = {
   label: string;
 };
 
+const TYPE_ICONS: Record<string, React.ElementType> = {
+  project: Building2,
+  task:    CheckCircle2,
+  goal:    Target,
+};
 const TYPE_LABELS: Record<string, string> = { project: "Project", task: "Task", goal: "Goal" };
-const TYPE_COLORS: Record<string, string> = {
-  project: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  task:    "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  goal:    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+const TYPE_CHIP: Record<string, string> = {
+  project: "bg-sky-100/80 text-sky-700 border-sky-200/80 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800/50",
+  task:    "bg-amber-100/80 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50",
+  goal:    "bg-emerald-100/80 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/50",
 };
 const MENTION_HREF: Record<string, (id: string) => string> = {
   project: (id) => `/projects/${id}`,
@@ -21,7 +26,7 @@ const MENTION_HREF: Record<string, (id: string) => string> = {
   goal:    ()   => `/scorecard`,
 };
 
-// Module-level cache so sources are fetched once per browser session
+// Module-level cache — fetched once per browser session
 let sourceCache: MentionRef[] | null = null;
 let sourceLoading = false;
 let sourceWaiters: Array<(s: MentionRef[]) => void> = [];
@@ -47,7 +52,35 @@ async function getMentionSources(): Promise<MentionRef[]> {
   return sources;
 }
 
-// ── MentionChips (standalone display component) ──────────────────────────────
+// ── Single chip ───────────────────────────────────────────────────────────────
+function MentionChip({ mention, onRemove }: { mention: MentionRef; onRemove?: () => void }) {
+  const Icon = TYPE_ICONS[mention.type];
+  return (
+    <span
+      className={cn(
+        "mention-chip inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border cursor-pointer transition-opacity hover:opacity-80 shrink-0",
+        TYPE_CHIP[mention.type],
+      )}
+      data-mention-type={mention.type}
+      data-mention-id={mention.id}
+      data-url={MENTION_HREF[mention.type](mention.id)}
+    >
+      <Icon className="h-2.5 w-2.5 shrink-0" />
+      <span className="max-w-[120px] truncate">{mention.label}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+// ── Standalone chips display (for read-only / TodoRow view) ───────────────────
 export function MentionChips({
   mentions,
   onRemove,
@@ -57,34 +90,15 @@ export function MentionChips({
 }) {
   if (!mentions.length) return null;
   return (
-    <div className="flex flex-wrap gap-1 mt-1.5">
+    <div className="flex flex-wrap gap-1 mt-1">
       {mentions.map((m) => (
-        <span
-          key={m.id}
-          className="mention-chip inline-flex items-center gap-1 text-[10px] font-medium rounded cursor-pointer transition-opacity hover:opacity-80"
-          data-mention-type={m.type}
-          data-mention-id={m.id}
-          data-url={MENTION_HREF[m.type](m.id)}
-        >
-          <span className={cn("px-1.5 py-0.5 rounded", TYPE_COLORS[m.type])}>
-            {TYPE_LABELS[m.type][0]} · {m.label}
-          </span>
-          {onRemove && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onRemove(m.id); }}
-              className="text-muted-foreground/60 hover:text-destructive pr-0.5"
-            >
-              <X className="h-2.5 w-2.5" />
-            </button>
-          )}
-        </span>
+        <MentionChip key={m.id} mention={m} onRemove={onRemove ? () => onRemove(m.id) : undefined} />
       ))}
     </div>
   );
 }
 
-// ── MentionInput ─────────────────────────────────────────────────────────────
+// ── MentionInput ──────────────────────────────────────────────────────────────
 export interface MentionInputProps {
   value: string;
   onChange: (val: string) => void;
@@ -92,7 +106,10 @@ export interface MentionInputProps {
   onMentionsChange: (mentions: MentionRef[]) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Applied to the outer flex container */
   className?: string;
+  /** Applied to the raw <input> element */
+  inputClassName?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
@@ -106,15 +123,17 @@ export function MentionInput({
   placeholder,
   disabled,
   className,
+  inputClassName,
   onKeyDown,
   autoFocus,
   inputRef: externalRef,
 }: MentionInputProps) {
   const localRef = useRef<HTMLInputElement>(null);
-  const inputRef = externalRef ?? localRef;
+  const inputRef = (externalRef ?? localRef) as React.RefObject<HTMLInputElement>;
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // query = null means picker closed; string = active search text after @
+  // null = picker closed; string = active search text after @
   const [query, setQuery] = useState<string | null>(null);
   const [sources, setSources] = useState<MentionRef[]>([]);
   const [atStart, setAtStart] = useState(0);
@@ -122,9 +141,7 @@ export function MentionInput({
 
   const filtered = query === null
     ? []
-    : sources
-        .filter((s) => s.label.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 8);
+    : sources.filter((s) => s.label.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
 
   const closePicker = useCallback(() => setQuery(null), []);
 
@@ -138,18 +155,17 @@ export function MentionInput({
 
   const selectMention = useCallback(
     (mention: MentionRef) => {
+      // Strip out the "@query" text — the mention is tracked separately as a chip
       const cursorPos = inputRef.current?.selectionStart ?? value.length;
       const before = value.slice(0, atStart);
       const after  = value.slice(cursorPos);
-      const newVal = `${before}@${mention.label}${after}`;
-      onChange(newVal);
+      onChange(before + after);
       onMentionsChange([...mentions.filter((m) => m.id !== mention.id), mention]);
       closePicker();
       setTimeout(() => {
         if (inputRef.current) {
-          const pos = before.length + 1 + mention.label.length;
           inputRef.current.focus();
-          inputRef.current.setSelectionRange(pos, pos);
+          inputRef.current.setSelectionRange(before.length, before.length);
         }
       }, 10);
     },
@@ -164,7 +180,6 @@ export function MentionInput({
 
       if (query !== null) {
         const textFromAt = val.slice(atStart + 1, pos);
-        // Close if the @ was deleted or user typed a space
         if (val[atStart] !== "@" || textFromAt.includes(" ")) {
           closePicker();
         } else {
@@ -172,7 +187,6 @@ export function MentionInput({
           setHighlighted(0);
         }
       } else {
-        // Detect freshly typed @
         if (val.length > value.length && val[pos - 1] === "@") {
           openPicker(pos - 1);
         }
@@ -184,10 +198,10 @@ export function MentionInput({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (query !== null && filtered.length > 0) {
-        if (e.key === "ArrowDown")  { e.preventDefault(); setHighlighted((h) => (h + 1) % filtered.length); return; }
-        if (e.key === "ArrowUp")    { e.preventDefault(); setHighlighted((h) => (h - 1 + filtered.length) % filtered.length); return; }
-        if (e.key === "Enter")      { e.preventDefault(); selectMention(filtered[highlighted]); return; }
-        if (e.key === "Escape")     { closePicker(); return; }
+        if (e.key === "ArrowDown") { e.preventDefault(); setHighlighted((h) => (h + 1) % filtered.length); return; }
+        if (e.key === "ArrowUp")   { e.preventDefault(); setHighlighted((h) => (h - 1 + filtered.length) % filtered.length); return; }
+        if (e.key === "Enter")     { e.preventDefault(); selectMention(filtered[highlighted]); return; }
+        if (e.key === "Escape")    { closePicker(); return; }
       }
       onKeyDown?.(e);
     },
@@ -200,64 +214,79 @@ export function MentionInput({
     const handler = (e: MouseEvent) => {
       if (
         !dropdownRef.current?.contains(e.target as Node) &&
-        !inputRef.current?.contains(e.target as Node)
+        !containerRef.current?.contains(e.target as Node)
       ) closePicker();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [query, closePicker, inputRef]);
+  }, [query, closePicker]);
 
   return (
-    <div className="flex-1 min-w-0">
-      <div className="relative">
+    <div className={cn("relative flex-1 min-w-0", className)}>
+      {/* Inline chips + input on the same line */}
+      <div
+        ref={containerRef}
+        className="flex flex-wrap items-center gap-1.5 min-h-[28px]"
+        onClick={() => !disabled && inputRef.current?.focus()}
+      >
+        {mentions.map((m) => (
+          <MentionChip
+            key={m.id}
+            mention={m}
+            onRemove={() => onMentionsChange(mentions.filter((x) => x.id !== m.id))}
+          />
+        ))}
         <input
           ref={inputRef}
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={!value && mentions.length === 0 ? placeholder : undefined}
           disabled={disabled}
           autoFocus={autoFocus}
-          className={className}
+          className={cn(
+            "flex-1 min-w-[80px] bg-transparent border-none outline-none",
+            inputClassName,
+          )}
         />
+      </div>
 
-        {/* @ mention dropdown */}
-        {query !== null && (
-          <div
-            ref={dropdownRef}
-            className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-popover shadow-lg overflow-hidden"
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">
-                {query ? "No matches" : "Type to search projects, tasks, goals…"}
-              </p>
-            ) : (
-              filtered.map((s, i) => (
+      {/* @ dropdown */}
+      {query !== null && (
+        <div
+          ref={dropdownRef}
+          className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-border bg-popover shadow-lg overflow-hidden"
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2.5 text-xs text-muted-foreground italic">
+              {query ? `No matches for "${query}"` : "Type to search projects, tasks, goals…"}
+            </p>
+          ) : (
+            filtered.map((s, i) => {
+              const Icon = TYPE_ICONS[s.type];
+              return (
                 <button
                   key={s.id}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); selectMention(s); }}
                   className={cn(
-                    "w-full text-left px-3 py-1.5 flex items-center gap-2 text-xs transition-colors",
+                    "w-full text-left px-3 py-2 flex items-center gap-2.5 text-xs transition-colors",
                     i === highlighted ? "bg-accent" : "hover:bg-accent/50",
                   )}
                 >
-                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0", TYPE_COLORS[s.type])}>
-                    {TYPE_LABELS[s.type]}
+                  <span className={cn("p-1 rounded-md border shrink-0", TYPE_CHIP[s.type])}>
+                    <Icon className="h-3 w-3" />
                   </span>
-                  <span className="truncate text-foreground">{s.label}</span>
+                  <div className="min-w-0">
+                    <span className="block truncate text-foreground font-medium">{s.label}</span>
+                    <span className="text-[10px] text-muted-foreground/60">{TYPE_LABELS[s.type]}</span>
+                  </div>
                 </button>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Mention chips */}
-      <MentionChips
-        mentions={mentions}
-        onRemove={(id) => onMentionsChange(mentions.filter((m) => m.id !== id))}
-      />
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

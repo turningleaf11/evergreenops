@@ -111,7 +111,7 @@ export function PersonalTodos() {
               onKeyDown={handleAddKeyDown as any}
               inputRef={addInputRef}
               autoFocus
-              className="flex-1 bg-transparent text-sm text-foreground border-none outline-none placeholder:text-muted-foreground/40"
+              inputClassName="text-sm text-foreground placeholder:text-muted-foreground/40"
             />
           </div>
         )}
@@ -181,7 +181,7 @@ function TodoRow({
           onMentionsChange={setEditMentions}
           autoFocus
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }}
-          className="flex-1 bg-transparent text-sm text-foreground border-b border-border/50 outline-none py-1 placeholder:text-muted-foreground/40"
+          inputClassName="text-sm text-foreground placeholder:text-muted-foreground/40 border-b border-border/50 py-1"
           placeholder="Edit to-do…"
         />
         <button onClick={save} className="text-primary/70 hover:text-primary mt-1.5 shrink-0">
