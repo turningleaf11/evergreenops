@@ -313,9 +313,9 @@ export default function CeoDashboard() {
             {/* Section 2 — Strategy */}
             <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 pt-12">
               <div className="mb-5">
-                <h2 className="text-lg font-bold text-foreground tracking-tight">Strategy Items</h2>
+                <h2 className="text-lg font-bold text-foreground tracking-tight">Directives</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Active strategic priorities cascading to your teams.
+                  Active directives cascading to your teams.
                 </p>
               </div>
               <StrategyItemCreator />

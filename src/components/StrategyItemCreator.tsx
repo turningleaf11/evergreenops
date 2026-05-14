@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStrategyFlow, StrategyItemType } from "@/lib/strategy-flow";
+import { useStrategyFlow, StrategyItemType, STATUS_LABELS } from "@/lib/strategy-flow";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Target, ShieldAlert, Gavel, X } from "lucide-react";
@@ -12,8 +12,15 @@ const typeConfig: Record<StrategyItemType, { label: string; icon: React.ElementT
   decision: { label: "Decision", icon: Gavel, color: "bg-blue-500/10 text-blue-700 border-blue-200" },
 };
 
+const statusColors: Record<string, string> = {
+  new: "bg-blue-100 text-blue-700",
+  acknowledged: "bg-amber-100 text-amber-700",
+  in_execution: "bg-emerald-100 text-emerald-700",
+  resolved: "bg-muted text-muted-foreground",
+};
+
 export function StrategyItemCreator() {
-  const { addStrategyItem, strategyItems, updateStrategyItem, deleteStrategyItem } = useStrategyFlow();
+  const { addStrategyItem, strategyItems, deleteStrategyItem, loading } = useStrategyFlow();
   const { departments } = useDepartments();
   const { user } = useAuth();
   const currentUserId = user?.id || "";
@@ -27,9 +34,9 @@ export function StrategyItemCreator() {
     setSelectedDepts((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim()) return;
-    addStrategyItem({
+    await addStrategyItem({
       type,
       title: title.trim(),
       description: description.trim(),
@@ -41,27 +48,19 @@ export function StrategyItemCreator() {
     setTitle("");
     setDescription("");
     setSelectedDepts([]);
-    toast.success("Strategy item created");
-  };
-
-  const statusColors: Record<string, string> = {
-    new: "bg-blue-100 text-blue-700",
-    acknowledged: "bg-amber-100 text-amber-700",
-    translated: "bg-purple-100 text-purple-700",
-    in_execution: "bg-emerald-100 text-emerald-700",
-    resolved: "bg-muted text-muted-foreground",
+    toast.success("Directive sent");
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground uppercase tracking-widest">Strategy Items</h3>
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-widest">Directives</h3>
         <button
           onClick={() => setCreating(!creating)}
           className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
-          New Item
+          New Directive
         </button>
       </div>
 
@@ -88,14 +87,15 @@ export function StrategyItemCreator() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="What is the strategic item?"
+            placeholder="What is the directive?"
             className="w-full bg-transparent text-sm font-medium border-b border-border pb-2 outline-none placeholder:text-muted-foreground/40"
             autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
           />
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the context, reasoning, and expected outcome..."
+            placeholder="Context, reasoning, and expected outcome..."
             className="w-full bg-transparent text-sm border border-border rounded-lg p-3 outline-none placeholder:text-muted-foreground/40 min-h-[80px] resize-none"
           />
           <div>
@@ -125,14 +125,17 @@ export function StrategyItemCreator() {
               disabled={!title.trim()}
               className="text-xs font-medium bg-primary text-primary-foreground px-4 py-1.5 rounded-lg disabled:opacity-40"
             >
-              Create
+              Send Directive
             </button>
           </div>
         </div>
       )}
 
-      {/* Existing items list */}
+      {/* Directives list */}
       <div className="space-y-2">
+        {loading && strategyItems.length === 0 && (
+          <p className="text-xs text-muted-foreground/60 text-center py-4">Loading directives…</p>
+        )}
         {strategyItems.map((item) => {
           const cfg = typeConfig[item.type];
           const Icon = cfg.icon;
@@ -145,7 +148,7 @@ export function StrategyItemCreator() {
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Badge variant="secondary" className={`text-[10px] ${statusColors[item.status]}`}>
-                    {item.status.replace("_", " ")}
+                    {STATUS_LABELS[item.status] ?? item.status}
                   </Badge>
                   <button
                     onClick={() => deleteStrategyItem(item.id)}
@@ -169,8 +172,8 @@ export function StrategyItemCreator() {
             </div>
           );
         })}
-        {strategyItems.length === 0 && (
-          <p className="text-xs text-muted-foreground/60 text-center py-4">No strategy items yet. Create one to cascade direction.</p>
+        {!loading && strategyItems.length === 0 && (
+          <p className="text-xs text-muted-foreground/60 text-center py-4">No directives yet. Create one to cascade direction to your teams.</p>
         )}
       </div>
     </div>

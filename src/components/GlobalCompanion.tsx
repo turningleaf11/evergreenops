@@ -77,10 +77,11 @@ export function GlobalCompanion() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105"
-        aria-label="Open AI Companion"
+        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 text-xl"
+        aria-label="Ask Albus"
+        title="Ask Albus"
       >
-        <Bot className="h-5 w-5" />
+        🧙‍♂️
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -198,16 +199,16 @@ export function GlobalCompanion() {
           <div className="flex-1 flex flex-col min-w-0">
             <SheetHeader className="px-5 py-4 border-b border-border">
               <SheetTitle className="flex items-center gap-2 text-base">
-                <Bot className="h-4 w-4 text-primary" />
-                Strategy Companion
+                <span className="text-base">🧙‍♂️</span>
+                Albus
               </SheetTitle>
             </SheetHeader>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               {messages.length === 0 && (
                 <div className="text-center py-12 space-y-3">
-                  <Bot className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm text-muted-foreground">I'm your thinking partner. Tell me what's on your mind — problems, ideas, frustrations, questions.</p>
+                  <span className="text-4xl block">🧙‍♂️</span>
+                  <p className="text-sm text-muted-foreground">Your chief of staff. Bring me decisions, blockers, or anything that's taking up space in your head.</p>
                   <div className="space-y-1.5">
                     {[
                       "What should I focus on today?",
@@ -233,8 +234,8 @@ export function GlobalCompanion() {
                 return (
                   <div key={msg.id ?? i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
                     {isAssistant && (
-                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <Bot className="h-3.5 w-3.5 text-primary" />
+                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 text-sm">
+                        🧙‍♂️
                       </div>
                     )}
                     <div className="max-w-[85%] flex flex-col items-start gap-1">

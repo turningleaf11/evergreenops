@@ -241,7 +241,12 @@ export default function DepartmentPage() {
     triggerFileInput("*", async (file) => {
       setPinUploading(true);
       const url = await uploadFile(file);
-      if (url && id) {
+      if (!url) {
+        toast.error("Upload failed. Check storage permissions and try again.");
+        setPinUploading(false);
+        return;
+      }
+      if (id) {
         const isImage = file.type.startsWith("image/");
         const { data, error } = await supabase.from("department_pinboard").insert({
           department_id: id,
@@ -256,6 +261,8 @@ export default function DepartmentPage() {
         if (!error && data) {
           setPinboardItems(prev => [...prev, data as PinboardItem]);
           toast.success("File pinned");
+        } else if (error) {
+          toast.error("Failed to save pin: " + error.message);
         }
       }
       setPinUploading(false);

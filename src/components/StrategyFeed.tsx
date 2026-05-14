@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStrategyFlow, StrategyItem, LeadershipResponseType } from "@/lib/strategy-flow";
+import { useStrategyFlow, StrategyItem, LeadershipResponseType, STATUS_LABELS } from "@/lib/strategy-flow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Target, ShieldAlert, Gavel, ChevronDown, ChevronRight, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ const typeIcons: Record<string, React.ElementType> = {
 const statusColors: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
   acknowledged: "bg-amber-100 text-amber-700",
-  translated: "bg-purple-100 text-purple-700",
   in_execution: "bg-emerald-100 text-emerald-700",
   resolved: "bg-muted text-muted-foreground",
 };
@@ -32,12 +31,12 @@ export function StrategyFeed({ departmentId }: Props) {
   const [responseType, setResponseType] = useState<LeadershipResponseType>("accept");
   const [form, setForm] = useState({ groundTruth: "", analysis: "", recommendation: "", expectedImpact: "" });
 
-  const handleSubmitResponse = (item: StrategyItem) => {
+  const handleSubmitResponse = async (item: StrategyItem) => {
     if (!form.groundTruth.trim() || !form.analysis.trim()) {
       toast.error("Ground truth and analysis are required");
       return;
     }
-    addResponse({
+    await addResponse({
       strategyItemId: item.id,
       departmentId,
       responderId: currentUserId,
@@ -49,17 +48,17 @@ export function StrategyFeed({ departmentId }: Props) {
     toast.success("Response submitted");
   };
 
-  const handleAcknowledge = (item: StrategyItem) => {
+  const handleAcknowledge = async (item: StrategyItem) => {
     if (item.status === "new") {
-      updateStrategyItem(item.id, { status: "acknowledged" });
-      toast.success("Strategy item acknowledged");
+      await updateStrategyItem(item.id, { status: "acknowledged" });
+      toast.success("Directive acknowledged");
     }
   };
 
   return (
     <div className="space-y-3">
       {items.length === 0 && (
-        <p className="text-xs text-muted-foreground/60 text-center py-6">No strategy items assigned to this department.</p>
+        <p className="text-xs text-muted-foreground/60 text-center py-6">No directives assigned to this department.</p>
       )}
       {items.map((item) => {
         const Icon = typeIcons[item.type] || Target;
@@ -74,7 +73,7 @@ export function StrategyFeed({ departmentId }: Props) {
                   <span className="text-sm font-medium text-foreground">{item.title}</span>
                 </div>
                 <Badge variant="secondary" className={`text-[10px] shrink-0 ${statusColors[item.status]}`}>
-                  {item.status.replace("_", " ")}
+                  {STATUS_LABELS[item.status] ?? item.status}
                 </Badge>
               </div>
               {item.description && (
@@ -95,7 +94,7 @@ export function StrategyFeed({ departmentId }: Props) {
                     className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    Respond to Strategy
+                    Respond to Directive
                   </button>
                 )}
                 {deptResponse && (
@@ -134,7 +133,7 @@ export function StrategyFeed({ departmentId }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">What I believe is actually happening *</label>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">My read on this *</label>
                     <textarea
                       value={form.analysis}
                       onChange={(e) => setForm({ ...form, analysis: e.target.value })}
@@ -143,7 +142,7 @@ export function StrategyFeed({ departmentId }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Recommended change or approach</label>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Recommended approach</label>
                     <textarea
                       value={form.recommendation}
                       onChange={(e) => setForm({ ...form, recommendation: e.target.value })}

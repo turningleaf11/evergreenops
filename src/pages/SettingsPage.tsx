@@ -1192,7 +1192,7 @@ function FormsManagementTab() {
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("form_templates").insert({
         name: newName.trim(), description: newDesc.trim(), fields: validFields,
-        created_by: user?.id,
+        is_active: true,
       });
     }
     setEditOpen(false);
