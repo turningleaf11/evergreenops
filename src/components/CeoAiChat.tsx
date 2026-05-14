@@ -156,8 +156,8 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="px-5 py-4 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-base">
-            <Bot className="h-4 w-4 text-primary" />
-            Strategy Companion
+            <span className="text-base">🧙‍♂️</span>
+            Albus
           </SheetTitle>
         </SheetHeader>
 
@@ -165,10 +165,10 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 space-y-3">
-              <Bot className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-              <p className="text-sm text-muted-foreground">Ask me anything about your strategy, priorities, or decisions.</p>
+              <span className="text-4xl block">🧙‍♂️</span>
+              <p className="text-sm text-muted-foreground">Ask Albus anything about your strategy, priorities, or decisions.</p>
               <div className="space-y-1.5">
-                {["What should I prioritize this week?", "Help me think through our pipeline strategy", "What risks am I not seeing?"].map((q) => (
+                {["What needs my attention right now?", "What should I delegate and to whom?", "Help me think through a decision"].map((q) => (
                   <button
                     key={q}
                     onClick={() => { setInput(q); }}
