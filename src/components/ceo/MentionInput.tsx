@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Building2, CheckCircle2, Target } from "lucide-react";
+import { X, Building2, CheckCircle2, Target, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MentionRef = {
   id: string;
-  type: "project" | "task" | "goal";
+  type: "project" | "task" | "goal" | "person";
   label: string;
 };
 
@@ -13,17 +13,20 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   project: Building2,
   task:    CheckCircle2,
   goal:    Target,
+  person:  User,
 };
-const TYPE_LABELS: Record<string, string> = { project: "Project", task: "Task", goal: "Goal" };
+const TYPE_LABELS: Record<string, string> = { project: "Project", task: "Task", goal: "Goal", person: "Person" };
 const TYPE_CHIP: Record<string, string> = {
   project: "bg-sky-100/80 text-sky-700 border-sky-200/80 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800/50",
   task:    "bg-amber-100/80 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50",
   goal:    "bg-emerald-100/80 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/50",
+  person:  "bg-violet-100/80 text-violet-700 border-violet-200/80 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800/50",
 };
 const MENTION_HREF: Record<string, (id: string) => string> = {
   project: (id) => `/projects/${id}`,
   task:    (id) => `/tasks/${id}`,
   goal:    ()   => `/scorecard`,
+  person:  (id) => `/people?user=${id}`,
 };
 
 // Module-level cache — fetched once per browser session
@@ -35,12 +38,14 @@ async function getMentionSources(): Promise<MentionRef[]> {
   if (sourceCache) return sourceCache;
   if (sourceLoading) return new Promise((r) => sourceWaiters.push(r));
   sourceLoading = true;
-  const [proj, tsk, goal] = await Promise.all([
+  const [proj, tsk, goal, ppl] = await Promise.all([
     supabase.from("projects" as any).select("id, title").order("title").limit(200),
     supabase.from("tasks"    as any).select("id, title").order("title").limit(200),
     supabase.from("goals"    as any).select("id, title").order("title").limit(100),
+    supabase.from("profiles" as any).select("user_id, full_name").order("full_name").limit(200),
   ]);
   const sources: MentionRef[] = [
+    ...(ppl.data  ?? []).filter((p: any) => p.full_name).map((p: any) => ({ id: p.user_id, type: "person" as const, label: p.full_name })),
     ...(proj.data ?? []).map((p: any) => ({ id: p.id, type: "project" as const, label: p.title || "Untitled" })),
     ...(tsk.data  ?? []).map((t: any) => ({ id: t.id, type: "task"    as const, label: t.title || "Untitled" })),
     ...(goal.data ?? []).map((g: any) => ({ id: g.id, type: "goal"    as const, label: g.title || "Untitled" })),
@@ -50,6 +55,11 @@ async function getMentionSources(): Promise<MentionRef[]> {
   sourceWaiters.forEach((r) => r(sources));
   sourceWaiters = [];
   return sources;
+}
+
+/** Clear the mention source cache — call when a person/project/etc is created/renamed. */
+export function clearMentionSourceCache() {
+  sourceCache = null;
 }
 
 // ── Single chip ───────────────────────────────────────────────────────────────
