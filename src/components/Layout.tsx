@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/ActivityFeed";
 import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
+import { UserOnboardingModal } from "@/components/UserOnboardingModal";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
@@ -55,6 +56,7 @@ function LayoutInner() {
             </main>
           </div>
           <GlobalCompanion />
+          <UserOnboardingModal />
         </div>
       </CompanionProvider>
     </SidebarProvider>
