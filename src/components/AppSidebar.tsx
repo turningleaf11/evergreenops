@@ -33,7 +33,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
-  const { profile, isAdmin, isPrimaryAdmin, role, signOut } = useAuth();
+  const { profile, isAdmin, isPrimaryAdmin, isLeader, role, signOut } = useAuth();
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
   const { resolvedTheme, setTheme } = useTheme();
@@ -59,19 +59,19 @@ export function AppSidebar() {
 
   const cultureNav = [
     { title: "Feed", url: "/feed", icon: Pizza },
-    { title: "People", url: "/people", icon: Users },
+    ...(isAdmin ? [{ title: "People", url: "/people", icon: Users }] : []),
     { title: "Training", url: "/training", icon: GraduationCap },
   ];
 
   const workNav = [
-    { title: "Execution Hub", url: "/execution", icon: Target },
-    { title: "Process Map", url: "/process-map", icon: Briefcase },
+    ...(isLeader ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
+    ...(isAdmin ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
-    { title: "Deals", url: "/crm/deals", icon: Rocket },
-    { title: "Meetings", url: "/meetings", icon: Video },
+    ...(isAdmin ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
+    ...(isLeader ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
-    { title: "Lists", url: "/databases", icon: DbIcon },
+    ...(isLeader ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
   ];
 
   const reportingNav = [
@@ -80,15 +80,15 @@ export function AppSidebar() {
 
   const addonNav = [
     ...(timeClockEnabled && (isAdmin || userTimeClockEnabled) ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
-    ...(marketResearchEnabled ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
-    ...(contentStudioEnabled ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
-    ...(aiWorkshopEnabled ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
+    ...(marketResearchEnabled && isAdmin ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
+    ...(contentStudioEnabled && isAdmin ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
+    ...(aiWorkshopEnabled && isAdmin ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
-  // AI Hub - always visible (ClawBuddy integration)
-  const aiHubNav = [
+  // AI Hub - CEO only
+  const aiHubNav = isPrimaryAdmin ? [
     { title: "AI Hub", url: "/ai-hub", icon: Sparkles },
-  ];
+  ] : [];
 
   // Click anywhere on the empty space of the collapsed sidebar to expand
   const handleRailClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -255,18 +255,20 @@ export function AppSidebar() {
         )}
 
         {/* AI Hub */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px]">AI Hub</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {aiHubNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <NavItem item={item} />
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {aiHubNav.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px]">AI Hub</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {aiHubNav.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <NavItem item={item} />
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {!collapsed && (

@@ -86,6 +86,22 @@ function PrimaryAdminRoute() {
   return <Outlet />;
 }
 
+/** Restricts a route to admins only. */
+function AdminRoute() {
+  const { isAdmin, loading, roleLoaded } = useAuth();
+  if (loading || !roleLoaded) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
+/** Restricts a route to admins and department leaders. */
+function LeaderRoute() {
+  const { isLeader, loading, roleLoaded } = useAuth();
+  if (loading || !roleLoaded) return null;
+  if (!isLeader) return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
 function PublicRoute() {
   const { user, loading } = useAuth();
 
@@ -144,47 +160,54 @@ const App = () => (
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
                 <Route path="/" element={<Index />} />
+
+                {/* CEO-only */}
                 <Route element={<PrimaryAdminRoute />}>
                   <Route path="/ceo" element={<CeoDashboard />} />
+                  <Route path="/ai-hub" element={<AiHubPage />} />
+                  <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />
+                  <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
                 </Route>
-                <Route path="/leadership/:deptId" element={<LeadershipDashboard />} />
+
+                {/* Admin-only */}
+                <Route element={<AdminRoute />}>
+                  <Route path="/people" element={<PeoplePage />} />
+                  <Route path="/process-map" element={<ProcessMapPage />} />
+                  <Route path="/crm" element={<Navigate to="/crm/contacts" replace />} />
+                  <Route path="/crm/:tab" element={<CrmPage />} />
+                  <Route path="/forms" element={<FormsPage />} />
+                  <Route path="/market-research" element={<MarketResearchPage />} />
+                  <Route path="/content-studio" element={<ContentStudioPage />} />
+                  <Route path="/ai-workshop" element={<AiWorkshopPage />} />
+                </Route>
+
+                {/* Admin or Leader */}
+                <Route element={<LeaderRoute />}>
+                  <Route path="/execution" element={<ExecutionPage />} />
+                  <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                  <Route path="/tasks/:id" element={<TaskDetailPage />} />
+                  <Route path="/issues" element={<Navigate to="/execution" replace />} />
+                  <Route path="/databases" element={<DatabasesPage />} />
+                  <Route path="/databases/:dbId" element={<DatabasesPage />} />
+                  <Route path="/meetings" element={<MeetingsPage />} />
+                  <Route path="/leadership/:deptId" element={<LeadershipDashboard />} />
+                </Route>
+
+                {/* Open to all authenticated users */}
                 <Route path="/department/:id" element={<DepartmentPage />} />
                 <Route path="/docs" element={<DocsPage />} />
-                <Route path="/databases" element={<DatabasesPage />} />
-                <Route path="/databases/:dbId" element={<DatabasesPage />} />
-                <Route path="/people" element={<PeoplePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
                 <Route path="/notes" element={<NotesPage />} />
-                
-                <Route path="/execution" element={<ExecutionPage />} />
-                <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                <Route path="/tasks/:id" element={<TaskDetailPage />} />
-                <Route path="/issues" element={<Navigate to="/execution" replace />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
-
-                {/* Intranet */}
                 <Route path="/feed" element={<CompanyFeedPage />} />
-                <Route path="/forms" element={<FormsPage />} />
                 <Route path="/forms/list/:slug" element={<InternalFormPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
-                <Route path="/crm" element={<Navigate to="/crm/contacts" replace />} />
-                <Route path="/crm/:tab" element={<CrmPage />} />
-                <Route path="/meetings" element={<MeetingsPage />} />
                 <Route path="/scorecard" element={<ScorecardPage />} />
                 <Route path="/settings/integrations/gmail" element={<IntegrationsGmailPage />} />
                 <Route path="/settings/developer" element={<DeveloperPage />} />
                 <Route path="/help" element={<HelpPage />} />
-
-                {/* Add-Ons */}
                 <Route path="/time-clock" element={<TimeClockPage />} />
-                <Route path="/market-research" element={<MarketResearchPage />} />
-                <Route path="/content-studio" element={<ContentStudioPage />} />
-                <Route path="/ai-workshop" element={<AiWorkshopPage />} />
-                <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />
-                <Route path="/ai-hub" element={<AiHubPage />} />
-                <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
-                <Route path="/process-map" element={<ProcessMapPage />} />
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>

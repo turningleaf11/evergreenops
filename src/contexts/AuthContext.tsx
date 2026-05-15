@@ -12,6 +12,7 @@ interface Profile {
   department_id: string | null;
   workspace_id: string | null;
   time_clock_enabled: boolean;
+  is_leader: boolean;
 }
 
 interface AuthContextType {
@@ -22,6 +23,8 @@ interface AuthContextType {
   isAdmin: boolean;
   /** True only for the primary admin (the workspace CEO). Used to gate the CEO Cockpit. */
   isPrimaryAdmin: boolean;
+  /** True if this user is marked as a department leader (or is an admin). */
+  isLeader: boolean;
   loading: boolean;
   /** True once both profile and user_roles queries have completed for the current user. */
   roleLoaded: boolean;
@@ -123,9 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isAdmin = role === "admin";
+  const isLeader = isAdmin || !!profile?.is_leader;
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, loading, roleLoaded, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, isLeader, loading, roleLoaded, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

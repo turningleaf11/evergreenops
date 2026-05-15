@@ -19,13 +19,14 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound, Crown,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
 import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
 import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
+import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -51,15 +52,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("workspace");
 
   if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-3">
-          <ShieldAlert className="h-12 w-12 mx-auto text-muted-foreground opacity-40" />
-          <h2 className="text-lg font-semibold">Access Denied</h2>
-          <p className="text-sm text-muted-foreground">You need admin privileges to access settings.</p>
-        </div>
-      </div>
-    );
+    return <PersonalProfilePanel />;
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -526,6 +519,7 @@ interface DBUser {
   roles: string[];
   is_primary?: boolean;
   time_clock_enabled: boolean;
+  is_leader: boolean;
   email_signature_url: string | null;
 }
 
@@ -549,7 +543,7 @@ function UsersTab() {
     // Fetch all profiles
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled, email_signature_url");
+      .select("user_id, full_name, avatar_url, department_id, time_clock_enabled, is_leader, email_signature_url");
 
     if (!profiles) { setLoading(false); return; }
 
@@ -598,6 +592,12 @@ function UsersTab() {
     await supabase.from("profiles").update({ time_clock_enabled: enabled }).eq("user_id", userId);
     fetchUsers();
     toast({ title: enabled ? "Time clock enabled" : "Time clock disabled" });
+  };
+
+  const handleLeaderToggle = async (userId: string, enabled: boolean) => {
+    await supabase.from("profiles").update({ is_leader: enabled } as any).eq("user_id", userId);
+    fetchUsers();
+    toast({ title: enabled ? "Marked as leader" : "Leader status removed" });
   };
 
   const handleInvite = async () => {
@@ -770,6 +770,10 @@ function UsersTab() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center gap-1.5" title="Mark as department leader">
+                    <Crown className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Switch checked={u.is_leader} onCheckedChange={(v) => handleLeaderToggle(u.user_id, v)} disabled={u.is_primary} />
+                  </div>
                   <div className="flex items-center gap-1.5" title="Time clock access">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                     <Switch checked={u.time_clock_enabled} onCheckedChange={(v) => handleTimeClockToggle(u.user_id, v)} />
