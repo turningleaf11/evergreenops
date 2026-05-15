@@ -4,12 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TRACK_COLORS, TRACK_LABEL, STATUS_COLORS, STATUS_LABEL } from "@/components/orbit/orbit-types";
 import { differenceInDays, format } from "date-fns";
-import { Sparkles, ArrowRight, AlertTriangle, BookOpen, BarChart3 } from "lucide-react";
+import { Sparkles, ArrowRight, AlertTriangle, BookOpen, BarChart3, CheckCircle2, Circle, ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function MyOrbitWidget() {
-  const { member, recentPerformance, strikes, loading } = useMyOrbitMembership();
+  const { member, recentPerformance, strikes, checklist, loading } = useMyOrbitMembership();
 
   if (loading || !member) return null;
 
@@ -79,6 +79,35 @@ export function MyOrbitWidget() {
               <p className="text-xs text-foreground">
                 You have <strong>{strikes.length}/3 strikes</strong>. Stay locked in.
               </p>
+            </div>
+          )}
+
+          {/* Setup checklist — show only when there's anything pending */}
+          {checklist.length > 0 && checklist.some((c) => !c.done) && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ListChecks className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Your director is setting up</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground/60">
+                  {checklist.filter((c) => c.done).length}/{checklist.length}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                {checklist.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2 px-1.5 py-1 text-xs">
+                    {c.done ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Circle className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className={cn(c.done ? "text-muted-foreground/60 line-through" : "text-foreground/90")}>
+                      {c.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

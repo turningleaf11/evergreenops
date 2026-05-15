@@ -9,8 +9,8 @@ import {
   type OrbitMember, type OrbitTrack, type OrbitStatus,
   TRACK_OPTIONS, STATUS_OPTIONS, TRACK_COLORS, STATUS_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
-import { Plus, Search, Users, AlertTriangle, ListChecks } from "lucide-react";
-import { differenceInDays, format } from "date-fns";
+import { Plus, Search, Users, AlertTriangle, ListChecks, TrendingUp, Phone, Calendar, Target, DollarSign } from "lucide-react";
+import { differenceInDays, format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import { AddOrbitMemberDialog } from "./AddOrbitMemberDialog";
 import { OrbitMemberDetailDrawer } from "./OrbitMemberDetailDrawer";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,108 @@ interface MemberRow extends OrbitMember {
 
 function initials(name: string | null) {
   return (name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+// ============== Program Pulse (week-over-week aggregate metrics) ==============
+interface PulseData {
+  thisWeek: { calls: number; appts: number; qualified: number; deals: number; reporting: number };
+  lastWeek: { calls: number; appts: number; qualified: number; deals: number; reporting: number };
+  totalActive: number;
+}
+
+function trend(curr: number, prev: number): { pct: number; up: boolean } {
+  if (prev === 0) return { pct: curr > 0 ? 100 : 0, up: curr >= prev };
+  const pct = Math.round(((curr - prev) / prev) * 100);
+  return { pct: Math.abs(pct), up: curr >= prev };
+}
+
+function ProgramPulse({ memberIds, activeCount }: { memberIds: string[]; activeCount: number }) {
+  const [pulse, setPulse] = useState<PulseData | null>(null);
+
+  useEffect(() => {
+    if (memberIds.length === 0) { setPulse(null); return; }
+    (async () => {
+      const today = new Date();
+      const thisWeekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const thisWeekEnd = format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const lastWeek = subWeeks(today, 1);
+      const lastWeekStart = format(startOfWeek(lastWeek, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const lastWeekEnd = format(endOfWeek(lastWeek, { weekStartsOn: 1 }), "yyyy-MM-dd");
+
+      const { data } = await sb
+        .from("orbit_performance_snapshots")
+        .select("member_id, snapshot_date, calls_made, appointments_set, leads_qualified, deals_closed")
+        .in("member_id", memberIds)
+        .gte("snapshot_date", lastWeekStart)
+        .lte("snapshot_date", thisWeekEnd);
+
+      const rows = (data ?? []) as any[];
+      const acc = (filter: (d: string) => boolean) => {
+        const reporting = new Set<string>();
+        const totals = { calls: 0, appts: 0, qualified: 0, deals: 0 };
+        rows.filter((r) => filter(r.snapshot_date)).forEach((r) => {
+          reporting.add(r.member_id);
+          totals.calls += r.calls_made || 0;
+          totals.appts += r.appointments_set || 0;
+          totals.qualified += r.leads_qualified || 0;
+          totals.deals += r.deals_closed || 0;
+        });
+        return { ...totals, reporting: reporting.size };
+      };
+
+      setPulse({
+        thisWeek: acc((d) => d >= thisWeekStart && d <= thisWeekEnd),
+        lastWeek: acc((d) => d >= lastWeekStart && d <= lastWeekEnd),
+        totalActive: activeCount,
+      });
+    })();
+  }, [memberIds.join(","), activeCount]);
+
+  if (!pulse || pulse.totalActive === 0) return null;
+
+  const metrics: Array<{ label: string; icon: React.ElementType; curr: number; prev: number }> = [
+    { label: "Calls", icon: Phone, curr: pulse.thisWeek.calls, prev: pulse.lastWeek.calls },
+    { label: "Appts", icon: Calendar, curr: pulse.thisWeek.appts, prev: pulse.lastWeek.appts },
+    { label: "Qualified", icon: Target, curr: pulse.thisWeek.qualified, prev: pulse.lastWeek.qualified },
+    { label: "Deals", icon: DollarSign, curr: pulse.thisWeek.deals, prev: pulse.lastWeek.deals },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-gradient-to-br from-primary/[0.03] to-transparent p-4">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className="h-3 w-3 text-primary" />
+          <h3 className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Program Pulse · This Week</h3>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {pulse.thisWeek.reporting}/{pulse.totalActive} members reporting
+        </span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {metrics.map((m) => {
+          const t = trend(m.curr, m.prev);
+          const Icon = m.icon;
+          return (
+            <div key={m.label} className="space-y-0.5">
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                <Icon className="h-2.5 w-2.5" />
+                {m.label}
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-bold text-foreground">{m.curr}</span>
+                {m.prev > 0 && (
+                  <span className={cn("text-[10px] font-medium", t.up ? "text-emerald-600" : "text-rose-600")}>
+                    {t.up ? "↑" : "↓"} {t.pct}%
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] text-muted-foreground/60">vs {m.prev} last wk</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function OrbitRoster({ departmentId }: { departmentId: string }) {
@@ -117,8 +219,13 @@ export function OrbitRoster({ departmentId }: { departmentId: string }) {
 
   const selectedMember = selectedMemberId ? members.find((m) => m.id === selectedMemberId) : null;
 
+  const memberIds = members.map((m) => m.id);
+  const activeCount = members.filter((m) => m.status === "active").length;
+
   return (
     <div className="space-y-4">
+      <ProgramPulse memberIds={memberIds} activeCount={activeCount} />
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">

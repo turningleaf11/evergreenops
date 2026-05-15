@@ -9,6 +9,8 @@ import { TRACK_OPTIONS, TRACK_COLORS, TRACK_LABEL, type OrbitTrack } from "./orb
 import { Search, FileText, Pin, Paperclip, Plus, Download, ExternalLink, Trash2, LayoutGrid, Sparkles, GraduationCap, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMyOrbitMembership } from "@/hooks/useMyOrbitMembership";
+import { useAuth } from "@/contexts/AuthContext";
+import { QuickAddCurriculumDialog } from "./QuickAddCurriculumDialog";
 
 const sb = supabase as any;
 
@@ -108,9 +110,11 @@ function ProgramStats({ departmentId, deptName }: { departmentId: string; deptNa
 }
 
 // ============== Curriculum (track-first resource view) ==============
-function Curriculum({ docs, openDocPreview }: ResourcesProps) {
+function Curriculum({ departmentId, docs, openDocPreview }: ResourcesProps) {
+  const { isAdmin } = useAuth();
   const { member } = useMyOrbitMembership();
   const [search, setSearch] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   // Default to the user's track if they're an Orbit member; otherwise show All
   const [activeTrack, setActiveTrack] = useState<OrbitTrack | "all">(member?.track || "all");
 
@@ -151,11 +155,18 @@ function Curriculum({ docs, openDocPreview }: ResourcesProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-base font-semibold flex items-center gap-2 tracking-tight">
-          <GraduationCap className="h-4 w-4 text-primary" />
-          Curriculum
-          <span className="text-xs font-normal text-muted-foreground/60">({docs.length} {docs.length === 1 ? "doc" : "docs"})</span>
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold flex items-center gap-2 tracking-tight">
+            <GraduationCap className="h-4 w-4 text-primary" />
+            Curriculum
+            <span className="text-xs font-normal text-muted-foreground/60">({docs.length} {docs.length === 1 ? "doc" : "docs"})</span>
+          </h2>
+          {isAdmin && (
+            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="h-7 text-xs gap-1.5">
+              <Plus className="h-3 w-3" /> Add
+            </Button>
+          )}
+        </div>
         <div className="relative w-56">
           <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
           <Input
@@ -248,6 +259,13 @@ function Curriculum({ docs, openDocPreview }: ResourcesProps) {
           })}
         </div>
       )}
+
+      <QuickAddCurriculumDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        departmentId={departmentId}
+        onCreated={() => window.location.reload()}
+      />
     </section>
   );
 }

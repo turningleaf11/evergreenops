@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { OrbitMember, OrbitPerformance, OrbitStrike } from "@/components/orbit/orbit-types";
+import type { OrbitMember, OrbitPerformance, OrbitStrike, OrbitChecklistItem } from "@/components/orbit/orbit-types";
 
 const sb = supabase as any;
 
@@ -9,6 +9,7 @@ export interface MyOrbitData {
   member: OrbitMember | null;
   recentPerformance: OrbitPerformance[];
   strikes: OrbitStrike[];
+  checklist: OrbitChecklistItem[];
 }
 
 /**
@@ -22,7 +23,7 @@ export function useMyOrbitMembership() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) { setData({ member: null, recentPerformance: [], strikes: [] }); setLoading(false); return; }
+    if (!user) { setData({ member: null, recentPerformance: [], strikes: [], checklist: [] }); setLoading(false); return; }
     setLoading(true);
     const { data: m } = await sb
       .from("orbit_members")
@@ -31,20 +32,22 @@ export function useMyOrbitMembership() {
       .maybeSingle();
 
     if (!m) {
-      setData({ member: null, recentPerformance: [], strikes: [] });
+      setData({ member: null, recentPerformance: [], strikes: [], checklist: [] });
       setLoading(false);
       return;
     }
 
-    const [perfRes, strikesRes] = await Promise.all([
+    const [perfRes, strikesRes, checklistRes] = await Promise.all([
       sb.from("orbit_performance_snapshots").select("*").eq("member_id", m.id).order("snapshot_date", { ascending: false }).limit(6),
       sb.from("orbit_strikes").select("*").eq("member_id", m.id).order("strike_number", { ascending: true }),
+      sb.from("orbit_setup_checklist").select("*").eq("member_id", m.id).order("sort_order"),
     ]);
 
     setData({
       member: m as OrbitMember,
       recentPerformance: (perfRes.data ?? []) as OrbitPerformance[],
       strikes: (strikesRes.data ?? []) as OrbitStrike[],
+      checklist: (checklistRes.data ?? []) as OrbitChecklistItem[],
     });
     setLoading(false);
   }, [user]);
