@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TRACK_OPTIONS, TRACK_COLORS, TRACK_LABEL, type OrbitTrack } from "./orbit-types";
 import { Search, FileText, Pin, Paperclip, Plus, Download, ExternalLink, Trash2, LayoutGrid, Sparkles, GraduationCap, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMyOrbitMembership } from "@/hooks/useMyOrbitMembership";
 
 const sb = supabase as any;
 
@@ -108,8 +109,18 @@ function ProgramStats({ departmentId, deptName }: { departmentId: string; deptNa
 
 // ============== Curriculum (track-first resource view) ==============
 function Curriculum({ docs, openDocPreview }: ResourcesProps) {
+  const { member } = useMyOrbitMembership();
   const [search, setSearch] = useState("");
-  const [activeTrack, setActiveTrack] = useState<OrbitTrack | "all">("all");
+  // Default to the user's track if they're an Orbit member; otherwise show All
+  const [activeTrack, setActiveTrack] = useState<OrbitTrack | "all">(member?.track || "all");
+
+  // If the user's membership loads after mount, snap to their track once
+  useEffect(() => {
+    if (member?.track && activeTrack === "all") {
+      setActiveTrack(member.track);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member?.track]);
 
   // Which tracks have any content?
   const tracksWithContent = useMemo(() => {

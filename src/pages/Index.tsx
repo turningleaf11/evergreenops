@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { BriefingPill } from "@/components/home/BriefingPill";
+import { MyOrbitWidget } from "@/components/home/MyOrbitWidget";
 import { GreetingHeader } from "@/components/home/GreetingHeader";
 import { DailyMotivation } from "@/components/home/DailyMotivation";
 import { PinnedAnnouncementsStrip } from "@/components/home/PinnedAnnouncementsStrip";
@@ -47,6 +48,7 @@ const Index = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5">
         {/* Left column — personal work */}
         <div className="lg:col-span-4 md:col-span-1 space-y-5">
+          <MyOrbitWidget />
           <RemindersWidget />
           <MyTasksWidget />
           <RecentDocsWidget />
