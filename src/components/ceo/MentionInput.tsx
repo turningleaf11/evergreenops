@@ -80,7 +80,9 @@ function MentionChip({ mention, onRemove }: { mention: MentionRef; onRemove?: ()
       {onRemove && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          data-mention-remove="1"
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
           className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
         >
           <X className="h-2.5 w-2.5" />

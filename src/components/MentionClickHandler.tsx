@@ -13,6 +13,10 @@ export function MentionClickHandler() {
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
+      // Skip if the click was on a mention-remove button (its own handler removes the chip)
+      const removeBtn = (e.target as HTMLElement)?.closest?.("[data-mention-remove]");
+      if (removeBtn) return;
+
       const target = (e.target as HTMLElement)?.closest?.("[data-type='mention'], .mention-chip") as HTMLElement | null;
       if (!target) return;
       e.preventDefault();
