@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
+import { BriefingPill } from "@/components/home/BriefingPill";
 import { GreetingHeader } from "@/components/home/GreetingHeader";
 import { DailyMotivation } from "@/components/home/DailyMotivation";
 import { PinnedAnnouncementsStrip } from "@/components/home/PinnedAnnouncementsStrip";
@@ -26,6 +27,8 @@ const Index = () => {
   return (
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       <OnboardingBanner />
+
+      <BriefingPill />
 
       {/* Row 1: Greeting (8/12) + Daily Motivation (4/12) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

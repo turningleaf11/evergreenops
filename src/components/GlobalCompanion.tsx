@@ -4,6 +4,7 @@ import { CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Send, Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
+import { useDailyBriefing } from "@/hooks/useDailyBriefing";
 import ReactMarkdown from "react-markdown";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
@@ -27,6 +28,7 @@ const TYPE_LABEL: Record<string, string> = {
 export function GlobalCompanion() {
   const companionCtx = useContext(CompanionContext);
   const { isPrimaryAdmin } = useAuth();
+  const { unread: briefingUnread } = useDailyBriefing();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const messages = companionCtx?.messages ?? [];
@@ -78,11 +80,14 @@ export function GlobalCompanion() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-hidden"
+        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-visible"
         aria-label="Ask Albus"
-        title="Ask Albus"
+        title={briefingUnread ? "Today's briefing from Albus is ready" : "Ask Albus"}
       >
         <AlbusAvatar size="2xl" className="bg-transparent" />
+        {briefingUnread && (
+          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+        )}
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
