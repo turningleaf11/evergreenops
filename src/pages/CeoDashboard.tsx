@@ -224,7 +224,7 @@ export default function CeoDashboard() {
 
           {/* Today Tab */}
           <TabsContent value="today">
-            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* Left — action items */}
               <div className="space-y-4">
                 {isPrimaryAdmin && <TodaysPriorities />}

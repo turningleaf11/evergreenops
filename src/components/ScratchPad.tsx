@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { ScratchPadHistorySheet } from "@/components/ScratchPadHistorySheet";
 import { ScratchPadDiscussSheet } from "@/components/ScratchPadDiscussSheet";
+import { AlbusAvatar } from "@/components/AlbusAvatar";
 
 interface ScratchPadProps {
   onProcess: (text: string, images: string[]) => Promise<void> | void;
@@ -196,7 +197,7 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             className="h-8 gap-1.5 ml-1"
             title="Talk it through with Albus before filing"
           >
-            <span className="text-sm">🧙‍♂️</span>
+            <AlbusAvatar size="sm" />
             <span className="hidden sm:inline text-xs">Discuss</span>
           </Button>
           <Button
