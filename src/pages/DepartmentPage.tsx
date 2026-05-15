@@ -84,6 +84,7 @@ export default function DepartmentPage() {
   const dept = departments.find((d) => d.id === id);
   const navigate = useNavigate();
   const { user, isAdmin, profile } = useAuth();
+  const isDeptLeader = isAdmin || (!!profile?.is_leader && profile?.department_id === id);
 
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -357,7 +358,7 @@ export default function DepartmentPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          {isAdmin && <TabsTrigger value="leadership">Leadership</TabsTrigger>}
+          {isDeptLeader && <TabsTrigger value="leadership">Leadership</TabsTrigger>}
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -646,7 +647,7 @@ export default function DepartmentPage() {
 
         </TabsContent>
 
-        {isAdmin && (
+        {isDeptLeader && (
           <TabsContent value="leadership" className="mt-4">
             <EmbeddedLeadership deptId={id!} />
           </TabsContent>

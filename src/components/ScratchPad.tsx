@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, ImagePlus, Plus, History } from "lucide-react";
+import { Sparkles, Loader2, ImagePlus, Plus, History, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { ScratchPadHistorySheet } from "@/components/ScratchPadHistorySheet";
+import { ScratchPadDiscussSheet } from "@/components/ScratchPadDiscussSheet";
 
 interface ScratchPadProps {
   onProcess: (text: string, images: string[]) => Promise<void> | void;
@@ -35,6 +36,7 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
   const [hovered, setHovered] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [discussOpen, setDiscussOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -187,12 +189,23 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
             {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDiscussOpen(true)}
+            disabled={isEmpty || isProcessing}
+            className="h-8 gap-1.5 ml-1"
+            title="Talk it through with Albus before filing"
+          >
+            <span className="text-sm">🧙‍♂️</span>
+            <span className="hidden sm:inline text-xs">Discuss</span>
+          </Button>
+          <Button
             size="icon"
             variant="default"
             onClick={handleProcess}
             disabled={isProcessing || isEmpty}
             className={cn(
-              "h-8 w-8 ml-1 transition-shadow",
+              "h-8 w-8 transition-shadow",
               state === "focus" && !isEmpty && "shadow-[0_0_16px_hsl(var(--primary)/0.45)]",
             )}
             title="Process & file this page"
@@ -222,6 +235,13 @@ export function ScratchPad({ onProcess, isProcessing }: ScratchPadProps) {
       )}
 
       <ScratchPadHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
+      <ScratchPadDiscussSheet
+        open={discussOpen}
+        onOpenChange={setDiscussOpen}
+        scratchpadText={plainText}
+        scratchpadImages={plainImages}
+        onTriageNow={handleProcess}
+      />
     </div>
   );
 }

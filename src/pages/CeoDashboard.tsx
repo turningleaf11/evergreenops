@@ -12,6 +12,7 @@ import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { ScratchPad } from "@/components/ScratchPad";
 import { AiTriage, type TriageItem } from "@/components/AiTriage";
 import { DelegationBoard } from "@/components/DelegationBoard";
+import { DirectivesStatusBoard } from "@/components/DirectivesStatusBoard";
 import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
@@ -334,7 +335,8 @@ export default function CeoDashboard() {
           </TabsContent>
 
           {/* Delegation Tab */}
-          <TabsContent value="delegation">
+          <TabsContent value="delegation" className="space-y-8">
+            <DirectivesStatusBoard />
             <DelegationBoard />
           </TabsContent>
         </Tabs>
