@@ -27,6 +27,7 @@ import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
 import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
 import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
+import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -848,6 +849,12 @@ function UsersTab() {
                   )}
                 </div>
               </div>
+
+              <UserAccessGrants
+                targetUserId={u.user_id}
+                isPrimary={!!u.is_primary}
+                isAdmin={currentRole === "admin"}
+              />
             </CardContent>
           </Card>
         );

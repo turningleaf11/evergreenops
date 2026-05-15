@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useStrategyFlow, StrategyItem, LeadershipResponseType, STATUS_LABELS } from "@/lib/strategy-flow";
 import { useAuth } from "@/contexts/AuthContext";
-import { Target, ShieldAlert, Gavel, ChevronDown, ChevronRight, Send } from "lucide-react";
+import { Target, ShieldAlert, Gavel, ChevronDown, ChevronRight, Send, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { DirectiveThread } from "@/components/DirectiveThread";
 
 const typeIcons: Record<string, React.ElementType> = {
   objective: Target,
@@ -28,6 +29,7 @@ export function StrategyFeed({ departmentId }: Props) {
   const currentUserId = user?.id || "";
   const items = getItemsForDepartment(departmentId);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const [threadOpen, setThreadOpen] = useState<string | null>(null);
   const [responseType, setResponseType] = useState<LeadershipResponseType>("accept");
   const [form, setForm] = useState({ groundTruth: "", analysis: "", recommendation: "", expectedImpact: "" });
 
@@ -100,8 +102,21 @@ export function StrategyFeed({ departmentId }: Props) {
                 {deptResponse && (
                   <span className="text-[10px] text-emerald-600 font-medium">✓ Responded ({deptResponse.type})</span>
                 )}
+                <button
+                  onClick={() => setThreadOpen(threadOpen === item.id ? null : item.id)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  {threadOpen === item.id ? "Hide thread" : "Thread"}
+                </button>
               </div>
             </div>
+
+            {threadOpen === item.id && (
+              <div className="border-t border-border px-4 py-3 bg-muted/20">
+                <DirectiveThread strategyItemId={item.id} departmentId={departmentId} />
+              </div>
+            )}
 
             {isExpanded && (
               <div className="border-t border-border px-4 py-4 bg-muted/30 space-y-3">

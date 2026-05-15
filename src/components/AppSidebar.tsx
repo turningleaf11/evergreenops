@@ -8,6 +8,7 @@ import {
 import { useIsDeveloperWorkspace } from "@/lib/developer";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
+import { usePageGrants } from "@/hooks/usePageAccess";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -34,6 +35,8 @@ export function AppSidebar() {
   const location = useLocation();
   const isDeptActive = location.pathname.startsWith("/department");
   const { profile, isAdmin, isPrimaryAdmin, isLeader, role, signOut } = useAuth();
+  const { grants } = usePageGrants();
+  const can = (key: string) => isAdmin || grants.has(key as any);
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
   const { departments: allDepartments } = useDepartments();
   const { resolvedTheme, setTheme } = useTheme();
@@ -64,14 +67,14 @@ export function AppSidebar() {
   ];
 
   const workNav = [
-    ...(isLeader ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
+    ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
     ...(isAdmin ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
-    ...(isAdmin ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
+    ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
     ...(isLeader ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
-    ...(isLeader ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
+    ...(isLeader || can("lists") ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
   ];
 
   const reportingNav = [
@@ -80,13 +83,13 @@ export function AppSidebar() {
 
   const addonNav = [
     ...(timeClockEnabled && (isAdmin || userTimeClockEnabled) ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
-    ...(marketResearchEnabled && isAdmin ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
-    ...(contentStudioEnabled && isAdmin ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
-    ...(aiWorkshopEnabled && isAdmin ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
+    ...(marketResearchEnabled && (isAdmin || can("market_research")) ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
+    ...(contentStudioEnabled && (isAdmin || can("content_studio")) ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
+    ...(aiWorkshopEnabled && (isAdmin || can("ai_workshop")) ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
-  // AI Hub - CEO only
-  const aiHubNav = isPrimaryAdmin ? [
+  // AI Hub - CEO baseline, others need grant
+  const aiHubNav = (isPrimaryAdmin || can("ai_hub")) ? [
     { title: "AI Hub", url: "/ai-hub", icon: Sparkles },
   ] : [];
 

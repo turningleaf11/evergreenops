@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { usePageAccess } from "@/hooks/usePageAccess";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { DepartmentsProvider } from "@/contexts/DepartmentsContext";
 import { CEOContextProvider } from "@/lib/ceo-context";
@@ -14,7 +15,6 @@ import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import CeoDashboard from "./pages/CeoDashboard";
-import LeadershipDashboard from "./pages/LeadershipDashboard";
 import DepartmentPage from "./pages/DepartmentPage";
 import DocsPage from "./pages/DocsPage";
 import DatabasesPage from "./pages/DatabasesPage";
@@ -102,6 +102,18 @@ function LeaderRoute() {
   return <Outlet />;
 }
 
+/**
+ * Restricts a route based on role baseline + per-user page grants.
+ * If the user has the required role OR an explicit grant for this page, they're allowed.
+ */
+function PageRoute({ pageKey, minRole }: { pageKey: import("@/hooks/usePageAccess").PageKey; minRole: "admin" | "leader" | "primary_admin" }) {
+  const { loading, roleLoaded } = useAuth();
+  const { allowed, loaded } = usePageAccess(pageKey, minRole);
+  if (loading || !roleLoaded || !loaded) return null;
+  if (!allowed) return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
 function PublicRoute() {
   const { user, loading } = useAuth();
 
@@ -161,36 +173,55 @@ const App = () => (
               <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
                 <Route path="/" element={<Index />} />
 
-                {/* CEO-only */}
+                {/* CEO-only baseline (with optional per-user grant for AI Hub) */}
                 <Route element={<PrimaryAdminRoute />}>
                   <Route path="/ceo" element={<CeoDashboard />} />
+                </Route>
+                <Route element={<PageRoute pageKey="ai_hub" minRole="primary_admin" />}>
                   <Route path="/ai-hub" element={<AiHubPage />} />
                   <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />
                   <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
                 </Route>
 
-                {/* Admin-only */}
+                {/* Admin-only (no grants — hard admin) */}
                 <Route element={<AdminRoute />}>
                   <Route path="/people" element={<PeoplePage />} />
                   <Route path="/process-map" element={<ProcessMapPage />} />
+                </Route>
+
+                {/* Admin baseline + per-user grants */}
+                <Route element={<PageRoute pageKey="crm" minRole="admin" />}>
                   <Route path="/crm" element={<Navigate to="/crm/contacts" replace />} />
                   <Route path="/crm/:tab" element={<CrmPage />} />
+                </Route>
+                <Route element={<PageRoute pageKey="forms" minRole="admin" />}>
                   <Route path="/forms" element={<FormsPage />} />
+                </Route>
+                <Route element={<PageRoute pageKey="market_research" minRole="admin" />}>
                   <Route path="/market-research" element={<MarketResearchPage />} />
+                </Route>
+                <Route element={<PageRoute pageKey="content_studio" minRole="admin" />}>
                   <Route path="/content-studio" element={<ContentStudioPage />} />
+                </Route>
+                <Route element={<PageRoute pageKey="ai_workshop" minRole="admin" />}>
                   <Route path="/ai-workshop" element={<AiWorkshopPage />} />
                 </Route>
 
-                {/* Admin or Leader */}
-                <Route element={<LeaderRoute />}>
+                {/* Leader baseline + per-user grants */}
+                <Route element={<PageRoute pageKey="execution" minRole="leader" />}>
                   <Route path="/execution" element={<ExecutionPage />} />
                   <Route path="/projects/:id" element={<ProjectDetailPage />} />
                   <Route path="/tasks/:id" element={<TaskDetailPage />} />
                   <Route path="/issues" element={<Navigate to="/execution" replace />} />
+                </Route>
+                <Route element={<PageRoute pageKey="lists" minRole="leader" />}>
                   <Route path="/databases" element={<DatabasesPage />} />
                   <Route path="/databases/:dbId" element={<DatabasesPage />} />
+                </Route>
+
+                {/* Leader-only (no grants) */}
+                <Route element={<LeaderRoute />}>
                   <Route path="/meetings" element={<MeetingsPage />} />
-                  <Route path="/leadership/:deptId" element={<LeadershipDashboard />} />
                 </Route>
 
                 {/* Open to all authenticated users */}

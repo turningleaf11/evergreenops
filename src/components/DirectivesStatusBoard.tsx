@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Target, ShieldAlert, Gavel, CheckCircle2, Clock, Send } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { DirectiveThread } from "@/components/DirectiveThread";
 
 const typeIcons: Record<string, React.ElementType> = {
   objective: Target,
@@ -74,6 +75,9 @@ function DirectiveRow({ item }: { item: StrategyItem }) {
             {item.assignedDepartments.length === 0 && (
               <p className="text-xs text-muted-foreground/60 italic">No departments assigned.</p>
             )}
+          </div>
+          <div className="pt-3 border-t border-border/40">
+            <DirectiveThread strategyItemId={item.id} />
           </div>
         </div>
       )}
