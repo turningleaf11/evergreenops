@@ -29,7 +29,7 @@ import { IntegrationCredentials } from "@/components/settings/IntegrationCredent
 import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
 import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -50,7 +50,25 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newDeptName, setNewDeptName] = useState("");
   const [newOnboardingTitle, setNewOnboardingTitle] = useState("");
-  const [activeSection, setActiveSection] = useState("workspace");
+  const location = useLocation();
+  const hashSection = location.hash.replace("#", "");
+  const [activeSection, setActiveSection] = useState(hashSection || "profile");
+
+  // When the URL hash changes (e.g. user clicks a /settings#profile link), open that section
+  useEffect(() => {
+    if (hashSection && hashSection !== activeSection) {
+      setActiveSection(hashSection);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hashSection]);
+
+  // When user clicks a tab inside the page, reflect it in the URL hash
+  useEffect(() => {
+    if (activeSection && location.hash !== `#${activeSection}`) {
+      window.history.replaceState(null, "", `${location.pathname}#${activeSection}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
 
   if (!isAdmin) {
     return <PersonalProfilePanel />;
@@ -100,6 +118,12 @@ export default function SettingsPage() {
   };
 
   const navSections = [
+    {
+      label: "Account",
+      items: [
+        { value: "profile", icon: Users, label: "My Profile" },
+      ],
+    },
     {
       label: "Workspace",
       items: [
@@ -226,6 +250,10 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Workspace Tab */}
+        <TabsContent value="profile" className="mt-4">
+          <PersonalProfilePanel />
+        </TabsContent>
+
         <TabsContent value="workspace" className="mt-4 space-y-4">
           {/* Theme */}
           <Card>
