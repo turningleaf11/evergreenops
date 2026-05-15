@@ -40,10 +40,12 @@ interface Props {
   icon: string | null;
   coverPosition?: number | null;
   editable: boolean;
+  /** When false, hide the inline "Add cover" / "Add icon" buttons (callers can drive those via their own UI) */
+  showEmptyButtons?: boolean;
   onChange: (updates: { cover_url?: string | null; icon?: string | null; cover_position?: number | null }) => void;
 }
 
-export default function DocCover({ coverUrl, icon, coverPosition, editable, onChange }: Props) {
+export default function DocCover({ coverUrl, icon, coverPosition, editable, showEmptyButtons = true, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [repositioning, setRepositioning] = useState(false);
@@ -164,8 +166,8 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
         </Popover>
       )}
 
-      {/* Always-visible Add cover / Add icon when missing */}
-      {editable && (!coverUrl || !icon) && (
+      {/* Always-visible Add cover / Add icon when missing (suppressed via showEmptyButtons) */}
+      {editable && showEmptyButtons && (!coverUrl || !icon) && (
         <div className="flex items-center gap-1 mb-2 -ml-1">
           {!coverUrl && (
             <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground" onClick={() => setPickerOpen(true)}>
@@ -206,7 +208,7 @@ export default function DocCover({ coverUrl, icon, coverPosition, editable, onCh
   );
 }
 
-function EmojiGrid({ onPick, onRemove }: { onPick: (e: string) => void; onRemove?: () => void }) {
+export function EmojiGrid({ onPick, onRemove }: { onPick: (e: string) => void; onRemove?: () => void }) {
   const [filter, setFilter] = useState("");
   const [tab, setTab] = useState<"emoji" | "custom">("emoji");
   const [uploading, setUploading] = useState(false);

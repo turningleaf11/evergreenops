@@ -24,12 +24,15 @@ export interface TrainingModule {
   icon?: string;
 }
 
+export type OnboardingAudience = "everyone" | "admin" | "user";
+
 export interface OnboardingStep {
   id: string;
   title: string;
   description: string;
   link?: string;
   linkLabel?: string;
+  audience: OnboardingAudience;
 }
 
 interface TrainingContextValue {
@@ -78,12 +81,13 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
 
       if (stepRes.data) {
         setOnboardingSteps(
-          stepRes.data.map((s) => ({
+          stepRes.data.map((s: any) => ({
             id: s.id,
             title: s.title,
             description: s.description || "",
             link: s.link || undefined,
             linkLabel: s.link_label || undefined,
+            audience: (s.audience as OnboardingAudience) || "everyone",
           }))
         );
       }
@@ -139,7 +143,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addOnboardingStep = useCallback(async (step: Omit<OnboardingStep, "id">) => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("onboarding_steps")
       .insert({
         title: step.title,
@@ -147,6 +151,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
         link: step.link || null,
         link_label: step.linkLabel || null,
         sort_order: onboardingSteps.length,
+        audience: step.audience || "everyone",
       })
       .select()
       .single();
@@ -158,6 +163,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
         description: data.description || "",
         link: data.link || undefined,
         linkLabel: data.link_label || undefined,
+        audience: (data.audience as OnboardingAudience) || "everyone",
       }]);
     }
   }, [onboardingSteps.length]);
@@ -169,7 +175,8 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.link !== undefined) dbUpdates.link = updates.link || null;
     if (updates.linkLabel !== undefined) dbUpdates.link_label = updates.linkLabel || null;
-    await supabase.from("onboarding_steps").update(dbUpdates).eq("id", id);
+    if (updates.audience !== undefined) dbUpdates.audience = updates.audience;
+    await (supabase as any).from("onboarding_steps").update(dbUpdates).eq("id", id);
   }, []);
 
   const deleteOnboardingStep = useCallback(async (id: string) => {

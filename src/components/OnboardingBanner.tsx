@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTraining } from "@/contexts/TrainingContext";
 import { useTrainingProgress } from "@/lib/training-progress";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -18,11 +19,23 @@ export function OnboardingBanner() {
     getOnboardingProgress,
   } = useTrainingProgress();
   const { onboardingSteps } = useTraining();
+  const { isAdmin } = useAuth();
 
-  const onboardingProgress = getOnboardingProgress(onboardingSteps.length);
+  // Filter by audience: admins see admin + everyone steps; users see user + everyone steps
+  const visibleSteps = useMemo(
+    () => onboardingSteps.filter((s) => {
+      if (s.audience === "everyone") return true;
+      if (s.audience === "admin") return isAdmin;
+      if (s.audience === "user") return !isAdmin;
+      return true;
+    }),
+    [onboardingSteps, isAdmin]
+  );
+
+  const onboardingProgress = getOnboardingProgress(visibleSteps.length);
   const allDone =
-    onboardingSteps.length > 0 &&
-    completedOnboardingSteps.length >= onboardingSteps.length;
+    visibleSteps.length > 0 &&
+    visibleSteps.every((s) => isOnboardingStepComplete(s.id));
 
   // Auto-dismiss when all steps are complete (persists across reloads)
   useEffect(() => {
@@ -33,6 +46,7 @@ export function OnboardingBanner() {
   }, [allDone, onboardingDismissed, dismissOnboarding]);
 
   if (onboardingDismissed) return null;
+  if (visibleSteps.length === 0) return null;
 
   return (
     <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
@@ -64,7 +78,7 @@ export function OnboardingBanner() {
         </div>
 
         <div className="space-y-2">
-          {onboardingSteps.map((step) => {
+          {visibleSteps.map((step) => {
             const checked = isOnboardingStepComplete(step.id);
             return (
               <div key={step.id} className="flex items-start gap-3 py-1">

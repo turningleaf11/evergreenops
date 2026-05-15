@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const handleAddOnboardingStep = () => {
     const title = newOnboardingTitle.trim();
     if (!title) return;
-    training.addOnboardingStep({ title, description: "" });
+    training.addOnboardingStep({ title, description: "", audience: "everyone" });
     setNewOnboardingTitle("");
     toast({ title: "Onboarding step added" });
   };
@@ -431,6 +431,20 @@ export default function SettingsPage() {
                         className="h-7 text-xs w-32"
                         placeholder="Link label"
                       />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Show to:</span>
+                      <Select
+                        value={step.audience || "everyone"}
+                        onValueChange={(v) => training.updateOnboardingStep(step.id, { audience: v as any })}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-40"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="everyone" className="text-xs">Everyone</SelectItem>
+                          <SelectItem value="admin" className="text-xs">Admins only</SelectItem>
+                          <SelectItem value="user" className="text-xs">Non-admins only</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => { training.deleteOnboardingStep(step.id); toast({ title: "Step deleted" }); }}>

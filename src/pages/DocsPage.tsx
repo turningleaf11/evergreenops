@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import BacklinksPanel from "@/components/docs/BacklinksPanel";
-import DocCover from "@/components/docs/DocCover";
+import DocCover, { EmojiGrid } from "@/components/docs/DocCover";
+import CoverPickerDialog from "@/components/docs/CoverPickerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield, Building2, Users, Globe } from "lucide-react";
+import { FileText, Search, ChevronRight, Plus, Trash2, X, Filter, ChevronDown, Shield, Building2, Users, Globe, Info, MoreHorizontal, ImageIcon, Smile, Move } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -488,6 +491,11 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
     onUpdate({ visibility: newVis, sharedWith: newShared });
   };
 
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const updatedRel = (() => { try { return formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true }); } catch { return doc.updatedAt; } })();
+
   return (
     <div className="max-w-none">
       <DocCover
@@ -495,6 +503,7 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
         icon={doc.icon}
         coverPosition={doc.cover_position}
         editable={isAdmin}
+        showEmptyButtons={false}
         onChange={(updates) => onUpdate(updates as Partial<Doc>)}
       />
       <div className="mb-6">
@@ -505,48 +514,109 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           )}
           <div className="flex items-center gap-1 shrink-0">
+            <Popover open={infoOpen} onOpenChange={setInfoOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Info & properties">
+                  <Info className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Created by</p>
+                  <p className="text-xs text-foreground">{doc.author || "Unknown"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Last updated</p>
+                  <p className="text-xs text-foreground">{updatedRel}</p>
+                </div>
+                {isAdmin ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Parent</p>
+                    <Select value={parentId || "none"} onValueChange={(v) => { const newParent = v === "none" ? null : v; setParentId(newParent); onUpdate({ parentId: newParent }); }}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="No parent" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No parent (root)</SelectItem>
+                        {possibleParents.map(d => (
+                          <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Parent</p>
+                    <p className="text-xs text-foreground">{allDocs.find(d => d.id === parentId)?.title || "No parent (root)"}</p>
+                  </div>
+                )}
+                {isAdmin && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Access</p>
+                    <AccessPicker visibility={visibility} sharedWith={sharedWith} onChange={handleAccessChange} />
+                  </div>
+                )}
+                {!isAdmin && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Access</p>
+                    <p className="text-xs capitalize text-foreground">{visibility}</p>
+                  </div>
+                )}
+                {isAdmin && (
+                  <div className="pt-3 border-t space-y-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Page styling</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {!doc.cover_url && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => { setInfoOpen(false); setCoverPickerOpen(true); }}>
+                          <ImageIcon className="h-3 w-3" /> Add cover
+                        </Button>
+                      )}
+                      {!doc.icon && (
+                        <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                              <Smile className="h-3 w-3" /> Add icon
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-2" align="start">
+                            <EmojiGrid onPick={(e) => { onUpdate({ icon: e } as Partial<Doc>); setIconPickerOpen(false); setInfoOpen(false); }} />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {doc.cover_url && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-muted-foreground" onClick={() => onUpdate({ cover_url: null } as Partial<Doc>)}>
+                          <X className="h-3 w-3" /> Remove cover
+                        </Button>
+                      )}
+                      {doc.icon && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-muted-foreground" onClick={() => onUpdate({ icon: null } as Partial<Doc>)}>
+                          <X className="h-3 w-3" /> Remove icon
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/70 italic">When set, hover the cover image to reposition or change.</p>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
             {isAdmin && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete} title="Delete">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Actions">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={() => navigator.clipboard.writeText(window.location.href)} className="text-xs">
+                    Copy link
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:text-destructive">
+                    <Trash2 className="h-3 w-3 mr-2" /> Delete page
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-          <span>{doc.author}</span><span>·</span><span>Updated {doc.updatedAt}</span>
-          <span>·</span>
-          {isAdmin ? (
-            <button onClick={() => setAccessOpen(!accessOpen)} className="flex items-center gap-1 hover:text-foreground transition-colors">
-              <Shield className="h-3 w-3" />
-              <span className="capitalize">{visibility}</span>
-            </button>
-          ) : (
-            <span className="capitalize">{visibility}</span>
-          )}
-          {isAdmin && (
-            <>
-              <span>·</span>
-              <Select value={parentId || "none"} onValueChange={(v) => { const newParent = v === "none" ? null : v; setParentId(newParent); onUpdate({ parentId: newParent }); }}>
-                <SelectTrigger className="h-6 w-auto gap-1 border-none shadow-none px-1 text-xs text-muted-foreground hover:text-foreground">
-                  <SelectValue placeholder="No parent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No parent (root)</SelectItem>
-                  {possibleParents.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-        </div>
-
-        {/* Access Picker (collapsible, post-creation) */}
-        {isAdmin && accessOpen && (
-          <div className="mt-3 p-3 border rounded-lg bg-muted/30">
-            <AccessPicker visibility={visibility} sharedWith={sharedWith} onChange={handleAccessChange} />
-          </div>
-        )}
 
         <div className="flex items-center gap-1.5 mt-3 flex-wrap">
           {tags.map((tag) => (
@@ -606,6 +676,13 @@ function InlineDocEditor({ doc, allDocs, isAdmin, onUpdate, onDelete, childDocs,
       )}
 
       <BacklinksPanel entityId={doc.id} />
+
+      <CoverPickerDialog
+        open={coverPickerOpen}
+        onOpenChange={setCoverPickerOpen}
+        hasCover={!!doc.cover_url}
+        onSelect={(value) => onUpdate({ cover_url: value, cover_position: 50 } as Partial<Doc>)}
+      />
     </div>
   );
 }

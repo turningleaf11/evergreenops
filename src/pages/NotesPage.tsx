@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import BacklinksPanel from "@/components/docs/BacklinksPanel";
-import DocCover from "@/components/docs/DocCover";
+import DocCover, { EmojiGrid } from "@/components/docs/DocCover";
+import CoverPickerDialog from "@/components/docs/CoverPickerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, FileText, ArrowRight, Trash2, BookOpen, MoreHorizontal, Pencil, X, Share2, Globe, Pin, PinOff, Palette } from "lucide-react";
+import { Plus, FileText, ArrowRight, Trash2, BookOpen, MoreHorizontal, Pencil, X, Share2, Globe, Pin, PinOff, Palette, Info, ImageIcon, Smile } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
@@ -69,6 +72,9 @@ export default function NotesPage() {
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertTitle, setConvertTitle] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   // Sidebar state
   const [activeView, setActiveView] = useState<"all" | "pinned" | string>("all"); // string = notebook id
@@ -645,9 +651,73 @@ export default function NotesPage() {
                 {selectedNote?.converted_doc_id && (
                   <span className="text-[10px] text-muted-foreground px-2 py-1 bg-muted rounded-full">Converted</span>
                 )}
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => deleteNote(selectedId)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+
+                <Popover open={infoOpen} onOpenChange={setInfoOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Info & properties">
+                      <Info className="h-3.5 w-3.5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 p-4 space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Created</p>
+                      <p className="text-xs text-foreground">{selectedNote?.created_at ? (() => { try { return formatDistanceToNow(new Date(selectedNote.created_at), { addSuffix: true }); } catch { return ""; } })() : ""}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Updated</p>
+                      <p className="text-xs text-foreground">{selectedNote?.updated_at ? (() => { try { return formatDistanceToNow(new Date(selectedNote.updated_at), { addSuffix: true }); } catch { return ""; } })() : ""}</p>
+                    </div>
+                    <div className="pt-3 border-t space-y-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Page styling</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {!selectedNote?.cover_url && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => { setInfoOpen(false); setCoverPickerOpen(true); }}>
+                            <ImageIcon className="h-3 w-3" /> Add cover
+                          </Button>
+                        )}
+                        {!selectedNote?.icon && (
+                          <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+                            <PopoverTrigger asChild>
+                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                                <Smile className="h-3 w-3" /> Add icon
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-2" align="start">
+                              <EmojiGrid onPick={(e) => { if (selectedId) { mergeNoteLocally(selectedId, { icon: e } as Partial<Note>); saveNote(selectedId, { icon: e } as Partial<Note>); } setIconPickerOpen(false); setInfoOpen(false); }} />
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        {selectedNote?.cover_url && (
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-muted-foreground" onClick={() => { if (selectedId) { mergeNoteLocally(selectedId, { cover_url: null } as Partial<Note>); saveNote(selectedId, { cover_url: null } as Partial<Note>); } }}>
+                            <X className="h-3 w-3" /> Remove cover
+                          </Button>
+                        )}
+                        {selectedNote?.icon && (
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5 text-muted-foreground" onClick={() => { if (selectedId) { mergeNoteLocally(selectedId, { icon: null } as Partial<Note>); saveNote(selectedId, { icon: null } as Partial<Note>); } }}>
+                            <X className="h-3 w-3" /> Remove icon
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Actions">
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => navigator.clipboard.writeText(window.location.href)} className="text-xs">
+                      Copy link
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => selectedId && deleteNote(selectedId)} className="text-xs text-destructive focus:text-destructive">
+                      <Trash2 className="h-3 w-3 mr-2" /> Delete note
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-white dark:bg-card">
@@ -657,6 +727,7 @@ export default function NotesPage() {
                   icon={selectedNote?.icon ?? null}
                   coverPosition={selectedNote?.cover_position ?? null}
                   editable={true}
+                  showEmptyButtons={false}
                   onChange={(updates) => {
                     if (!selectedId) return;
                     mergeNoteLocally(selectedId, updates as Partial<Note>);
@@ -690,6 +761,20 @@ export default function NotesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cover picker dialog (driven by Info popover) */}
+      {selectedNote && (
+        <CoverPickerDialog
+          open={coverPickerOpen}
+          onOpenChange={setCoverPickerOpen}
+          hasCover={!!selectedNote.cover_url}
+          onSelect={(value) => {
+            if (!selectedId) return;
+            mergeNoteLocally(selectedId, { cover_url: value, cover_position: 50 } as Partial<Note>);
+            saveNote(selectedId, { cover_url: value, cover_position: 50 } as Partial<Note>);
+          }}
+        />
+      )}
 
       {/* Share dialog */}
       {selectedNote && (
