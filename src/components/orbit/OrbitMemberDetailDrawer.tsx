@@ -14,7 +14,7 @@ import {
   type OrbitTrack, type OrbitStatus,
   TRACK_OPTIONS, STATUS_OPTIONS, STATUS_COLORS, TRACK_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
-import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,10 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
   const [newPerfDate, setNewPerfDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [newPerf, setNewPerf] = useState({ calls_made: 0, appointments_set: 0, leads_qualified: 0, deals_closed: 0 });
   const [savingPerf, setSavingPerf] = useState(false);
+
+  // Permanent delete confirm
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open || !memberId) return;
@@ -177,6 +181,17 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
     if (!memberId) return;
     await updateMember({ notes });
     toast.success("Notes saved");
+  };
+
+  const deleteMember = async () => {
+    if (!memberId) return;
+    setDeleting(true);
+    const { error } = await sb.from("orbit_members").delete().eq("id", memberId);
+    setDeleting(false);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success("Member removed from program");
+    onChanged();
+    onOpenChange(false);
   };
 
   return (
@@ -375,6 +390,29 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                   placeholder="Internal notes about this member…"
                   className="text-xs min-h-[80px]"
                 />
+              </section>
+
+              {/* Danger zone — permanent remove */}
+              <section className="space-y-2 pt-4 border-t border-destructive/20">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-destructive/80 flex items-center gap-1.5">
+                  <UserMinus className="h-3 w-3" /> Remove from program
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  This deletes the member's roster record, checklist, strikes, and performance history. Use <strong>Status → Removed</strong> if you want to keep their history instead.
+                </p>
+                {!confirmDelete ? (
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(true)} className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5">
+                    <UserMinus className="h-3 w-3" /> Permanently remove
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="destructive" onClick={deleteMember} disabled={deleting} className="gap-1.5">
+                      {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                      Yes, delete everything
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                  </div>
+                )}
               </section>
             </div>
           </>

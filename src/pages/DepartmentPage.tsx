@@ -36,10 +36,11 @@ import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { OrbitRoster } from "@/components/orbit/OrbitRoster";
+import { ProgramOverview } from "@/components/orbit/ProgramOverview";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
-interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; tags: string[] | null; }
+interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; tags: string[] | null; icon?: string | null; }
 interface DB { id: string; title: string; description: string | null; icon: string | null; visibility: string; shared_with: any; }
 interface Goal { id: string; title: string; progress: number; status: string; quarter: string; }
 interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; }
@@ -122,7 +123,7 @@ export default function DepartmentPage() {
       const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, strategyRes, allProfilesRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id").eq("department_id", id),
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
-        supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags"),
+        supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon"),
         supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
         supabase.from("goals").select("id, title, progress, status, quarter").eq("department_id", id).eq("year", currentYear),
         supabase.from("projects").select("id, title, status, priority, owner_id").eq("department_id", id),
@@ -380,6 +381,16 @@ export default function DepartmentPage() {
             </section>
           )}
 
+          {dept.is_program && (
+            <ProgramOverview
+              departmentId={id!}
+              deptName={dept.name}
+              docs={docs}
+              openDocPreview={openDocPreview}
+            />
+          )}
+
+          {!dept.is_program && <>
           {/* DEPARTMENT FOCUS — hero section */}
           <section>
             <Card className="border-2" style={{ borderColor: `hsl(${deptColor} / 0.3)` }}>
@@ -533,6 +544,7 @@ export default function DepartmentPage() {
 
           {/* RESOURCES & PLAYBOOKS — Tag-grouped with filter */}
           <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
+          </>}
 
 
           {/* PINBOARD */}
