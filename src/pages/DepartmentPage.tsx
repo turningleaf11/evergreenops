@@ -35,6 +35,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { OrbitRoster } from "@/components/orbit/OrbitRoster";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
@@ -358,6 +359,7 @@ export default function DepartmentPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {dept.is_program && isAdmin && <TabsTrigger value="roster">Roster</TabsTrigger>}
           {isDeptLeader && <TabsTrigger value="leadership">Leadership</TabsTrigger>}
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -606,6 +608,12 @@ export default function DepartmentPage() {
 
 
         </TabsContent>
+
+        {dept.is_program && isAdmin && (
+          <TabsContent value="roster" className="mt-4">
+            <OrbitRoster departmentId={id!} />
+          </TabsContent>
+        )}
 
         {isDeptLeader && (
           <TabsContent value="leadership" className="mt-4">

@@ -9,6 +9,7 @@ export interface Department {
   icon: string;
   color: string;
   sort_order: number;
+  is_program: boolean;
 }
 
 interface DepartmentsContextValue {
@@ -36,13 +37,14 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
 
     if (data) {
       setDepartments(
-        data.map((d) => ({
+        data.map((d: any) => ({
           id: d.id,
           name: d.name,
           description: d.description || "",
           icon: d.icon || "Building2",
           color: d.color || "220 65% 48%",
           sort_order: d.sort_order || 0,
+          is_program: !!d.is_program,
         }))
       );
     }
