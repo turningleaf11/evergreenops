@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // ---- Types ----
 
-export type StrategyItemType = "objective" | "constraint" | "decision";
+export type StrategyItemType = "note" | "idea" | "objective" | "constraint" | "decision";
 export type StrategyItemStatus = "new" | "acknowledged" | "in_execution" | "resolved";
 export type LeadershipResponseType = "accept" | "refine" | "challenge";
 export type UpwardProposalType = "strategy_change" | "escalate_constraint" | "request_decision" | "flag_misalignment";

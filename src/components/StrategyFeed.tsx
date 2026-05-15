@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useStrategyFlow, StrategyItem, LeadershipResponseType, STATUS_LABELS } from "@/lib/strategy-flow";
 import { useAuth } from "@/contexts/AuthContext";
-import { Target, ShieldAlert, Gavel, ChevronDown, ChevronRight, Send, MessageSquare } from "lucide-react";
+import { Target, ShieldAlert, Gavel, ChevronDown, ChevronRight, Send, MessageSquare, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { DirectiveThread } from "@/components/DirectiveThread";
 
 const typeIcons: Record<string, React.ElementType> = {
+  note: MessageSquare,
+  idea: Lightbulb,
   objective: Target,
   constraint: ShieldAlert,
   decision: Gavel,

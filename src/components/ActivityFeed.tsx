@@ -109,32 +109,82 @@ export function ActivityFeed({ limit = 20 }: { limit?: number }) {
   );
 }
 
+interface PersonalNotification {
+  id: string;
+  actor_name: string | null;
+  type: string;
+  body: string;
+  url: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
 export function NotificationBell() {
-  const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [personal, setPersonal] = useState<PersonalNotification[]>([]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const unreadCount = personal.filter((n) => !n.read_at).length;
 
   useEffect(() => {
-    const fetchRecent = async () => {
-      const { data } = await supabase
-        .from("activity_events")
-        .select("id, actor_name, action, entity_type, entity_title, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (data) setEvents(data);
-    };
-    fetchRecent();
+    let mounted = true;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!mounted || !user) return;
+      setUserId(user.id);
 
-    const channel = supabase
-      .channel("notification_bell")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_events" }, (payload) => {
-        setCount((c) => c + 1);
-        setEvents((prev) => [payload.new as ActivityEvent, ...prev].slice(0, 5));
-      })
-      .subscribe();
+      const [{ data: notifs }, { data: acts }] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id, actor_name, type, body, url, read_at, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("activity_events")
+          .select("id, actor_name, action, entity_type, entity_title, created_at")
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
+      if (!mounted) return;
+      if (notifs) setPersonal(notifs as PersonalNotification[]);
+      if (acts) setEvents(acts as ActivityEvent[]);
 
-    return () => { supabase.removeChannel(channel); };
+      const channel = supabase
+        .channel("notification_bell")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            setPersonal((prev) => [payload.new as PersonalNotification, ...prev].slice(0, 20));
+          },
+        )
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_events" }, (payload) => {
+          setEvents((prev) => [payload.new as ActivityEvent, ...prev].slice(0, 5));
+        })
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    })();
+    return () => { mounted = false; };
   }, []);
+
+  const markAllRead = async () => {
+    if (!userId) return;
+    const unread = personal.filter((n) => !n.read_at).map((n) => n.id);
+    if (unread.length === 0) return;
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", unread);
+    setPersonal((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })));
+  };
+
+  const handleClick = async (n: PersonalNotification) => {
+    if (!n.read_at) {
+      await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+      setPersonal((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+    }
+    if (n.url) window.location.href = n.url;
+  };
 
   const closeTimer = useRef<number | null>(null);
   const cancelClose = () => {
@@ -148,33 +198,61 @@ export function NotificationBell() {
   return (
     <div className="relative" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
       <button
-        onClick={() => { setOpen(!open); setCount(0); }}
+        onClick={() => setOpen(!open)}
         className="relative p-2 rounded-md hover:bg-muted transition-colors"
       >
         <Bell className="h-4 w-4" />
-        {count > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
-            {count > 9 ? "9+" : count}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-popover shadow-lg z-50 p-3">
-          <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Notifications</p>
-          {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No recent notifications.</p>
+        <div className="absolute right-0 top-full mt-2 w-96 rounded-lg border bg-popover shadow-lg z-50 p-3 max-h-[480px] overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">For you</p>
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} className="text-[10px] text-primary hover:text-primary/80">
+                Mark all read
+              </button>
+            )}
+          </div>
+          {personal.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No notifications yet.</p>
           ) : (
-            <div className="space-y-2">
-              {events.map((e) => (
-                <div key={e.id} className="text-xs p-2 rounded hover:bg-muted transition-colors">
-                  <span className="font-medium">{e.actor_name}</span>{" "}
-                  <span className="text-muted-foreground">{actionLabels[e.action] || e.action}</span>
-                  {e.entity_title && <span className="font-medium"> "{e.entity_title}"</span>}
-                  <p className="text-muted-foreground mt-0.5">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
-                </div>
+            <div className="space-y-1">
+              {personal.slice(0, 10).map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => handleClick(n)}
+                  className={`w-full text-left text-xs p-2 rounded transition-colors ${n.read_at ? "hover:bg-muted" : "bg-primary/5 hover:bg-primary/10"}`}
+                >
+                  <div>
+                    <span className="font-medium">{n.actor_name || "Someone"}</span>{" "}
+                    <span className="text-muted-foreground">{n.body}</span>
+                  </div>
+                  <p className="text-muted-foreground/70 mt-0.5">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
+                </button>
               ))}
             </div>
+          )}
+
+          {events.length > 0 && (
+            <>
+              <p className="text-xs font-semibold mt-3 mb-2 text-muted-foreground uppercase tracking-wider">Recent activity</p>
+              <div className="space-y-1">
+                {events.map((e) => (
+                  <div key={e.id} className="text-xs p-2 rounded hover:bg-muted transition-colors">
+                    <span className="font-medium">{e.actor_name}</span>{" "}
+                    <span className="text-muted-foreground">{actionLabels[e.action] || e.action}</span>
+                    {e.entity_title && <span className="font-medium"> "{e.entity_title}"</span>}
+                    <p className="text-muted-foreground/70 mt-0.5">{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</p>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

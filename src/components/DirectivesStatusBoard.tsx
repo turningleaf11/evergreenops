@@ -3,11 +3,13 @@ import { useStrategyFlow, STATUS_LABELS, StrategyItem } from "@/lib/strategy-flo
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Target, ShieldAlert, Gavel, CheckCircle2, Clock, Send } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, ShieldAlert, Gavel, CheckCircle2, Clock, Send, MessageSquare, Lightbulb } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DirectiveThread } from "@/components/DirectiveThread";
 
 const typeIcons: Record<string, React.ElementType> = {
+  note: MessageSquare,
+  idea: Lightbulb,
   objective: Target,
   constraint: ShieldAlert,
   decision: Gavel,

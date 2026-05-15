@@ -74,6 +74,51 @@ export function DirectiveThread({ strategyItemId, departmentId }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages.length]);
 
+  const fanOutNotifications = async (messageBody: string, messageId: string) => {
+    if (!user) return;
+    // Look up directive + recipients
+    const { data: item } = await sb
+      .from("strategy_items")
+      .select("title, created_by, assigned_departments")
+      .eq("id", strategyItemId)
+      .maybeSingle();
+    if (!item) return;
+
+    const recipients = new Set<string>();
+    if (item.created_by && item.created_by !== user.id) {
+      recipients.add(item.created_by);
+    }
+    const deptIds: string[] = item.assigned_departments || [];
+    if (deptIds.length > 0) {
+      const { data: leaders } = await sb
+        .from("profiles")
+        .select("user_id")
+        .in("department_id", deptIds)
+        .eq("is_leader", true);
+      (leaders ?? []).forEach((l: any) => {
+        if (l.user_id && l.user_id !== user.id) recipients.add(l.user_id);
+      });
+    }
+
+    if (recipients.size === 0) return;
+
+    const { data: actorProf } = await sb.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+    const actorName = (actorProf as any)?.full_name || "Someone";
+    const preview = messageBody.length > 140 ? messageBody.slice(0, 140) + "…" : messageBody;
+
+    const rows = Array.from(recipients).map((uid) => ({
+      user_id: uid,
+      actor_id: user.id,
+      actor_name: actorName,
+      type: "directive_message",
+      entity_type: "strategy_item",
+      entity_id: strategyItemId,
+      body: `replied on "${item.title}": ${preview}`,
+      url: "/ceo",
+    }));
+    await sb.from("notifications").insert(rows);
+  };
+
   const send = async () => {
     const body = input.trim();
     if (!body || !user || sending) return;
@@ -94,6 +139,8 @@ export function DirectiveThread({ strategyItemId, departmentId }: Props) {
     if (data) {
       setMessages((prev) => [...prev, data as Message]);
       setInput("");
+      // Fire-and-forget fan-out
+      fanOutNotifications(body, (data as Message).id).catch((e) => console.error("Notify fan-out failed:", e));
     }
   };
 
