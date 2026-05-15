@@ -11,6 +11,7 @@ interface WorkspaceState {
   accentColor: string | null;
   ceoPageName: string;
   deptLabel: string;
+  albusAvatarUrl: string | null;
 }
 
 interface WorkspaceContextValue extends WorkspaceState {
@@ -20,7 +21,9 @@ interface WorkspaceContextValue extends WorkspaceState {
   setAccentColor: (hue: string | null) => void;
   setCeoPageName: (name: string) => void;
   setDeptLabel: (label: string) => void;
+  setAlbusAvatarUrl: (url: string | null) => void;
   uploadLogo: (file: File) => Promise<string | null>;
+  uploadAlbusAvatar: (file: File) => Promise<string | null>;
   loading: boolean;
 }
 
@@ -71,7 +74,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     accentColor: null,
     ceoPageName: "CEO Cockpit",
     deptLabel: "Departments",
-    
+    albusAvatarUrl: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +98,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           accentColor: data.accent_color || null,
           ceoPageName: (data as any).ceo_page_name || "CEO Cockpit",
           deptLabel: (data as any).dept_label || "Departments",
-          
+          albusAvatarUrl: (data as any).albus_avatar_url || null,
         });
       }
       setLoading(false);
@@ -126,6 +129,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return url;
   }, []);
 
+  const uploadAlbusAvatar = useCallback(async (file: File): Promise<string | null> => {
+    const url = await uploadFile(file);
+    if (url) {
+      setState((prev) => ({ ...prev, albusAvatarUrl: url }));
+    }
+    return url;
+  }, []);
+
   // Persist to DB whenever state changes (debounced effect)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -141,7 +152,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         accent_color: s.accentColor,
         ceo_page_name: s.ceoPageName,
         dept_label: s.deptLabel,
-        
+        albus_avatar_url: s.albusAvatarUrl,
       } as any)
       .eq("id", s.id);
   }, [isAdmin]);
@@ -167,8 +178,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setAccentColor: (accentColor) => persist({ accentColor }),
         setCeoPageName: (ceoPageName) => persist({ ceoPageName }),
         setDeptLabel: (deptLabel) => persist({ deptLabel }),
-        
+        setAlbusAvatarUrl: (albusAvatarUrl) => persist({ albusAvatarUrl }),
         uploadLogo,
+        uploadAlbusAvatar,
       }}
     >
       {children}

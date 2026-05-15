@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Send, Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
+import { AlbusAvatar } from "@/components/AlbusAvatar";
 import ReactMarkdown from "react-markdown";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
@@ -77,11 +78,11 @@ export function GlobalCompanion() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 text-xl"
+        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-hidden"
         aria-label="Ask Albus"
         title="Ask Albus"
       >
-        🧙‍♂️
+        <AlbusAvatar size="2xl" className="bg-transparent" />
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -199,7 +200,7 @@ export function GlobalCompanion() {
           <div className="flex-1 flex flex-col min-w-0">
             <SheetHeader className="px-5 py-4 border-b border-border">
               <SheetTitle className="flex items-center gap-2 text-base">
-                <span className="text-base">🧙‍♂️</span>
+                <AlbusAvatar size="md" />
                 Albus
               </SheetTitle>
             </SheetHeader>
@@ -207,7 +208,7 @@ export function GlobalCompanion() {
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               {messages.length === 0 && (
                 <div className="text-center py-12 space-y-3">
-                  <span className="text-4xl block">🧙‍♂️</span>
+                  <div className="flex justify-center"><AlbusAvatar size="2xl" /></div>
                   <p className="text-sm text-muted-foreground">Your chief of staff. Bring me decisions, blockers, or anything that's taking up space in your head.</p>
                   <div className="space-y-1.5">
                     {[
@@ -234,9 +235,7 @@ export function GlobalCompanion() {
                 return (
                   <div key={msg.id ?? i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
                     {isAssistant && (
-                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 text-sm">
-                        🧙‍♂️
-                      </div>
+                      <AlbusAvatar size="md" className="mt-0.5" />
                     )}
                     <div className="max-w-[85%] flex flex-col items-start gap-1">
                       <div className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${

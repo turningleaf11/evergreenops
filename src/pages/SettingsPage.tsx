@@ -314,6 +314,8 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          <AlbusAvatarCard />
+
           {isPrimaryAdmin && (
             <Card>
               <CardHeader>
@@ -536,6 +538,63 @@ interface DBUser {
   time_clock_enabled: boolean;
   is_leader: boolean;
   email_signature_url: string | null;
+}
+
+function AlbusAvatarCard() {
+  const workspace = useWorkspace();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Avatar must be under 2MB.", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    const url = await workspace.uploadAlbusAvatar(file);
+    setUploading(false);
+    if (url) toast({ title: "Albus avatar updated" });
+    else toast({ title: "Upload failed", variant: "destructive" });
+    e.target.value = "";
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="text-base">🧙‍♂️</span> Albus Avatar
+        </CardTitle>
+        <CardDescription>
+          Customize the image shown on the AI chat icon and inside Albus's messages. Defaults to the wizard emoji.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-4">
+          {workspace.albusAvatarUrl ? (
+            <img src={workspace.albusAvatarUrl} alt="Albus" className="h-14 w-14 rounded-full object-cover border" />
+          ) : (
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-3xl">🧙‍♂️</div>
+          )}
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> {uploading ? "Uploading…" : "Upload image"}
+            </Button>
+            {workspace.albusAvatarUrl && (
+              <Button size="sm" variant="ghost" onClick={() => { workspace.setAlbusAvatarUrl(null); toast({ title: "Reverted to default emoji" }); }}>
+                Reset to default
+              </Button>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Tip: square images at 256×256px or larger work best. Animated GIFs supported.
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
 function UsersTab() {

@@ -5,6 +5,7 @@ import { useCEOContext } from "@/lib/ceo-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import { AlbusAvatar } from "@/components/AlbusAvatar";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -158,7 +159,7 @@ export function ScratchPadDiscussSheet({ open, onOpenChange, scratchpadText, scr
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0">
         <SheetHeader className="px-5 py-4 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-base">
-            <span className="text-base">🧙‍♂️</span>
+            <AlbusAvatar size="md" />
             Talk it through with Albus
           </SheetTitle>
         </SheetHeader>
@@ -178,7 +179,7 @@ export function ScratchPadDiscussSheet({ open, onOpenChange, scratchpadText, scr
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8 space-y-3">
-              <span className="text-3xl block">🧙‍♂️</span>
+              <div className="flex justify-center"><AlbusAvatar size="2xl" /></div>
               <p className="text-sm text-muted-foreground">I've got your dump. What do you want to think through first?</p>
               <div className="space-y-1.5 pt-2">
                 {STARTER_PROMPTS.map((q) => (
@@ -197,9 +198,7 @@ export function ScratchPadDiscussSheet({ open, onOpenChange, scratchpadText, scr
           {messages.filter((m) => m.role !== "system").map((msg, i) => (
             <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
               {msg.role === "assistant" && (
-                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 text-sm">
-                  🧙‍♂️
-                </div>
+                <AlbusAvatar size="md" className="mt-0.5" />
               )}
               <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
@@ -219,7 +218,7 @@ export function ScratchPadDiscussSheet({ open, onOpenChange, scratchpadText, scr
 
           {loading && !messages.some((m, i) => m.role === "assistant" && i === messages.length - 1) && (
             <div className="flex gap-2.5">
-              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-sm">🧙‍♂️</div>
+              <AlbusAvatar size="md" />
               <div className="bg-muted rounded-xl px-3.5 py-2.5 text-sm text-muted-foreground">Thinking...</div>
             </div>
           )}

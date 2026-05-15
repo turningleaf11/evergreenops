@@ -4,6 +4,7 @@ import { useCEOContext } from "@/lib/ceo-context";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { AlbusAvatar } from "@/components/AlbusAvatar";
 
 interface Message {
   role: "user" | "assistant";
@@ -156,7 +157,7 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="px-5 py-4 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-base">
-            <span className="text-base">🧙‍♂️</span>
+            <AlbusAvatar size="md" />
             Albus
           </SheetTitle>
         </SheetHeader>
@@ -165,7 +166,7 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 space-y-3">
-              <span className="text-4xl block">🧙‍♂️</span>
+              <div className="flex justify-center"><AlbusAvatar size="2xl" /></div>
               <p className="text-sm text-muted-foreground">Ask Albus anything about your strategy, priorities, or decisions.</p>
               <div className="space-y-1.5">
                 {["What needs my attention right now?", "What should I delegate and to whom?", "Help me think through a decision"].map((q) => (
@@ -184,9 +185,7 @@ export function CeoAiChat({ open, onOpenChange }: CeoAiChatProps) {
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
               {msg.role === "assistant" && (
-                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot className="h-3.5 w-3.5 text-primary" />
-                </div>
+                <AlbusAvatar size="md" className="mt-0.5" />
               )}
               <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user" 

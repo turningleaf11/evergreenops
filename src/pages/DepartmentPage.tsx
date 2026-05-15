@@ -38,7 +38,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
-interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; }
+interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; tags: string[] | null; }
 interface DB { id: string; title: string; description: string | null; icon: string | null; visibility: string; shared_with: any; }
 interface Goal { id: string; title: string; progress: number; status: string; quarter: string; }
 interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; }
@@ -121,7 +121,7 @@ export default function DepartmentPage() {
       const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, strategyRes, allProfilesRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id").eq("department_id", id),
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
-        supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with"),
+        supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags"),
         supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
         supabase.from("goals").select("id, title, progress, status, quarter").eq("department_id", id).eq("year", currentYear),
         supabase.from("projects").select("id, title, status, priority, owner_id").eq("department_id", id),
@@ -529,62 +529,9 @@ export default function DepartmentPage() {
             </div>
           </section>
 
-          {/* RESOURCES & PLAYBOOKS — Organized */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <BookOpen className="h-4 w-4" /> Resources & Playbooks
-            </h2>
+          {/* RESOURCES & PLAYBOOKS — Tag-grouped with filter */}
+          <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
 
-            {docs.length === 0 && dbs.length === 0 && pinboardItems.length === 0 ? (
-              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No shared resources yet</CardContent></Card>
-            ) : (
-              <div className="space-y-2">
-                {/* Documents Category */}
-                {docs.length > 0 && (
-                  <Collapsible defaultOpen>
-                    <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors">
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:rotate-[-90deg]" />
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Documents ({docs.length})</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-6 mt-1 space-y-0.5">
-                        {docs.map(d => (
-                          <button key={d.id} onClick={() => openDocPreview(d.id)} className="w-full text-left flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors group">
-                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-sm truncate flex-1">{d.title}</span>
-                            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">{d.author_name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-
-                {/* Lists Category */}
-                {dbs.length > 0 && (
-                  <Collapsible defaultOpen>
-                    <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-muted/50 transition-colors">
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:rotate-[-90deg]" />
-                      <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lists ({dbs.length})</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-6 mt-1 space-y-0.5">
-                        {dbs.map(d => (
-                          <Link key={d.id} to={`/databases/${d.id}`} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors">
-                            <Database className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-sm truncate flex-1">{d.title}</span>
-                            {d.description && <span className="text-[10px] text-muted-foreground truncate max-w-32">{d.description}</span>}
-                          </Link>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-              </div>
-            )}
-          </section>
 
           {/* PINBOARD */}
           <section className="space-y-3">
@@ -603,44 +550,57 @@ export default function DepartmentPage() {
             </div>
             {pinboardItems.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {pinboardItems.map(pin => (
-                  <Card key={pin.id} className="group hover:border-primary/40 transition-colors">
-                    <CardContent className="p-3 space-y-1.5">
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {pinTypeIcon(pin.type)}
-                          <p className="text-sm font-medium truncate">{pin.title}</p>
-                        </div>
-                        <button
-                          onClick={() => deletePinboardItem(pin.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                        </button>
-                      </div>
-                      {pin.description && <p className="text-[11px] text-muted-foreground truncate">{pin.description}</p>}
-                      {(pin.type === "link" || pin.type === "file" || pin.type === "image") && pin.url && (
-                        <a
-                          href={pin.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                        >
-                          {pin.type === "file" ? <><Download className="h-3 w-3" /> Download</> : pin.type === "image" ? <><ExternalLink className="h-3 w-3" /> View</> : <><ExternalLink className="h-3 w-3" /> Open</>}
+                {pinboardItems.map(pin => {
+                  const isImage = pin.type === "image" && !!pin.url;
+                  return (
+                    <Card key={pin.id} className="group hover:border-primary/40 transition-colors overflow-hidden">
+                      {isImage && (
+                        <a href={pin.url!} target="_blank" rel="noopener noreferrer" className="block aspect-video bg-muted overflow-hidden">
+                          <img src={pin.url!} alt={pin.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         </a>
                       )}
-                      {pin.type === "image" && pin.url && (
-                        <img src={pin.url} alt={pin.title} className="w-full h-20 object-cover rounded mt-1" />
-                      )}
-                      {pin.type === "note" && (
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">{pin.description}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                      <CardContent className={`p-3 space-y-1.5 ${isImage ? "" : ""}`}>
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {pinTypeIcon(pin.type)}
+                            <p className="text-sm font-medium truncate">{pin.title}</p>
+                          </div>
+                          <button
+                            onClick={() => deletePinboardItem(pin.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            title="Remove pin"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                          </button>
+                        </div>
+                        {pin.type === "note" ? (
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{pin.description}</p>
+                        ) : pin.description ? (
+                          <p className="text-[11px] text-muted-foreground line-clamp-2">{pin.description}</p>
+                        ) : null}
+                        {(pin.type === "link" || pin.type === "file") && pin.url && (
+                          <a
+                            href={pin.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {pin.type === "file" ? <><Download className="h-3 w-3" /> Download</> : <><ExternalLink className="h-3 w-3" /> Open</>}
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
-              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No pins yet — add links, files, notes, or images</CardContent></Card>
+              <Card className="border-dashed">
+                <CardContent className="p-8 text-center space-y-2">
+                  <LayoutGrid className="h-6 w-6 mx-auto text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">No pins yet</p>
+                  <p className="text-xs text-muted-foreground/70">Add quick links, files, screenshots, or notes — anything your team should have at hand.</p>
+                </CardContent>
+              </Card>
             )}
           </section>
 
@@ -797,6 +757,156 @@ export default function DepartmentPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Tags we treat as content "types" — these become section groups in the resources section.
+// Anything else falls into "Other".
+const TYPE_TAGS = ["sop", "script", "playbook", "training", "resource"] as const;
+type ResourceTypeTag = (typeof TYPE_TAGS)[number] | "other";
+
+const TYPE_LABELS: Record<ResourceTypeTag, string> = {
+  sop: "SOPs",
+  script: "Scripts",
+  playbook: "Playbooks",
+  training: "Training",
+  resource: "Resources",
+  other: "Other",
+};
+
+function bucketDoc(tags: string[] | null): ResourceTypeTag {
+  if (!tags || tags.length === 0) return "other";
+  for (const t of TYPE_TAGS) if (tags.includes(t)) return t;
+  return "other";
+}
+
+function ResourcesSection({ docs, dbs, openDocPreview }: { docs: Doc[]; dbs: DB[]; openDocPreview: (id: string) => void; }) {
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  // All track:xxx tags present, surfaced as filter chips alongside type tags
+  const trackTags = Array.from(new Set(
+    docs.flatMap((d) => (d.tags ?? []).filter((t) => t.startsWith("track:")))
+  )).sort();
+
+  const filtered = docs.filter((d) => {
+    const matchesSearch = !search || d.title.toLowerCase().includes(search.toLowerCase()) || (d.tags ?? []).some((t) => t.toLowerCase().includes(search.toLowerCase()));
+    const matchesFilter = !activeFilter || (d.tags ?? []).includes(activeFilter);
+    return matchesSearch && matchesFilter;
+  });
+
+  // Group by type tag
+  const buckets: Record<ResourceTypeTag, Doc[]> = { sop: [], script: [], playbook: [], training: [], resource: [], other: [] };
+  filtered.forEach((d) => { buckets[bucketDoc(d.tags)].push(d); });
+  const orderedBuckets = (Object.keys(TYPE_LABELS) as ResourceTypeTag[]).filter((k) => buckets[k].length > 0);
+
+  if (docs.length === 0 && dbs.length === 0) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <BookOpen className="h-4 w-4" /> Resources & Playbooks
+        </h2>
+        <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No shared resources yet</CardContent></Card>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <BookOpen className="h-4 w-4" /> Resources & Playbooks
+          <span className="text-[10px] text-muted-foreground/60 normal-case tracking-normal">({docs.length} {docs.length === 1 ? "doc" : "docs"}, {dbs.length} {dbs.length === 1 ? "list" : "lists"})</span>
+        </h2>
+        <div className="relative">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search resources…"
+            className="h-7 text-xs w-48"
+          />
+        </div>
+      </div>
+
+      {/* Filter chips */}
+      {(trackTags.length > 0 || docs.length > 0) && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setActiveFilter(null)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+              !activeFilter ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            All
+          </button>
+          {trackTags.map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveFilter(activeFilter === t ? null : t)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                activeFilter === t
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-emerald-100/60 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              {t.replace("track:", "")}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Documents grouped by type */}
+      {orderedBuckets.length > 0 ? (
+        <div className="space-y-4">
+          {orderedBuckets.map((bucket) => (
+            <div key={bucket} className="space-y-1.5">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-1">
+                {TYPE_LABELS[bucket]} <span className="text-muted-foreground/40">· {buckets[bucket].length}</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {buckets[bucket].map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => openDocPreview(d.id)}
+                    className="text-left flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-card/60 hover:bg-muted/50 hover:border-border transition-colors group"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-foreground truncate">{d.title}</p>
+                      {(d.tags ?? []).filter((t) => t.startsWith("track:")).length > 0 && (
+                        <p className="text-[10px] text-muted-foreground/70 truncate">
+                          {(d.tags ?? []).filter((t) => t.startsWith("track:")).map((t) => t.replace("track:", "")).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : docs.length > 0 ? (
+        <p className="text-xs text-muted-foreground/60 italic px-1 py-2">No matches.</p>
+      ) : null}
+
+      {/* Lists */}
+      {dbs.length > 0 && (
+        <div className="space-y-1.5 pt-2">
+          <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-1">
+            Lists <span className="text-muted-foreground/40">· {dbs.length}</span>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {dbs.map((d) => (
+              <Link key={d.id} to={`/databases/${d.id}`} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-card/60 hover:bg-muted/50 hover:border-border transition-colors">
+                <Database className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm truncate flex-1">{d.title}</span>
+                {d.description && <span className="text-[10px] text-muted-foreground/70 truncate max-w-32">{d.description}</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
