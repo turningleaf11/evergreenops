@@ -14,7 +14,8 @@ import {
   type OrbitTrack, type OrbitStatus,
   TRACK_OPTIONS, STATUS_OPTIONS, STATUS_COLORS, TRACK_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
-import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus, Link2 } from "lucide-react";
+import { GhlUserPicker } from "./GhlUserPicker";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -55,7 +56,7 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
 
   // Performance entry state
   const [newPerfDate, setNewPerfDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [newPerf, setNewPerf] = useState({ calls_made: 0, appointments_set: 0, leads_qualified: 0, deals_closed: 0 });
+  const [newPerf, setNewPerf] = useState({ calls_made: 0, appointments_set: 0, conversations: 0, deals_closed: 0 });
   const [savingPerf, setSavingPerf] = useState(false);
 
   // Permanent delete confirm
@@ -172,7 +173,7 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
         const filtered = prev.filter((p) => p.snapshot_date !== newPerfDate);
         return [data as OrbitPerformance, ...filtered].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
       });
-      setNewPerf({ calls_made: 0, appointments_set: 0, leads_qualified: 0, deals_closed: 0 });
+      setNewPerf({ calls_made: 0, appointments_set: 0, conversations: 0, deals_closed: 0 });
       toast.success("Performance saved");
     }
   };
@@ -251,6 +252,27 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                     <SelectContent>{STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* GHL Link */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="h-3 w-3 text-muted-foreground" />
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">GHL account</p>
+                  {member.ghl_synced_at && (
+                    <span className="text-[10px] text-muted-foreground/50 ml-auto">
+                      synced {format(new Date(member.ghl_synced_at), "MMM d, h:mm a")}
+                    </span>
+                  )}
+                </div>
+                <GhlUserPicker
+                  currentGhlUserId={member.ghl_user_id}
+                  onChange={(ghlUserId) => updateMember({ ghl_user_id: ghlUserId } as any)}
+                  compact
+                />
+                <p className="text-[10px] text-muted-foreground/70">
+                  Required to auto-sync calls, appts, and deals from GHL.
+                </p>
               </div>
 
               {/* Setup checklist */}
@@ -343,8 +365,8 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                       <Input type="number" value={newPerf.appointments_set} onChange={(e) => setNewPerf({ ...newPerf, appointments_set: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Leads qualified</p>
-                      <Input type="number" value={newPerf.leads_qualified} onChange={(e) => setNewPerf({ ...newPerf, leads_qualified: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Conversations</p>
+                      <Input type="number" value={newPerf.conversations} onChange={(e) => setNewPerf({ ...newPerf, conversations: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Deals closed</p>
@@ -368,7 +390,7 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                           <span className="text-muted-foreground">·</span>
                           <span className="text-muted-foreground">{p.appointments_set} appts</span>
                           <span className="text-muted-foreground">·</span>
-                          <span className="text-muted-foreground">{p.leads_qualified} qual</span>
+                          <span className="text-muted-foreground">{p.conversations} conv</span>
                           <span className="text-muted-foreground">·</span>
                           <span className="text-muted-foreground">{p.deals_closed} closed</span>
                         </div>

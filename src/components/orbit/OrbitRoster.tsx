@@ -37,8 +37,8 @@ function initials(name: string | null) {
 
 // ============== Program Pulse (week-over-week aggregate metrics) ==============
 interface PulseData {
-  thisWeek: { calls: number; appts: number; qualified: number; deals: number; reporting: number };
-  lastWeek: { calls: number; appts: number; qualified: number; deals: number; reporting: number };
+  thisWeek: { calls: number; appts: number; conv: number; deals: number; reporting: number };
+  lastWeek: { calls: number; appts: number; conv: number; deals: number; reporting: number };
   totalActive: number;
 }
 
@@ -63,7 +63,7 @@ function ProgramPulse({ memberIds, activeCount }: { memberIds: string[]; activeC
 
       const { data } = await sb
         .from("orbit_performance_snapshots")
-        .select("member_id, snapshot_date, calls_made, appointments_set, leads_qualified, deals_closed")
+        .select("member_id, snapshot_date, calls_made, appointments_set, conversations, deals_closed")
         .in("member_id", memberIds)
         .gte("snapshot_date", lastWeekStart)
         .lte("snapshot_date", thisWeekEnd);
@@ -71,12 +71,12 @@ function ProgramPulse({ memberIds, activeCount }: { memberIds: string[]; activeC
       const rows = (data ?? []) as any[];
       const acc = (filter: (d: string) => boolean) => {
         const reporting = new Set<string>();
-        const totals = { calls: 0, appts: 0, qualified: 0, deals: 0 };
+        const totals = { calls: 0, appts: 0, conv: 0, deals: 0 };
         rows.filter((r) => filter(r.snapshot_date)).forEach((r) => {
           reporting.add(r.member_id);
           totals.calls += r.calls_made || 0;
           totals.appts += r.appointments_set || 0;
-          totals.qualified += r.leads_qualified || 0;
+          totals.conv += r.conversations || 0;
           totals.deals += r.deals_closed || 0;
         });
         return { ...totals, reporting: reporting.size };
@@ -95,7 +95,7 @@ function ProgramPulse({ memberIds, activeCount }: { memberIds: string[]; activeC
   const metrics: Array<{ label: string; icon: React.ElementType; curr: number; prev: number }> = [
     { label: "Calls", icon: Phone, curr: pulse.thisWeek.calls, prev: pulse.lastWeek.calls },
     { label: "Appts", icon: Calendar, curr: pulse.thisWeek.appts, prev: pulse.lastWeek.appts },
-    { label: "Qualified", icon: Target, curr: pulse.thisWeek.qualified, prev: pulse.lastWeek.qualified },
+    { label: "Conv", icon: Target, curr: pulse.thisWeek.conv, prev: pulse.lastWeek.conv },
     { label: "Deals", icon: DollarSign, curr: pulse.thisWeek.deals, prev: pulse.lastWeek.deals },
   ];
 

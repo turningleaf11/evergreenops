@@ -23,10 +23,10 @@ export function MyOrbitWidget() {
     (acc, p) => ({
       calls: acc.calls + (p.calls_made || 0),
       appts: acc.appts + (p.appointments_set || 0),
-      qualified: acc.qualified + (p.leads_qualified || 0),
+      conv: acc.conv + (p.conversations || 0),
       deals: acc.deals + (p.deals_closed || 0),
     }),
-    { calls: 0, appts: 0, qualified: 0, deals: 0 }
+    { calls: 0, appts: 0, conv: 0, deals: 0 }
   );
 
   const showStrikeWarning = strikes.length > 0;
@@ -128,8 +128,8 @@ export function MyOrbitWidget() {
                   <p className="text-[9px] text-muted-foreground">Appts</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-bold text-foreground">{recentSums.qualified}</p>
-                  <p className="text-[9px] text-muted-foreground">Qual</p>
+                  <p className="text-base font-bold text-foreground">{recentSums.conv}</p>
+                  <p className="text-[9px] text-muted-foreground">Conv</p>
                 </div>
                 <div className="text-center">
                   <p className="text-base font-bold text-emerald-600">{recentSums.deals}</p>

@@ -51,6 +51,8 @@ export interface OrbitMember {
   removed_at: string | null;
   removal_reason: string | null;
   notes: string;
+  ghl_user_id: string | null;
+  ghl_synced_at: string | null;
 }
 
 export interface OrbitChecklistItem {
@@ -82,7 +84,7 @@ export interface OrbitPerformance {
   snapshot_date: string;
   calls_made: number;
   appointments_set: number;
-  leads_qualified: number;
+  conversations: number;
   deals_closed: number;
   source: "manual" | "ghl";
   notes: string;
