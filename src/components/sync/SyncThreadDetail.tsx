@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Loader2, Paperclip, X, Download, FileText, CheckCircle2, RotateCcw, Trash2 } from "lucide-react";
+import { Send, Loader2, Paperclip, X, Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { LinkedItemPicker, LinkedItemChip, type LinkedItem } from "./LinkedItemPicker";
 import { formatDistanceToNow } from "date-fns";
 import { MentionInput, MentionChips, type MentionRef } from "@/components/ceo/MentionInput";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
@@ -66,6 +68,7 @@ interface Props {
 
 export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
   const [input, setInput] = useState("");
@@ -199,6 +202,32 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
     onClose?.();
   };
 
+  const updateLinkedItems = async (next: LinkedItem[]) => {
+    const { error } = await sb.from("sync_threads").update({ linked_items: next }).eq("id", thread.id);
+    if (error) { toast.error("Couldn't update links"); return; }
+    onChanged();
+  };
+
+  const convertToProject = async () => {
+    if (!user) return;
+    if (thread.converted_project_id) {
+      navigate(`/projects/${thread.converted_project_id}`);
+      return;
+    }
+    if (!confirm(`Convert "${thread.title}" into a project? You'll be taken to the new project page.`)) return;
+    const { data: proj, error } = await sb.from("projects").insert({
+      title: thread.title,
+      description: thread.body || `Converted from Sync thread`,
+      owner_id: user.id,
+      created_by: user.id,
+    }).select("id").single();
+    if (error || !proj) { toast.error(error?.message || "Couldn't create project"); return; }
+    await sb.from("sync_threads").update({ converted_project_id: proj.id }).eq("id", thread.id);
+    toast.success("Project created");
+    onChanged();
+    navigate(`/projects/${proj.id}`);
+  };
+
   const author = thread.author_id ? authors.get(thread.author_id) : undefined;
   const canDelete = thread.author_id === user?.id;
 
@@ -227,6 +256,13 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
+              onClick={convertToProject}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20"
+              title={thread.converted_project_id ? "Open linked project" : "Convert thread to a project"}
+            >
+              {thread.converted_project_id ? (<><ExternalLink className="h-3 w-3" /> Open project</>) : (<><FolderPlus className="h-3 w-3" /> Convert to project</>)}
+            </button>
+            <button
               onClick={toggleResolved}
               className={cn(
                 "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors",
@@ -251,6 +287,22 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
         {thread.body && (
           <p className="mt-3 text-sm text-foreground whitespace-pre-wrap">{thread.body}</p>
         )}
+
+        {/* Linked items + add */}
+        <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+          {(thread.linked_items || []).map((it) => (
+            <LinkedItemChip
+              key={`${it.type}-${it.id}`}
+              item={it}
+              onRemove={() => updateLinkedItems((thread.linked_items || []).filter((x) => !(x.type === it.type && x.id === it.id)))}
+            />
+          ))}
+          <LinkedItemPicker
+            value={thread.linked_items || []}
+            onChange={updateLinkedItems}
+            label={(thread.linked_items || []).length === 0 ? "Link a project, task, or person" : "Link more"}
+          />
+        </div>
       </div>
 
       {/* Messages */}
@@ -316,7 +368,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
           </div>
         )}
         <div className="flex items-end gap-2">
-          <div className="flex-1 min-w-0 bg-muted/40 rounded-md px-2.5 py-1.5">
+          <div className="flex-1 min-w-0 bg-muted/40 rounded-md px-3 py-2 min-h-[5rem] flex">
             <MentionInput
               value={input}
               onChange={setInput}
@@ -325,6 +377,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
               placeholder="Reply… type @ to mention a person, project, task, or goal"
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               inputClassName="text-sm"
+              popupPlacement="top"
             />
           </div>
           <button

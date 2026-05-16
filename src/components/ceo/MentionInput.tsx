@@ -125,6 +125,13 @@ export interface MentionInputProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
+  /**
+   * Where to render the @-picker popup relative to the input.
+   *  - "bottom" (default): always below
+   *  - "top": always above
+   *  - "auto": flip up when there isn't enough room below
+   */
+  popupPlacement?: "bottom" | "top" | "auto";
 }
 
 export function MentionInput({
@@ -139,11 +146,13 @@ export function MentionInput({
   onKeyDown,
   autoFocus,
   inputRef: externalRef,
+  popupPlacement = "bottom",
 }: MentionInputProps) {
   const localRef = useRef<HTMLInputElement>(null);
   const inputRef = (externalRef ?? localRef) as React.RefObject<HTMLInputElement>;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [resolvedPlacement, setResolvedPlacement] = useState<"top" | "bottom">(popupPlacement === "top" ? "top" : "bottom");
 
   // null = picker closed; string = active search text after @
   const [query, setQuery] = useState<string | null>(null);
@@ -233,6 +242,18 @@ export function MentionInput({
     return () => document.removeEventListener("mousedown", handler);
   }, [query, closePicker]);
 
+  // Resolve auto placement: flip up when there's not enough room below
+  useEffect(() => {
+    if (query === null) return;
+    if (popupPlacement === "top") { setResolvedPlacement("top"); return; }
+    if (popupPlacement === "bottom") { setResolvedPlacement("bottom"); return; }
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const popupHeight = 280; // approx
+    const spaceBelow = window.innerHeight - rect.bottom;
+    setResolvedPlacement(spaceBelow < popupHeight ? "top" : "bottom");
+  }, [query, popupPlacement]);
+
   return (
     <div className={cn("relative flex-1 min-w-0", className)}>
       {/* Inline chips + input on the same line */}
@@ -267,7 +288,10 @@ export function MentionInput({
       {query !== null && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-border bg-popover shadow-lg overflow-hidden"
+          className={cn(
+            "absolute left-0 z-50 w-72 rounded-lg border border-border bg-popover shadow-lg overflow-hidden max-h-72 overflow-y-auto",
+            resolvedPlacement === "top" ? "bottom-full mb-1" : "top-full mt-1",
+          )}
         >
           {filtered.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-muted-foreground italic">

@@ -32,6 +32,12 @@ export type SyncMember = {
   avatar_url: string | null;
 };
 
+export type SyncLinkedItem = {
+  type: "project" | "task" | "goal" | "person";
+  id: string;
+  label: string;
+};
+
 export type SyncThread = {
   id: string;
   channel_id: string;
@@ -45,6 +51,8 @@ export type SyncThread = {
   last_activity_at: string;
   created_at: string;
   updated_at: string;
+  linked_items: SyncLinkedItem[];
+  converted_project_id: string | null;
 };
 
 /**
@@ -140,7 +148,12 @@ export function useSyncThreads(filters: ThreadFilters, tags: SyncTag[]) {
     if (filters.tag) q = q.eq("tag", filters.tag);
 
     const { data } = await q;
-    setThreads((data ?? []) as SyncThread[]);
+    const normalized: SyncThread[] = ((data ?? []) as any[]).map((t) => ({
+      ...t,
+      linked_items: Array.isArray(t.linked_items) ? t.linked_items : [],
+      converted_project_id: t.converted_project_id ?? null,
+    }));
+    setThreads(normalized);
     setLoading(false);
   }, [user, JSON.stringify(filters), trackedTagKeys.join(",")]);
 
