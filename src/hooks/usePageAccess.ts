@@ -10,7 +10,9 @@ const sb = supabase as any;
  */
 export const PAGE_KEYS = [
   "execution",
+  "process_map",
   "crm",
+  "meetings",
   "lists",
   "forms",
   "ai_hub",
@@ -22,7 +24,9 @@ export type PageKey = (typeof PAGE_KEYS)[number];
 
 export const PAGE_LABELS: Record<PageKey, string> = {
   execution: "Execution Hub",
+  process_map: "Process Map",
   crm: "CRM / Deals",
+  meetings: "Meetings",
   lists: "Lists",
   forms: "Forms",
   ai_hub: "AI Hub",

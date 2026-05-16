@@ -28,6 +28,7 @@ import { ApiSettings } from "@/components/settings/ApiSettings";
 import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
 import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
 import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
+import { PAGE_KEYS, PAGE_LABELS } from "@/hooks/usePageAccess";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { AppRole } from "@/contexts/AuthContext";
@@ -37,6 +38,7 @@ import { DEPARTMENT_ICONS, getDeptIcon } from "@/lib/icon-map";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAllAddons } from "@/hooks/useAddonEnabled";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const moduleTypes: TrainingModuleType[] = ["guide", "playbook", "checklist", "video", "link"];
 const moduleCategories: TrainingCategory[] = ["Onboarding", "Role Training", "Processes", "Tools"];
@@ -634,6 +636,8 @@ function UsersTab() {
   const [inviteName, setInviteName] = useState("");
   const [inviteDept, setInviteDept] = useState("");
   const [inviteRole, setInviteRole] = useState<AppRole>("user");
+  const [inviteGrants, setInviteGrants] = useState<Set<string>>(new Set());
+  const [inviteIsLeader, setInviteIsLeader] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -712,6 +716,8 @@ function UsersTab() {
           full_name: inviteName.trim(),
           department_id: inviteDept || null,
           role: inviteRole,
+          is_leader: inviteIsLeader,
+          grants: Array.from(inviteGrants),
         },
       });
       // supabase.functions.invoke wraps non-2xx as FunctionsHttpError without
@@ -731,6 +737,8 @@ function UsersTab() {
       setInviteName("");
       setInviteDept("");
       setInviteRole("user");
+      setInviteGrants(new Set());
+      setInviteIsLeader(false);
       setInviteOpen(false);
       fetchUsers();
     } catch (err: any) {
@@ -866,7 +874,45 @@ function UsersTab() {
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-[10px] text-muted-foreground/70">
+                  Admins have access to everything automatically. The grants below only apply to users.
+                </p>
               </div>
+
+              {inviteRole === "user" && (
+                <>
+                  <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-muted/30">
+                    <div>
+                      <Label className="cursor-pointer">Mark as department leader</Label>
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">Leaders see the Leadership tab on their dept page + can access Execution / Lists / Meetings by default.</p>
+                    </div>
+                    <Switch checked={inviteIsLeader} onCheckedChange={setInviteIsLeader} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Page access (optional)</Label>
+                    <p className="text-[10px] text-muted-foreground/70 -mt-1">Tick the pages this user should have access to. You can change these later in Settings → Users.</p>
+                    <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-2 rounded-md border border-border/40">
+                      {PAGE_KEYS.map((key) => (
+                        <label key={key} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={inviteGrants.has(key)}
+                            onCheckedChange={(checked) => {
+                              setInviteGrants((prev) => {
+                                const next = new Set(prev);
+                                if (checked) next.add(key); else next.delete(key);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="text-xs">{PAGE_LABELS[key]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
               <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()} className="w-full">
                 {inviting ? "Inviting..." : "Send Invite"}
               </Button>

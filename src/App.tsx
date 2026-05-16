@@ -183,9 +183,11 @@ const App = () => (
                   <Route path="/ai-hub/docs" element={<AiHubDocsPage />} />
                 </Route>
 
-                {/* Admin-only (no grants — hard admin) */}
-                <Route element={<AdminRoute />}>
-                  <Route path="/people" element={<PeoplePage />} />
+                {/* People — Directory + Org Chart visible to all; People Ops tab is admin-gated inside the page */}
+                <Route path="/people" element={<PeoplePage />} />
+
+                {/* Admin baseline + per-user grants */}
+                <Route element={<PageRoute pageKey="process_map" minRole="admin" />}>
                   <Route path="/process-map" element={<ProcessMapPage />} />
                 </Route>
 
@@ -219,8 +221,8 @@ const App = () => (
                   <Route path="/databases/:dbId" element={<DatabasesPage />} />
                 </Route>
 
-                {/* Leader-only (no grants) */}
-                <Route element={<LeaderRoute />}>
+                {/* Leader baseline + per-user grants */}
+                <Route element={<PageRoute pageKey="meetings" minRole="leader" />}>
                   <Route path="/meetings" element={<MeetingsPage />} />
                 </Route>
 

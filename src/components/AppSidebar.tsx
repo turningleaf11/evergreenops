@@ -58,16 +58,16 @@ export function AppSidebar() {
 
   const cultureNav = [
     { title: "Feed", url: "/feed", icon: Pizza },
-    ...(isAdmin ? [{ title: "People", url: "/people", icon: Users }] : []),
+    { title: "People", url: "/people", icon: Users },
     { title: "Training", url: "/training", icon: GraduationCap },
   ];
 
   const workNav = [
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
-    ...(isAdmin ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
+    ...(isAdmin || can("process_map") ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
-    ...(isLeader ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
+    ...(isLeader || can("meetings") ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
     ...(isLeader || can("lists") ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
@@ -275,11 +275,9 @@ export function AppSidebar() {
               <span className="text-xs font-medium text-sidebar-foreground">{profile?.full_name || "User"}</span>
               <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
             </div>
-            {isAdmin && (
-              <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
-                <Settings className="h-3.5 w-3.5" />
-              </NavLink>
-            )}
+            <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
+              <Settings className="h-3.5 w-3.5" />
+            </NavLink>
             <NavLink to="/help" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Help & docs">
               <HelpCircle className="h-3.5 w-3.5" />
             </NavLink>
@@ -347,16 +345,14 @@ export function AppSidebar() {
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">{profile?.full_name || "User"}</TooltipContent>
           </Tooltip>
-          {isAdmin && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <NavLink to="/settings" className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" activeClassName="text-foreground">
-                  <Settings className="h-3.5 w-3.5" />
-                </NavLink>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">Settings</TooltipContent>
-            </Tooltip>
-          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <NavLink to="/settings" className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" activeClassName="text-foreground">
+                <Settings className="h-3.5 w-3.5" />
+              </NavLink>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Settings</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <button

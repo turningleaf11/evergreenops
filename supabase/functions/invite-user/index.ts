@@ -5,23 +5,17 @@ const corsHeaders = {
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ error: "Missing authorization" }, 401);
-    }
+    if (!authHeader) return json({ error: "Missing authorization" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const anonClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const anonClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: { user: caller } } = await anonClient.auth.getUser();
     if (!caller) return json({ error: "Invalid token" }, 401);
 
@@ -31,26 +25,16 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", caller.id)
       .eq("role", "admin");
-
-    if (!roles || roles.length === 0) {
-      return json({ error: "Admin access required" }, 403);
-    }
+    if (!roles || roles.length === 0) return json({ error: "Admin access required" }, 403);
 
     const body = await req.json().catch(() => ({}));
-    const { email, full_name, department_id, role } = body;
+    const { email, full_name, department_id, role, is_leader, grants } = body;
 
-    if (!email || typeof email !== "string") {
-      return json({ error: "Email is required" }, 400);
-    }
+    if (!email || typeof email !== "string") return json({ error: "Email is required" }, 400);
     const trimmedEmail = email.trim().toLowerCase();
 
-    // Check if a user with this email already exists — gives a clearer error than
-    // letting inviteUserByEmail fail with a generic 422.
     try {
-      const { data: existing } = await adminClient.auth.admin.listUsers({
-        page: 1,
-        perPage: 200,
-      });
+      const { data: existing } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 200 });
       const found = existing?.users?.find((u: any) => (u.email || "").toLowerCase() === trimmedEmail);
       if (found) {
         return json({
@@ -63,57 +47,61 @@ Deno.serve(async (req) => {
       console.warn("listUsers precheck failed (continuing):", e);
     }
 
-    // inviteUserByEmail creates the user + sends the invite email
     const { data: inviteData, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, {
-        data: { full_name: full_name || "" },
-      });
+      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, { data: { full_name: full_name || "" } });
 
     if (inviteError) {
-      // Map common errors to clearer messages so the UI can surface them properly
       const raw = inviteError.message || "Invite failed";
       console.error("inviteUserByEmail failed:", raw, "status:", (inviteError as any).status);
-
       let userMessage = raw;
       let code = "invite_failed";
-
       if (/already.*registered|already.*exists|duplicate/i.test(raw)) {
         userMessage = `A user with email "${trimmedEmail}" is already registered.`;
         code = "user_exists";
       } else if (/rate.?limit|too many/i.test(raw)) {
-        userMessage = "Supabase Auth rate limit hit. Wait a few minutes and try again, or configure a custom SMTP provider in Supabase Auth settings.";
+        userMessage = "Supabase Auth rate limit hit. Wait a few minutes and try again, or configure a custom SMTP provider.";
         code = "rate_limited";
       } else if (/smtp|email.*not.*sent|sender/i.test(raw)) {
-        userMessage = "Couldn't send the invite email — Supabase SMTP needs configuring. Set up a custom SMTP provider in Supabase → Auth → Email Templates.";
+        userMessage = "Couldn't send the invite email — Supabase SMTP needs configuring.";
         code = "smtp_error";
       } else if (/site.?url|redirect.?url/i.test(raw)) {
         userMessage = "Supabase Site URL isn't configured. Set it in Supabase → Auth → URL Configuration.";
         code = "site_url_missing";
       }
-
       return json({ error: userMessage, code, raw }, 400);
     }
 
     const newUserId = inviteData.user?.id;
 
-    // Update profile with department and name if provided
-    if (newUserId && (department_id || full_name)) {
-      const updates: Record<string, string> = {};
-      if (department_id) updates.department_id = department_id;
-      if (full_name) updates.full_name = full_name;
-      const { error: profileErr } = await adminClient
-        .from("profiles")
-        .update(updates)
-        .eq("user_id", newUserId);
-      if (profileErr) console.warn("Profile update failed (non-fatal):", profileErr.message);
+    if (newUserId) {
+      const profileUpdates: Record<string, any> = {};
+      if (department_id) profileUpdates.department_id = department_id;
+      if (full_name) profileUpdates.full_name = full_name;
+      if (typeof is_leader === "boolean") profileUpdates.is_leader = is_leader;
+      if (Object.keys(profileUpdates).length > 0) {
+        const { error: profileErr } = await adminClient.from("profiles").update(profileUpdates).eq("user_id", newUserId);
+        if (profileErr) console.warn("Profile update failed (non-fatal):", profileErr.message);
+      }
     }
 
-    // If role is admin, add admin role
     if (role === "admin" && newUserId) {
+      // Promote to admin. The handle_new_user trigger already inserted a default user role,
+      // so we add an admin role on top. Multi-role users keep is_primary=false.
       const { error: roleErr } = await adminClient
         .from("user_roles")
-        .insert({ user_id: newUserId, role: "admin" });
+        .insert({ user_id: newUserId, role: "admin", is_primary: false });
       if (roleErr) console.warn("Role insert failed (non-fatal):", roleErr.message);
+    }
+
+    // Insert page grants (only meaningful for non-admin users; admins have access to everything anyway)
+    if (newUserId && role !== "admin" && Array.isArray(grants) && grants.length > 0) {
+      const grantRows = grants.map((page_key: string) => ({
+        user_id: newUserId,
+        page_key,
+        granted_by: caller.id,
+      }));
+      const { error: grantsErr } = await adminClient.from("page_grants").insert(grantRows);
+      if (grantsErr) console.warn("Page grants insert failed (non-fatal):", grantsErr.message);
     }
 
     return json({ success: true, user_id: newUserId });
