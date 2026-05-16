@@ -66,14 +66,15 @@ export function CeoReviewFeed() {
               <Badge variant="outline" className="text-[10px]">{dept?.name}</Badge>
             </div>
             <div className="space-y-2 pl-6">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Reasoning</p>
-                <p className="text-xs text-foreground">{proposal.reasoning}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Recommendation</p>
-                <p className="text-xs text-foreground">{proposal.recommendation}</p>
-              </div>
+              {proposal.reasoning && (
+                <p className="text-xs text-foreground whitespace-pre-wrap">{proposal.reasoning}</p>
+              )}
+              {proposal.recommendation && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Recommendation</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{proposal.recommendation}</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 pl-6 pt-1">
               <button onClick={() => handleAccept(proposal.id)} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-colors">

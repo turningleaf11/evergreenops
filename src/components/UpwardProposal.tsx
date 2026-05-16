@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useStrategyFlow, UpwardProposalType } from "@/lib/strategy-flow";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowUp, AlertTriangle, HelpCircle, Flag, Send } from "lucide-react";
 import { toast } from "sonner";
+
+const sb = supabase as any;
 
 const proposalTypes: { type: UpwardProposalType; label: string; icon: React.ElementType; desc: string }[] = [
   { type: "strategy_change", label: "Propose Strategy Change", icon: ArrowUp, desc: "Suggest a change in direction based on what you're seeing" },
@@ -21,28 +24,59 @@ export function UpwardProposalForm({ departmentId }: Props) {
   const currentUserId = user?.id || "";
   const [selectedType, setSelectedType] = useState<UpwardProposalType | null>(null);
   const [title, setTitle] = useState("");
-  const [reasoning, setReasoning] = useState("");
-  const [recommendation, setRecommendation] = useState("");
+  const [message, setMessage] = useState("");
 
-  const handleSubmit = () => {
-    if (!selectedType || !title.trim() || !reasoning.trim() || !recommendation.trim()) {
-      toast.error("All fields are required");
+  const handleSubmit = async () => {
+    if (!selectedType || !title.trim() || !message.trim()) {
+      toast.error("Add a title and a short message");
       return;
     }
-    addProposal({
+    const proposalTitle = title.trim();
+    await addProposal({
       type: selectedType,
       departmentId,
       createdBy: currentUserId,
-      title: title.trim(),
-      reasoning: reasoning.trim(),
-      recommendation: recommendation.trim(),
+      title: proposalTitle,
+      reasoning: message.trim(),
+      recommendation: "",
       status: "pending",
     });
+
+    // Notify all primary admins (CEO) so this surfaces in their inbox
+    try {
+      const { data: ceos } = await sb
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .eq("is_primary", true);
+      const { data: actorProf } = await sb
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      const actorName = (actorProf as any)?.full_name || "A leader";
+      const rows = (ceos ?? [])
+        .map((r: any) => r.user_id)
+        .filter((uid: string) => uid && uid !== currentUserId)
+        .map((uid: string) => ({
+          user_id: uid,
+          actor_id: currentUserId,
+          actor_name: actorName,
+          type: "upward_proposal",
+          entity_type: "upward_proposal",
+          entity_id: null,
+          body: `sent a proposal for review: "${proposalTitle}"`,
+          url: "/ceo?tab=delegation",
+        }));
+      if (rows.length > 0) await sb.from("notifications").insert(rows);
+    } catch (e) {
+      console.warn("proposal notification fan-out failed:", e);
+    }
+
     setSelectedType(null);
     setTitle("");
-    setReasoning("");
-    setRecommendation("");
-    toast.success("Proposal sent to CEO for review");
+    setMessage("");
+    toast.success("Sent to CEO");
   };
 
   const deptProposals = proposals.filter((p) => p.departmentId === departmentId);
@@ -74,28 +108,16 @@ export function UpwardProposalForm({ departmentId }: Props) {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="What is this about?"
+            placeholder="Title — what is this about?"
             className="w-full text-sm font-medium bg-transparent border-b border-border pb-2 outline-none placeholder:text-muted-foreground/40"
             autoFocus
           />
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Reasoning *</label>
-            <textarea
-              value={reasoning}
-              onChange={(e) => setReasoning(e.target.value)}
-              className="w-full text-xs border border-border rounded-md p-2 mt-1 outline-none resize-none min-h-[60px] bg-background"
-              placeholder="What are you seeing and why does this matter?"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Recommendation *</label>
-            <textarea
-              value={recommendation}
-              onChange={(e) => setRecommendation(e.target.value)}
-              className="w-full text-xs border border-border rounded-md p-2 mt-1 outline-none resize-none min-h-[60px] bg-background"
-              placeholder="What do you recommend and what's the expected impact?"
-            />
-          </div>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="w-full text-sm bg-transparent outline-none resize-none min-h-[120px] placeholder:text-muted-foreground/40"
+            placeholder="Write a short note for the CEO. What's going on, and what would you like from them?"
+          />
           <div className="flex justify-end gap-2">
             <button onClick={() => setSelectedType(null)} className="text-xs text-muted-foreground px-3 py-1.5">Cancel</button>
             <button

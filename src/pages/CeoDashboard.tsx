@@ -337,6 +337,7 @@ export default function CeoDashboard() {
           {/* Delegation Tab */}
           <TabsContent value="delegation" className="space-y-8">
             <DirectivesStatusBoard />
+            <CeoReviewFeed />
             <DelegationBoard />
           </TabsContent>
         </Tabs>

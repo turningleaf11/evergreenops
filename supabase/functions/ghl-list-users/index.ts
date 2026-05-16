@@ -56,6 +56,17 @@ Deno.serve(async (req) => {
       return json({ error: "GHL not configured", users: [] }, 400);
     }
 
+    // The v2 API (services.leadconnectorhq.com) requires a v2 token —
+    // either an OAuth access token or a Private Integration Token (PIT).
+    // Both are JWT-like and ~200+ chars. A short ~40-char key is the legacy
+    // v1 location API key and will always 401 here.
+    if (apiKey.length < 100) {
+      return json({
+        error: "GHL API key looks like a v1 (legacy) key. The v2 endpoints used here need a Private Integration Token. In GHL go to Settings → Private Integrations → create a token with users.readonly + opportunities.readonly + calendars/events.readonly scopes, then paste it into Settings → Credentials as GHL_API_KEY.",
+        users: [],
+      }, 400);
+    }
+
     const res = await fetch(`https://services.leadconnectorhq.com/users/?locationId=${encodeURIComponent(locationId)}`, {
       method: "GET",
       headers: {
