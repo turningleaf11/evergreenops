@@ -1,23 +1,24 @@
 // Pulls weekly performance data from GHL for linked Orbit members.
 //
 // Modes:
-//   - Manual:   invoke with { memberId: "...", weekStart?: "YYYY-MM-DD" }  → syncs one member
-//   - Bulk:     invoke with { all: true, weekStart?: "YYYY-MM-DD" }         → syncs every linked active member
-//   - Cron:     no auth header expected — service-role only, syncs all active members for the current week
+//   - Manual:   invoke with { memberId: "...", weekStart?: "YYYY-MM-DD" }  -> syncs one member
+//   - Bulk:     invoke with { all: true, weekStart?: "YYYY-MM-DD" }         -> syncs every linked active member
+//   - Cron:     header X-Cron-Secret matching ORBIT_CRON_SECRET env -> service-role invocation
 //
 // Metrics:
-//   - deals_closed      = opportunities with status='won' assigned to ghl_user_id this week
-//   - appointments_set  = calendar events created by ghl_user_id this week (the setter, not the calendar owner)
-//   - calls_made        = stubbed for now; GHL v2 lacks a clean per-user call count endpoint
-//   - conversations     = stubbed for now (same reason)
+//   - deals_closed      = opportunities won assigned to ghl_user_id this week (GHL API)
+//   - appointments_set  = calendar events where ghl_user_id is the setter (GHL API)
+//   - calls_made        = count of orbit_call_events for this user this week (excluding 'ignore' dispositions)
+//   - conversations     = count of orbit_call_events for this user this week where disposition category = 'connected'
 //
-// Source flag: any row written by this function gets source='ghl'. Manual entries keep source='manual' and are upserted separately.
+// Call/conversation data is pushed via GHL Workflow webhook -> orbit-call-webhook -> orbit_call_events.
+// This function reads from that table; it does NOT poll GHL for calls.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const GHL_BASE = "https://services.leadconnectorhq.com";
@@ -57,10 +58,7 @@ async function ghlGet(url: string, apiKey: string) {
     method: "GET",
     headers: { Authorization: `Bearer ${apiKey}`, Version: GHL_VERSION, Accept: "application/json" },
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`GHL ${res.status}: ${txt.slice(0, 300)}`);
-  }
+  if (!res.ok) throw new Error(`GHL ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json();
 }
 
@@ -75,26 +73,14 @@ async function ghlPost(url: string, apiKey: string, body: any) {
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`GHL ${res.status}: ${txt.slice(0, 300)}`);
-  }
+  if (!res.ok) throw new Error(`GHL ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json();
 }
 
-// ============== Per-metric fetchers ==============
-
-/** Deals won by the user this week */
 async function fetchDealsClosed(apiKey: string, locationId: string, ghlUserId: string, weekStartIso: string, weekEndIso: string): Promise<number> {
-  const body = {
-    locationId,
-    assignedTo: [ghlUserId],
-    status: "won",
-    limit: 100,
-  };
+  const body = { locationId, assignedTo: [ghlUserId], status: "won", limit: 100 };
   const data = await ghlPost(`${GHL_BASE}/opportunities/search`, apiKey, body);
   const opportunities = data.opportunities || [];
-  // Filter to the week — GHL's API may not respect the date filter perfectly, so we post-filter
   const weekStart = new Date(weekStartIso);
   const weekEnd = new Date(weekEndIso);
   return opportunities.filter((o: any) => {
@@ -105,9 +91,7 @@ async function fetchDealsClosed(apiKey: string, locationId: string, ghlUserId: s
   }).length;
 }
 
-/** Appointments where this user is the SETTER (createdBy.userId). Falls back to assignedUserId match. */
 async function fetchAppointmentsSet(apiKey: string, locationId: string, ghlUserId: string, weekStartIso: string, weekEndIso: string): Promise<number> {
-  // GHL calendars/events takes startTime/endTime as ms epoch
   const startMs = new Date(weekStartIso).getTime();
   const endMs = new Date(weekEndIso).getTime();
   const url = `${GHL_BASE}/calendars/events?locationId=${encodeURIComponent(locationId)}&startTime=${startMs}&endTime=${endMs}`;
@@ -115,7 +99,6 @@ async function fetchAppointmentsSet(apiKey: string, locationId: string, ghlUserI
     const data = await ghlGet(url, apiKey);
     const events = data.events || [];
     return events.filter((e: any) => {
-      // Best-effort: check createdBy.userId (setter), then fall back to assignedUserId
       const setterId = e.createdBy?.userId || e.createdById || e.setterUserId;
       const assigned = e.assignedUserId;
       return setterId === ghlUserId || (!setterId && assigned === ghlUserId);
@@ -126,7 +109,36 @@ async function fetchAppointmentsSet(apiKey: string, locationId: string, ghlUserI
   }
 }
 
-// ============== Main sync per member ==============
+// Aggregates call events from our DB (populated by GHL Workflow webhook).
+async function aggregateCallEvents(admin: any, ghlUserId: string, weekStartIso: string, weekEndIso: string): Promise<{ calls_made: number; conversations: number }> {
+  const { data: events } = await admin
+    .from("orbit_call_events")
+    .select("disposition")
+    .eq("ghl_user_id", ghlUserId)
+    .gte("occurred_at", weekStartIso)
+    .lte("occurred_at", weekEndIso);
+
+  const rows = (events ?? []) as Array<{ disposition: string | null }>;
+  if (rows.length === 0) return { calls_made: 0, conversations: 0 };
+
+  const dispositions = Array.from(new Set(rows.map((r) => r.disposition).filter(Boolean))) as string[];
+  const { data: map } = await admin
+    .from("orbit_disposition_map")
+    .select("disposition, category")
+    .in("disposition", dispositions);
+  const catByDisp = new Map<string, string>();
+  (map ?? []).forEach((m: any) => catByDisp.set(m.disposition, m.category));
+
+  let calls_made = 0;
+  let conversations = 0;
+  for (const r of rows) {
+    const cat = r.disposition ? catByDisp.get(r.disposition) : null;
+    if (cat === "ignore") continue;
+    calls_made += 1;
+    if (cat === "connected") conversations += 1;
+  }
+  return { calls_made, conversations };
+}
 
 interface SyncResult {
   member_id: string;
@@ -141,13 +153,12 @@ async function syncMember(admin: any, apiKey: string, locationId: string, member
   const weekEndIso = sundayOf(new Date(weekStart));
 
   try {
-    const [deals_closed, appointments_set] = await Promise.all([
+    const [deals_closed, appointments_set, callCounts] = await Promise.all([
       fetchDealsClosed(apiKey, locationId, member.ghl_user_id, weekStartIso, weekEndIso),
       fetchAppointmentsSet(apiKey, locationId, member.ghl_user_id, weekStartIso, weekEndIso),
+      aggregateCallEvents(admin, member.ghl_user_id, weekStartIso, weekEndIso),
     ]);
-    // calls_made and conversations stubbed — GHL v2 lacks clean per-user endpoints we trust yet
-    const calls_made = 0;
-    const conversations = 0;
+    const { calls_made, conversations } = callCounts;
 
     await admin.from("orbit_performance_snapshots").upsert({
       member_id: member.id,
@@ -161,20 +172,9 @@ async function syncMember(admin: any, apiKey: string, locationId: string, member
 
     await admin.from("orbit_members").update({ ghl_synced_at: new Date().toISOString() }).eq("id", member.id);
 
-    return {
-      member_id: member.id,
-      ghl_user_id: member.ghl_user_id,
-      week: weekStart,
-      metrics: { deals_closed, appointments_set, calls_made, conversations },
-    };
+    return { member_id: member.id, ghl_user_id: member.ghl_user_id, week: weekStart, metrics: { deals_closed, appointments_set, calls_made, conversations } };
   } catch (e: any) {
-    return {
-      member_id: member.id,
-      ghl_user_id: member.ghl_user_id,
-      week: weekStart,
-      metrics: { deals_closed: 0, appointments_set: 0, calls_made: 0, conversations: 0 },
-      error: String(e?.message ?? e),
-    };
+    return { member_id: member.id, ghl_user_id: member.ghl_user_id, week: weekStart, metrics: { deals_closed: 0, appointments_set: 0, calls_made: 0, conversations: 0 }, error: String(e?.message ?? e) };
   }
 }
 
@@ -191,58 +191,38 @@ Deno.serve(async (req) => {
     const cronSecret = req.headers.get("X-Cron-Secret");
     const expectedCronSecret = Deno.env.get("ORBIT_CRON_SECRET");
 
-    // Three auth paths: user JWT (admin only), cron secret, or service role
     let allowed = false;
     if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
       allowed = true;
     } else if (authHeader) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
+      const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data: { user } } = await userClient.auth.getUser();
       if (user) {
-        const { data: roleRow } = await userClient
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("role", "admin")
-          .maybeSingle();
+        const { data: roleRow } = await userClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
         if (roleRow) allowed = true;
       }
     }
     if (!allowed) return json({ error: "Unauthorized" }, 401);
 
     let body: any = {};
-    try { body = await req.json(); } catch { /* GET-style cron invocation */ }
+    try { body = await req.json(); } catch { /* ignore */ }
     const { memberId, all, weekStart: customWeekStart } = body;
     const weekStart = customWeekStart || mondayOf(new Date());
 
     const { apiKey, locationId } = await fetchGhlCreds(admin);
-    if (!apiKey || !locationId) {
-      return json({ error: "GHL not configured (need GHL_API_KEY + GHL_LOCATION_ID)" }, 400);
-    }
+    if (!apiKey || !locationId) return json({ error: "GHL not configured (need GHL_API_KEY + GHL_LOCATION_ID)" }, 400);
 
-    // Fetch members to sync
     let query = admin.from("orbit_members").select("id, user_id, ghl_user_id, status").not("ghl_user_id", "is", null);
-    if (memberId) {
-      query = query.eq("id", memberId);
-    } else if (all) {
-      query = query.in("status", ["active", "on_notice"]);
-    } else {
-      return json({ error: "Specify { memberId } or { all: true }" }, 400);
-    }
+    if (memberId) query = query.eq("id", memberId);
+    else if (all) query = query.in("status", ["active", "on_notice"]);
+    else return json({ error: "Specify { memberId } or { all: true }" }, 400);
 
     const { data: members, error: mErr } = await query;
     if (mErr) throw mErr;
-    if (!members || members.length === 0) {
-      return json({ synced: 0, results: [], message: "No linked members to sync" });
-    }
+    if (!members || members.length === 0) return json({ synced: 0, results: [], message: "No linked members to sync" });
 
-    // Sync sequentially to avoid hammering GHL rate limits
     const results: SyncResult[] = [];
-    for (const m of members) {
-      results.push(await syncMember(admin, apiKey, locationId, m, weekStart));
-    }
+    for (const m of members) results.push(await syncMember(admin, apiKey, locationId, m, weekStart));
 
     return json({
       synced: results.filter((r) => !r.error).length,
