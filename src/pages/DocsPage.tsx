@@ -133,11 +133,15 @@ export default function DocsPage() {
   const selected = docs.find((d) => d.id === selectedDoc);
   const childDocs = selectedDoc ? docs.filter((d) => d.parentId === selectedDoc) : [];
 
-  // Group root docs into Company / Departments / Shared with me
+  // Group root docs into Company / Departments / Shared with me.
+  // For non-admins, only surface dept groups for departments they're a member of —
+  // a doc shared with Acquisitions+Orbit shouldn't appear under "Orbit" for an
+  // Acquisitions user even though they technically have access via Acquisitions.
   const groupedDocs = useMemo(() => {
     const company: Doc[] = [];
     const byDept: Record<string, Doc[]> = {};
     const sharedWithMe: Doc[] = [];
+    const myDeptId = profile?.department_id || "";
 
     rootDocs.forEach((d) => {
       if (d.visibility === "workspace") {
@@ -147,7 +151,9 @@ export default function DocsPage() {
         if (deptIds.length === 0) {
           sharedWithMe.push(d);
         } else {
-          deptIds.forEach((did) => {
+          // Admins see all dept groupings; non-admins only see their own dept's group
+          const visibleDeptIds = isAdmin ? deptIds : deptIds.filter((id) => id === myDeptId);
+          visibleDeptIds.forEach((did) => {
             if (!byDept[did]) byDept[did] = [];
             byDept[did].push(d);
           });
@@ -162,7 +168,7 @@ export default function DocsPage() {
     });
 
     return { company, byDept, sharedWithMe };
-  }, [rootDocs, user?.id]);
+  }, [rootDocs, user?.id, isAdmin, profile?.department_id]);
 
   const toggleGroup = (key: string) => setCollapsedGroups((p) => ({ ...p, [key]: !p[key] }));
 

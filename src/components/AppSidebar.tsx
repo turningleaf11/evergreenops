@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import {
-  Home, FileText, Database as DbIcon, Users, ChevronDown,
+  Home, FileText, Database as DbIcon, Users,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
   HelpCircle, Code2,
@@ -10,14 +10,12 @@ import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { usePageGrants } from "@/hooks/usePageAccess";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -32,8 +30,6 @@ export function AppSidebar() {
   const { mode, toggleMode } = useSidebarMode();
   const isPinned = mode === "pinned";
   const collapsed = state === "collapsed";
-  const location = useLocation();
-  const isDeptActive = location.pathname.startsWith("/department");
   const { profile, isAdmin, isPrimaryAdmin, isLeader, role, signOut } = useAuth();
   const { grants } = usePageGrants();
   const can = (key: string) => isAdmin || grants.has(key as any);
@@ -184,44 +180,37 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <Collapsible defaultOpen={isDeptActive} className="group/collapsible">
-            <SidebarGroupLabel asChild>
-              <CollapsibleTrigger className="flex w-full items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Building2 className="h-3.5 w-3.5" />
-                  {!collapsed && deptLabel}
-                </span>
-                {!collapsed && <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
-              </CollapsibleTrigger>
+          {!collapsed && (
+            <SidebarGroupLabel className="flex items-center gap-2">
+              <Building2 className="h-3.5 w-3.5" />
+              {deptLabel}
             </SidebarGroupLabel>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {departments.map((dept) => {
-                    const Icon = getDeptIcon(dept.icon);
-                    const link = (
-                      <SidebarMenuButton asChild>
-                        <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                          <Icon className="h-4 w-4" />
-                          {!collapsed && <span>{dept.name}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    );
-                    return (
-                      <SidebarMenuItem key={dept.id}>
-                        {collapsed ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>{link}</TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs">{dept.name}</TooltipContent>
-                          </Tooltip>
-                        ) : link}
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </Collapsible>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {departments.map((dept) => {
+                const Icon = getDeptIcon(dept.icon);
+                const link = (
+                  <SidebarMenuButton asChild>
+                    <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+                      <Icon className="h-4 w-4" />
+                      {!collapsed && <span>{dept.name}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                );
+                return (
+                  <SidebarMenuItem key={dept.id}>
+                    {collapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>{link}</TooltipTrigger>
+                        <TooltipContent side="right" className="text-xs">{dept.name}</TooltipContent>
+                      </Tooltip>
+                    ) : link}
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
         </SidebarGroup>
 
 

@@ -714,7 +714,17 @@ function UsersTab() {
           role: inviteRole,
         },
       });
-      if (error) throw error;
+      // supabase.functions.invoke wraps non-2xx as FunctionsHttpError without
+      // surfacing the body. Read it manually so the user sees our structured error.
+      if (error) {
+        let detail: string | null = null;
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json().catch(() => null);
+          if (body?.error) detail = body.error;
+        }
+        throw new Error(detail || error.message || "Invite failed");
+      }
       if (data?.error) throw new Error(data.error);
       toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
       setInviteEmail("");
