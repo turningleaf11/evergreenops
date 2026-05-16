@@ -36,6 +36,7 @@ import ProcessMapPage from "./pages/ProcessMapPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
+import SyncPage from "./pages/SyncPage";
 import CrmPage from "./pages/CrmPage";
 import MeetingsPage from "./pages/MeetingsPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
@@ -224,6 +225,13 @@ const App = () => (
                 {/* Leader baseline + per-user grants */}
                 <Route element={<PageRoute pageKey="meetings" minRole="leader" />}>
                   <Route path="/meetings" element={<MeetingsPage />} />
+                </Route>
+
+                {/* Sync — leadership comms layer (CEO + leaders) */}
+                <Route element={<LeaderRoute />}>
+                  <Route path="/sync" element={<SyncPage />} />
+                  <Route path="/sync/:channelId" element={<SyncPage />} />
+                  <Route path="/sync/thread/:threadId" element={<SyncPage />} />
                 </Route>
 
                 {/* Open to all authenticated users */}

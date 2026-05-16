@@ -3,7 +3,7 @@ import {
   Home, FileText, Database as DbIcon, Users,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
-  HelpCircle, Code2,
+  HelpCircle, Code2, MessagesSquare,
 } from "lucide-react";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
@@ -54,6 +54,7 @@ export function AppSidebar() {
   const homeNav = [
     { title: "Home", url: "/", icon: Home },
     ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
+    ...(isLeader || isAdmin ? [{ title: "Sync", url: "/sync", icon: MessagesSquare }] : []),
   ];
 
   const cultureNav = [
