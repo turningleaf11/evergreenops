@@ -16,11 +16,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
-import { StrategyFeed } from "@/components/StrategyFeed";
-import { TranslationBlockComponent } from "@/components/TranslationBlock";
 
-import { UpwardProposalForm } from "@/components/UpwardProposal";
 import { LeadershipAiChat } from "@/components/LeadershipAiChat";
+import { DeptRecentSync } from "@/components/sync/DeptRecentSync";
 import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
 import ScorecardSection from "@/components/scorecard/ScorecardSection";
@@ -390,161 +388,11 @@ export default function DepartmentPage() {
             />
           )}
 
-          {!dept.is_program && <>
-          {/* DEPARTMENT FOCUS — hero section */}
-          <section>
-            <Card className="border-2" style={{ borderColor: `hsl(${deptColor} / 0.3)` }}>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Crosshair className="h-5 w-5" style={{ color: `hsl(${deptColor})` }} />
-                  <h2 className="text-lg font-bold">Department Focus</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {/* Current Priorities */}
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Flame className="h-3.5 w-3.5" /> Current Priorities
-                    </h3>
-                    {currentPriorities.length > 0 ? currentPriorities.map(g => (
-                      <div key={g.id} className="p-2.5 rounded-md bg-accent/40 space-y-1.5">
-                        <p className="text-sm font-medium">{g.title}</p>
-                        <div className="flex items-center gap-2">
-                          <Progress value={g.progress} className="h-1.5 flex-1" />
-                          <span className="text-[11px] text-muted-foreground">{g.progress}%</span>
-                        </div>
-                      </div>
-                    )) : (
-                      <p className="text-sm text-muted-foreground italic">No priorities set yet</p>
-                    )}
-                  </div>
-
-                  {/* Key Objective */}
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Target className="h-3.5 w-3.5" /> Key Objective
-                    </h3>
-                    {keyObjective ? (
-                      <div className="p-2.5 rounded-md bg-accent/40">
-                        <p className="text-sm font-medium">{keyObjective.title}</p>
-                        {keyObjective.description && <p className="text-xs text-muted-foreground mt-1">{keyObjective.description}</p>}
-                        <Badge variant="secondary" className={`text-[10px] mt-2 ${statusColors[keyObjective.status] || ""}`}>
-                          {keyObjective.status.replace(/_/g, " ")}
-                        </Badge>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">No active objective</p>
-                    )}
-                  </div>
-
-                  {/* Constraints */}
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Shield className="h-3.5 w-3.5" /> Constraints
-                    </h3>
-                    {constraints.length > 0 ? constraints.map(c => (
-                      <div key={c.id} className="p-2.5 rounded-md bg-accent/40">
-                        <p className="text-sm font-medium">{c.title}</p>
-                        {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
-                      </div>
-                    )) : (
-                      <p className="text-sm text-muted-foreground italic">No constraints — clear runway</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* KEY INITIATIVES */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <FolderKanban className="h-4 w-4" /> Key Initiatives
-            </h2>
-            {keyInitiatives.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {keyInitiatives.map((p) => (
-                  <div key={p.id} className="cursor-pointer" onClick={() => openProjectDrawer(p)}>
-                    <Card className="hover:border-primary/40 transition-colors h-full">
-                      <CardContent className="p-4 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-medium text-sm">{p.title}</p>
-                          <Badge variant="secondary" className={`text-[10px] shrink-0 ${priorityColors[p.priority] || ""}`}>
-                            {p.priority}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline" className={`text-[10px] ${statusColors[p.status] || ""}`}>
-                            {p.status.replace(/_/g, " ")}
-                          </Badge>
-                          {getName(p.owner_id) && (
-                            <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No initiatives yet — create a project to get started.</CardContent></Card>
-            )}
-          </section>
-
-          {/* EXECUTION SNAPSHOT */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <CheckSquare className="h-4 w-4" /> Execution Snapshot
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Tasks */}
-              <Card>
-                <CardContent className="p-4 space-y-2">
-                  <h3 className="text-xs font-semibold text-muted-foreground">
-                    {highPriorityTasks.length > 0 ? "High-Priority Tasks" : "Active Tasks"}
-                  </h3>
-                  {allActiveTasks.length > 0 ? (
-                    <div className="space-y-1">
-                      {allActiveTasks.map(t => (
-                        <div key={t.id} onClick={() => openTaskDrawer(t)} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm cursor-pointer">
-                          <CircleDot className={`h-3.5 w-3.5 shrink-0 ${t.status === "in_progress" ? "text-blue-500" : "text-muted-foreground"}`} />
-                          <span className="truncate flex-1">{t.title}</span>
-                          <Badge variant="secondary" className={`text-[9px] shrink-0 ${priorityColors[t.priority] || ""}`}>{t.priority}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic py-2">No active tasks</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Issues */}
-              <Card>
-                <CardContent className="p-4 space-y-2">
-                  <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Open Issues
-                  </h3>
-                  {issues.length > 0 ? (
-                    <div className="space-y-1">
-                      {issues.slice(0, 3).map(issue => (
-                        <Link key={issue.id} to="/issues" className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
-                          <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 shrink-0">P{issue.priority}</Badge>
-                          <span className="truncate">{issue.title}</span>
-                        </Link>
-                      ))}
-                      {issues.length > 3 && <p className="text-xs text-muted-foreground pl-2">+{issues.length - 3} more open</p>}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic py-2">No open issues — smooth sailing</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-
-          {/* RESOURCES & PLAYBOOKS — Tag-grouped with filter */}
-          <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
-          </>}
+          {/* Dept Focus / Key Initiatives / Execution Snapshot moved to the Leadership tab.
+             Overview keeps Announcements + Resources + Pinboard for the broader team. */}
+          {!dept.is_program && (
+            <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
+          )}
 
 
           {/* PINBOARD */}
@@ -628,8 +476,159 @@ export default function DepartmentPage() {
         )}
 
         {isDeptLeader && (
-          <TabsContent value="leadership" className="mt-4">
-            <EmbeddedLeadership deptId={id!} />
+          <TabsContent value="leadership" className="mt-4 space-y-8">
+            <ScorecardSection departmentId={id!} isAdmin={isAdmin} />
+
+            {/* Recent in Sync — preview of the 2-way comms thread between CEO + this dept's leader(s) */}
+            <DeptRecentSync deptId={id!} />
+
+            {/* DEPARTMENT FOCUS — hero section */}
+            <section>
+              <Card className="border-2" style={{ borderColor: `hsl(${deptColor} / 0.3)` }}>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Crosshair className="h-5 w-5" style={{ color: `hsl(${deptColor})` }} />
+                    <h2 className="text-lg font-bold">Department Focus</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Flame className="h-3.5 w-3.5" /> Current Priorities
+                      </h3>
+                      {currentPriorities.length > 0 ? currentPriorities.map(g => (
+                        <div key={g.id} className="p-2.5 rounded-md bg-accent/40 space-y-1.5">
+                          <p className="text-sm font-medium">{g.title}</p>
+                          <div className="flex items-center gap-2">
+                            <Progress value={g.progress} className="h-1.5 flex-1" />
+                            <span className="text-[11px] text-muted-foreground">{g.progress}%</span>
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-sm text-muted-foreground italic">No priorities set yet</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5" /> Key Objective
+                      </h3>
+                      {keyObjective ? (
+                        <div className="p-2.5 rounded-md bg-accent/40">
+                          <p className="text-sm font-medium">{keyObjective.title}</p>
+                          {keyObjective.description && <p className="text-xs text-muted-foreground mt-1">{keyObjective.description}</p>}
+                          <Badge variant="secondary" className={`text-[10px] mt-2 ${statusColors[keyObjective.status] || ""}`}>
+                            {keyObjective.status.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">No active objective</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Shield className="h-3.5 w-3.5" /> Constraints
+                      </h3>
+                      {constraints.length > 0 ? constraints.map(c => (
+                        <div key={c.id} className="p-2.5 rounded-md bg-accent/40">
+                          <p className="text-sm font-medium">{c.title}</p>
+                          {c.description && <p className="text-xs text-muted-foreground mt-1">{c.description}</p>}
+                        </div>
+                      )) : (
+                        <p className="text-sm text-muted-foreground italic">No constraints — clear runway</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* KEY INITIATIVES */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <FolderKanban className="h-4 w-4" /> Key Initiatives
+              </h2>
+              {keyInitiatives.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {keyInitiatives.map((p) => (
+                    <div key={p.id} className="cursor-pointer" onClick={() => openProjectDrawer(p)}>
+                      <Card className="hover:border-primary/40 transition-colors h-full">
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm">{p.title}</p>
+                            <Badge variant="secondary" className={`text-[10px] shrink-0 ${priorityColors[p.priority] || ""}`}>
+                              {p.priority}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className={`text-[10px] ${statusColors[p.status] || ""}`}>
+                              {p.status.replace(/_/g, " ")}
+                            </Badge>
+                            {getName(p.owner_id) && (
+                              <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No initiatives yet — create a project to get started.</CardContent></Card>
+              )}
+            </section>
+
+            {/* EXECUTION SNAPSHOT */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <CheckSquare className="h-4 w-4" /> Execution Snapshot
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4 space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground">
+                      {highPriorityTasks.length > 0 ? "High-Priority Tasks" : "Active Tasks"}
+                    </h3>
+                    {allActiveTasks.length > 0 ? (
+                      <div className="space-y-1">
+                        {allActiveTasks.map(t => (
+                          <div key={t.id} onClick={() => openTaskDrawer(t)} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm cursor-pointer">
+                            <CircleDot className={`h-3.5 w-3.5 shrink-0 ${t.status === "in_progress" ? "text-blue-500" : "text-muted-foreground"}`} />
+                            <span className="truncate flex-1">{t.title}</span>
+                            <Badge variant="secondary" className={`text-[9px] shrink-0 ${priorityColors[t.priority] || ""}`}>{t.priority}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic py-2">No active tasks</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4 space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="h-3 w-3 text-amber-500" /> Open Issues
+                    </h3>
+                    {issues.length > 0 ? (
+                      <div className="space-y-1">
+                        {issues.slice(0, 3).map(issue => (
+                          <Link key={issue.id} to="/issues" className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted transition-colors text-sm">
+                            <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 shrink-0">P{issue.priority}</Badge>
+                            <span className="truncate">{issue.title}</span>
+                          </Link>
+                        ))}
+                        {issues.length > 3 && <p className="text-xs text-muted-foreground pl-2">+{issues.length - 3} more open</p>}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic py-2">No open issues — smooth sailing</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+
+            <DeptLeadershipAiChatFab deptId={id!} />
           </TabsContent>
         )}
 
@@ -930,21 +929,19 @@ function ResourcesSection({ docs, dbs, openDocPreview }: { docs: Doc[]; dbs: DB[
   );
 }
 
-function EmbeddedLeadership({ deptId }: { deptId: string }) {
+/** Floating AI chat button — rendered inside the Leadership tab so it only shows when the leader is here. */
+function DeptLeadershipAiChatFab({ deptId }: { deptId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
-  const { isAdmin } = useAuth();
-
   return (
-    <div className="space-y-6">
-      <ScorecardSection departmentId={deptId} isAdmin={isAdmin} />
-      <StrategyFeed departmentId={deptId} />
-      <TranslationBlockComponent departmentId={deptId} />
-      <UpwardProposalForm departmentId={deptId} />
-
-      <button onClick={() => setChatOpen(!chatOpen)} className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors">
+    <>
+      <button
+        onClick={() => setChatOpen(!chatOpen)}
+        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+        title="Ask Albus about this dept"
+      >
         <Bot className="h-5 w-5" />
       </button>
       {chatOpen && <LeadershipAiChat open={chatOpen} onOpenChange={setChatOpen} departmentId={deptId} />}
-    </div>
+    </>
   );
 }
