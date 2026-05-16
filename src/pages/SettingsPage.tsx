@@ -753,7 +753,15 @@ function UsersTab() {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
         body: { user_id: userId },
       });
-      if (error) throw error;
+      if (error) {
+        let detail: string | null = null;
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json().catch(() => null);
+          if (body?.error) detail = body.error;
+        }
+        throw new Error(detail || error.message || "Delete failed");
+      }
       if (data?.error) throw new Error(data.error);
       toast({ title: "User deleted" });
       setDeleteConfirmId(null);
@@ -762,6 +770,36 @@ function UsersTab() {
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     }
     setDeleting(false);
+  };
+
+  const handleResendInvite = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-resend-invite", {
+        body: { user_id: userId },
+      });
+      if (error) {
+        let detail: string | null = null;
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json().catch(() => null);
+          if (body?.error) detail = body.error;
+        }
+        throw new Error(detail || error.message || "Resend failed");
+      }
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.invite_url) {
+        try { await navigator.clipboard.writeText(data.invite_url); } catch { /* ignore */ }
+        toast({
+          title: "Invite link copied to clipboard",
+          description: `Send this link to ${data.email} directly — bypasses any email delivery issues.`,
+        });
+      } else {
+        toast({ title: "Invite resent", description: `Email sent to ${data?.email || "user"}.` });
+      }
+    } catch (err: any) {
+      toast({ title: "Resend failed", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleUploadSignature = async (userId: string, file: File) => {
@@ -913,9 +951,20 @@ function UsersTab() {
                           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
                         </div>
                       ) : (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirmId(u.user_id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground"
+                            onClick={() => handleResendInvite(u.user_id)}
+                            title="Resend invite (copies link to clipboard)"
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirmId(u.user_id)} title="Delete user">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       )}
                     </>
                   )}
