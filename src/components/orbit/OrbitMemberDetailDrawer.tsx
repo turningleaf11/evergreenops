@@ -14,7 +14,7 @@ import {
   type OrbitTrack, type OrbitStatus,
   TRACK_OPTIONS, STATUS_OPTIONS, STATUS_COLORS, TRACK_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
-import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus, Link2 } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus, Link2, RefreshCw } from "lucide-react";
 import { GhlUserPicker } from "./GhlUserPicker";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
@@ -62,6 +62,35 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
   // Permanent delete confirm
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // GHL sync
+  const [syncingGhl, setSyncingGhl] = useState(false);
+
+  const syncFromGhl = async () => {
+    if (!memberId) return;
+    setSyncingGhl(true);
+    try {
+      const { data, error } = await sb.functions.invoke("orbit-sync-performance", { body: { memberId } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const result = data?.results?.[0];
+      if (result?.error) {
+        toast.error("Sync failed: " + result.error);
+      } else if (result) {
+        toast.success(`Synced from GHL — ${result.metrics.deals_closed} deals, ${result.metrics.appointments_set} appts`);
+        // Refresh the drawer's data
+        const [m, p] = await Promise.all([
+          sb.from("orbit_members").select("*").eq("id", memberId).maybeSingle(),
+          sb.from("orbit_performance_snapshots").select("*").eq("member_id", memberId).order("snapshot_date", { ascending: false }).limit(12),
+        ]);
+        if (m.data) setMember(m.data as OrbitMember);
+        if (p.data) setPerformance(p.data as OrbitPerformance[]);
+      }
+    } catch (e: any) {
+      toast.error("Sync failed: " + String(e?.message ?? e));
+    }
+    setSyncingGhl(false);
+  };
 
   useEffect(() => {
     if (!open || !memberId) return;
@@ -259,11 +288,23 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                 <div className="flex items-center gap-1.5">
                   <Link2 className="h-3 w-3 text-muted-foreground" />
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">GHL account</p>
-                  {member.ghl_synced_at && (
-                    <span className="text-[10px] text-muted-foreground/50 ml-auto">
-                      synced {format(new Date(member.ghl_synced_at), "MMM d, h:mm a")}
-                    </span>
-                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    {member.ghl_synced_at && (
+                      <span className="text-[10px] text-muted-foreground/50">
+                        synced {format(new Date(member.ghl_synced_at), "MMM d, h:mm a")}
+                      </span>
+                    )}
+                    {member.ghl_user_id && (
+                      <button
+                        onClick={syncFromGhl}
+                        disabled={syncingGhl}
+                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {syncingGhl ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5" />}
+                        Sync now
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <GhlUserPicker
                   currentGhlUserId={member.ghl_user_id}
@@ -271,7 +312,7 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                   compact
                 />
                 <p className="text-[10px] text-muted-foreground/70">
-                  Required to auto-sync calls, appts, and deals from GHL.
+                  Required to auto-sync appts and deals from GHL. Calls + conversations still need manual entry for now.
                 </p>
               </div>
 
@@ -385,7 +426,7 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                       {performance.map((p) => (
                         <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted/40">
                           <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="font-medium w-24">{format(new Date(p.snapshot_date), "MMM d")}</span>
+                          <span className="font-medium w-20">{format(new Date(p.snapshot_date), "MMM d")}</span>
                           <span className="text-muted-foreground">{p.calls_made} calls</span>
                           <span className="text-muted-foreground">·</span>
                           <span className="text-muted-foreground">{p.appointments_set} appts</span>
@@ -393,6 +434,9 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                           <span className="text-muted-foreground">{p.conversations} conv</span>
                           <span className="text-muted-foreground">·</span>
                           <span className="text-muted-foreground">{p.deals_closed} closed</span>
+                          {p.source === "ghl" && (
+                            <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-emerald-100/80 text-emerald-700 font-medium">⚡ GHL</span>
+                          )}
                         </div>
                       ))}
                     </div>

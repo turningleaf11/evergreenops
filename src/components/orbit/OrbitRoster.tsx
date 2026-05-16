@@ -9,7 +9,8 @@ import {
   type OrbitMember, type OrbitTrack, type OrbitStatus,
   TRACK_OPTIONS, STATUS_OPTIONS, TRACK_COLORS, STATUS_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
-import { Plus, Search, Users, AlertTriangle, ListChecks, TrendingUp, Phone, Calendar, Target, DollarSign } from "lucide-react";
+import { Plus, Search, Users, AlertTriangle, ListChecks, TrendingUp, Phone, Calendar, Target, DollarSign, RefreshCw, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { differenceInDays, format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import { AddOrbitMemberDialog } from "./AddOrbitMemberDialog";
 import { OrbitMemberDetailDrawer } from "./OrbitMemberDetailDrawer";
@@ -145,6 +146,25 @@ export function OrbitRoster({ departmentId }: { departmentId: string }) {
   const [trackFilter, setTrackFilter] = useState<OrbitTrack | "all">("all");
   const [addOpen, setAddOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const syncFromGhl = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("orbit-sync-performance", { body: { all: true } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const synced = data?.synced ?? 0;
+      const failed = data?.failed ?? 0;
+      if (synced > 0) toast.success(`Synced ${synced} member${synced === 1 ? "" : "s"} from GHL${failed > 0 ? ` (${failed} failed)` : ""}`);
+      else if (failed > 0) toast.error(`Sync failed for ${failed} member${failed === 1 ? "" : "s"}`);
+      else toast.info(data?.message || "No linked members to sync");
+      load();
+    } catch (e: any) {
+      toast.error("Sync failed: " + String(e?.message ?? e));
+    }
+    setSyncing(false);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -247,9 +267,15 @@ export function OrbitRoster({ departmentId }: { departmentId: string }) {
             );
           })}
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Add member
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={syncFromGhl} disabled={syncing} className="gap-1.5">
+            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Sync from GHL
+          </Button>
+          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> Add member
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
