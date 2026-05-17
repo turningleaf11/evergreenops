@@ -74,20 +74,24 @@ export function NotesQuickPanel({ open, onOpenChange }: { open: boolean; onOpenC
   const activeNote = activeId ? notes.find((n) => n.id === activeId) : null;
   const activeNotebook = activeNote?.notebook_id ? notebooks.find((nb) => nb.id === activeNote.notebook_id) : null;
 
+  // Save patches WITHOUT refetching the notes list — refetching causes the editor
+  // to receive a fresh `content` value mid-typing and blink/lose cursor. Update
+  // the active note inline in local state instead so list-view rows still see
+  // the latest title/preview when the user goes back.
   const saveDebounced = (patch: Partial<Note>) => {
     if (!activeId) return;
+    setNotes((prev) => prev.map((n) => (n.id === activeId ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)));
     if (saveTimer) clearTimeout(saveTimer);
     const t = setTimeout(async () => {
       await sb.from("notes").update(patch).eq("id", activeId);
-      load();
     }, 500);
     setSaveTimer(t);
   };
 
   const saveNow = async (patch: Partial<Note>) => {
     if (!activeId) return;
+    setNotes((prev) => prev.map((n) => (n.id === activeId ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)));
     await sb.from("notes").update(patch).eq("id", activeId);
-    load();
   };
 
   const createNote = async () => {
@@ -376,9 +380,10 @@ export function QuickPanelsDock() {
 
   return (
     <>
-      {/* Floating dock — bottom-LEFT, horizontal pair. Stays out of the way of right-aligned
-         send buttons on Sync / Albus / Scratch composers, and clear of the Albus FAB (right). */}
-      <div className="fixed bottom-5 left-5 z-40 flex items-center gap-2">
+      {/* Floating dock — bottom-right, horizontal pair sitting to the LEFT of the Albus FAB.
+         Albus is at right-6, h-12 (48px). We sit at right-[5rem] (80px from right edge) so
+         our row ends right before the Albus button starts. */}
+      <div className="fixed bottom-6 right-[5rem] z-40 flex items-center gap-2">
         <button
           onClick={() => setNotesOpen(true)}
           className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-amber-500"
