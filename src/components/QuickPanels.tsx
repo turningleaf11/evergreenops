@@ -376,8 +376,9 @@ export function QuickPanelsDock() {
 
   return (
     <>
-      {/* Floating dock — stacked above the Albus FAB at bottom-right */}
-      <div className="fixed bottom-20 right-6 z-40 flex flex-col gap-2">
+      {/* Floating dock — bottom-LEFT, horizontal pair. Stays out of the way of right-aligned
+         send buttons on Sync / Albus / Scratch composers, and clear of the Albus FAB (right). */}
+      <div className="fixed bottom-5 left-5 z-40 flex items-center gap-2">
         <button
           onClick={() => setNotesOpen(true)}
           className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-amber-500"
