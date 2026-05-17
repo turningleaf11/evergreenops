@@ -50,28 +50,62 @@ Deno.serve(async (req) => {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    // Pull workspace context in parallel
+    // Defensive query helper: missing tables / RLS errors return [] instead of crashing the whole function.
+    const safe = async <T,>(label: string, p: Promise<{ data: any; error: any }>): Promise<T[]> => {
+      try {
+        const { data, error } = await p;
+        if (error) { console.warn(`[plan-week] ${label} skipped:`, error.message); return []; }
+        return (data ?? []) as T[];
+      } catch (e) {
+        console.warn(`[plan-week] ${label} threw:`, e);
+        return [];
+      }
+    };
+    const safeOne = async <T,>(label: string, p: Promise<{ data: any; error: any }>): Promise<T | null> => {
+      try {
+        const { data, error } = await p;
+        if (error) { console.warn(`[plan-week] ${label} skipped:`, error.message); return null; }
+        return (data ?? null) as T | null;
+      } catch (e) {
+        console.warn(`[plan-week] ${label} threw:`, e);
+        return null;
+      }
+    };
+
+    const twoWeeksAgoIso = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
     const [
-      profileRes,
-      goalsRes,
-      projectsRes,
-      tasksRes,
-      strategyRes,
-      visionRes,
-      departmentsRes,
-      profilesRes,
-      scorecardRes,
+      profile,
+      goalsData,
+      projectsData,
+      tasksData,
+      strategyData,
+      visionData,
+      departmentsData,
+      profilesData,
+      scorecardData,
     ] = await Promise.all([
-      admin.from("profiles").select("workspace_id, full_name").eq("user_id", user.id).maybeSingle(),
-      admin.from("goals").select("id, title, status, progress, quarter, year, deadline, department_id").eq("year", year).eq("quarter", q),
-      admin.from("projects").select("id, title, status, priority, due_date, department_id, owner_id, description").neq("status", "completed").limit(50),
-      admin.from("tasks").select("id, title, status, priority, due_date, assigned_to, project_id, description").neq("status", "done").limit(100),
-      admin.from("strategy_items").select("id, title, description, status, type, assigned_departments").neq("status", "resolved").limit(20),
-      admin.from("vision_sections").select("section_key, content").limit(20),
-      admin.from("departments").select("id, name").limit(20),
-      admin.from("profiles").select("user_id, full_name, department_id, is_leader").limit(50),
-      admin.from("scorecard_entries").select("metric_id, week_start_date, actual").gte("week_start_date", new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)).limit(50),
+      safeOne<any>("profile", admin.from("profiles").select("workspace_id, full_name").eq("user_id", user.id).maybeSingle() as any),
+      safe<any>("goals", admin.from("goals").select("id, title, status, progress, quarter, year, deadline, department_id").eq("year", year).eq("quarter", q) as any),
+      safe<any>("projects", admin.from("projects").select("id, title, status, priority, due_date, department_id, owner_id, description").neq("status", "completed").limit(50) as any),
+      safe<any>("tasks", admin.from("tasks").select("id, title, status, priority, due_date, assigned_to, project_id, description").neq("status", "done").limit(100) as any),
+      safe<any>("strategy_items", admin.from("strategy_items").select("id, title, description, status, type, assigned_departments").neq("status", "resolved").limit(20) as any),
+      safe<any>("vision_sections", admin.from("vision_sections").select("section_key, content").limit(20) as any),
+      safe<any>("departments", admin.from("departments").select("id, name").limit(20) as any),
+      safe<any>("team", admin.from("profiles").select("user_id, full_name, department_id, is_leader").limit(50) as any),
+      safe<any>("scorecard", admin.from("scorecard_entries").select("metric_id, week_start_date, actual").gte("week_start_date", twoWeeksAgoIso).limit(50) as any),
     ]);
+
+    // Re-bind into the names the rest of the function expects
+    const goalsRes = { data: goalsData };
+    const projectsRes = { data: projectsData };
+    const tasksRes = { data: tasksData };
+    const strategyRes = { data: strategyData };
+    const visionRes = { data: visionData };
+    const departmentsRes = { data: departmentsData };
+    const profilesRes = { data: profilesData };
+    const scorecardRes = { data: scorecardData };
+    const profileRes = { data: profile };
 
     const ctx = {
       ceoName: (profileRes.data as any)?.full_name || "the CEO",
@@ -147,26 +181,47 @@ Now produce the JSON week plan.`;
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: "Plan the week. Output strict JSON only." },
+          { role: "user", content: "Output the JSON week plan now. No prose, no markdown fences." },
         ],
-        response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const t = await response.text();
-      console.error("AI gateway error", response.status, t);
-      return json({ error: `AI gateway returned ${response.status}`, detail: t.slice(0, 300) }, 500);
+      console.error("AI gateway error", response.status, t.slice(0, 500));
+      return json({ error: `AI gateway returned ${response.status}`, detail: t.slice(0, 300) }, 200);
     }
 
     const aiBody = await response.json();
-    const content = aiBody?.choices?.[0]?.message?.content ?? "{}";
+    let content: string = aiBody?.choices?.[0]?.message?.content ?? "{}";
+    // Strip ```json ... ``` fences if the model returns them
+    content = content.trim();
+    if (content.startsWith("```")) {
+      content = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    }
+    // Extract the largest {...} block as a last resort
+    const firstBrace = content.indexOf("{");
+    const lastBrace = content.lastIndexOf("}");
+    if (firstBrace > 0 || lastBrace > 0) {
+      content = content.slice(firstBrace, lastBrace + 1);
+    }
+
     let plan: any;
     try { plan = JSON.parse(content); }
-    catch { return json({ error: "AI returned malformed JSON", raw: content.slice(0, 500) }, 500); }
+    catch (e) {
+      console.error("AI returned malformed JSON", content.slice(0, 500));
+      return json({ error: "Albus returned malformed JSON. Try again.", raw: content.slice(0, 300) }, 200);
+    }
+
+    // Normalize so missing keys never crash the UI
+    plan.headline = plan.headline ?? "Here's where the week stands.";
+    plan.priorities = Array.isArray(plan.priorities) ? plan.priorities : [];
+    plan.new_projects = Array.isArray(plan.new_projects) ? plan.new_projects : [];
+    plan.new_tasks = Array.isArray(plan.new_tasks) ? plan.new_tasks : [];
+    plan.risks = Array.isArray(plan.risks) ? plan.risks : [];
 
     return json({ plan, week: ctx.week });
   } catch (e: any) {

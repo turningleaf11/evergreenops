@@ -6,6 +6,7 @@ import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
 import { UserOnboardingModal } from "@/components/UserOnboardingModal";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
+import { QuickPanelsDock } from "@/components/QuickPanels";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -41,6 +42,7 @@ function LayoutInner() {
 
             <div className="flex items-center gap-2 shrink-0">
               <GlobalCreateMenu />
+              <QuickPanelsDock />
               <TimeClockButton />
               <LauncherMenu />
               <RemindersBell />
