@@ -13,6 +13,7 @@ import { DelegationBoard } from "@/components/DelegationBoard";
 import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { SyncNeedsYouPreview } from "@/components/sync/SyncNeedsYouPreview";
+import { TodaysMeetingsWidget } from "@/components/ceo/TodaysMeetingsWidget";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { PersonalTodos } from "@/components/ceo/PersonalTodos";
 import { AssignedTasks } from "@/components/ceo/AssignedTasks";
@@ -219,8 +220,9 @@ export default function CeoDashboard() {
           {/* Today Tab */}
           <TabsContent value="today">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Left — action items + Sync Needs You */}
+              {/* Left — meetings + action items + Sync Needs You */}
               <div className="space-y-4">
+                {isPrimaryAdmin && <TodaysMeetingsWidget />}
                 {isPrimaryAdmin && <TodaysPriorities />}
                 {isPrimaryAdmin && <PersonalTodos />}
                 {isPrimaryAdmin && <AssignedTasks />}
