@@ -2,7 +2,8 @@ import { useRef, useEffect, useContext, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CompanionContext } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Send, Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
+import { Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
+import { ChatInputShell } from "@/components/chat/ChatInputShell";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
 import { useDailyBriefing } from "@/hooks/useDailyBriefing";
 import ReactMarkdown from "react-markdown";
@@ -298,23 +299,12 @@ export function GlobalCompanion() {
             </div>
 
             <div className="border-t border-border px-4 py-3">
-              <div className="flex items-center gap-2">
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-                  placeholder="What's on your mind?"
-                  className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm border-none outline-none placeholder:text-muted-foreground/50"
-                  disabled={loading}
-                />
-                <button
-                  onClick={send}
-                  disabled={loading || !input.trim()}
-                  className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 transition-opacity"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <ChatInputShell
+                placeholder="What's on your mind? Type / for commands, @ to mention."
+                submitting={loading}
+                minHeight={48}
+                onSubmit={async (p) => { await send(p.text); }}
+              />
             </div>
           </div>
         </SheetContent>

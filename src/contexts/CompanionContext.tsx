@@ -32,7 +32,7 @@ interface CompanionContextType {
   loading: boolean;
   open: boolean;
   setOpen: (v: boolean) => void;
-  send: () => Promise<void>;
+  send: (textOverride?: string) => Promise<void>;
   // Thread management
   threads: ThreadSummary[];
   activeThreadId: string | null;
@@ -327,9 +327,10 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [open, location.pathname, messages.length, loading, data, activeThreadId, profile?.full_name, profile?.workspace_id, user?.email]);
 
-  const send = useCallback(async () => {
-    if (!input.trim() || loading || !user?.id) return;
-    const userText = input.trim();
+  const send = useCallback(async (textOverride?: string) => {
+    const raw = textOverride ?? input;
+    if (!raw.trim() || loading || !user?.id) return;
+    const userText = raw.trim();
     const userMsg: Message = { id: null, role: "user", content: userText };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");

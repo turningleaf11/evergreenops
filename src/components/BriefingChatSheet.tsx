@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCEOContext } from "@/lib/ceo-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { ChatInputShell } from "@/components/chat/ChatInputShell";
 import { toast } from "sonner";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
 import { format } from "date-fns";
@@ -217,23 +218,12 @@ export function BriefingChatSheet({ open, onOpenChange, briefing, firstName }: P
         </div>
 
         <div className="border-t border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder="Ask Albus anything about today..."
-              className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm border-none outline-none placeholder:text-muted-foreground/50"
-              disabled={loading}
-            />
-            <button
-              onClick={() => send()}
-              disabled={loading || !input.trim()}
-              className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 transition-opacity"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <ChatInputShell
+            placeholder="Ask Albus anything about today… type / for commands, @ to mention."
+            submitting={loading}
+            minHeight={48}
+            onSubmit={async (p) => { await send(p.text); }}
+          />
         </div>
       </SheetContent>
     </Sheet>
