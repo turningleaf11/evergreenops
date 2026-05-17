@@ -42,7 +42,6 @@ function LayoutInner() {
 
             <div className="flex items-center gap-2 shrink-0">
               <GlobalCreateMenu />
-              <QuickPanelsDock />
               <TimeClockButton />
               <LauncherMenu />
               <RemindersBell />
@@ -58,6 +57,7 @@ function LayoutInner() {
             </main>
           </div>
           <GlobalCompanion />
+          <QuickPanelsDock />
           <UserOnboardingModal />
         </div>
       </CompanionProvider>

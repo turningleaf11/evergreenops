@@ -17,7 +17,6 @@ import { TodaysMeetingsWidget } from "@/components/ceo/TodaysMeetingsWidget";
 import { TodaysPathStrip } from "@/components/ceo/TodaysPathStrip";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { PersonalTodos } from "@/components/ceo/PersonalTodos";
-import { AssignedTasks } from "@/components/ceo/AssignedTasks";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -186,12 +185,13 @@ export default function CeoDashboard() {
           <TabsContent value="today" className="space-y-4">
             {isPrimaryAdmin && <TodaysPathStrip />}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Left — meetings + action items + Sync Needs You */}
+              {/* Left — meetings + action items + Sync Needs You.
+                 'AssignedTasks' (From Execution Hub) intentionally removed —
+                 its items duplicate Today's Path strip above. */}
               <div className="space-y-4">
                 {isPrimaryAdmin && <TodaysMeetingsWidget />}
                 {isPrimaryAdmin && <TodaysPriorities />}
                 {isPrimaryAdmin && <PersonalTodos />}
-                {isPrimaryAdmin && <AssignedTasks />}
                 {isPrimaryAdmin && <SyncNeedsYouPreview />}
               </div>
 
