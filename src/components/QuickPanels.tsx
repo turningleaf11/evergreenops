@@ -197,11 +197,13 @@ export function NotesQuickPanel({ open, onOpenChange }: { open: boolean; onOpenC
                 className="w-full text-2xl font-bold bg-transparent outline-none placeholder:text-muted-foreground/30 leading-tight"
               />
 
+              {/* Match the actual /notes page: borderless, slash-commands, bubble menu on selection */}
               <RichTextEditor
+                key={activeId}
                 content={draft}
                 onChange={(html) => { setDraft(html); saveDebounced({ content: html }); }}
-                placeholder="Start typing…"
-                showToolbar
+                placeholder="Start writing…"
+                borderless
               />
             </div>
           ) : notes.length === 0 ? (

@@ -2,12 +2,12 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Loader2, Paperclip, X, Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink, ListTodo } from "lucide-react";
+import { Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink, ListTodo } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LinkedItemPicker, LinkedItemChip, type LinkedItem } from "./LinkedItemPicker";
 import { formatDistanceToNow } from "date-fns";
-import { MentionInput, MentionChips, type MentionRef } from "@/components/ceo/MentionInput";
-import { uploadFile, triggerFileInput } from "@/lib/file-upload";
+import { MentionChips, type MentionRef } from "@/components/ceo/MentionInput";
+import { ChatInputShell, type ChatSubmitPayload } from "@/components/chat/ChatInputShell";
 import { toast } from "sonner";
 import { SyncChannel, SyncTag, SyncThread } from "@/hooks/useSync";
 import { SyncTagBadge } from "./SyncTagBadge";
@@ -71,11 +71,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
-  const [input, setInput] = useState("");
-  const [inputMentions, setInputMentions] = useState<MentionRef[]>([]);
-  const [inputAttachments, setInputAttachments] = useState<Attachment[]>([]);
   const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -142,28 +138,29 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
     await sb.from("notifications").insert(rows);
   };
 
-  const handleAttach = () => {
-    triggerFileInput("*", async (file) => {
-      if (file.size > 25 * 1024 * 1024) { toast.error("File too large (25 MB max)"); return; }
-      setUploading(true);
-      const url = await uploadFile(file);
-      setUploading(false);
-      if (!url) { toast.error("Upload failed"); return; }
-      setInputAttachments((prev) => [...prev, { url, name: file.name, type: file.type || "application/octet-stream", size: file.size }]);
-    });
-  };
-
-  const send = async () => {
-    const body = input.trim();
-    const hasContent = body || inputMentions.length > 0 || inputAttachments.length > 0;
+  const sendViaShell = async (p: ChatSubmitPayload) => {
+    const hasContent = p.text || p.mentions.length > 0 || p.attachments.length > 0 || p.gifUrl || p.audioUrl;
     if (!hasContent || !user || sending) return;
     setSending(true);
+
+    // Map ChatInputShell payload onto the sync schema
+    const mentions: MentionRef[] = p.mentions.map((m) => ({
+      id: m.id,
+      type: (m.type === "project" || m.type === "task" || m.type === "goal" || m.type === "person") ? m.type : "person",
+      label: m.label,
+    }));
+    const attachments: Attachment[] = [
+      ...p.attachments.map((a) => ({ url: a.url, name: a.name, type: a.type || "application/octet-stream", size: a.size })),
+      ...(p.gifUrl ? [{ url: p.gifUrl, name: "gif", type: "image/gif", size: 0 }] : []),
+      ...(p.audioUrl ? [{ url: p.audioUrl, name: "voice-note.webm", type: "audio/webm", size: 0 }] : []),
+    ];
+
     const { data, error } = await sb.from("sync_thread_messages").insert({
       thread_id: thread.id,
       author_id: user.id,
-      body,
-      mentions: inputMentions,
-      attachments: inputAttachments,
+      body: p.html,
+      mentions,
+      attachments,
     }).select().single();
     setSending(false);
     if (error) { toast.error("Failed to send"); return; }
@@ -174,8 +171,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
         attachments: Array.isArray((data as any).attachments) ? (data as any).attachments : [],
       };
       setMessages((prev) => [...prev, newMsg]);
-      setInput(""); setInputMentions([]); setInputAttachments([]);
-      fanOut(body, newMsg.mentions).catch((e) => console.error("Notify fan-out failed:", e));
+      fanOut(p.text, newMsg.mentions).catch((e) => console.error("Notify fan-out failed:", e));
       onChanged();
     }
   };
@@ -355,12 +351,13 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
                   <span className="text-[10px] text-muted-foreground/50">· {relTime(msg.created_at)}</span>
                 </div>
                 {msg.body && (
-                  <div className={cn(
-                    "text-sm px-3 py-1.5 rounded-lg max-w-[85%] whitespace-pre-wrap break-words",
-                    isMine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
-                  )}>
-                    {msg.body}
-                  </div>
+                  <div
+                    className={cn(
+                      "text-sm px-3 py-1.5 rounded-lg max-w-[85%] break-words prose prose-sm prose-invert max-w-none [&_p]:my-1",
+                      isMine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                    )}
+                    dangerouslySetInnerHTML={{ __html: msg.body }}
+                  />
                 )}
                 {msg.mentions.length > 0 && (
                   <div className={cn("flex", isMine && "justify-end")}>
@@ -379,54 +376,14 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
         <div ref={bottomRef} />
       </div>
 
-      {/* Composer */}
-      <div className="px-5 py-3 border-t border-border/40 bg-card/40 space-y-2">
-        {inputAttachments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {inputAttachments.map((att, i) => (
-              <div key={i} className="relative group">
-                <AttachmentPreview att={att} />
-                <button
-                  type="button"
-                  onClick={() => setInputAttachments((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="flex items-end gap-2">
-          <div className="flex-1 min-w-0 bg-muted/40 rounded-md px-3 py-2 min-h-[5rem] flex">
-            <MentionInput
-              value={input}
-              onChange={setInput}
-              mentions={inputMentions}
-              onMentionsChange={setInputMentions}
-              placeholder="Reply… type @ to mention a person, project, task, or goal"
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              inputClassName="text-sm"
-              popupPlacement="top"
-            />
-          </div>
-          <button
-            onClick={handleAttach}
-            disabled={uploading || sending}
-            className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center disabled:opacity-40"
-            title="Attach"
-          >
-            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={send}
-            disabled={sending || (!input.trim() && inputMentions.length === 0 && inputAttachments.length === 0)}
-            className="h-8 w-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40"
-            title="Send"
-          >
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-          </button>
-        </div>
+      {/* Composer — unified ChatInputShell (rich text, slash, @ mentions, attachments, gif, voice, emoji) */}
+      <div className="px-5 py-3 border-t border-border/40 bg-card/40">
+        <ChatInputShell
+          placeholder="Reply… type / for commands, @ to mention"
+          submitting={sending}
+          minHeight={64}
+          onSubmit={sendViaShell}
+        />
       </div>
     </div>
   );
