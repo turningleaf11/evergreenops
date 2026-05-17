@@ -14,12 +14,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, CheckSquare, FolderKanban, AlarmClock, FileText, StickyNote, CalendarIcon, User, Building2, ChevronRight } from "lucide-react";
+import { Plus, CheckSquare, FolderKanban, AlarmClock, FileText, StickyNote, CalendarIcon, User, Building2, ChevronRight, Lightbulb } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 
-type CreateType = "task" | "project" | "reminder" | null;
+type CreateType = "task" | "project" | "reminder" | "idea" | null;
 
 const priorityOptions = [
   { value: "high", label: "High", className: "bg-destructive/10 text-destructive border-destructive/20" },
@@ -105,6 +105,21 @@ export function GlobalCreateMenu() {
         else { toast({ title: "Reminder created" }); reset(); }
         break;
       }
+      case "idea": {
+        const { data: prof } = await supabase.from("profiles").select("workspace_id").eq("user_id", user.id).maybeSingle();
+        const { error } = await (supabase.from("idea_vault" as any).insert({
+          title: title.trim(),
+          description: description || null,
+          time_horizon: null,
+          created_by: user.id,
+          workspace_id: (prof as any)?.workspace_id ?? null,
+          source: "manual",
+          status: "captured",
+        }) as any);
+        if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+        else { toast({ title: "Idea captured", description: "Find it in CEO Cockpit → Big Picture → Idea Vault" }); reset(); }
+        break;
+      }
     }
   };
 
@@ -147,6 +162,7 @@ export function GlobalCreateMenu() {
     task: "New Task",
     project: "New Project",
     reminder: "New Reminder",
+    idea: "Capture Idea",
   };
 
   return (
@@ -166,6 +182,9 @@ export function GlobalCreateMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setCreateType("reminder")}>
             <AlarmClock className="h-4 w-4 mr-2" /> Reminder
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCreateType("idea")}>
+            <Lightbulb className="h-4 w-4 mr-2" /> Idea
           </DropdownMenuItem>
           <DropdownMenuItem onClick={instantCreateNote}>
             <StickyNote className="h-4 w-4 mr-2" /> Quick Note

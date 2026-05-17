@@ -28,6 +28,7 @@ interface Props {
 export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
   const { user, profile } = useAuth();
   const [project, setProject] = useState<AiProject | null>(null);
+  const notesSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [links, setLinks] = useState<AiProjectLink[]>([]);
   const [files, setFiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
@@ -62,12 +63,24 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Fields visible on the board/list view — only these need to trigger a parent refresh.
+  const LIST_VISIBLE_FIELDS = new Set([
+    "name", "description", "stage", "platforms", "tags", "live_url", "repo_url", "cover_url",
+  ]);
+
   const update = async (patch: Partial<AiProject>) => {
     if (!project) return;
     setProject({ ...project, ...patch });
     const { error } = await (supabase.from("ai_projects" as any).update(patch).eq("id", project.id) as any);
-    if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
-    else onChange?.();
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    // Only refresh the parent list when a visible-on-list field changed.
+    // Prevents notes-typing from triggering a full project list refetch + re-render,
+    // which was causing the editor to blink/lose state mid-keystroke.
+    const touchesList = Object.keys(patch).some((k) => LIST_VISIBLE_FIELDS.has(k));
+    if (touchesList) onChange?.();
   };
 
   const addLink = async () => {
@@ -386,7 +399,15 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                 <TabsContent value="notes" className="pt-3">
                   <RichTextEditor
                     content={project.notes_content ?? ""}
-                    onChange={(html) => update({ notes_content: html })}
+                    onChange={(html) => {
+                      // Optimistic local state so the editor never lags behind input.
+                      setProject((cur) => (cur ? { ...cur, notes_content: html } : cur));
+                      // Debounce the DB write so we're not hammering Supabase on every keystroke.
+                      if (notesSaveTimer.current) clearTimeout(notesSaveTimer.current);
+                      notesSaveTimer.current = setTimeout(() => {
+                        update({ notes_content: html });
+                      }, 600);
+                    }}
                     placeholder="Brain dump ideas, todos, gotchas..."
                   />
                 </TabsContent>
