@@ -166,11 +166,18 @@ function AssigneeAvatar({ assignee, size = "sm" }: { assignee: Assignee | undefi
 }
 
 const CATEGORY_BADGE: Record<AiLogCategory, { label: string; className: string }> = {
+  task_created:    { label: "Created",   className: "bg-purple-100 text-purple-800 border-purple-200" },
+  task_status:     { label: "Status",    className: "bg-amber-100 text-amber-800 border-amber-200" },
+  task_updated:    { label: "Updated",   className: "bg-slate-100 text-slate-700 border-slate-200" },
   task_started:    { label: "Started",   className: "bg-blue-100 text-blue-800 border-blue-200" },
   task_completed:  { label: "Completed", className: "bg-green-100 text-green-800 border-green-200" },
   task_failed:     { label: "Failed",    className: "bg-red-100 text-red-800 border-red-200" },
   agent_message:   { label: "Message",   className: "bg-slate-100 text-slate-700 border-slate-200" },
+  agent_thought:   { label: "Thinking",  className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  agent_tool:      { label: "Tool",      className: "bg-cyan-100 text-cyan-800 border-cyan-200" },
 };
+// Safety fallback if a future category sneaks in from the DB
+const DEFAULT_BADGE = { label: "Event", className: "bg-slate-100 text-slate-700 border-slate-200" };
 
 const ACTIVE_AGENT_STATUSES = new Set(["active", "online"]);
 
@@ -424,7 +431,7 @@ export default function AiHubPage() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               {latestActivityLogs.map(log => {
-                const badge = CATEGORY_BADGE[log.category];
+                const badge = CATEGORY_BADGE[log.category] ?? DEFAULT_BADGE;
                 return (
                   <div key={log.id} className="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-2.5 min-w-0">
                     <span
@@ -560,7 +567,7 @@ export default function AiHubPage() {
                 </p>
               ) : (
                 activityLogs.slice(0, 50).map(log => {
-                  const badge = CATEGORY_BADGE[log.category];
+                  const badge = CATEGORY_BADGE[log.category] ?? DEFAULT_BADGE;
                   const accent = log.agent_id
                     ? assignees.find(a => a.kind === "agent" && a.name === log.agent_name)?.accent_color
                     : null;

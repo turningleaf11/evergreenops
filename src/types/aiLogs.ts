@@ -1,4 +1,13 @@
-export type AiLogCategory = 'task_started' | 'task_completed' | 'task_failed' | 'agent_message';
+export type AiLogCategory =
+  | 'task_created'
+  | 'task_status'
+  | 'task_updated'
+  | 'task_started'
+  | 'task_completed'
+  | 'task_failed'
+  | 'agent_message'
+  | 'agent_thought'
+  | 'agent_tool';
 
 export interface AiLog {
   id: string;
