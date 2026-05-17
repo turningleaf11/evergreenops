@@ -27,7 +27,7 @@ import { uploadFile } from "@/lib/file-upload";
 import { Plugin } from "@tiptap/pm/state";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
-  Link as LinkIcon, Palette, Plus, GripVertical,
+  Link as LinkIcon, Palette, Plus, GripVertical, List, ListOrdered, CheckSquare, Quote,
 } from "lucide-react";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import "./RichTextEditor.css";
@@ -39,6 +39,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   borderless?: boolean;
   compact?: boolean;
+  /** Show a permanent top toolbar above the editor (for surfaces without their own chrome) */
+  showToolbar?: boolean;
 }
 
 const TEXT_COLORS = [
@@ -99,7 +101,7 @@ function createImageUploadPlugin() {
   });
 }
 
-export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false, compact = false }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false, compact = false, showToolbar = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const isInternalChange = useRef(false);
 
@@ -178,6 +180,28 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       )}
       onClick={handleSurfaceClick}
     >
+      {/* Fixed top toolbar — opt-in for surfaces without their own chrome */}
+      {showToolbar && (
+        <div className="flex items-center gap-0.5 flex-wrap border-b border-border/40 px-2 py-1.5 bg-muted/30 rounded-t-lg">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={cn("toolbar-btn text-[11px] font-bold px-1.5", editor.isActive("heading", { level: 1 }) && "is-active")} title="Heading 1">H1</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={cn("toolbar-btn text-[11px] font-bold px-1.5", editor.isActive("heading", { level: 2 }) && "is-active")} title="Heading 2">H2</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={cn("toolbar-btn text-[11px] font-bold px-1.5", editor.isActive("heading", { level: 3 }) && "is-active")} title="Heading 3">H3</button>
+          <div className="h-4 w-px bg-border/40 mx-1" />
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleMark("bold").run()} className={cn("toolbar-btn", editor.isActive("bold") && "is-active")} title="Bold"><Bold className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleMark("italic").run()} className={cn("toolbar-btn", editor.isActive("italic") && "is-active")} title="Italic"><Italic className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={cn("toolbar-btn", editor.isActive("underline") && "is-active")} title="Underline"><UnderlineIcon className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleMark("strike").run()} className={cn("toolbar-btn", editor.isActive("strike") && "is-active")} title="Strikethrough"><Strikethrough className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleMark("code").run()} className={cn("toolbar-btn", editor.isActive("code") && "is-active")} title="Inline code"><Code className="h-3.5 w-3.5" /></button>
+          <div className="h-4 w-px bg-border/40 mx-1" />
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleBulletList().run()} className={cn("toolbar-btn", editor.isActive("bulletList") && "is-active")} title="Bullet list"><List className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleOrderedList().run()} className={cn("toolbar-btn", editor.isActive("orderedList") && "is-active")} title="Numbered list"><ListOrdered className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleTaskList().run()} className={cn("toolbar-btn", editor.isActive("taskList") && "is-active")} title="Task list"><CheckSquare className="h-3.5 w-3.5" /></button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().toggleBlockquote().run()} className={cn("toolbar-btn", editor.isActive("blockquote") && "is-active")} title="Quote"><Quote className="h-3.5 w-3.5" /></button>
+          <div className="h-4 w-px bg-border/40 mx-1" />
+          <span className="text-[10px] text-muted-foreground/60 px-1">Type "/" for more</span>
+        </div>
+      )}
+
       {/* Bubble Menu — appears on text selection */}
       <BubbleMenu editor={editor} className="bubble-menu">
         <button onClick={() => editor.chain().focus().toggleMark("bold").run()} className={`bubble-btn ${editor.isActive("bold") ? "is-active" : ""}`} title="Bold">

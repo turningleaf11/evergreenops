@@ -332,6 +332,30 @@
   margin: 0 2px;
 }
 
+/* Persistent top toolbar — used when showToolbar prop is true */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toolbar-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.toolbar-btn.is-active {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
 /* === Floating Menu (+) === */
 .floating-menu {
   display: flex;

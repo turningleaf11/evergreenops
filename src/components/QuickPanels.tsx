@@ -197,13 +197,12 @@ export function NotesQuickPanel({ open, onOpenChange }: { open: boolean; onOpenC
                 className="w-full text-2xl font-bold bg-transparent outline-none placeholder:text-muted-foreground/30 leading-tight"
               />
 
-              <div className="border-t border-border/30 pt-3">
-                <RichTextEditor
-                  content={draft}
-                  onChange={(html) => { setDraft(html); saveDebounced({ content: html }); }}
-                  placeholder="Start typing… use the toolbar above for formatting."
-                />
-              </div>
+              <RichTextEditor
+                content={draft}
+                onChange={(html) => { setDraft(html); saveDebounced({ content: html }); }}
+                placeholder="Start typing…"
+                showToolbar
+              />
             </div>
           ) : notes.length === 0 ? (
             <div className="px-5 py-12 text-center space-y-2">
@@ -375,8 +374,8 @@ export function QuickPanelsDock() {
 
   return (
     <>
-      {/* Floating pinned dock — bottom-left, out of the way of Albus (bottom-right) */}
-      <div className="fixed bottom-5 left-5 z-40 flex flex-col gap-2">
+      {/* Floating dock — stacked above the Albus FAB at bottom-right */}
+      <div className="fixed bottom-20 right-6 z-40 flex flex-col gap-2">
         <button
           onClick={() => setNotesOpen(true)}
           className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-amber-500"

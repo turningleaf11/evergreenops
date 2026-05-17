@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import RichTextEditor from "@/components/RichTextEditor";
+import { AiProjectFeatures } from "@/components/ai-workshop/AiProjectFeatures";
 import AccessPicker from "@/components/AccessPicker";
 import { uploadFileWithPath, openStoredFile } from "@/lib/file-upload";
 import { AI_STAGES, type AiProject, type AiProjectLink } from "./types";
@@ -258,6 +259,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList>
                   <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="features">Features</TabsTrigger>
                   <TabsTrigger value="prompt">Prompt</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
@@ -377,6 +379,10 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                       <Upload className="h-3 w-3 mr-1.5" /> {uploading ? "Uploading..." : "Add cover image"}
                     </Button>
                   )}
+                </TabsContent>
+
+                <TabsContent value="features" className="pt-3">
+                  <AiProjectFeatures projectId={project.id} />
                 </TabsContent>
 
                 <TabsContent value="prompt" className="space-y-2 pt-3">

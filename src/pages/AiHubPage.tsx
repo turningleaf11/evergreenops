@@ -23,6 +23,7 @@ import { uploadFile } from "@/lib/file-upload";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import type { AiLog, AiLogCategory } from "@/types/aiLogs";
 import { subscribeToAiLogs } from "@/lib/aiLogService";
+import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 type TaskType = "general" | "research" | "code" | "decision" | "communication";
@@ -555,6 +556,15 @@ export default function AiHubPage() {
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">
+          <Card>
+            <CardContent className="pt-6">
+              <AgentActivityDrillDown />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Legacy flat activity feed kept commented out for reference */}
+        <TabsContent value="activity_legacy_unused" className="hidden">
           <Card>
             <CardContent className="pt-6 space-y-3 max-h-[70vh] overflow-y-auto">
               {logsLoading ? (
