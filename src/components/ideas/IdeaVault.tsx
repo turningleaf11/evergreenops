@@ -110,9 +110,12 @@ export function IdeaVault() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-enrich any idea that hasn't been processed yet (e.g. arrived via triage)
+  // Auto-enrich any idea that hasn't been processed yet (e.g. arrived via triage).
+  // Skip manual captures — those should land raw, with the user adding labels/track themselves.
   useEffect(() => {
-    const pending = ideas.filter(i => !i.ai_summary && !i.ai_cluster && !enrichingIds.has(i.id));
+    const pending = ideas.filter(i =>
+      !i.ai_summary && !i.ai_cluster && !enrichingIds.has(i.id) && i.source !== "manual"
+    );
     if (pending.length === 0) return;
     pending.slice(0, 3).forEach(i => enrichIdea(i.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,7 +161,7 @@ export function IdeaVault() {
     toast({ title: "Idea captured" });
     if (inserted) {
       setIdeas(prev => [inserted as Idea, ...prev]);
-      enrichIdea((inserted as Idea).id);
+      // Manual captures stay raw — no auto-labeling. Use the enrich button if you want AI cluster/summary.
     } else {
       load();
     }

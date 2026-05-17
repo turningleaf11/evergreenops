@@ -76,8 +76,20 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const txt = await res.text();
-      console.error("GHL users fetch failed", res.status, txt.slice(0, 300));
-      return json({ error: `GHL API ${res.status}`, detail: txt.slice(0, 200), users: [] }, res.status);
+      console.error("GHL users fetch failed", res.status, txt.slice(0, 500));
+      let hint = "";
+      if (res.status === 401) {
+        hint = " — your Private Integration Token is missing the 'View Users' (users.readonly) scope. In GHL: Settings → Private Integrations → edit the token → add the 'View Users' scope (and 'View Opportunities' + 'View Calendar Events' for the rest of Orbit sync). Save, then try again.";
+      } else if (res.status === 403) {
+        hint = " — the token is valid but not authorized for this location. Confirm GHL_LOCATION_ID matches the location the token was created in.";
+      } else if (res.status === 404) {
+        hint = " — endpoint not found, GHL_LOCATION_ID may be wrong.";
+      }
+      return json({
+        error: `GHL API ${res.status}${hint}`,
+        detail: txt.slice(0, 400),
+        users: [],
+      }, 200); // Return 200 so supabase.functions.invoke gives us the body
     }
 
     const data = await res.json();

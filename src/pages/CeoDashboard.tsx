@@ -14,6 +14,7 @@ import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { SyncNeedsYouPreview } from "@/components/sync/SyncNeedsYouPreview";
 import { TodaysMeetingsWidget } from "@/components/ceo/TodaysMeetingsWidget";
+import { TodaysPathWidget } from "@/components/ceo/TodaysPathWidget";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { PersonalTodos } from "@/components/ceo/PersonalTodos";
 import { AssignedTasks } from "@/components/ceo/AssignedTasks";
@@ -42,8 +43,6 @@ export default function CeoDashboard() {
   const { user, isPrimaryAdmin } = useAuth();
   const { ceoPageName } = useWorkspace();
 
-  const [editingObjective, setEditingObjective] = useState(false);
-  const [objectiveDraft, setObjectiveDraft] = useState(data.currentObjective);
 
   // Vision state
   const [visionSections, setVisionSections] = useState<VisionSection[]>([]);
@@ -120,11 +119,6 @@ export default function CeoDashboard() {
     return g.year === now.getFullYear() && g.quarter === q;
   });
 
-  const saveObjective = () => {
-    update({ currentObjective: objectiveDraft });
-    setEditingObjective(false);
-  };
-
   const handleProcess = async (text: string, images: string[]) => {
     setIsProcessing(true);
     try {
@@ -179,35 +173,8 @@ export default function CeoDashboard() {
       </div>
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16 space-y-8 sm:space-y-10">
-        {/* Current Objective — slim pinned context line */}
-        <div className="mb-2">
-          <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-widest mb-1.5">Current Objective</p>
-          {editingObjective ? (
-            <div className="flex items-center gap-2">
-              <input
-                value={objectiveDraft}
-                onChange={(e) => setObjectiveDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveObjective()}
-                className="flex-1 bg-transparent text-base font-medium text-foreground border-none outline-none placeholder:text-muted-foreground/30"
-                placeholder="What is the one thing that matters right now?"
-                autoFocus
-              />
-              <button onClick={saveObjective} className="text-primary hover:text-primary/80 transition-colors duration-150">
-                <Check className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div
-              onClick={() => { setEditingObjective(true); setObjectiveDraft(data.currentObjective); }}
-              className="cursor-pointer group flex items-center gap-2"
-            >
-              <p className="text-base font-medium text-foreground">
-                {data.currentObjective || <span className="text-muted-foreground/40 italic font-normal">Click to set your current objective...</span>}
-              </p>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-            </div>
-          )}
-        </div>
+        {/* Today's Path — the roadmap thread replacing the old Current Objective text */}
+        {isPrimaryAdmin && <TodaysPathWidget />}
 
         {/* 4-Tab cockpit */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
