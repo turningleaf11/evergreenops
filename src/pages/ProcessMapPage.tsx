@@ -68,7 +68,7 @@ const ANNOTATION_ICONS: Record<AnnotationType, React.ElementType> = {
 // ── Node type badges ────────────────────────────────────────────────────────
 
 const NODE_TYPE_STYLES: Record<string, string> = {
-  area:    "bg-gray-100 text-gray-500",
+  area:    "bg-muted text-muted-foreground",
   source:  "bg-emerald-50 text-emerald-600",
   process: "bg-blue-50 text-blue-600",
   outcome: "bg-purple-50 text-purple-600",
@@ -114,12 +114,12 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
                 {bucket.node_type}
               </span>
             )}
-            <p className={cn("font-semibold text-gray-900 leading-snug", isSubprocess ? "text-[12px]" : "text-sm")}>
+            <p className={cn("font-semibold text-foreground leading-snug", isSubprocess ? "text-[12px]" : "text-sm")}>
               {bucket.name}
             </p>
           </div>
           <button
-            className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400 hover:text-red-500"
+            className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-foreground/60 hover:text-red-500"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onDelete(bucket.id); }}
             title="Delete node"
@@ -128,7 +128,7 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
           </button>
         </div>
         {bucket.description && (
-          <p className="mt-1.5 text-[11px] text-gray-500 leading-snug line-clamp-2">
+          <p className="mt-1.5 text-[11px] text-muted-foreground leading-snug line-clamp-2">
             {bucket.description}
           </p>
         )}
@@ -372,26 +372,26 @@ export default function ProcessMapPage() {
   const isSubprocess = viewingArea !== null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-background">
       {/* Toolbar / breadcrumb */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-200 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-border/40 shrink-0">
         <div className="flex items-center gap-1.5 text-sm">
           <button
             onClick={() => setViewingArea(null)}
-            className={cn("font-semibold hover:text-indigo-600 transition-colors", isSubprocess ? "text-gray-500" : "text-gray-800")}
+            className={cn("font-semibold hover:text-indigo-600 transition-colors", isSubprocess ? "text-muted-foreground" : "text-foreground")}
           >
             Process Map
           </button>
           {isSubprocess && (
             <>
-              <ChevronRight size={14} className="text-gray-400" />
-              <span className="font-semibold text-gray-800" style={{ color: viewingArea.color }}>
+              <ChevronRight size={14} className="text-muted-foreground/60" />
+              <span className="font-semibold text-foreground" style={{ color: viewingArea.color }}>
                 {viewingArea.name}
               </span>
             </>
           )}
           {!isSubprocess && (
-            <span className="text-gray-400 text-xs ml-1">— drag nodes, connect with arrows, double-click to drill in</span>
+            <span className="text-muted-foreground/60 text-xs ml-1">— drag nodes, connect with arrows, double-click to drill in</span>
           )}
         </div>
         <Button size="sm" onClick={handleAddNode} className="gap-1.5 h-8">
@@ -404,7 +404,7 @@ export default function ProcessMapPage() {
         {/* Canvas */}
         <div className="flex-1 relative">
           {isLoading ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-500">Loading...</div>
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading...</div>
           ) : (
             <ReactFlow
               nodes={nodes}
@@ -426,27 +426,28 @@ export default function ProcessMapPage() {
               deleteKeyCode="Delete"
               attributionPosition="bottom-left"
             >
-              <Background gap={20} size={1} color="#e2e8f0" />
+              <Background gap={20} size={1} color="hsl(var(--border))" />
               <Controls />
               <MiniMap
                 nodeColor={(n) => (n.data as AreaNodeData).bucket?.color ?? "#6366f1"}
-                style={{ background: "#f8fafc" }}
+                style={{ background: "hsl(var(--muted))" }}
+                maskColor="hsl(var(--background) / 0.6)"
               />
             </ReactFlow>
           )}
         </div>
 
         {/* Sidebar */}
-        <aside className="w-80 border-l border-gray-200 bg-white flex flex-col overflow-hidden">
+        <aside className="w-80 border-l border-border/40 bg-card flex flex-col overflow-hidden">
           {!selected ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <Eye size={18} className="text-gray-400" />
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                <Eye size={18} className="text-muted-foreground/60" />
               </div>
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-foreground">
                 {isSubprocess ? "Select a step" : "Select an area"}
               </p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-muted-foreground/60">
                 {isSubprocess
                   ? "Click a process step to view notes"
                   : "Click to select · Double-click to drill into subprocess"}
@@ -455,10 +456,10 @@ export default function ProcessMapPage() {
           ) : (
             <div className="flex flex-col h-full overflow-y-auto">
               {/* Node header */}
-              <div className="px-4 py-3 border-b border-gray-100" style={{ borderTop: `3px solid ${selected.color}` }}>
+              <div className="px-4 py-3 border-b border-border/40" style={{ borderTop: `3px solid ${selected.color}` }}>
                 <div className="flex items-center gap-2">
                   <Input
-                    className="h-7 text-sm font-semibold border-transparent hover:border-gray-200 focus:border-gray-300 px-1.5"
+                    className="h-7 text-sm font-semibold border-transparent hover:border-border/40 focus:border-primary/40 px-1.5"
                     value={editName}
                     onChange={(e) => { setEditName(e.target.value); setNameChanged(true); }}
                     onBlur={handleSaveName}
@@ -471,7 +472,7 @@ export default function ProcessMapPage() {
                   )}
                 </div>
                 <Textarea
-                  className="mt-1.5 text-xs text-gray-500 border-transparent hover:border-gray-200 focus:border-gray-300 resize-none min-h-0 px-1.5 py-1"
+                  className="mt-1.5 text-xs text-muted-foreground border-transparent hover:border-border/40 focus:border-primary/40 resize-none min-h-0 px-1.5 py-1"
                   rows={2}
                   placeholder="Add a description..."
                   value={editDesc}
@@ -482,7 +483,7 @@ export default function ProcessMapPage() {
                 {!isSubprocess && (
                   <button
                     onClick={() => setViewingArea(selected)}
-                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium border transition-colors hover:bg-gray-50"
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium border transition-colors hover:bg-background"
                     style={{ borderColor: selected.color, color: selected.color }}
                   >
                     View Subprocess <ChevronRight size={12} />
@@ -491,13 +492,13 @@ export default function ProcessMapPage() {
               </div>
 
               {sidebarLoading ? (
-                <div className="p-4 text-xs text-gray-400">Loading...</div>
+                <div className="p-4 text-xs text-muted-foreground/60">Loading...</div>
               ) : (
                 <div className="flex-1 overflow-y-auto">
                   {/* Annotations */}
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Notes & Ideas
                       </h4>
                       <button
@@ -519,7 +520,7 @@ export default function ProcessMapPage() {
                                 onClick={() => setNoteType(t)}
                                 className={cn(
                                   "flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all",
-                                  noteType === t ? ANNOTATION_COLORS[t] + " border-current" : "bg-white text-gray-400 border-gray-200 hover:border-gray-300",
+                                  noteType === t ? ANNOTATION_COLORS[t] + " border-current" : "bg-card text-muted-foreground/60 border-border/40 hover:border-border",
                                 )}
                               >
                                 <Icon size={10} />
@@ -554,25 +555,25 @@ export default function ProcessMapPage() {
                     )}
 
                     {annotations.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">No notes yet.</p>
+                      <p className="text-xs text-muted-foreground/60 italic">No notes yet.</p>
                     ) : (
                       <div className="space-y-2">
                         {annotations.map((ann) => {
                           const Icon = ANNOTATION_ICONS[ann.annotation_type];
                           return (
-                            <div key={ann.id} className="group rounded-lg border border-gray-100 bg-gray-50 p-2.5 hover:border-gray-200 transition-colors">
+                            <div key={ann.id} className="group rounded-lg border border-border/40 bg-background p-2.5 hover:border-border/40 transition-colors">
                               <div className="flex items-start gap-2">
                                 <span className={cn("mt-0.5 shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium", ANNOTATION_COLORS[ann.annotation_type])}>
                                   <Icon size={9} />
                                   {ANNOTATION_LABELS[ann.annotation_type]}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-800 leading-snug">{ann.title}</p>
-                                  {ann.content && <p className="mt-0.5 text-[11px] text-gray-500 leading-snug">{ann.content}</p>}
+                                  <p className="text-xs font-medium text-foreground leading-snug">{ann.title}</p>
+                                  {ann.content && <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{ann.content}</p>}
                                 </div>
                                 <button
                                   onClick={() => handleDeleteAnnotation(ann.id)}
-                                  className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-300 hover:text-red-400"
+                                  className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-foreground/40 hover:text-red-400"
                                 >
                                   <Trash2 size={11} />
                                 </button>
@@ -586,12 +587,12 @@ export default function ProcessMapPage() {
 
                   {/* Process Steps */}
                   {steps.length > 0 && (
-                    <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Process Steps</h4>
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Process Steps</h4>
                       <div className="space-y-1.5">
                         {steps.map((step, i) => (
-                          <div key={step.id} className="flex items-start gap-2 text-xs text-gray-700">
-                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                          <div key={step.id} className="flex items-start gap-2 text-xs text-foreground">
+                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                             <span className="leading-snug">{step.title}</span>
                           </div>
                         ))}
@@ -601,12 +602,12 @@ export default function ProcessMapPage() {
 
                   {/* Linked Projects */}
                   {projects.length > 0 && (
-                    <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Projects</h4>
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Projects</h4>
                       <div className="space-y-1.5">
                         {projects.map((proj) => (
                           <div key={proj.id} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-700 truncate pr-2">{proj.title}</span>
+                            <span className="text-foreground truncate pr-2">{proj.title}</span>
                             <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-medium">{proj.status}</span>
                           </div>
                         ))}

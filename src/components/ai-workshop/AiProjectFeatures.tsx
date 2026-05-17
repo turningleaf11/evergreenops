@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Loader2, Check, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { appConfirm } from "@/components/AppConfirm";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -93,7 +94,7 @@ export function AiProjectFeatures({ projectId }: { projectId: string }) {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this feature?")) return;
+    if (!(await appConfirm({ title: "Delete this feature?", confirmLabel: "Delete", destructive: true }))) return;
     setFeatures((prev) => prev.filter((f) => f.id !== id));
     await sb.from("ai_project_features").delete().eq("id", id);
   };

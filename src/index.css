@@ -211,6 +211,24 @@
     display: none;
   }
 
+  /* Global: hide scrollbar chrome on every scrollable region, app-wide.
+     Scrolling still works (wheel, trackpad, drag) — just no visible bar.
+     Native form controls keep their normal scrollbars (textarea handles it). */
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  textarea::-webkit-scrollbar,
+  textarea {
+    width: auto;
+    height: auto;
+    scrollbar-width: auto;
+  }
+
   /* ── CRM polish utilities ── */
   .crm-eyebrow {
     @apply text-[11px] font-semibold uppercase text-muted-foreground;

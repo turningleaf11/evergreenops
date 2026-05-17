@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import RichTextEditor from "@/components/RichTextEditor";
 import { AiProjectFeatures } from "@/components/ai-workshop/AiProjectFeatures";
+import { appConfirm } from "@/components/AppConfirm";
 import AccessPicker from "@/components/AccessPicker";
 import { uploadFileWithPath, openStoredFile } from "@/lib/file-upload";
 import { AI_STAGES, type AiProject, type AiProjectLink } from "./types";
@@ -190,7 +191,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
 
   const handleDelete = async () => {
     if (!project) return;
-    if (!confirm("Delete this project? This cannot be undone.")) return;
+    if (!(await appConfirm({ title: "Delete this project?", body: "This cannot be undone.", confirmLabel: "Delete", destructive: true }))) return;
     await (supabase.from("ai_projects" as any).delete().eq("id", project.id) as any);
     onChange?.();
     onClose();

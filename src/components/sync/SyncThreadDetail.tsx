@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { MentionChips, type MentionRef } from "@/components/ceo/MentionInput";
 import { ChatInputShell, type ChatSubmitPayload } from "@/components/chat/ChatInputShell";
 import { toast } from "sonner";
+import { appConfirm } from "@/components/AppConfirm";
 import { SyncChannel, SyncTag, SyncThread } from "@/hooks/useSync";
 import { SyncTagBadge } from "./SyncTagBadge";
 import { cn } from "@/lib/utils";
@@ -190,7 +191,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
   };
 
   const deleteThread = async () => {
-    if (!confirm("Delete this thread? This can't be undone.")) return;
+    if (!(await appConfirm({ title: "Delete this thread?", body: "This can't be undone.", confirmLabel: "Delete", destructive: true }))) return;
     const { error } = await sb.from("sync_threads").delete().eq("id", thread.id);
     if (error) { toast.error("Couldn't delete"); return; }
     toast.success("Deleted");
@@ -231,7 +232,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
       navigate(`/projects/${thread.converted_project_id}`);
       return;
     }
-    if (!confirm(`Convert "${thread.title}" into a project? You'll be taken to the new project page.`)) return;
+    if (!(await appConfirm({ title: "Convert thread to project?", body: `"${thread.title}" — you'll be taken to the new project page.`, confirmLabel: "Convert" }))) return;
     const { data: proj, error } = await sb.from("projects").insert({
       title: thread.title,
       description: thread.body || `Converted from Sync thread`,

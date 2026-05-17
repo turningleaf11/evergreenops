@@ -7,6 +7,7 @@ import { GlobalCompanion } from "@/components/GlobalCompanion";
 import { UserOnboardingModal } from "@/components/UserOnboardingModal";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
 import { AiToolsRail } from "@/components/AiToolsRail";
+import { AppConfirmProvider } from "@/components/AppConfirm";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -59,6 +60,7 @@ function LayoutInner() {
           </div>
           <GlobalCompanion />
           <UserOnboardingModal />
+          <AppConfirmProvider />
         </div>
       </CompanionProvider>
     </SidebarProvider>

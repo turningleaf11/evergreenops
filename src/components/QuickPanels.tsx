@@ -10,6 +10,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
+import { appConfirm } from "@/components/AppConfirm";
 import AiProjectPeek from "@/components/ai-workshop/AiProjectPeek";
 import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
 import { cn } from "@/lib/utils";
@@ -114,7 +115,7 @@ export function NotesQuickPanel({ open, onOpenChange }: { open: boolean; onOpenC
 
   const deleteActive = async () => {
     if (!activeId) return;
-    if (!confirm("Delete this note?")) return;
+    if (!(await appConfirm({ title: "Delete this note?", confirmLabel: "Delete", destructive: true }))) return;
     await sb.from("notes").delete().eq("id", activeId);
     setActiveId(null);
     load();
