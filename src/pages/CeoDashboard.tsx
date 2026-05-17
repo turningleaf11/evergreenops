@@ -7,14 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { CeoBriefing } from "@/components/CeoBriefing";
 import { TopPriorities } from "@/components/TopPriorities";
 import { DecisionLog } from "@/components/DecisionLog";
-import { StrategyItemCreator } from "@/components/StrategyItemCreator";
-import { CeoReviewFeed } from "@/components/CeoReviewFeed";
 import { ScratchPad } from "@/components/ScratchPad";
 import { AiTriage, type TriageItem } from "@/components/AiTriage";
 import { DelegationBoard } from "@/components/DelegationBoard";
-import { DirectivesStatusBoard } from "@/components/DirectivesStatusBoard";
 import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
+import { SyncNeedsYouPreview } from "@/components/sync/SyncNeedsYouPreview";
 import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { StrategicQuestionCard } from "@/components/ceo/StrategicQuestionCard";
@@ -219,7 +217,6 @@ export default function CeoDashboard() {
             <TabsTrigger value="today">Today</TabsTrigger>
             {isPrimaryAdmin && <TabsTrigger value="thisweek">This Week</TabsTrigger>}
             <TabsTrigger value="bigpicture">Big Picture</TabsTrigger>
-            <TabsTrigger value="delegation">Delegation</TabsTrigger>
           </TabsList>
 
           {/* Today Tab */}
@@ -232,8 +229,9 @@ export default function CeoDashboard() {
                 {isPrimaryAdmin && <AssignedTasks />}
               </div>
 
-              {/* Right — AI briefing + scratchpad */}
+              {/* Right — Sync · Needs You + AI briefing + scratchpad */}
               <div className="space-y-4">
+                {isPrimaryAdmin && <SyncNeedsYouPreview />}
                 {isPrimaryAdmin && (
                   <div>
                     {/* AI Daily Briefing — premium styled trigger */}
@@ -281,8 +279,9 @@ export default function CeoDashboard() {
 
           {/* This Week Tab */}
           {isPrimaryAdmin && (
-            <TabsContent value="thisweek">
+            <TabsContent value="thisweek" className="space-y-8">
               <ThisWeekTab />
+              <DelegationBoard />
             </TabsContent>
           )}
 
@@ -311,18 +310,7 @@ export default function CeoDashboard() {
               />
             </section>
 
-            {/* Section 2 — Strategy */}
-            <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 pt-12">
-              <div className="mb-5">
-                <h2 className="text-lg font-bold text-foreground tracking-tight">Directives</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Active directives cascading to your teams.
-                </p>
-              </div>
-              <StrategyItemCreator />
-            </section>
-
-            {/* Section 3 — Idea Vault */}
+            {/* Section 2 — Idea Vault */}
             <section className="rounded-2xl border border-border/50 bg-card/80 p-7 elevation-1 pt-12">
               <div className="mb-5">
                 <h2 className="text-lg font-bold text-foreground tracking-tight">Idea Vault</h2>
@@ -334,12 +322,6 @@ export default function CeoDashboard() {
             </section>
           </TabsContent>
 
-          {/* Delegation Tab */}
-          <TabsContent value="delegation" className="space-y-8">
-            <DirectivesStatusBoard />
-            <CeoReviewFeed />
-            <DelegationBoard />
-          </TabsContent>
         </Tabs>
       </div>
     </div>

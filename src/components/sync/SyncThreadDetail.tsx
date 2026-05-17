@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Loader2, Paperclip, X, Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink } from "lucide-react";
+import { Send, Loader2, Paperclip, X, Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink, ListTodo } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LinkedItemPicker, LinkedItemChip, type LinkedItem } from "./LinkedItemPicker";
 import { formatDistanceToNow } from "date-fns";
@@ -208,6 +208,27 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
     onChanged();
   };
 
+  const promoteToTask = async () => {
+    if (!user) return;
+    const { data: task, error } = await sb.from("tasks").insert({
+      title: thread.title,
+      description: thread.body || `Created from Sync thread`,
+      status: "todo",
+      created_by: user.id,
+      assigned_to: user.id,
+    }).select("id").single();
+    if (error || !task) { toast.error(error?.message || "Couldn't create task"); return; }
+
+    // Add the task to the thread's linked_items so it shows in the header
+    const nextLinks: LinkedItem[] = [
+      ...(thread.linked_items || []),
+      { type: "task", id: task.id, label: thread.title },
+    ];
+    await sb.from("sync_threads").update({ linked_items: nextLinks }).eq("id", thread.id);
+    toast.success("Task created");
+    onChanged();
+  };
+
   const convertToProject = async () => {
     if (!user) return;
     if (thread.converted_project_id) {
@@ -255,6 +276,15 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {thread.tag === "todo" && (
+              <button
+                onClick={promoteToTask}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                title="Create a task from this thread"
+              >
+                <ListTodo className="h-3 w-3" /> Create task
+              </button>
+            )}
             <button
               onClick={convertToProject}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20"

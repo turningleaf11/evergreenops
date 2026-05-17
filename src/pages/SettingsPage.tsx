@@ -19,9 +19,10 @@ import {
 import {
   ShieldCheck, ShieldAlert, Settings, Users, Building2, Plus, Trash2, Upload,
   GraduationCap, ChevronDown, GripVertical, UserPlus, Mail, Palette, Check,
-  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound, Crown,
+  Pencil, X, Sun, Moon, Monitor, Package, FileSpreadsheet, Clock, LayoutDashboard, CalendarDays, Briefcase, KeyRound, Crown, MessagesSquare,
 } from "lucide-react";
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
+import { SyncTagsSettings } from "@/components/sync/SyncTagsSettings";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
 import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
@@ -133,6 +134,7 @@ export default function SettingsPage() {
         { value: "departments", icon: Building2, label: "Departments" },
         { value: "home_widgets", icon: LayoutDashboard, label: "Home Widgets" },
         { value: "holidays", icon: CalendarDays, label: "Holidays" },
+        { value: "sync_tags", icon: MessagesSquare, label: "Sync Tags" },
       ],
     },
     {
@@ -231,6 +233,10 @@ export default function SettingsPage() {
 
         <TabsContent value="holidays" className="mt-4 space-y-4">
           <HolidaysSection />
+        </TabsContent>
+
+        <TabsContent value="sync_tags" className="mt-4 space-y-4">
+          <SyncTagsSettings />
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-4 space-y-4">
