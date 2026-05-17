@@ -22,7 +22,7 @@ function LayoutInner() {
   return (
     <SidebarProvider defaultOpen={isPinned}>
       <CompanionProvider>
-        <div className="min-h-screen flex flex-col w-full">
+        <div className="h-screen overflow-hidden flex flex-col w-full">
           {/* Header — full width, sits above the sidebar */}
           <header className="h-[60px] flex items-center border-b border-border/20 px-3 sm:px-5 shrink-0 bg-card/90 backdrop-blur-md sticky top-0 z-40">
             <div className="flex items-center gap-3 min-w-0">
