@@ -14,7 +14,7 @@ import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { SyncNeedsYouPreview } from "@/components/sync/SyncNeedsYouPreview";
 import { TodaysMeetingsWidget } from "@/components/ceo/TodaysMeetingsWidget";
-import { TodaysPathWidget } from "@/components/ceo/TodaysPathWidget";
+import { TodaysPathStrip } from "@/components/ceo/TodaysPathStrip";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
 import { PersonalTodos } from "@/components/ceo/PersonalTodos";
 import { AssignedTasks } from "@/components/ceo/AssignedTasks";
@@ -173,8 +173,6 @@ export default function CeoDashboard() {
       </div>
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-8 pb-16 space-y-8 sm:space-y-10">
-        {/* Today's Path — the roadmap thread replacing the old Current Objective text */}
-        {isPrimaryAdmin && <TodaysPathWidget />}
 
         {/* 4-Tab cockpit */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -185,7 +183,8 @@ export default function CeoDashboard() {
           </TabsList>
 
           {/* Today Tab */}
-          <TabsContent value="today">
+          <TabsContent value="today" className="space-y-4">
+            {isPrimaryAdmin && <TodaysPathStrip />}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* Left — meetings + action items + Sync Needs You */}
               <div className="space-y-4">
