@@ -13,15 +13,13 @@ import { DelegationBoard } from "@/components/DelegationBoard";
 import { IdeaVault } from "@/components/ideas/IdeaVault";
 import { ThisWeekTab } from "@/components/ThisWeekTab";
 import { SyncNeedsYouPreview } from "@/components/sync/SyncNeedsYouPreview";
-import { DailyBriefingCard } from "@/components/ceo/DailyBriefingCard";
 import { TodaysPriorities } from "@/components/ceo/TodaysPriorities";
-import { StrategicQuestionCard } from "@/components/ceo/StrategicQuestionCard";
 import { PersonalTodos } from "@/components/ceo/PersonalTodos";
 import { AssignedTasks } from "@/components/ceo/AssignedTasks";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Check, Eye, Save, Star, Crosshair, Target, Mountain, Calendar, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type VisionSection = {
@@ -58,7 +56,6 @@ export default function CeoDashboard() {
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
 
   const [activeTab, setActiveTab] = useState<string>("today");
-  const [briefingOpen, setBriefingOpen] = useState(false);
 
   const loadPendingTriage = useCallback(async () => {
     if (!user) return;
@@ -222,43 +219,16 @@ export default function CeoDashboard() {
           {/* Today Tab */}
           <TabsContent value="today">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Left — action items */}
+              {/* Left — action items + Sync Needs You */}
               <div className="space-y-4">
                 {isPrimaryAdmin && <TodaysPriorities />}
                 {isPrimaryAdmin && <PersonalTodos />}
                 {isPrimaryAdmin && <AssignedTasks />}
+                {isPrimaryAdmin && <SyncNeedsYouPreview />}
               </div>
 
-              {/* Right — Sync · Needs You + AI briefing + scratchpad */}
-              <div className="space-y-4">
-                {isPrimaryAdmin && <SyncNeedsYouPreview />}
-                {isPrimaryAdmin && (
-                  <div>
-                    {/* AI Daily Briefing — premium styled trigger */}
-                    <button
-                      onClick={() => setBriefingOpen((o) => !o)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-primary/25 bg-gradient-to-r from-primary/[0.06] to-primary/[0.02] hover:border-primary/40 hover:from-primary/[0.10] hover:to-primary/[0.05] transition-all text-xs font-medium text-primary/70 hover:text-primary"
-                    >
-                      <span className="relative flex h-2 w-2 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-50" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary/70" />
-                      </span>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>AI Daily Briefing</span>
-                      <span className="ml-auto opacity-60">
-                        {briefingOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                      </span>
-                    </button>
-                    {briefingOpen && (
-                      <div className="mt-3 space-y-4">
-                        <DailyBriefingCard compact />
-                        <StrategicQuestionCard />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Scratchpad — owns the right column */}
+              {/* Right — Scratch Pad owns the column */}
+              <div>
                 <div className="rounded-2xl bg-primary/[0.03] border border-border/30 p-5 elevation-1">
                   <ScratchPad onProcess={handleProcess} isProcessing={isProcessing} />
                 </div>
