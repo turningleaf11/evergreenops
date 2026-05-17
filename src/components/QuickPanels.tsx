@@ -370,50 +370,6 @@ export function AiWorkshopQuickPanel({
   );
 }
 
-// ── Bottom-left floating dock ─────────────────────────────────────────────────
-
-export function QuickPanelsDock() {
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [workshopOpen, setWorkshopOpen] = useState(false);
-  // Project peek state lives at the dock level so it survives the workshop slideover closing
-  const [peekProjectId, setPeekProjectId] = useState<string | null>(null);
-
-  return (
-    <>
-      {/* Floating dock — bottom-right, horizontal pair sitting to the LEFT of the Albus FAB.
-         Both Albus and this dock are bumped to bottom-24 (96px) so they clear chat composer
-         send buttons that anchor to the page bottom on Sync, comments, etc. */}
-      <div className="fixed bottom-24 right-[5rem] z-40 flex items-center gap-2">
-        <button
-          onClick={() => setNotesOpen(true)}
-          className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-amber-500"
-          title="Quick Notes"
-        >
-          <StickyNote className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => setWorkshopOpen(true)}
-          className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-primary"
-          title="AI Workshop"
-        >
-          <Sparkles className="h-4 w-4" />
-        </button>
-      </div>
-
-      <NotesQuickPanel open={notesOpen} onOpenChange={setNotesOpen} />
-      <AiWorkshopQuickPanel
-        open={workshopOpen}
-        onOpenChange={setWorkshopOpen}
-        peekProjectId={peekProjectId}
-        setPeekProjectId={setPeekProjectId}
-      />
-      {/* Real AiProjectPeek — renders when a project is clicked from the slideover.
-         Same experience as opening from the AI Workshop page. */}
-      <AiProjectPeek
-        projectId={peekProjectId}
-        onClose={() => setPeekProjectId(null)}
-        onChange={() => { /* no parent list to refresh here */ }}
-      />
-    </>
-  );
-}
+// QuickPanelsDock has been replaced by AiToolsRail — the panels themselves
+// (NotesQuickPanel, AiWorkshopQuickPanel) are still exported above and mounted
+// from the rail.

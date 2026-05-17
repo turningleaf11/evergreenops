@@ -249,9 +249,9 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
   const canDelete = thread.author_id === user?.id;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border/40 bg-card/40">
+      <div className="px-5 py-4 border-b border-border/40 bg-card/40 shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -332,7 +332,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
         {!loaded && <p className="text-xs text-muted-foreground/60">Loading…</p>}
         {loaded && messages.length === 0 && (
           <p className="text-xs text-muted-foreground/60 italic">No replies yet. Be the first to chime in.</p>
@@ -377,7 +377,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
       </div>
 
       {/* Composer — unified ChatInputShell (rich text, slash, @ mentions, attachments, gif, voice, emoji) */}
-      <div className="px-5 py-3 border-t border-border/40 bg-card/40">
+      <div className="px-5 py-3 border-t border-border/40 bg-card/40 shrink-0">
         <ChatInputShell
           placeholder="Reply… type / for commands, @ to mention"
           submitting={sending}

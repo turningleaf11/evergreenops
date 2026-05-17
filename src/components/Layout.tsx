@@ -6,7 +6,7 @@ import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
 import { UserOnboardingModal } from "@/components/UserOnboardingModal";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
-import { QuickPanelsDock } from "@/components/QuickPanels";
+import { AiToolsRail } from "@/components/AiToolsRail";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -49,15 +49,15 @@ function LayoutInner() {
             </div>
           </header>
 
-          {/* Body row — sidebar slides under the header (floating) or pushes content (pinned) */}
+          {/* Body row — sidebar (left), main content (center), AI tools rail (right) */}
           <div className={isPinned ? "flex-1 flex min-h-0" : "flex-1 flex min-h-0 relative"}>
             <AppSidebar />
             <main className="flex-1 overflow-auto min-w-0">
               <Outlet />
             </main>
+            <AiToolsRail />
           </div>
           <GlobalCompanion />
-          <QuickPanelsDock />
           <UserOnboardingModal />
         </div>
       </CompanionProvider>

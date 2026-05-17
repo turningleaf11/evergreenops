@@ -79,7 +79,7 @@ export default function SyncPage() {
     : channels.find((c) => c.id === view.channelId)?.displayName || "Channel";
 
   return (
-    <div className="flex h-[calc(100vh-60px)]">
+    <div className="flex h-full min-h-0">
       {/* Left: channel list */}
       <aside className="w-60 shrink-0 border-r border-border/40 bg-background/40 overflow-y-auto p-3">
         <div className="flex items-center justify-between mb-3 px-1">
@@ -106,8 +106,8 @@ export default function SyncPage() {
       </aside>
 
       {/* Middle: thread list */}
-      <section className="w-[26rem] shrink-0 border-r border-border/40 flex flex-col">
-        <div className="px-4 py-3 border-b border-border/40 bg-card/30">
+      <section className="w-[26rem] shrink-0 min-h-0 border-r border-border/40 flex flex-col">
+        <div className="px-4 py-3 border-b border-border/40 bg-card/30 shrink-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-foreground">{headerTitle}</h2>
             {view.kind !== "needs_you" && (
@@ -135,7 +135,7 @@ export default function SyncPage() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <SyncThreadList
             threads={threads}
             channels={channels}
@@ -152,7 +152,7 @@ export default function SyncPage() {
       </section>
 
       {/* Right: detail */}
-      <section className="flex-1 min-w-0">
+      <section className="flex-1 min-w-0 min-h-0 flex flex-col">
         {activeThread && activeChannel ? (
           <SyncThreadDetail
             key={activeThread.id}

@@ -77,20 +77,11 @@ export function GlobalCompanion() {
     setEditingId(null);
   };
 
+  // The Albus launcher lives in AiToolsRail now. This component only renders
+  // the chat sheet itself — opened by the rail or anywhere else via the
+  // companion context's setOpen.
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-visible"
-        aria-label="Ask Albus"
-        title={briefingUnread ? "Today's briefing from Albus is ready" : "Ask Albus"}
-      >
-        <AlbusAvatar size="2xl" className="bg-transparent" />
-        {briefingUnread && (
-          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
-        )}
-      </button>
-
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-3xl flex p-0">
           {/* Thread sidebar */}
