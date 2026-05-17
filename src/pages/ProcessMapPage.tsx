@@ -69,10 +69,10 @@ const ANNOTATION_ICONS: Record<AnnotationType, React.ElementType> = {
 
 const NODE_TYPE_STYLES: Record<string, string> = {
   area:    "bg-muted text-muted-foreground",
-  source:  "bg-emerald-50 text-emerald-600",
-  process: "bg-blue-50 text-blue-600",
-  outcome: "bg-purple-50 text-purple-600",
-  decision:"bg-amber-50 text-amber-600",
+  source:  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  process: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  outcome: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+  decision:"bg-amber-500/15 text-amber-700 dark:text-amber-300",
 };
 
 // ── Custom canvas node ──────────────────────────────────────────────────────
@@ -89,20 +89,21 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
 
   return (
     <>
-      <Handle type="target" position={Position.Left}  style={{ width: 8, height: 8, background: "#94a3b8" }} />
+      <Handle type="target" position={Position.Left}  style={{ width: 8, height: 8, background: "hsl(var(--muted-foreground))" }} />
       <div
         className="group"
         style={{
           minWidth: minW,
           maxWidth: isSubprocess ? 200 : 230,
-          background: "white",
+          background: "hsl(var(--card))",
+          color: "hsl(var(--card-foreground))",
           borderRadius: isSubprocess ? 8 : 10,
-          border: `1.5px solid ${selected ? bucket.color : "#e2e8f0"}`,
+          border: `1.5px solid ${selected ? bucket.color : "hsl(var(--border))"}`,
           borderTop: `4px solid ${bucket.color}`,
           padding: isSubprocess ? "8px 12px" : "10px 14px",
           boxShadow: selected
-            ? `0 0 0 3px ${bucket.color}33, 0 2px 8px rgba(0,0,0,0.1)`
-            : "0 1px 4px rgba(0,0,0,0.08)",
+            ? `0 0 0 3px ${bucket.color}33, 0 2px 8px rgba(0,0,0,0.25)`
+            : "0 1px 4px rgba(0,0,0,0.2)",
           cursor: "pointer",
           transition: "box-shadow 0.15s",
         }}
@@ -133,7 +134,7 @@ const AreaNode = React.memo(({ data, selected }: NodeProps) => {
           </p>
         )}
       </div>
-      <Handle type="source" position={Position.Right} style={{ width: 8, height: 8, background: "#94a3b8" }} />
+      <Handle type="source" position={Position.Right} style={{ width: 8, height: 8, background: "hsl(var(--muted-foreground))" }} />
     </>
   );
 });

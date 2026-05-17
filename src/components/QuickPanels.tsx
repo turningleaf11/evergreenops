@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import { appConfirm } from "@/components/AppConfirm";
 import AiProjectPeek from "@/components/ai-workshop/AiProjectPeek";
+import NewAiProjectDialog from "@/components/ai-workshop/NewAiProjectDialog";
 import { NoteShareDialog } from "@/components/notes/NoteShareDialog";
 import { cn } from "@/lib/utils";
 
@@ -284,6 +285,7 @@ export function AiWorkshopQuickPanel({
 }) {
   const [projects, setProjects] = useState<AiProj[]>([]);
   const [loading, setLoading] = useState(true);
+  const [newOpen, setNewOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -311,9 +313,17 @@ export function AiWorkshopQuickPanel({
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="h-4 w-4 text-primary" /> AI Workshop
           </SheetTitle>
-          <Link to="/ai-workshop" onClick={() => onOpenChange(false)} className="text-[11px] text-primary hover:underline px-2 py-1">
-            Full page →
-          </Link>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setNewOpen(true)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-primary text-primary-foreground"
+            >
+              <Plus className="h-3 w-3" /> New
+            </button>
+            <Link to="/ai-workshop" onClick={() => onOpenChange(false)} className="text-[11px] text-primary hover:underline px-2 py-1">
+              Full page →
+            </Link>
+          </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -367,6 +377,12 @@ export function AiWorkshopQuickPanel({
           )}
         </div>
       </SheetContent>
+
+      <NewAiProjectDialog
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCreated={(id) => { load(); setPeekProjectId(id); onOpenChange(false); }}
+      />
     </Sheet>
   );
 }
