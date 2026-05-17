@@ -69,7 +69,7 @@ export default function AiWorkshopPage() {
           <Button size="sm" onClick={() => setNewOpen(true)}><Plus className="h-3.5 w-3.5 mr-1" /> New project</Button>
         </Card>
       ) : view === "board" ? (
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {AI_STAGES.map((stage) => {
             const items = filtered.filter((p) => p.stage === stage.id);
             return (

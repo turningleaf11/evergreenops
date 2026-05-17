@@ -123,7 +123,7 @@ export function NotesQuickPanel({ open, onOpenChange }: { open: boolean; onOpenC
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-hidden flex flex-col p-0">
-        <SheetHeader className="px-5 py-3 border-b border-border/40 flex flex-row items-center justify-between space-y-0 shrink-0">
+        <SheetHeader className="px-5 py-3 pr-12 border-b border-border/40 flex flex-row items-center justify-between space-y-0 shrink-0">
           {activeId ? (
             <button
               onClick={() => setActiveId(null)}
@@ -306,7 +306,7 @@ export function AiWorkshopQuickPanel({
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) setPeekProjectId(null); onOpenChange(o); }}>
       <SheetContent className="w-full sm:max-w-xl overflow-hidden flex flex-col p-0">
-        <SheetHeader className="px-5 py-3 border-b border-border/40 flex flex-row items-center justify-between space-y-0">
+        <SheetHeader className="px-5 py-3 pr-12 border-b border-border/40 flex flex-row items-center justify-between space-y-0">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="h-4 w-4 text-primary" /> AI Workshop
           </SheetTitle>
@@ -381,9 +381,9 @@ export function QuickPanelsDock() {
   return (
     <>
       {/* Floating dock — bottom-right, horizontal pair sitting to the LEFT of the Albus FAB.
-         Albus is at right-6, h-12 (48px). We sit at right-[5rem] (80px from right edge) so
-         our row ends right before the Albus button starts. */}
-      <div className="fixed bottom-6 right-[5rem] z-40 flex items-center gap-2">
+         Both Albus and this dock are bumped to bottom-24 (96px) so they clear chat composer
+         send buttons that anchor to the page bottom on Sync, comments, etc. */}
+      <div className="fixed bottom-24 right-[5rem] z-40 flex items-center gap-2">
         <button
           onClick={() => setNotesOpen(true)}
           className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-muted-foreground hover:text-amber-500"

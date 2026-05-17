@@ -210,7 +210,7 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="absolute top-2 right-2"
+                  className="absolute top-2 right-12"
                   onClick={() => coverInputRef.current?.click()}
                   disabled={uploading}
                 >

@@ -81,7 +81,7 @@ export function GlobalCompanion() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-visible"
+        className="fixed bottom-24 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-105 overflow-visible"
         aria-label="Ask Albus"
         title={briefingUnread ? "Today's briefing from Albus is ready" : "Ask Albus"}
       >
