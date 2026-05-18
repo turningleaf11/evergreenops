@@ -211,22 +211,35 @@
     display: none;
   }
 
-  /* Global: hide scrollbar chrome on every scrollable region, app-wide.
-     Scrolling still works (wheel, trackpad, drag) — just no visible bar.
-     Native form controls keep their normal scrollbars (textarea handles it). */
-  *::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
-  * {
+  /* Hide scrollbar chrome on app-owned scrollers — body, main, sidebars,
+     dialog content, sheet content, kanban scrollers, our own components.
+     Scoped (NOT global) so third-party canvases (tldraw, reactflow, etc.)
+     keep their internal scrollbars functional. */
+  html, body,
+  main,
+  [data-sidebar="content"],
+  [data-radix-dialog-content],
+  [data-radix-sheet-content],
+  [data-radix-popper-content],
+  .scrollbar-hide,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-auto {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  textarea::-webkit-scrollbar,
-  textarea {
-    width: auto;
-    height: auto;
-    scrollbar-width: auto;
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  main::-webkit-scrollbar,
+  [data-sidebar="content"]::-webkit-scrollbar,
+  [data-radix-dialog-content]::-webkit-scrollbar,
+  [data-radix-sheet-content]::-webkit-scrollbar,
+  [data-radix-popper-content]::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar,
+  .overflow-y-auto::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar,
+  .overflow-auto::-webkit-scrollbar {
+    display: none;
   }
 
   /* ── CRM polish utilities ── */

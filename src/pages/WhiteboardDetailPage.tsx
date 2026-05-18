@@ -22,6 +22,16 @@ export default function WhiteboardDetailPage() {
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  // Cleanup the store listener + pending save when the page unmounts
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -67,15 +77,23 @@ export default function WhiteboardDetailPage() {
 
   const handleMount = (editor: Editor) => {
     editorRef.current = editor;
-    // Sync theme so the canvas matches the app
-    editor.user.updateUserPreferences({ colorScheme: resolvedTheme === "dark" ? "dark" : "light" });
-    // Restore canvas state
-    if (loadedDoc) {
+
+    // Theme sync — defensive (editor.user can be undefined in odd states)
+    try {
+      editor.user?.updateUserPreferences?.({ colorScheme: resolvedTheme === "dark" ? "dark" : "light" });
+    } catch (e) { console.warn("Theme sync failed:", e); }
+
+    // Restore canvas state — only if we have a non-empty document snapshot
+    if (loadedDoc && typeof loadedDoc === "object" && Object.keys(loadedDoc).length > 0) {
       try { loadSnapshot(editor.store, loadedDoc); }
       catch (e) { console.warn("Could not load whiteboard snapshot:", e); }
     }
-    // Wire autosave
-    editor.store.listen(() => scheduleSave(), { source: "user", scope: "document" });
+
+    // Wire autosave — store the unsubscribe handle so we can clean up on unmount
+    try {
+      const unsubscribe = editor.store.listen(() => scheduleSave(), { source: "user", scope: "document" });
+      cleanupRef.current = unsubscribe;
+    } catch (e) { console.warn("Listener wire failed:", e); }
   };
 
   return (
