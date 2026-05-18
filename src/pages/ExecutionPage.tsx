@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import DetailDrawer from "@/components/DetailDrawer";
+import ProjectPeek from "@/components/execution/ProjectPeek";
 import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
@@ -176,6 +177,7 @@ export default function ExecutionPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<any>(null);
   const [drawerType, setDrawerType] = useState<"project" | "task">("project");
+  const [projectPeekId, setProjectPeekId] = useState<string | null>(null);
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
   const [goalQuarter, setGoalQuarter] = useState<string>("all");
   const [goalYear, setGoalYear] = useState<string>("all");
@@ -398,7 +400,8 @@ export default function ExecutionPage() {
   };
 
   // Shared click handlers
-  const openProjectDrawer = (p: any) => { setDrawerType("project"); setDrawerItem(p); };
+  // Projects now open as a slide-over peek (with Expand → full page button)
+  const openProjectDrawer = (p: any) => { setProjectPeekId(p.id); };
   const openTaskDrawer = (t: any) => { setDrawerType("task"); setDrawerItem(t); };
 
   return (
@@ -1053,6 +1056,19 @@ export default function ExecutionPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Project peek — slide-over (tasks still use DetailDrawer below) */}
+      <ProjectPeek
+        projectId={projectPeekId}
+        onClose={() => setProjectPeekId(null)}
+        onChanged={() => {
+          // Refresh projects list quietly
+          (async () => {
+            const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+            if (data) setProjects(data);
+          })();
+        }}
+      />
 
       {/* Detail Drawer */}
       <DetailDrawer

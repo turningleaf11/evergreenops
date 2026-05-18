@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, X, Target, FolderKanban, FileText, MessageSquare, ChevronDown, CircleDot, User } from "lucide-react";
+import { Plus, X, Target, FolderKanban, FileText, ChevronDown, CircleDot, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
-import ActivityPanel from "@/components/activity/ActivityPanel";
 import LinkProjectPicker from "./LinkProjectPicker";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
@@ -46,8 +45,8 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   const [editingTitle, setEditingTitle] = useState(false);
   const [krsOpen, setKrsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
-  const [notesOpen, setNotesOpen] = useState(true);
-  const [discussionOpen, setDiscussionOpen] = useState(true);
+  // Strategy & Notes starts collapsed — goals are reference, not workspace
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -274,16 +273,8 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Discussion / Activity */}
-          <Collapsible open={discussionOpen} onOpenChange={setDiscussionOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !discussionOpen && "-rotate-90")} />
-              <MessageSquare className="h-3.5 w-3.5" /> Activity
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <ActivityPanel entityType="goal" entityId={goalId} />
-            </CollapsibleContent>
-          </Collapsible>
+          {/* Activity feed intentionally removed — goals are reference + check-in,
+             not a workspace. Discussion happens in Sync or linked project comments. */}
         </div>
       </DialogContent>
     </Dialog>

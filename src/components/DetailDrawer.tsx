@@ -143,19 +143,6 @@ function DetailContent({ type, item, onStatusChange, getName }: {
 
   return (
     <div className="space-y-5">
-      <div className="pb-4 border-b border-border/50">
-        <div className="flex items-start gap-2 flex-wrap">
-          <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium", statusColors[item.status] || statusColors.not_started)}>
-            {statusLabels[item.status] || item.status}
-          </Badge>
-          {item.priority && (
-            <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 font-medium capitalize", priorityColors[item.priority])}>
-              {item.priority}
-            </Badge>
-          )}
-        </div>
-      </div>
-
       <div>
         <FieldRow
           label="Status"
