@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Tldraw, type Editor, getSnapshot, loadSnapshot } from "tldraw";
 import "tldraw/tldraw.css";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -14,6 +15,7 @@ const sb = supabase as any;
 export default function WhiteboardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { resolvedTheme } = useTheme();
   const [title, setTitle] = useState("Untitled Whiteboard");
   const [loadedDoc, setLoadedDoc] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,8 @@ export default function WhiteboardDetailPage() {
 
   const handleMount = (editor: Editor) => {
     editorRef.current = editor;
+    // Sync theme so the canvas matches the app
+    editor.user.updateUserPreferences({ colorScheme: resolvedTheme === "dark" ? "dark" : "light" });
     // Restore canvas state
     if (loadedDoc) {
       try { loadSnapshot(editor.store, loadedDoc); }
@@ -97,14 +101,21 @@ export default function WhiteboardDetailPage() {
         </span>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 min-h-0">
+      {/* Canvas — tldraw requires a positioned ancestor with defined size.
+         We use a relative wrapper and tell Tldraw to absolutely fill it. */}
+      <div className="flex-1 min-h-0 relative">
         {loading ? (
           <div className="flex items-center justify-center h-full gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : (
-          <Tldraw onMount={handleMount} persistenceKey={`evergreenops-wb-${id}`} />
+          <div className="absolute inset-0">
+            <Tldraw
+              key={`${id}-${resolvedTheme}`}
+              onMount={handleMount}
+              inferDarkMode={false}
+            />
+          </div>
         )}
       </div>
     </div>

@@ -7,11 +7,11 @@ import { ReactRenderer } from "@tiptap/react";
 import tippy, { Instance as TippyInstance } from "tippy.js";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User, FileText, StickyNote, CheckSquare, Folder, Target, Database } from "lucide-react";
+import { User, FileText, StickyNote, CheckSquare, Folder, Target, Database, Sparkles } from "lucide-react";
 
 interface Hit {
   id: string;
-  type: "person" | "doc" | "note" | "task" | "project" | "goal" | "record";
+  type: "person" | "doc" | "note" | "task" | "project" | "goal" | "record" | "albus";
   title: string;
   subtitle?: string;
   url: string;
@@ -25,6 +25,7 @@ const ICONS: Record<Hit["type"], any> = {
   project: Folder,
   goal: Target,
   record: Database,
+  albus: Sparkles,
 };
 
 interface ListProps {
@@ -144,11 +145,25 @@ export const UniversalMention = Mention.extend({
   suggestion: {
     char: "@",
     items: async ({ query }: { query: string }) => {
+      // Always offer Albus (AI assistant) as a synthetic top hit when the
+      // query is empty or starts with "alb". When inserted as a mention,
+      // surfaces consuming code can route based on type === "albus".
+      const q = (query || "").toLowerCase();
+      const albusHit: Hit = {
+        id: "albus",
+        type: "albus" as any,
+        title: "Albus",
+        subtitle: "AI assistant",
+        url: "",
+      };
+      const showAlbus = !q || "albus".startsWith(q) || q.startsWith("al");
+
       try {
         const { data } = await supabase.functions.invoke(`universal-search?q=${encodeURIComponent(query)}&limit=8`, { method: "GET" } as any);
-        return (data?.hits ?? []) as Hit[];
+        const hits = (data?.hits ?? []) as Hit[];
+        return showAlbus ? [albusHit, ...hits] : hits;
       } catch {
-        return [];
+        return showAlbus ? [albusHit] : [];
       }
     },
     render: renderItems,
