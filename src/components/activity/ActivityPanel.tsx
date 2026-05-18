@@ -28,6 +28,7 @@ interface Comment {
   mentions: string[];
   gif_url: string | null;
   audio_url: string | null;
+  agent_name?: string | null;
 }
 
 interface ActivityEvent {
@@ -147,11 +148,28 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       gif_url: payload.gifUrl,
       audio_url: payload.audioUrl,
     } as any);
-    if (error) toast.error(error.message);
-    else {
-      if (parentId) setReplyTo(null);
-      fetchAll();
+    if (error) {
+      toast.error(error.message);
+      setSubmitting(false);
+      return;
     }
+    if (parentId) setReplyTo(null);
+    fetchAll();
+
+    // @Albus trigger — on projects, if the comment mentions Albus, fire the
+    // project-albus-reply edge function which posts an Albus answer back.
+    const mentionsAlbus = /@\s*albus\b/i.test(payload.contentText || "");
+    if (entityType === "project" && mentionsAlbus) {
+      try {
+        await supabase.functions.invoke("project-albus-reply", {
+          body: { project_id: entityId, user_text: payload.contentText },
+        });
+        fetchAll();
+      } catch (e: any) {
+        console.warn("Albus reply failed", e);
+      }
+    }
+
     setSubmitting(false);
   };
 
@@ -206,17 +224,24 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   };
 
   const CommentCard = ({ c, isReply = false }: { c: Comment; isReply?: boolean }) => {
-    const name = profiles[c.author_id] || "Unknown";
-    const isAuthor = user?.id === c.author_id;
+    const isAlbus = !!c.agent_name;
+    const name = isAlbus ? (c.agent_name || "Albus") : (profiles[c.author_id] || "Unknown");
+    const isAuthor = !isAlbus && user?.id === c.author_id;
     const isHtml = c.content_html && /<[a-z][\s\S]*>/i.test(c.content_html);
     return (
       <div className={cn("flex gap-3", isReply && "ml-10")}>
-        <Avatar className="h-7 w-7 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-[10px] text-primary">{initials(name)}</AvatarFallback>
+        <Avatar className={cn("h-7 w-7 shrink-0", isAlbus && "ring-2 ring-primary/40")}>
+          <AvatarFallback className={cn(
+            "text-[10px]",
+            isAlbus ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary",
+          )}>
+            {isAlbus ? "✦" : initials(name)}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{name}</span>
+            <span className={cn("text-sm font-medium", isAlbus && "text-primary")}>{name}</span>
+            {isAlbus && <span className="text-[10px] uppercase tracking-wider text-primary/70 font-semibold">AI</span>}
             <span className="text-xs text-muted-foreground">{timeAgo(c.created_at)}</span>
           </div>
           {isHtml ? (

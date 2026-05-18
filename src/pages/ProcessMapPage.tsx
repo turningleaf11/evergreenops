@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProcessLandingGrid } from "@/components/process/ProcessLandingGrid";
 import {
   Background,
   Controls,
@@ -372,6 +373,26 @@ export default function ProcessMapPage() {
 
   const isSubprocess = viewingArea !== null;
 
+  // Counts for the landing card grid: children + steps + projects per area
+  const topLevelAreas = useMemo(() => buckets.filter((b) => !b.parent_id), [buckets]);
+  const bucketCounts = useMemo(() => {
+    const out: Record<string, { children: number; steps: number; projects: number }> = {};
+    for (const area of topLevelAreas) {
+      const children = buckets.filter((b) => b.parent_id === area.id).length;
+      const stepsCount = steps.filter((s) => {
+        // step belongs to a bucket; count steps whose bucket is this area or its children
+        const bucketIds = new Set([area.id, ...buckets.filter((b) => b.parent_id === area.id).map((b) => b.id)]);
+        return bucketIds.has(s.bucket_id);
+      }).length;
+      const projectsCount = projects.filter((p) => {
+        const bucketIds = new Set([area.id, ...buckets.filter((b) => b.parent_id === area.id).map((b) => b.id)]);
+        return p.bucket_id && bucketIds.has(p.bucket_id);
+      }).length;
+      out[area.id] = { children, steps: stepsCount, projects: projectsCount };
+    }
+    return out;
+  }, [buckets, steps, projects, topLevelAreas]);
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Toolbar / breadcrumb */}
@@ -402,10 +423,16 @@ export default function ProcessMapPage() {
       </div>
 
       <div className="flex flex-1 min-h-0">
-        {/* Canvas */}
-        <div className="flex-1 relative">
+        {/* Canvas — only when drilled into a subprocess. Landing uses card grid. */}
+        <div className="flex-1 relative overflow-y-auto">
           {isLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading...</div>
+          ) : !isSubprocess ? (
+            <ProcessLandingGrid
+              areas={topLevelAreas}
+              bucketCounts={bucketCounts}
+              onOpenArea={(b) => setViewingArea(b)}
+            />
           ) : (
             <ReactFlow
               nodes={nodes}
@@ -438,7 +465,8 @@ export default function ProcessMapPage() {
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — only when drilled into a subprocess (no need on landing) */}
+        {isSubprocess && (
         <aside className="w-80 border-l border-border/40 bg-card flex flex-col overflow-hidden">
           {!selected ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
@@ -620,6 +648,7 @@ export default function ProcessMapPage() {
             </div>
           )}
         </aside>
+        )}
       </div>
     </div>
   );

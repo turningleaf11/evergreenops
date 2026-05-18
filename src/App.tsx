@@ -37,6 +37,8 @@ import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
 import SyncPage from "./pages/SyncPage";
+import WhiteboardsPage from "./pages/WhiteboardsPage";
+import WhiteboardDetailPage from "./pages/WhiteboardDetailPage";
 import CrmPage from "./pages/CrmPage";
 import MeetingsPage from "./pages/MeetingsPage";
 import IntegrationsGmailPage from "./pages/IntegrationsGmailPage";
@@ -240,6 +242,8 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
                 <Route path="/notes" element={<NotesPage />} />
+                <Route path="/whiteboards" element={<WhiteboardsPage />} />
+                <Route path="/whiteboards/:id" element={<WhiteboardDetailPage />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
                 <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms/list/:slug" element={<InternalFormPage />} />

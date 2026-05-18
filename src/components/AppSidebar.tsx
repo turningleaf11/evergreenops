@@ -3,7 +3,7 @@ import {
   Home, FileText, Database as DbIcon, Users,
   Settings, Building2, ShieldCheck, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
-  HelpCircle, Code2, MessagesSquare,
+  HelpCircle, Code2, MessagesSquare, Layers,
 } from "lucide-react";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
 import { useSidebarMode } from "@/contexts/SidebarModeContext";
@@ -71,6 +71,7 @@ export function AppSidebar() {
     ...(isLeader || can("meetings") ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
+    { title: "Whiteboards", url: "/whiteboards", icon: Layers },
     ...(isLeader || can("lists") ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
   ];
 

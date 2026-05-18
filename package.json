@@ -95,6 +95,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tippy.js": "^6.3.7",
+    "tldraw": "^5.0.1",
     "vaul": "^0.9.9",
     "y-protocols": "^1.0.1",
     "yjs": "^13.6.27",
