@@ -1,16 +1,28 @@
-import { useEffect, useState, useMemo } from "react";
+// ProgramOverview — the Orbit Program dept page Overview tab.
+//
+// Members land directly on their track's role brief: tagline, what it is,
+// KPI targets, daily flow steps, success criteria, getting-started checklist,
+// training modules, and resources & SOPs filtered to their track.
+//
+// Admins see program stats + a track switcher to preview any track.
+
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { TRACK_OPTIONS, TRACK_COLORS, TRACK_LABEL, type OrbitTrack } from "./orbit-types";
-import { Search, FileText, Pin, Paperclip, Plus, Download, ExternalLink, Trash2, LayoutGrid, Sparkles, GraduationCap, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Check, FileText, GraduationCap, ListChecks, Search, Sparkles, Target, Users, Loader2 } from "lucide-react";
 import { useMyOrbitMembership } from "@/hooks/useMyOrbitMembership";
-import { useAuth } from "@/contexts/AuthContext";
-import { QuickAddCurriculumDialog } from "./QuickAddCurriculumDialog";
+import {
+  TRACK_CONTENT,
+  TRACK_OPTIONS,
+  TRACK_ACCENT,
+  TRACK_LABEL,
+  type OrbitTrack,
+} from "./orbit-types";
+import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
 
@@ -19,270 +31,520 @@ interface Doc {
   title: string;
   author_name: string | null;
   updated_at: string;
-  visibility: string;
-  shared_with: any;
   tags: string[] | null;
   icon?: string | null;
 }
 
-interface Member {
-  id: string;
-  status: string;
-  track: string;
+interface ProgramStats {
+  total: number;
+  active: number;
+  on_notice: number;
+  graduated: number;
+  by_track: Record<string, number>;
 }
 
-interface ResourcesProps {
-  departmentId: string;
-  docs: Doc[];
-  openDocPreview: (id: string) => void;
-}
-
-// Resource type detection from tags
-const TYPE_PRIORITY = ["sop", "script", "playbook", "training", "resource"] as const;
-type ResourceType = (typeof TYPE_PRIORITY)[number] | "other";
-
-const TYPE_META: Record<ResourceType, { label: string; icon: string; color: string }> = {
-  sop:       { label: "SOP",       icon: "📋", color: "bg-blue-500/10 text-blue-700 border-blue-200/50" },
-  script:    { label: "Script",    icon: "💬", color: "bg-amber-500/10 text-amber-700 border-amber-200/50" },
-  playbook:  { label: "Playbook",  icon: "🎯", color: "bg-emerald-500/10 text-emerald-700 border-emerald-200/50" },
-  training:  { label: "Training",  icon: "🎓", color: "bg-violet-500/10 text-violet-700 border-violet-200/50" },
-  resource:  { label: "Resource",  icon: "📚", color: "bg-rose-500/10 text-rose-700 border-rose-200/50" },
-  other:     { label: "Reference", icon: "📄", color: "bg-muted text-muted-foreground border-border/50" },
-};
-
-function detectType(tags: string[] | null): ResourceType {
-  if (!tags) return "other";
-  for (const t of TYPE_PRIORITY) if (tags.includes(t)) return t;
-  return "other";
-}
-
-function getDocTracks(tags: string[] | null): OrbitTrack[] {
-  if (!tags) return [];
-  return tags.filter((t) => t.startsWith("track:")).map((t) => t.replace("track:", "") as OrbitTrack);
-}
-
-// ============== Stats hero ==============
-function ProgramStats({ departmentId, deptName }: { departmentId: string; deptName: string }) {
-  const [members, setMembers] = useState<Member[]>([]);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await sb.from("orbit_members").select("id, status, track").eq("department_id", departmentId);
-      setMembers((data ?? []) as Member[]);
-    })();
-  }, [departmentId]);
-
-  const stats = useMemo(() => {
-    const total = members.length;
-    const active = members.filter((m) => m.status === "active").length;
-    const onNotice = members.filter((m) => m.status === "on_notice").length;
-    const graduated = members.filter((m) => m.status === "graduated").length;
-    return { total, active, onNotice, graduated };
-  }, [members]);
-
-  return (
-    <div className="rounded-2xl border border-primary/20 p-5 bg-gradient-to-br from-primary/[0.05] via-primary/[0.02] to-transparent">
-      <div className="flex items-center gap-2 mb-1">
-        <Sparkles className="h-3.5 w-3.5 text-primary/80" />
-        <span className="text-[10px] uppercase tracking-widest font-semibold text-primary/80">Program</span>
-      </div>
-      <h2 className="text-lg font-bold tracking-tight">{deptName}</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Active</p>
-          <p className="text-2xl font-bold text-foreground mt-0.5">{stats.active}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">On Notice</p>
-          <p className="text-2xl font-bold text-amber-600 mt-0.5">{stats.onNotice}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Graduated</p>
-          <p className="text-2xl font-bold text-blue-600 mt-0.5">{stats.graduated}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Total</p>
-          <p className="text-2xl font-bold text-muted-foreground mt-0.5">{stats.total}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============== Curriculum (track-first resource view) ==============
-function Curriculum({ departmentId, docs, openDocPreview }: ResourcesProps) {
-  const { isAdmin } = useAuth();
-  const { member } = useMyOrbitMembership();
-  const [search, setSearch] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  // Default to the user's track if they're an Orbit member; otherwise show All
-  const [activeTrack, setActiveTrack] = useState<OrbitTrack | "all">(member?.track || "all");
-
-  // If the user's membership loads after mount, snap to their track once
-  useEffect(() => {
-    if (member?.track && activeTrack === "all") {
-      setActiveTrack(member.track);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [member?.track]);
-
-  // Which tracks have any content?
-  const tracksWithContent = useMemo(() => {
-    const set = new Set<OrbitTrack>();
-    docs.forEach((d) => getDocTracks(d.tags).forEach((t) => set.add(t)));
-    return TRACK_OPTIONS.filter((t) => set.has(t.value));
-  }, [docs]);
-
-  const filtered = docs.filter((d) => {
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      if (!d.title.toLowerCase().includes(s) && !(d.tags ?? []).some((t) => t.toLowerCase().includes(s))) {
-        return false;
-      }
-    }
-    if (activeTrack !== "all") {
-      const tracks = getDocTracks(d.tags);
-      if (!tracks.includes(activeTrack)) return false;
-    }
-    return true;
-  });
-
-  // Group by type within active filter
-  const groups: Record<ResourceType, Doc[]> = { sop: [], script: [], playbook: [], training: [], resource: [], other: [] };
-  filtered.forEach((d) => { groups[detectType(d.tags)].push(d); });
-  const orderedGroups = ([...TYPE_PRIORITY, "other"] as ResourceType[]).filter((g) => groups[g].length > 0);
-
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold flex items-center gap-2 tracking-tight">
-            <GraduationCap className="h-4 w-4 text-primary" />
-            Curriculum
-            <span className="text-xs font-normal text-muted-foreground/60">({docs.length} {docs.length === 1 ? "doc" : "docs"})</span>
-          </h2>
-          {isAdmin && (
-            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)} className="h-7 text-xs gap-1.5">
-              <Plus className="h-3 w-3" /> Add
-            </Button>
-          )}
-        </div>
-        <div className="relative w-56">
-          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search curriculum…"
-            className="pl-8 h-8 text-xs"
-          />
-        </div>
-      </div>
-
-      {/* Track tabs */}
-      <div className="flex items-center gap-1.5 flex-wrap border-b border-border/40 pb-2">
-        <button
-          onClick={() => setActiveTrack("all")}
-          className={cn(
-            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-            activeTrack === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-          )}
-        >
-          All tracks
-        </button>
-        {tracksWithContent.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setActiveTrack(t.value)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              activeTrack === t.value ? "bg-primary text-primary-foreground" : `${TRACK_COLORS[t.value]} hover:opacity-80`
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {orderedGroups.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center space-y-2">
-            <GraduationCap className="h-6 w-6 mx-auto text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">
-              {docs.length === 0 ? "No curriculum yet" : "No matches in this track"}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {orderedGroups.map((type) => {
-            const meta = TYPE_META[type];
-            return (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{meta.icon}</span>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/80">
-                    {meta.label}s
-                  </h3>
-                  <span className="text-[10px] text-muted-foreground/50">· {groups[type].length}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {groups[type].map((d) => {
-                    const tracks = getDocTracks(d.tags);
-                    return (
-                      <button
-                        key={d.id}
-                        onClick={() => openDocPreview(d.id)}
-                        className={cn(
-                          "group flex items-start gap-2.5 p-3 rounded-xl border transition-all text-left hover:shadow-sm hover:-translate-y-px",
-                          meta.color
-                        )}
-                      >
-                        <span className="text-lg leading-none mt-0.5">{d.icon || "📄"}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{d.title}</p>
-                          {tracks.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                              {tracks.map((t) => (
-                                <Badge key={t} variant="secondary" className={`text-[9px] px-1.5 py-0 h-4 ${TRACK_COLORS[t]}`}>
-                                  {TRACK_LABEL[t]}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <QuickAddCurriculumDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        departmentId={departmentId}
-        onCreated={() => window.location.reload()}
-      />
-    </section>
-  );
-}
-
-// ============== Public exports ==============
-interface ProgramOverviewProps {
+interface Props {
   departmentId: string;
   deptName: string;
   docs: Doc[];
   openDocPreview: (id: string) => void;
 }
 
-export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }: ProgramOverviewProps) {
+const TRAINING_TAGS = new Set(["training", "playbook"]);
+
+function isTrainingDoc(d: Doc) {
+  return (d.tags ?? []).some((t) => TRAINING_TAGS.has(t.toLowerCase()));
+}
+
+function docMatchesTrack(d: Doc, track: OrbitTrack | null) {
+  if (!track) return true;
+  return (d.tags ?? []).some((t) => t.toLowerCase() === `track:${track}`);
+}
+
+// ── Role Overview section ─────────────────────────────────────────────────────
+
+function RoleOverview({ track }: { track: OrbitTrack }) {
+  const c = TRACK_CONTENT[track];
+  const accent = TRACK_ACCENT[track];
+
   return (
-    <div className="space-y-6">
-      <ProgramStats departmentId={departmentId} deptName={deptName} />
-      <Curriculum departmentId={departmentId} docs={docs} openDocPreview={openDocPreview} />
+    <Card className="overflow-hidden border-2" style={{ borderColor: `${accent}40` }}>
+      <div className="h-1.5" style={{ background: accent }} />
+      <CardContent className="p-6 space-y-6">
+        {/* Tagline */}
+        <div>
+          <Badge
+            className="mb-2 text-[10px] uppercase tracking-widest border-0"
+            style={{ background: `${accent}20`, color: accent }}
+          >
+            {TRACK_LABEL[track]} · The Role
+          </Badge>
+          <p className="text-lg text-foreground/90 leading-snug">{c.tagline}</p>
+        </div>
+
+        {/* What it is */}
+        <div className="rounded-lg p-4" style={{ background: `${accent}0d` }}>
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: accent }}>
+            What it is
+          </p>
+          <p className="text-sm text-foreground/90 leading-relaxed">{c.what_it_is}</p>
+        </div>
+
+        {/* KPI table */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-4 w-4" style={{ color: accent }} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">KPIs</h3>
+          </div>
+          <div className="rounded-lg border border-border/40 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <th className="text-left px-3 py-2 font-semibold">Metric</th>
+                  <th className="text-left px-3 py-2 font-semibold">Target</th>
+                  <th className="text-left px-3 py-2 font-semibold">Starting When</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {c.kpis.map((k, i) => (
+                  <tr key={i}>
+                    <td className="px-3 py-2 font-medium text-foreground">{k.metric}</td>
+                    <td className="px-3 py-2 font-semibold" style={{ color: accent }}>{k.target}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{k.starting_when}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Daily flow */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4" style={{ color: accent }} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              How It Works · {c.daily_flow.length} steps
+            </h3>
+          </div>
+          <ol className="space-y-3">
+            {c.daily_flow.map((step, i) => (
+              <li key={i} className="flex gap-3">
+                <span
+                  className="shrink-0 h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs text-white"
+                  style={{ background: accent }}
+                >
+                  {i + 1}
+                </span>
+                <div className="flex-1 pt-0.5">
+                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{step.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Success criteria */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ListChecks className="h-4 w-4" style={{ color: accent }} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">What success looks like</h3>
+          </div>
+          <ul className="space-y-1.5">
+            {c.success_criteria.map((s, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
+                <Check className="h-3.5 w-3.5 mt-1 shrink-0" style={{ color: accent }} />
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Getting Started checklist (interactive + persisted) ─────────────────────
+
+function GettingStartedChecklist({ track, memberId, isOwnView }: { track: OrbitTrack; memberId: string | null; isOwnView: boolean }) {
+  const c = TRACK_CONTENT[track];
+  const accent = TRACK_ACCENT[track];
+  const [doneMap, setDoneMap] = useState<Record<string, boolean>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!memberId) { setDoneMap({}); return; }
+    const { data } = await sb
+      .from("orbit_setup_checklist")
+      .select("item_key, done")
+      .eq("member_id", memberId);
+    const map: Record<string, boolean> = {};
+    (data ?? []).forEach((r: any) => { map[r.item_key] = !!r.done; });
+    setDoneMap(map);
+  }, [memberId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (key: string, label: string, sortOrder: number) => {
+    if (!memberId) return;
+    const next = !doneMap[key];
+    setDoneMap((prev) => ({ ...prev, [key]: next }));
+    setSavingKey(key);
+    // Upsert by (member_id, item_key)
+    const payload = {
+      member_id: memberId,
+      item_key: key,
+      label,
+      sort_order: sortOrder,
+      done: next,
+      done_at: next ? new Date().toISOString() : null,
+    };
+    await sb.from("orbit_setup_checklist").upsert(payload, { onConflict: "member_id,item_key" });
+    setSavingKey(null);
+  };
+
+  const doneCount = c.getting_started.filter((i) => doneMap[i.key]).length;
+  const total = c.getting_started.length;
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4" style={{ color: accent }} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Getting Started</h3>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">{doneCount}</span> of {total} done
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full transition-all"
+            style={{ background: accent, width: `${total > 0 ? Math.round((doneCount / total) * 100) : 0}%` }}
+          />
+        </div>
+
+        {/* Items */}
+        <ul className="space-y-1.5">
+          {c.getting_started.map((item, i) => {
+            const done = !!doneMap[item.key];
+            const saving = savingKey === item.key;
+            return (
+              <li key={item.key}>
+                <button
+                  onClick={() => isOwnView && toggle(item.key, item.label, i)}
+                  disabled={!isOwnView || saving}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-2 py-1.5 rounded-md transition-colors text-left",
+                    isOwnView ? "hover:bg-muted/40 cursor-pointer" : "cursor-default",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-4 w-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                      done ? "text-white" : "border-muted-foreground/40",
+                    )}
+                    style={done ? { background: accent, borderColor: accent } : undefined}
+                  >
+                    {done && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+                  </span>
+                  <span className={cn("text-sm", done && "line-through text-muted-foreground")}>
+                    {item.label}
+                  </span>
+                  {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {!isOwnView && memberId === null && (
+          <p className="text-[11px] italic text-muted-foreground/70">
+            (Admins: this preview is read-only. Members see this as an interactive checklist.)
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Training Hub ──────────────────────────────────────────────────────────────
+
+function TrainingHub({ track, docs, openDocPreview }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void }) {
+  const accent = TRACK_ACCENT[track];
+  const trackDocs = useMemo(
+    () => docs.filter((d) => isTrainingDoc(d) && docMatchesTrack(d, track)),
+    [docs, track],
+  );
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="h-4 w-4" style={{ color: accent }} />
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Training Hub</h3>
+          <span className="text-[10px] text-muted-foreground/60">· {trackDocs.length}</span>
+        </div>
+        {trackDocs.length === 0 ? (
+          <p className="text-sm text-muted-foreground/60 italic">No training modules tagged track:{track} yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {trackDocs.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => openDocPreview(d.id)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-card/40 hover:bg-muted/50 hover:border-border transition-colors text-left"
+              >
+                <span className="text-base shrink-0">{d.icon || "🎓"}</span>
+                <span className="text-sm text-foreground truncate flex-1">{d.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Resources & SOPs ──────────────────────────────────────────────────────────
+
+const RESOURCE_GROUPS: { label: string; tag: string }[] = [
+  { label: "SOPs",       tag: "sop" },
+  { label: "Scripts",    tag: "script" },
+  { label: "Playbooks",  tag: "playbook" },
+  { label: "References", tag: "resource" },
+];
+
+function ResourcesAndSops({ track, docs, openDocPreview }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void }) {
+  const accent = TRACK_ACCENT[track];
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    let r = docs.filter((d) => !isTrainingDoc(d) && docMatchesTrack(d, track));
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      r = r.filter((d) =>
+        d.title.toLowerCase().includes(q)
+        || (d.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    return r;
+  }, [docs, track, search]);
+
+  const grouped = useMemo(() => {
+    const out: Record<string, Doc[]> = {};
+    for (const g of RESOURCE_GROUPS) {
+      out[g.tag] = filtered.filter((d) => (d.tags ?? []).some((t) => t.toLowerCase() === g.tag));
+    }
+    return out;
+  }, [filtered]);
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4" style={{ color: accent }} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Resources & SOPs</h3>
+            <span className="text-[10px] text-muted-foreground/60">· {filtered.length}</span>
+          </div>
+          <div className="relative max-w-xs flex-1">
+            <Search className="h-3 w-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="h-7 text-xs pl-7"
+            />
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground/60 italic">No docs tagged track:{track} yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {RESOURCE_GROUPS.map((g) => {
+              const items = grouped[g.tag] ?? [];
+              if (items.length === 0) return null;
+              return (
+                <div key={g.tag} className="space-y-1.5">
+                  <h4 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-1">
+                    {g.label} · {items.length}
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {items.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => openDocPreview(d.id)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-card/40 hover:bg-muted/50 hover:border-border transition-colors text-left"
+                      >
+                        <span className="text-base shrink-0">{d.icon || "📄"}</span>
+                        <span className="text-sm text-foreground truncate flex-1">{d.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Admin program stats (only shown to admins) ───────────────────────────────
+
+function ProgramStatsCard({ departmentId }: { departmentId: string }) {
+  const [stats, setStats] = useState<ProgramStats | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb
+        .from("orbit_members")
+        .select("track, status")
+        .eq("department_id", departmentId);
+      const rows = (data ?? []) as { track: string; status: string }[];
+      const by_track: Record<string, number> = {};
+      let active = 0, on_notice = 0, graduated = 0;
+      for (const r of rows) {
+        by_track[r.track] = (by_track[r.track] ?? 0) + 1;
+        if (r.status === "active") active++;
+        if (r.status === "on_notice") on_notice++;
+        if (r.status === "graduated") graduated++;
+      }
+      setStats({ total: rows.length, active, on_notice, graduated, by_track });
+    })();
+  }, [departmentId]);
+
+  if (!stats) return null;
+
+  return (
+    <Card className="bg-card/40">
+      <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total</p>
+          <p className="text-xl font-bold text-foreground">{stats.total}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Active</p>
+          <p className="text-xl font-bold text-foreground">{stats.active}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-300">On Notice</p>
+          <p className="text-xl font-bold text-foreground">{stats.on_notice}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-300">Graduated</p>
+          <p className="text-xl font-bold text-foreground">{stats.graduated}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">By Track</p>
+          <p className="text-xs text-foreground/90 mt-1">
+            {Object.entries(stats.by_track).map(([t, n]) => `${TRACK_LABEL[t as OrbitTrack] ?? t}:${n}`).join(" · ") || "—"}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Page entry ────────────────────────────────────────────────────────────────
+
+export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }: Props) {
+  const { isAdmin } = useAuth();
+  const { member, loading: membershipLoading } = useMyOrbitMembership();
+  const [adminTrackPreview, setAdminTrackPreview] = useState<OrbitTrack | null>(null);
+
+  // Active track:
+  // - Members always see their OWN track (no switcher).
+  // - Admins default to dts, but can flip via the track switcher.
+  const activeTrack: OrbitTrack | null = isAdmin
+    ? adminTrackPreview ?? "dts"
+    : (member?.track ?? null);
+
+  const isOwnView = !!member && member.track === activeTrack;
+
+  if (membershipLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-12 justify-center">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading your Orbit…
+      </div>
+    );
+  }
+
+  // Not an admin AND not an Orbit member → friendly fallback
+  if (!isAdmin && !member) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center space-y-2">
+          <Users className="h-6 w-6 mx-auto text-muted-foreground/40" />
+          <p className="text-sm text-foreground/80">You're not currently in the Orbit Program.</p>
+          <p className="text-xs text-muted-foreground/70">Ask an admin to add you to a track to see your role overview.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Title row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {deptName}{activeTrack && (
+              <>
+                <span className="text-muted-foreground/40 font-normal mx-2">—</span>
+                <span style={{ color: TRACK_ACCENT[activeTrack] }}>{TRACK_CONTENT[activeTrack].full_name}</span>
+              </>
+            )}
+          </h1>
+          {activeTrack && (
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              {isAdmin && !isOwnView ? "Admin preview · " : "Your role · "}
+              {TRACK_LABEL[activeTrack]}
+            </p>
+          )}
+        </div>
+
+        {/* Admin track switcher */}
+        {isAdmin && (
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70 mr-1">Preview:</span>
+            {TRACK_OPTIONS.map((t) => (
+              <Button
+                key={t.value}
+                size="sm"
+                variant={activeTrack === t.value ? "default" : "outline"}
+                className="h-7 text-[11px]"
+                onClick={() => setAdminTrackPreview(t.value)}
+                style={activeTrack === t.value ? { background: TRACK_ACCENT[t.value], borderColor: TRACK_ACCENT[t.value] } : undefined}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Admin stats */}
+      {isAdmin && <ProgramStatsCard departmentId={departmentId} />}
+
+      {activeTrack && (
+        <>
+          <RoleOverview track={activeTrack} />
+          <GettingStartedChecklist
+            track={activeTrack}
+            memberId={isOwnView ? (member?.id ?? null) : null}
+            isOwnView={isOwnView}
+          />
+          <TrainingHub track={activeTrack} docs={docs} openDocPreview={openDocPreview} />
+          <ResourcesAndSops track={activeTrack} docs={docs} openDocPreview={openDocPreview} />
+        </>
+      )}
     </div>
   );
 }

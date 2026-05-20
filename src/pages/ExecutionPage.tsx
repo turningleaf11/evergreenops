@@ -179,10 +179,17 @@ export default function ExecutionPage() {
   const [drawerType, setDrawerType] = useState<"project" | "task">("project");
   const [projectPeekId, setProjectPeekId] = useState<string | null>(null);
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
-  const [goalQuarter, setGoalQuarter] = useState<string>("all");
-  const [goalYear, setGoalYear] = useState<string>("all");
-  const [goalDept, setGoalDept] = useState<string>("all");
-  const [goalGroupBy, setGoalGroupBy] = useState<"quarter" | "department" | "none">("quarter");
+  // Goals filters persist across sessions in localStorage
+  const [goalQuarter, setGoalQuarter] = useState<string>(() => localStorage.getItem("execution.goals.quarter") || "all");
+  const [goalYear, setGoalYear] = useState<string>(() => localStorage.getItem("execution.goals.year") || "all");
+  const [goalDept, setGoalDept] = useState<string>(() => localStorage.getItem("execution.goals.dept") || "all");
+  const [goalGroupBy, setGoalGroupBy] = useState<"quarter" | "department" | "none">(
+    () => (localStorage.getItem("execution.goals.groupBy") as "quarter" | "department" | "none") || "quarter",
+  );
+  useEffect(() => { localStorage.setItem("execution.goals.quarter", goalQuarter); }, [goalQuarter]);
+  useEffect(() => { localStorage.setItem("execution.goals.year", goalYear); }, [goalYear]);
+  useEffect(() => { localStorage.setItem("execution.goals.dept", goalDept); }, [goalDept]);
+  useEffect(() => { localStorage.setItem("execution.goals.groupBy", goalGroupBy); }, [goalGroupBy]);
 
   const projectKanbanCols = useMemo(
     () => projectKanbanColsBase.map(c => ({ ...c, color: stageColors[`project:${c.key}`] || c.color })),
