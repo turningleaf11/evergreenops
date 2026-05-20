@@ -13,15 +13,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, FileText, GraduationCap, ListChecks, Search, Sparkles, Target, Users, Loader2 } from "lucide-react";
+import { Check, FileText, GraduationCap, ListChecks, Search, Sparkles, Target, Users, Loader2, Pencil, Save, X, Plus, Trash2, RotateCcw } from "lucide-react";
 import { useMyOrbitMembership } from "@/hooks/useMyOrbitMembership";
+import { useTrackContent } from "@/hooks/useTrackContent";
 import {
-  TRACK_CONTENT,
   TRACK_OPTIONS,
   TRACK_ACCENT,
   TRACK_LABEL,
   type OrbitTrack,
+  type TrackContent,
 } from "./orbit-types";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -63,8 +65,8 @@ function docMatchesTrack(d: Doc, track: OrbitTrack | null) {
 
 // ── Role Overview section ─────────────────────────────────────────────────────
 
-function RoleOverview({ track }: { track: OrbitTrack }) {
-  const c = TRACK_CONTENT[track];
+function RoleOverview({ track, content }: { track: OrbitTrack; content: TrackContent }) {
+  const c = content;
   const accent = TRACK_ACCENT[track];
 
   return (
@@ -166,8 +168,8 @@ function RoleOverview({ track }: { track: OrbitTrack }) {
 
 // ── Getting Started checklist (interactive + persisted) ─────────────────────
 
-function GettingStartedChecklist({ track, memberId, isOwnView }: { track: OrbitTrack; memberId: string | null; isOwnView: boolean }) {
-  const c = TRACK_CONTENT[track];
+function GettingStartedChecklist({ track, content, memberId, isOwnView }: { track: OrbitTrack; content: TrackContent; memberId: string | null; isOwnView: boolean }) {
+  const c = content;
   const accent = TRACK_ACCENT[track];
   const [doneMap, setDoneMap] = useState<Record<string, boolean>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -458,6 +460,7 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
   const { isAdmin } = useAuth();
   const { member, loading: membershipLoading } = useMyOrbitMembership();
   const [adminTrackPreview, setAdminTrackPreview] = useState<OrbitTrack | null>(null);
+  const [editing, setEditing] = useState(false);
 
   // Active track:
   // - Members always see their OWN track (no switcher).
@@ -467,6 +470,7 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
     : (member?.track ?? null);
 
   const isOwnView = !!member && member.track === activeTrack;
+  const trackContent = useTrackContent(activeTrack ?? "dts");
 
   if (membershipLoading) {
     return (
@@ -535,9 +539,46 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
 
       {activeTrack && (
         <>
-          <RoleOverview track={activeTrack} />
+          {/* Admin edit toggle */}
+          {isAdmin && (
+            <div className="flex items-center justify-end gap-2">
+              {trackContent.hasOverride && !editing && (
+                <button
+                  onClick={async () => {
+                    if (!confirm("Reset this track's overview to the default content?")) return;
+                    await trackContent.resetToDefault();
+                    toast.success("Reset to default");
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted"
+                >
+                  <RotateCcw className="h-3 w-3" /> Reset to default
+                </button>
+              )}
+              <button
+                onClick={() => setEditing((e) => !e)}
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-md font-medium",
+                  editing ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground",
+                )}
+              >
+                {editing ? <><X className="h-3 w-3" /> Done editing</> : <><Pencil className="h-3 w-3" /> Edit overview</>}
+              </button>
+            </div>
+          )}
+
+          {editing && isAdmin ? (
+            <RoleOverviewEditor
+              track={activeTrack}
+              content={trackContent.content}
+              onSave={async (next) => { await trackContent.save(next); toast.success("Saved"); }}
+            />
+          ) : (
+            <RoleOverview track={activeTrack} content={trackContent.content} />
+          )}
+
           <GettingStartedChecklist
             track={activeTrack}
+            content={trackContent.content}
             memberId={isOwnView ? (member?.id ?? null) : null}
             isOwnView={isOwnView}
           />
@@ -545,6 +586,173 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
           <ResourcesAndSops track={activeTrack} docs={docs} openDocPreview={openDocPreview} />
         </>
       )}
+    </div>
+  );
+}
+
+// ── Admin edit form for the role overview ───────────────────────────────────
+
+function RoleOverviewEditor({
+  track, content, onSave,
+}: {
+  track: OrbitTrack;
+  content: TrackContent;
+  onSave: (next: Partial<TrackContent>) => Promise<void>;
+}) {
+  const accent = TRACK_ACCENT[track];
+  const [draft, setDraft] = useState<TrackContent>(content);
+  const [saving, setSaving] = useState(false);
+
+  // Reset draft if track changes
+  useEffect(() => { setDraft(content); }, [track]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave({
+        full_name: draft.full_name,
+        tagline: draft.tagline,
+        what_it_is: draft.what_it_is,
+        kpis: draft.kpis,
+        daily_flow: draft.daily_flow,
+        success_criteria: draft.success_criteria,
+        getting_started: draft.getting_started,
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Save failed");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="border-2" style={{ borderColor: `${accent}40` }}>
+      <div className="h-1.5" style={{ background: accent }} />
+      <CardContent className="p-6 space-y-5">
+        <Field label="Full name">
+          <Input value={draft.full_name} onChange={(e) => setDraft({ ...draft, full_name: e.target.value })} />
+        </Field>
+        <Field label="Tagline">
+          <Input value={draft.tagline} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} />
+        </Field>
+        <Field label="What it is">
+          <textarea
+            value={draft.what_it_is}
+            onChange={(e) => setDraft({ ...draft, what_it_is: e.target.value })}
+            className="w-full min-h-[90px] bg-transparent border border-border/60 rounded-md px-3 py-2 text-sm outline-none"
+          />
+        </Field>
+
+        <Repeatable
+          label="KPIs"
+          items={draft.kpis}
+          onChange={(kpis) => setDraft({ ...draft, kpis: kpis as TrackContent["kpis"] })}
+          emptyValue={{ metric: "", target: "", starting_when: "" }}
+          renderRow={(item, set) => (
+            <>
+              <Input placeholder="Metric" value={(item as any).metric ?? ""} onChange={(e) => set({ metric: e.target.value })} className="flex-1" />
+              <Input placeholder="Target" value={(item as any).target ?? ""} onChange={(e) => set({ target: e.target.value })} className="w-32" />
+              <Input placeholder="Starting when" value={(item as any).starting_when ?? ""} onChange={(e) => set({ starting_when: e.target.value })} className="w-40" />
+            </>
+          )}
+        />
+
+        <Repeatable
+          label="Daily Flow steps"
+          items={draft.daily_flow}
+          onChange={(daily_flow) => setDraft({ ...draft, daily_flow: daily_flow as TrackContent["daily_flow"] })}
+          emptyValue={{ title: "", detail: "" }}
+          renderRow={(item, set) => (
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-2">
+              <Input placeholder="Step title" value={(item as any).title ?? ""} onChange={(e) => set({ title: e.target.value })} />
+              <Input placeholder="Detail" value={(item as any).detail ?? ""} onChange={(e) => set({ detail: e.target.value })} />
+            </div>
+          )}
+        />
+
+        <Repeatable
+          label="Success Criteria"
+          items={draft.success_criteria}
+          onChange={(success_criteria) => setDraft({ ...draft, success_criteria: success_criteria as TrackContent["success_criteria"] })}
+          emptyValue=""
+          renderRow={(item, set) => (
+            <Input className="flex-1" placeholder="What success looks like…" value={String(item ?? "")} onChange={(e) => set(e.target.value)} />
+          )}
+        />
+
+        <Repeatable
+          label="Getting Started checklist"
+          items={draft.getting_started}
+          onChange={(getting_started) => setDraft({ ...draft, getting_started: getting_started as TrackContent["getting_started"] })}
+          emptyValue={{ key: "", label: "" }}
+          renderRow={(item, set) => (
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-2">
+              <Input placeholder="key_snake_case" value={(item as any).key ?? ""} onChange={(e) => set({ key: e.target.value })} className="font-mono text-xs" />
+              <Input placeholder="Label shown to members" value={(item as any).label ?? ""} onChange={(e) => set({ label: e.target.value })} />
+            </div>
+          )}
+        />
+
+        <div className="flex justify-end gap-2 pt-4 border-t border-border/40">
+          <Button onClick={save} disabled={saving} style={{ background: accent, borderColor: accent }}>
+            {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Save className="h-3 w-3 mr-1.5" />}
+            Save changes
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function Repeatable<T>({
+  label, items, onChange, emptyValue, renderRow,
+}: {
+  label: string;
+  items: T[];
+  onChange: (next: T[]) => void;
+  emptyValue: T;
+  renderRow: (item: T, set: (patch: any) => void) => React.ReactNode;
+}) {
+  const setItem = (idx: number, patch: any) => {
+    const next = [...items];
+    next[idx] = typeof patch === "object" && !Array.isArray(patch) && patch !== null
+      ? { ...(next[idx] as any), ...patch }
+      : patch;
+    onChange(next);
+  };
+  const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
+  const addItem = () => onChange([...items, structuredClone(emptyValue)]);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <div className="space-y-1.5">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            {renderRow(item, (patch) => setItem(idx, patch))}
+            <button
+              onClick={() => removeItem(idx)}
+              className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              title="Remove"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={addItem}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md border border-dashed border-border/60 hover:border-border"
+        >
+          <Plus className="h-3 w-3" /> Add
+        </button>
+      </div>
     </div>
   );
 }
