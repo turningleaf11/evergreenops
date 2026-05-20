@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useCompanion } from "@/contexts/CompanionContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { StickyNote, Sparkles } from "lucide-react";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
 import { NotesQuickPanel, AiWorkshopQuickPanel } from "@/components/QuickPanels";
@@ -18,9 +19,14 @@ import { cn } from "@/lib/utils";
 export function AiToolsRail() {
   const location = useLocation();
   const companion = useCompanion();
+  const { isAdmin, isOrbitOnly } = useAuth();
   const [notesOpen, setNotesOpen] = useState(false);
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [peekProjectId, setPeekProjectId] = useState<string | null>(null);
+
+  // AI Workshop is a CEO/admin tool — hide for non-admins.
+  // Orbit-only members don't see the rail at all.
+  if (isOrbitOnly) return null;
 
   // Hide the rail on public/auth/onboarding routes where there's no chrome
   const path = location.pathname;
@@ -58,14 +64,16 @@ export function AiToolsRail() {
           onClick={() => setNotesOpen(true)}
         />
 
-        {/* AI Workshop */}
-        <RailButton
-          icon={<Sparkles className="h-4 w-4" />}
-          label="AI Workshop"
-          tone="primary"
-          active={workshopOpen}
-          onClick={() => setWorkshopOpen(true)}
-        />
+        {/* AI Workshop — admin only */}
+        {isAdmin && (
+          <RailButton
+            icon={<Sparkles className="h-4 w-4" />}
+            label="AI Workshop"
+            tone="primary"
+            active={workshopOpen}
+            onClick={() => setWorkshopOpen(true)}
+          />
+        )}
       </aside>
 
       {/* Slide-overs */}
