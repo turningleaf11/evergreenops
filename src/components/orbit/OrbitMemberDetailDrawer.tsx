@@ -283,6 +283,9 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                 </div>
               </div>
 
+              {/* Sales-only restricted UI toggle */}
+              <OrbitOnlyAccessToggle userId={member.user_id} />
+
               {/* GHL Link */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
@@ -485,5 +488,54 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
         ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Toggle on the member's profile: when on, the user is restricted to
+ *  Home / Feed / People / Training / Orbit Program. */
+function OrbitOnlyAccessToggle({ userId }: { userId: string }) {
+  const [value, setValue] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await sb.from("profiles").select("is_orbit_only").eq("user_id", userId).maybeSingle();
+      if (cancelled) return;
+      setValue(!!(data as any)?.is_orbit_only);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const toggle = async () => {
+    if (value === null) return;
+    setSaving(true);
+    const next = !value;
+    setValue(next);
+    const { error } = await sb.from("profiles").update({ is_orbit_only: next }).eq("user_id", userId);
+    setSaving(false);
+    if (error) { toast.error(error.message); setValue(!next); return; }
+    toast.success(next ? "Restricted to sales-only access" : "Full access restored");
+  };
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/30 px-3 py-2 flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground">Sales-only access</p>
+        <p className="text-[10px] text-muted-foreground">
+          Restricts UI to Home, Feed, People, Training, and their Orbit Program. No internal ops.
+        </p>
+      </div>
+      <button
+        onClick={toggle}
+        disabled={value === null || saving}
+        className={`relative h-5 w-9 rounded-full transition-colors shrink-0 ${value ? "bg-primary" : "bg-muted"}`}
+        aria-pressed={!!value}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-all ${value ? "left-[1.125rem]" : "left-0.5"}`}
+        />
+      </button>
+    </div>
   );
 }

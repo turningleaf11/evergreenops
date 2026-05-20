@@ -13,6 +13,7 @@ interface Profile {
   workspace_id: string | null;
   time_clock_enabled: boolean;
   is_leader: boolean;
+  is_orbit_only?: boolean;
 }
 
 interface AuthContextType {
@@ -25,6 +26,8 @@ interface AuthContextType {
   isPrimaryAdmin: boolean;
   /** True if this user is marked as a department leader (or is an admin). */
   isLeader: boolean;
+  /** True if this user is a sales-only Orbit Program member — restricted UI. Admin overrides. */
+  isOrbitOnly: boolean;
   loading: boolean;
   /** True once both profile and user_roles queries have completed for the current user. */
   roleLoaded: boolean;
@@ -127,9 +130,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = role === "admin";
   const isLeader = isAdmin || !!profile?.is_leader;
+  // Orbit-only is overridden by admin so accidentally flagging an admin doesn't lock them out
+  const isOrbitOnly = !isAdmin && !!profile?.is_orbit_only;
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, isLeader, loading, roleLoaded, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isAdmin, isPrimaryAdmin, isLeader, isOrbitOnly, loading, roleLoaded, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

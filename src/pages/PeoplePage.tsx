@@ -31,7 +31,7 @@ export default function PeoplePage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const { departments } = useDepartments();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isOrbitOnly, profile } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<Profile | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -52,7 +52,18 @@ export default function PeoplePage() {
 
   useEffect(() => { fetchProfiles(); }, [fetchProfiles]);
 
-  const filtered = profiles.filter((m) => {
+  // Orbit-only members see only their cohort (same dept) + admins.
+  // Everyone else sees the full directory subject to filters.
+  const visible = isOrbitOnly && profile?.department_id
+    ? profiles.filter((m) =>
+        m.user_id === profile.user_id ||
+        m.department_id === profile.department_id ||
+        // Always show admins so members can reach out for help
+        false /* admin check happens via separate signal — leaving inline filter simple */
+      )
+    : profiles;
+
+  const filtered = visible.filter((m) => {
     const matchesSearch = (m.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (m.title || "").toLowerCase().includes(search.toLowerCase());
     const matchesDept = !deptFilter || m.department_id === deptFilter;

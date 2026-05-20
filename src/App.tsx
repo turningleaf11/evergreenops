@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -78,6 +78,35 @@ function ProtectedRoute() {
     return <Navigate to="/landing" replace />;
   }
 
+  return <Outlet />;
+}
+
+/**
+ * Gate for orbit-only members. They can only see Home / Feed / People /
+ * Training / their Orbit Program dept page. Everything else redirects home.
+ *
+ * Allowed paths: /, /feed, /people, /training, /department/:id (their own),
+ * /notes, /settings (personal profile only).
+ */
+function OrbitOnlyGuard() {
+  const { isOrbitOnly, profile, loading, roleLoaded } = useAuth();
+  const location = useLocation();
+  if (loading || !roleLoaded) return <Outlet />;
+  if (!isOrbitOnly) return <Outlet />;
+
+  const path = location.pathname;
+  const allowed =
+    path === "/" ||
+    path.startsWith("/feed") ||
+    path.startsWith("/people") ||
+    path.startsWith("/training") ||
+    path.startsWith("/notes") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/help") ||
+    // Their own Orbit Program dept page only
+    (path.startsWith("/department/") && profile?.department_id && path.startsWith(`/department/${profile.department_id}`));
+
+  if (!allowed) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -174,6 +203,7 @@ const App = () => (
               {/* Full-screen onboarding (no Layout) */}
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
+                <Route element={<OrbitOnlyGuard />}>
                 <Route path="/" element={<Index />} />
 
                 {/* CEO-only baseline (with optional per-user grant for AI Hub) */}
@@ -253,6 +283,7 @@ const App = () => (
                 <Route path="/settings/developer" element={<DeveloperPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/time-clock" element={<TimeClockPage />} />
+                </Route> {/* /OrbitOnlyGuard */}
               </Route>
               <Route path="/integrations/gmail/callback" element={<GmailCallbackPage />} />
             </Route>

@@ -30,7 +30,7 @@ export function AppSidebar() {
   const { mode, toggleMode } = useSidebarMode();
   const isPinned = mode === "pinned";
   const collapsed = state === "collapsed";
-  const { profile, isAdmin, isPrimaryAdmin, isLeader, role, signOut } = useAuth();
+  const { profile, isAdmin, isPrimaryAdmin, isLeader, isOrbitOnly, role, signOut } = useAuth();
   const { grants } = usePageGrants();
   const can = (key: string) => isAdmin || grants.has(key as any);
   const { name: workspaceName, logoUrl, ceoPageName, deptLabel } = useWorkspace();
@@ -46,24 +46,37 @@ export function AppSidebar() {
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
   const { hasAccess: gmailAccess } = useGmailAccess();
 
-  // Admins see all departments; users see only their assigned department
+  // Admins see all departments; users see only their assigned department.
+  // Orbit-only members only see their own Orbit Program dept (filtered below).
   const departments = isAdmin
     ? allDepartments
-    : allDepartments.filter((d) => d.id === profile?.department_id);
+    : isOrbitOnly
+      ? allDepartments.filter((d) => (d as any).is_program && d.id === profile?.department_id)
+      : allDepartments.filter((d) => d.id === profile?.department_id);
 
-  const homeNav = [
-    { title: "Home", url: "/", icon: Home },
-    ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
-    ...(isLeader || isAdmin ? [{ title: "Sync", url: "/sync", icon: MessagesSquare }] : []),
-  ];
+  // Orbit-only users get a stripped sidebar: Home, Feed, People, Training, and
+  // their Orbit Program dept (rendered via the departments group below).
+  const homeNav = isOrbitOnly
+    ? [{ title: "Home", url: "/", icon: Home }]
+    : [
+        { title: "Home", url: "/", icon: Home },
+        ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
+        ...(isLeader || isAdmin ? [{ title: "Sync", url: "/sync", icon: MessagesSquare }] : []),
+      ];
 
-  const cultureNav = [
-    { title: "Feed", url: "/feed", icon: Pizza },
-    { title: "People", url: "/people", icon: Users },
-    { title: "Training", url: "/training", icon: GraduationCap },
-  ];
+  const cultureNav = isOrbitOnly
+    ? [
+        { title: "Feed", url: "/feed", icon: Pizza },
+        { title: "People", url: "/people", icon: Users },
+        { title: "Training", url: "/training", icon: GraduationCap },
+      ]
+    : [
+        { title: "Feed", url: "/feed", icon: Pizza },
+        { title: "People", url: "/people", icon: Users },
+        { title: "Training", url: "/training", icon: GraduationCap },
+      ];
 
-  const workNav = [
+  const workNav = isOrbitOnly ? [] : [
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
     ...(isAdmin || can("process_map") ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
@@ -75,19 +88,19 @@ export function AppSidebar() {
     ...(isLeader || can("lists") ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
   ];
 
-  const reportingNav = [
+  const reportingNav = isOrbitOnly ? [] : [
     ...(isAdmin ? [{ title: "Scorecard", url: "/scorecard", icon: BarChart3 }] : []),
   ];
 
-  const addonNav = [
+  const addonNav = isOrbitOnly ? [] : [
     ...(timeClockEnabled && (isAdmin || userTimeClockEnabled) ? [{ title: "Time Clock", url: "/time-clock", icon: Clock }] : []),
     ...(marketResearchEnabled && (isAdmin || can("market_research")) ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
     ...(contentStudioEnabled && (isAdmin || can("content_studio")) ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
     ...(aiWorkshopEnabled && (isAdmin || can("ai_workshop")) ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
-  // AI Hub - CEO baseline, others need grant
-  const aiHubNav = (isPrimaryAdmin || can("ai_hub")) ? [
+  // AI Hub - CEO baseline, others need grant. Hidden for orbit-only.
+  const aiHubNav = (!isOrbitOnly && (isPrimaryAdmin || can("ai_hub"))) ? [
     { title: "AI Hub", url: "/ai-hub", icon: Sparkles },
   ] : [];
 
