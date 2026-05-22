@@ -454,7 +454,8 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error("Companion error:", e);
-      setMessages((prev) => [...prev, { id: null, role: "assistant", content: "Something went wrong. Please try again." }]);
+      const detail = e instanceof Error ? e.message : "Unknown error";
+      setMessages((prev) => [...prev, { id: null, role: "assistant", content: `Albus error: ${detail}` }]);
     } finally {
       setLoading(false);
     }
