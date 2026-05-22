@@ -502,7 +502,7 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
             {deptName}{activeTrack && (
               <>
                 <span className="text-muted-foreground/40 font-normal mx-2">—</span>
-                <span style={{ color: TRACK_ACCENT[activeTrack] }}>{TRACK_CONTENT[activeTrack].full_name}</span>
+                <span style={{ color: TRACK_ACCENT[activeTrack] }}>{trackContent.content.full_name}</span>
               </>
             )}
           </h1>

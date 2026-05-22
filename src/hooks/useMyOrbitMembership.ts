@@ -19,7 +19,7 @@ export interface MyOrbitData {
  */
 export function useMyOrbitMembership() {
   const { user } = useAuth();
-  const [data, setData] = useState<MyOrbitData>({ member: null, recentPerformance: [], strikes: [] });
+  const [data, setData] = useState<MyOrbitData>({ member: null, recentPerformance: [], strikes: [], checklist: [] });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
