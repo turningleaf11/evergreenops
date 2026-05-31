@@ -139,16 +139,31 @@ export function AppSidebar() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <SidebarHeader className="p-2 border-b border-sidebar-border/60">
         <div className={cn(
-          "flex items-center gap-2.5 rounded-lg transition-colors",
-          collapsed ? "justify-center p-2" : "p-2",
+          "flex items-center transition-colors",
+          collapsed ? "flex-col gap-2 px-0 py-1" : "gap-2.5 p-2",
         )}>
+          {/* Logo — bigger when collapsed (fills the icon column nicely),
+              object-contain so the actual image renders fully without cropping. */}
           {logoUrl ? (
-            <img src={logoUrl} alt={workspaceName} className="h-7 w-7 rounded-lg object-cover shrink-0" />
+            <img
+              src={logoUrl}
+              alt={workspaceName}
+              className={cn(
+                "rounded-lg object-contain shrink-0 bg-transparent",
+                collapsed ? "h-9 w-9" : "h-7 w-7",
+              )}
+            />
           ) : (
-            <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+            <div
+              className={cn(
+                "rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold shrink-0",
+                collapsed ? "h-9 w-9 text-sm" : "h-7 w-7 text-xs",
+              )}
+            >
               {workspaceName.charAt(0).toUpperCase()}
             </div>
           )}
+
           {!collapsed && (
             <>
               <span className="text-sm font-semibold truncate flex-1 text-sidebar-foreground">{workspaceName}</span>
@@ -166,21 +181,24 @@ export function AppSidebar() {
               </Tooltip>
             </>
           )}
+
+          {/* Collapsed: expand trigger sits directly under the logo,
+              same column, smaller chevron. No avatar-pill weirdness. */}
+          {collapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggleSidebar}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                  aria-label="Expand sidebar"
+                >
+                  <PanelLeft className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">Expand</TooltipContent>
+            </Tooltip>
+          )}
         </div>
-        {collapsed && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={toggleSidebar}
-                className="mt-1 mx-auto p-1.5 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors block"
-                aria-label="Expand sidebar"
-              >
-                <PanelLeft className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="text-xs">Expand</TooltipContent>
-          </Tooltip>
-        )}
       </SidebarHeader>
 
       {/* ── Nav (scrolls) ────────────────────────────────────────────────── */}
