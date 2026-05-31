@@ -1,34 +1,51 @@
-import { useEffect, useRef } from "react";
+// AppSidebar — full-height left column with three regions:
+//
+//   ┌──────────────────────────┐
+//   │  Header (logo + name)    │  ← workspace identity lives here
+//   ├──────────────────────────┤
+//   │                          │
+//   │  Nav (scrolls)           │  ← grouped sections + dept list
+//   │                          │
+//   ├──────────────────────────┤
+//   │  Footer (account menu)   │  ← avatar + name + dropdown to
+//   │                          │     Settings / Theme / Help / Sign out
+//   └──────────────────────────┘
+//
+// Collapse is a WIDTH CHANGE (240px ↔ ~56px icons-only), not a slide.
+// No pin button; no floating cluster at the bottom of the viewport.
+
 import {
   Home, FileText, Database as DbIcon, Users,
-  Settings, Building2, ShieldCheck, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Pin, PinOff, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
-  HelpCircle, Code2, MessagesSquare, Layers,
+  Settings, Building2, Compass, GraduationCap,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
+  HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown,
 } from "lucide-react";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
-import { useSidebarMode } from "@/contexts/SidebarModeContext";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { usePageGrants } from "@/hooks/usePageAccess";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarFooter, useSidebar,
+  SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getDeptIcon } from "@/lib/icon-map";
 import { useAddonEnabled } from "@/hooks/useAddonEnabled";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
-  const { state, setOpen } = useSidebar();
-  const { mode, toggleMode } = useSidebarMode();
-  const isPinned = mode === "pinned";
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const { profile, isAdmin, isPrimaryAdmin, isLeader, isOrbitOnly, role, signOut } = useAuth();
   const { grants } = usePageGrants();
@@ -38,6 +55,7 @@ export function AppSidebar() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDevWorkspace = useIsDeveloperWorkspace();
   const showDeveloper = isDevWorkspace && isPrimaryAdmin;
+  const navigate = useNavigate();
 
   const timeClockEnabled = useAddonEnabled("time-clock");
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
@@ -46,16 +64,14 @@ export function AppSidebar() {
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
   const { hasAccess: gmailAccess } = useGmailAccess();
 
-  // Admins see all departments; users see only their assigned department.
-  // Orbit-only members only see their own Orbit Program dept (filtered below).
+  // Admins see all departments; users see only their assigned dept.
+  // Orbit-only members only see their own Orbit Program dept.
   const departments = isAdmin
     ? allDepartments
     : isOrbitOnly
       ? allDepartments.filter((d) => (d as any).is_program && d.id === profile?.department_id)
       : allDepartments.filter((d) => d.id === profile?.department_id);
 
-  // Orbit-only users get a stripped sidebar: Home, Feed, People, Training, and
-  // their Orbit Program dept (rendered via the departments group below).
   const homeNav = isOrbitOnly
     ? [{ title: "Home", url: "/", icon: Home }]
     : [
@@ -64,17 +80,11 @@ export function AppSidebar() {
         ...(isLeader || isAdmin ? [{ title: "Sync", url: "/sync", icon: MessagesSquare }] : []),
       ];
 
-  const cultureNav = isOrbitOnly
-    ? [
-        { title: "Feed", url: "/feed", icon: Pizza },
-        { title: "People", url: "/people", icon: Users },
-        { title: "Training", url: "/training", icon: GraduationCap },
-      ]
-    : [
-        { title: "Feed", url: "/feed", icon: Pizza },
-        { title: "People", url: "/people", icon: Users },
-        { title: "Training", url: "/training", icon: GraduationCap },
-      ];
+  const cultureNav = [
+    { title: "Feed", url: "/feed", icon: Pizza },
+    { title: "People", url: "/people", icon: Users },
+    { title: "Training", url: "/training", icon: GraduationCap },
+  ];
 
   const workNav = isOrbitOnly ? [] : [
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
@@ -99,43 +109,15 @@ export function AppSidebar() {
     ...(aiWorkshopEnabled && (isAdmin || can("ai_workshop")) ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
   ];
 
-  // AI Hub - CEO baseline, others need grant. Hidden for orbit-only.
   const aiHubNav = (!isOrbitOnly && (isPrimaryAdmin || can("ai_hub"))) ? [
     { title: "AI Hub", url: "/ai-hub", icon: Sparkles },
   ] : [];
 
-  // Click anywhere on the empty space of the collapsed sidebar to expand
-  const handleRailClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!collapsed) return;
-    const target = e.target as HTMLElement;
-    if (target.closest("a,button")) return;
-    setOpen(true);
-  };
-
-  // Click outside the expanded sidebar → collapse it (overlay behaviour, only when floating)
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (collapsed || isPinned) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const root = sidebarRef.current;
-      if (!root) return;
-      const target = e.target as HTMLElement;
-      // Ignore clicks inside the sidebar itself or on the header trigger
-      if (root.contains(target)) return;
-      if (target.closest("[data-sidebar='trigger']")) return;
-      // Ignore clicks inside Radix popovers/dialogs that may be portaled
-      if (target.closest("[data-radix-popper-content-wrapper]")) return;
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [collapsed, isPinned, setOpen]);
-
-  // Wrap nav buttons with a tooltip that shows the title when collapsed
+  // Single nav-item renderer — tooltip wraps automatically when collapsed.
   const NavItem = ({ item }: { item: { title: string; url: string; icon: any } }) => {
     const link = (
       <SidebarMenuButton asChild>
-        <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
+        <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium bg-sidebar-accent">
           <item.icon className="h-4 w-4" />
           {!collapsed && <span>{item.title}</span>}
         </NavLink>
@@ -150,19 +132,64 @@ export function AppSidebar() {
     );
   };
 
-  return (
-    <div className={cn("contents", isPinned && "sidebar-pinned-mode")}>
-    <Sidebar collapsible="icon">
-      <div ref={sidebarRef} onClick={handleRailClick} className="contents">
-      <SidebarContent className="pt-2">
+  const initials = (profile?.full_name || "U").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
+  return (
+    <Sidebar collapsible="icon">
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <SidebarHeader className="p-2 border-b border-sidebar-border/60">
+        <div className={cn(
+          "flex items-center gap-2.5 rounded-lg transition-colors",
+          collapsed ? "justify-center p-2" : "p-2",
+        )}>
+          {logoUrl ? (
+            <img src={logoUrl} alt={workspaceName} className="h-7 w-7 rounded-lg object-cover shrink-0" />
+          ) : (
+            <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+              {workspaceName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {!collapsed && (
+            <>
+              <span className="text-sm font-semibold truncate flex-1 text-sidebar-foreground">{workspaceName}</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={toggleSidebar}
+                    className="p-1 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                    aria-label="Collapse sidebar"
+                  >
+                    <PanelLeft className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">Collapse</TooltipContent>
+              </Tooltip>
+            </>
+          )}
+        </div>
+        {collapsed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleSidebar}
+                className="mt-1 mx-auto p-1.5 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors block"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeft className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">Expand</TooltipContent>
+          </Tooltip>
+        )}
+      </SidebarHeader>
+
+      {/* ── Nav (scrolls) ────────────────────────────────────────────────── */}
+      <SidebarContent className="pt-2">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               {homeNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <NavItem item={item} />
-                </SidebarMenuItem>
+                <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -173,104 +200,94 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {cultureNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <NavItem item={item} />
-                </SidebarMenuItem>
+                <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="text-[10px]">Work</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {workNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <NavItem item={item} />
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {workNav.length > 0 && (
+          <SidebarGroup>
+            {!collapsed && <SidebarGroupLabel className="text-[10px]">Work</SidebarGroupLabel>}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {workNav.map((item) => (
+                  <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        <SidebarGroup>
-          {!collapsed && (
-            <SidebarGroupLabel className="flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5" />
-              {deptLabel}
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {departments.map((dept) => {
-                const Icon = getDeptIcon(dept.icon);
-                const link = (
-                  <SidebarMenuButton asChild>
-                    <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium">
-                      <Icon className="h-4 w-4" />
-                      {!collapsed && <span>{dept.name}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                );
-                return (
-                  <SidebarMenuItem key={dept.id}>
-                    {collapsed ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>{link}</TooltipTrigger>
-                        <TooltipContent side="right" className="text-xs">{dept.name}</TooltipContent>
-                      </Tooltip>
-                    ) : link}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {departments.length > 0 && (
+          <SidebarGroup>
+            {!collapsed && (
+              <SidebarGroupLabel className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5" />
+                {deptLabel}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {departments.map((dept) => {
+                  const Icon = getDeptIcon(dept.icon);
+                  const link = (
+                    <SidebarMenuButton asChild>
+                      <NavLink to={`/department/${dept.id}`} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium bg-sidebar-accent">
+                        <Icon className="h-4 w-4" />
+                        {!collapsed && <span>{dept.name}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  );
+                  return (
+                    <SidebarMenuItem key={dept.id}>
+                      {collapsed ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>{link}</TooltipTrigger>
+                          <TooltipContent side="right" className="text-xs">{dept.name}</TooltipContent>
+                        </Tooltip>
+                      ) : link}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-
-        {/* Reporting */}
         {reportingNav.length > 0 && (
           <SidebarGroup>
             {!collapsed && <SidebarGroupLabel className="text-[10px]">Reporting</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
                 {reportingNav.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <NavItem item={item} />
-                  </SidebarMenuItem>
+                  <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {/* Add-Ons */}
         {addonNav.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px]">Apps</SidebarGroupLabel>
+            {!collapsed && <SidebarGroupLabel className="text-[10px]">Apps</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
                 {addonNav.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <NavItem item={item} />
-                  </SidebarMenuItem>
+                  <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {/* AI Hub */}
         {aiHubNav.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px]">AI Hub</SidebarGroupLabel>
+            {!collapsed && <SidebarGroupLabel className="text-[10px]">AI Hub</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
                 {aiHubNav.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <NavItem item={item} />
-                  </SidebarMenuItem>
+                  <SidebarMenuItem key={item.title}><NavItem item={item} /></SidebarMenuItem>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -278,121 +295,65 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      {!collapsed && (
-        <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col flex-1">
-              <span className="text-xs font-medium text-sidebar-foreground">{profile?.full_name || "User"}</span>
-              <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
-            </div>
-            <NavLink to="/settings" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Settings">
-              <Settings className="h-3.5 w-3.5" />
-            </NavLink>
-            <NavLink to="/help" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Help & docs">
-              <HelpCircle className="h-3.5 w-3.5" />
-            </NavLink>
-            {showDeveloper && (
-              <NavLink to="/settings/developer" className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors" activeClassName="text-sidebar-foreground" title="Developer">
-                <Code2 className="h-3.5 w-3.5" />
-              </NavLink>
-            )}
-            <button
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors"
-              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-          <button
-            onClick={signOut}
-            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1 text-left"
-          >
-            Sign out
-          </button>
-          <div className="pt-1 border-t border-sidebar-border/60 -mx-3 px-3 mt-1 flex items-center gap-1">
-            <button
-              onClick={() => setOpen(false)}
-              className="flex-1 h-8 flex items-center gap-2 px-2 rounded-md text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors justify-start text-xs"
-              title="Collapse sidebar"
-            >
-              <PanelLeft className="h-3.5 w-3.5" />
-              <span>Collapse</span>
-            </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={toggleMode}
-                  className={cn(
-                    "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
-                    isPinned
-                      ? "text-primary bg-sidebar-accent"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                  )}
-                >
-                  {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                {isPinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar (keep open)"}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </SidebarFooter>
-      )}
-      </div>
-
-      {/* Floating cluster (collapsed state only) — pinned to bottom-left of viewport */}
-      {collapsed && (
-        <div className="fixed bottom-3 left-3 z-50 flex items-center gap-1 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-lg px-1.5 py-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Avatar className="h-7 w-7 cursor-default">
-                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-                  {(profile?.full_name || "U").split(" ").map((n) => n[0]).join("")}
+      {/* ── Footer: account menu ─────────────────────────────────────────── */}
+      <SidebarFooter className="border-t border-sidebar-border/60 p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={cn(
+              "w-full flex items-center gap-2.5 rounded-lg p-2 hover:bg-sidebar-accent transition-colors",
+              collapsed && "justify-center",
+            )}>
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                  {initials}
                 </AvatarFallback>
               </Avatar>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">{profile?.full_name || "User"}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <NavLink to="/settings" className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" activeClassName="text-foreground">
-                <Settings className="h-3.5 w-3.5" />
-              </NavLink>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Settings</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">{resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setOpen(true)}
-                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <PanelLeft className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Expand sidebar</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
+              {!collapsed && (
+                <>
+                  <div className="flex flex-col flex-1 min-w-0 text-left">
+                    <span className="text-xs font-medium text-sidebar-foreground truncate">{profile?.full_name || "User"}</span>
+                    <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
+                  </div>
+                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={collapsed ? "right" : "top"}
+            align="start"
+            className="w-56"
+          >
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+              Signed in as <span className="text-foreground font-medium">{profile?.full_name || "User"}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <Settings className="h-3.5 w-3.5" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+              {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              <span>{resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/help")}>
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>Help & docs</span>
+            </DropdownMenuItem>
+            {showDeveloper && (
+              <DropdownMenuItem onClick={() => navigate("/settings/developer")}>
+                <Code2 className="h-3.5 w-3.5" />
+                <span>Developer</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarFooter>
     </Sidebar>
-    </div>
   );
 }
