@@ -1,4 +1,4 @@
-// project-albus-reply
+﻿// project-albus-reply
 //
 // Triggered when a user @mentions Albus in a project's comment thread.
 // Pulls the project context (project row, linked goal, open tasks, recent
@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: { user } } = await userClient.auth.getUser();
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
         }).join("\n");
 
     const goalLine = goal
-      ? `Linked goal: ${goal.title} (${goal.quarter} ${goal.year}) — ${goal.progress ?? 0}% complete`
+      ? `Linked goal: ${goal.title} (${goal.quarter} ${goal.year}) â€” ${goal.progress ?? 0}% complete`
       : "Linked goal: none";
 
     const notes = (project.notes_content || "").replace(/<[^>]*>/g, "").trim().slice(0, 2000);
@@ -89,12 +89,12 @@ Behave like a sharp chief of staff inside this conversation:
 - If asked to suggest tasks, output a short list and offer to add them.
 - If asked a factual question about the project, answer directly from context.
 - Keep responses concise (3-8 sentences) unless asked for a detailed plan.
-- Output plain text. Do NOT prefix your reply with "Albus:" — your name is shown automatically.
+- Output plain text. Do NOT prefix your reply with "Albus:" â€” your name is shown automatically.
 
 PROJECT
 =======
 Title: ${project.title}
-Status: ${project.status} · Priority: ${project.priority}${project.due_date ? ` · Due: ${project.due_date}` : ""}
+Status: ${project.status} Â· Priority: ${project.priority}${project.due_date ? ` Â· Due: ${project.due_date}` : ""}
 Owner: ${owner?.full_name || "(unassigned)"}
 ${goalLine}
 Description: ${project.description || "(none)"}
@@ -108,11 +108,11 @@ ${taskBrief}
 RECENT CONVERSATION
 ${commentTranscript}`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: user_text },
@@ -131,7 +131,7 @@ ${commentTranscript}`;
     if (!replyText) return json({ error: "Albus had no response" }, 200);
 
     // Insert as a comment with agent_name='Albus'. author_id = the user who triggered Albus
-    // (RLS requires auth.uid() = author_id) — the agent_name field marks it as an Albus reply
+    // (RLS requires auth.uid() = author_id) â€” the agent_name field marks it as an Albus reply
     // so the UI can render it as such.
     const replyHtml = `<p>${replyText.replace(/\n\n+/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
     const { data: inserted, error } = await admin.from("comments").insert({

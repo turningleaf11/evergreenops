@@ -1,4 +1,4 @@
-// AI clustering for the Ideas Backlog. Groups ideas into themes and suggests effort + horizon.
+﻿// AI clustering for the Ideas Backlog. Groups ideas into themes and suggests effort + horizon.
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -22,17 +22,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ updated: 0 }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     const prompt = `You are an executive strategist. Cluster the following business ideas by theme, estimate effort (xs|s|m|l|xl), and suggest a horizon (e.g. "Q1 2026", "Q2 2026", "Later"). Return strict JSON: {"updates":[{"id":"...","theme":"Lead Gen","effort":"m","horizon":"Q1 2026","priority_score":75}]}.
 
 Ideas:
-${ideas.map(i => `- [${i.id}] ${i.title}${i.description ? ` — ${i.description}` : ""}`).join("\n")}`;
+${ideas.map(i => `- [${i.id}] ${i.title}${i.description ? ` â€” ${i.description}` : ""}`).join("\n")}`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "Return only valid JSON. No markdown." },
           { role: "user", content: prompt },

@@ -1,4 +1,4 @@
-// Drafts an email body using Lovable AI based on the lead/contact context.
+﻿// Drafts an email body using Lovable AI based on the lead/contact context.
 import { corsHeaders } from 'https://esm.sh/@supabase/supabase-js@2.95.0/cors';
 
 interface DraftBody {
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) return json({ error: 'AI not configured' }, 500);
 
   let body: DraftBody;
@@ -48,16 +48,16 @@ Rules:
 - Output STRICT JSON: {"subject": "...", "body_html": "<p>...</p><p>...</p>"}.
 - body_html must be valid HTML using <p>, <br>, <ul><li>, <strong>, <em> only.
 - Do NOT include greetings inside body_html that duplicate the subject.
-- Do NOT include placeholder tokens like [Name] — use the provided name or omit.`;
+- Do NOT include placeholder tokens like [Name] â€” use the provided name or omit.`;
 
-  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You write concise, high-converting business emails. Always reply with strict JSON.' },
         { role: 'user', content: prompt },

@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +47,7 @@ function buildSystemPrompt(ctx: ProjectCtx): string {
     .map(([status, list]) =>
       `**${status}** (${list.length}):\n` +
       list.slice(0, 25).map((t) =>
-        `- "${t.title}"${t.priority ? ` [${t.priority}]` : ""}${t.due_date ? ` due ${t.due_date}` : ""} — ${nameOf(t.assigned_to, profiles)}`
+        `- "${t.title}"${t.priority ? ` [${t.priority}]` : ""}${t.due_date ? ` due ${t.due_date}` : ""} â€” ${nameOf(t.assigned_to, profiles)}`
       ).join("\n")
     )
     .join("\n\n") || "No tasks yet.";
@@ -57,7 +57,7 @@ function buildSystemPrompt(ctx: ProjectCtx): string {
     (p.assignees || []).length
       ? `Team: ${(p.assignees || []).map((u: string) => nameOf(u, profiles)).join(", ")}`
       : null,
-  ].filter(Boolean).join(" · ") || "No team assigned.";
+  ].filter(Boolean).join(" Â· ") || "No team assigned.";
 
   const docsSummary = (ctx.linkedDocs || []).slice(0, 10).map((d) => `- ${d.title}`).join("\n") || "None";
 
@@ -67,7 +67,7 @@ function buildSystemPrompt(ctx: ProjectCtx): string {
   return `You are an AI project partner inside the project workspace at Evergreen Real Estate Ventures.
 
 PROJECT: "${p.title}"
-Status: ${p.status} · Priority: ${p.priority || "medium"}${p.due_date ? ` · Due: ${p.due_date}` : ""}
+Status: ${p.status} Â· Priority: ${p.priority || "medium"}${p.due_date ? ` Â· Due: ${p.due_date}` : ""}
 ${ctx.goalTitle ? `Linked Goal: ${ctx.goalTitle}` : ""}
 ${team}
 
@@ -134,19 +134,19 @@ serve(async (req) => {
 
   try {
     const { messages, context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const systemPrompt = buildSystemPrompt(context || {});
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
         tools: TOOLS,

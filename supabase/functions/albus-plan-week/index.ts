@@ -1,4 +1,4 @@
-// Albus Plan the Week — pulls full workspace context (vision, goals, projects,
+﻿// Albus Plan the Week â€” pulls full workspace context (vision, goals, projects,
 // tasks, scorecard, dept members, recent activity) and asks the AI gateway for a
 // structured week-plan proposal that the user can accept item-by-item.
 
@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -110,11 +110,11 @@ Deno.serve(async (req) => {
     const ctx = {
       ceoName: (profileRes.data as any)?.full_name || "the CEO",
       period: `${q} ${year}`,
-      week: `${weekStart.toISOString().slice(0, 10)} – ${weekEnd.toISOString().slice(0, 10)}`,
+      week: `${weekStart.toISOString().slice(0, 10)} â€“ ${weekEnd.toISOString().slice(0, 10)}`,
       vision: (visionRes.data ?? []).map((v: any) => `${v.section_key}: ${v.content?.slice(0, 200) ?? ""}`).join("\n"),
-      goals: (goalsRes.data ?? []).map((g: any) => `[${g.status}] ${g.title} — ${g.progress}%${g.deadline ? ` (deadline ${g.deadline})` : ""}`).join("\n"),
-      strategyItems: (strategyRes.data ?? []).map((s: any) => `[${s.status}] ${s.title}${s.description ? ` — ${s.description.slice(0, 150)}` : ""}`).join("\n"),
-      activeProjects: (projectsRes.data ?? []).map((p: any) => `id=${p.id} | [${p.status}/${p.priority}] ${p.title}${p.due_date ? ` (due ${p.due_date})` : ""}${p.description ? ` — ${p.description.slice(0, 120)}` : ""}`).join("\n"),
+      goals: (goalsRes.data ?? []).map((g: any) => `[${g.status}] ${g.title} â€” ${g.progress}%${g.deadline ? ` (deadline ${g.deadline})` : ""}`).join("\n"),
+      strategyItems: (strategyRes.data ?? []).map((s: any) => `[${s.status}] ${s.title}${s.description ? ` â€” ${s.description.slice(0, 150)}` : ""}`).join("\n"),
+      activeProjects: (projectsRes.data ?? []).map((p: any) => `id=${p.id} | [${p.status}/${p.priority}] ${p.title}${p.due_date ? ` (due ${p.due_date})` : ""}${p.description ? ` â€” ${p.description.slice(0, 120)}` : ""}`).join("\n"),
       openTasks: (tasksRes.data ?? []).map((t: any) => `id=${t.id} | [${t.status}/${t.priority}] ${t.title}${t.due_date ? ` (due ${t.due_date})` : ""}`).join("\n"),
       departments: (departmentsRes.data ?? []).map((d: any) => `${d.id}:${d.name}`).join("\n"),
       teamMembers: (profilesRes.data ?? []).map((p: any) => `${p.user_id}:${p.full_name}${p.is_leader ? " (leader)" : ""}${p.department_id ? ` dept=${p.department_id}` : ""}`).join("\n"),
@@ -128,7 +128,7 @@ Your job today: propose a focused week plan for ${ctx.week}. You are not generat
 Rules:
 - Tie every suggestion to a goal or strategy item. No floating busywork.
 - Be specific. If you suggest a task, say what "done" looks like.
-- Use existing project_id/department_id/user_id values where relevant — they're in the context.
+- Use existing project_id/department_id/user_id values where relevant â€” they're in the context.
 - If something is already at risk (slipping deadline, no recent progress), call it out.
 - Cap suggestions: at most 3 priorities, 3 new tasks, 2 new projects. Less is more.
 - If you have low confidence on assignee, leave assignee_hint null.
@@ -136,7 +136,7 @@ Rules:
 
 Schema:
 {
-  "headline": "1-2 sentence read on the week — what matters most, what's at risk.",
+  "headline": "1-2 sentence read on the week â€” what matters most, what's at risk.",
   "priorities": [
     { "title": "...", "why": "Ties to {goal/strategy_item}: ..." }
   ],
@@ -177,11 +177,11 @@ ${ctx.teamMembers}
 
 Now produce the JSON week plan.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: "Output the JSON week plan now. No prose, no markdown fences." },

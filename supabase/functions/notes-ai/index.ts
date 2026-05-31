@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +14,7 @@ const SYSTEM_BY_ACTION: Record<Action, string> = {
   tasks:
     "Extract concrete, actionable tasks from the user's notes. Output ONLY a Markdown checklist (use `- [ ] task title` per line). One task per line. No headings, no preamble, no commentary. Use the imperative voice.",
   summarize:
-    "Summarize the user's notes in a tight, high-signal way. Lead with a 1-sentence punchline, then 3–6 bullets of key points, then any decisions or next steps. Output Markdown. No preamble.",
+    "Summarize the user's notes in a tight, high-signal way. Lead with a 1-sentence punchline, then 3â€“6 bullets of key points, then any decisions or next steps. Output Markdown. No preamble.",
   expand:
     "Expand the user's outline into well-written prose. Preserve their structure and intent. Use Markdown headings/bullets only where they help. No preamble.",
   rewrite:
@@ -34,7 +34,7 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
@@ -43,13 +43,13 @@ serve(async (req) => {
     }
 
     const userText = (text || "").slice(0, 12000).trim() ||
-      "(The note is empty — produce a helpful starter based on the action.)";
+      "(The note is empty â€” produce a helpful starter based on the action.)";
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         stream: true,
         messages: [
           { role: "system", content: sys },

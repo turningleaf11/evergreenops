@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,8 +13,8 @@ serve(async (req) => {
 
   try {
     const { messages, context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const strategyItemsSummary = (context?.strategyItems || [])
       .map((si: any) => `- [${si.type}] "${si.title}" (${si.status}): ${si.description}`)
@@ -44,28 +44,28 @@ ${proposalsSummary || "None"}
 
 BUSINESS CONTEXT:
 - Two acquisition teams: Wholesale (residential 1-4 unit) and Portfolio (multifamily 5+, business acquisitions, JV deals)
-- Strategy flows from CEO → Leadership → Operations
+- Strategy flows from CEO â†’ Leadership â†’ Operations
 - Leadership must acknowledge, translate, and execute strategy items
 - All upward feedback must be structured
 
 RESPONSE FORMAT (always use this structure):
-**What Is Actually Happening** — Objective assessment of the situation
-**Signal vs Noise** — What matters vs what's distraction
-**Root Cause** — The underlying issue
-**Options** — 2-3 concrete paths forward
-**Recommended Action** — Your recommendation with reasoning
-**Immediate Next Steps** — What to do right now
+**What Is Actually Happening** â€” Objective assessment of the situation
+**Signal vs Noise** â€” What matters vs what's distraction
+**Root Cause** â€” The underlying issue
+**Options** â€” 2-3 concrete paths forward
+**Recommended Action** â€” Your recommendation with reasoning
+**Immediate Next Steps** â€” What to do right now
 
 Focus on translation, problem-solving, and execution improvement. Be direct and practical. Every recommendation must be actionable.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import Anthropic from "npm:@anthropic-ai/sdk";
 
 const corsHeaders = {
@@ -10,7 +10,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 
 type TriageCategory = "task" | "project" | "decision" | "idea" | "delegation";
 
@@ -171,7 +171,7 @@ async function generateWithAnthropic(systemPrompt: string, content: string, imag
 }
 
 async function generateWithLovable(systemPrompt: string, content: string, images: string[]): Promise<TriageItem[]> {
-  if (!LOVABLE_API_KEY) return [];
+  if (!OPENAI_API_KEY) return [];
 
   const userContent: any[] = [];
   if (content.trim()) {
@@ -184,11 +184,11 @@ async function generateWithLovable(systemPrompt: string, content: string, images
     userContent.unshift({ type: "text", text: "Read these scratchpad images and extract actionable items." });
   }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent.length === 1 && userContent[0].type === "text" ? userContent[0].text : userContent },
@@ -295,10 +295,10 @@ Deno.serve(async (req) => {
       console.error("Anthropic triage failed", aiError);
     }
 
-    if (items.length === 0 && LOVABLE_API_KEY) {
+    if (items.length === 0 && OPENAI_API_KEY) {
       try {
         items = await generateWithLovable(systemPrompt, content, images);
-        if (items.length > 0) source = "lovable";
+        if (items.length > 0) source = "openai";
       } catch (err) {
         aiError = err instanceof Error ? err.message : "Lovable triage failed";
         console.error("Lovable triage failed", aiError);

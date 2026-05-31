@@ -1,4 +1,4 @@
-// Background AI enrichment for idea_vault entries.
+﻿// Background AI enrichment for idea_vault entries.
 // Generates a one-sentence summary, assigns a cluster theme, and suggests a time horizon.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Idea not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -48,18 +48,18 @@ Deno.serve(async (req) => {
 1. A one-sentence summary (max 25 words) capturing the core of the idea.
 2. A theme cluster from this list: ${CLUSTERS.join(", ")}. Pick the best fit. If absolutely none fit, propose a new short theme name (2-4 words).
 3. A time horizon. Use these rules:
-   - urgent or tactical → "this_quarter"
-   - strategic but near-term → "next_quarter"
-   - large initiative → "this_year"
-   - aspirational → "someday"`;
+   - urgent or tactical â†’ "this_quarter"
+   - strategic but near-term â†’ "next_quarter"
+   - large initiative â†’ "this_year"
+   - aspirational â†’ "someday"`;
 
     const userPrompt = `Idea: ${idea.title}${idea.description ? `\n\nDescription: ${idea.description}` : ""}`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

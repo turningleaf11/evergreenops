@@ -1,4 +1,4 @@
-// AI helpers for the team inbox.
+﻿// AI helpers for the team inbox.
 // Modes:
 //   - "summarize": classify a list of thread previews into Action/FYI/Newsletter/Awaiting reply
 //   - "suggest_reply": draft a reply for a single thread
@@ -10,16 +10,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOVABLE_API = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const OPENAI_API = "https://api.openai.com/v1/chat/completions";
 
 async function callAI(messages: any[], opts: { json?: boolean } = {}) {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key) throw new Error("LOVABLE_API_KEY missing");
-  const res = await fetch(LOVABLE_API, {
+  const key = Deno.env.get("OPENAI_API_KEY");
+  if (!key) throw new Error("OPENAI_API_KEY missing");
+  const res = await fetch(OPENAI_API, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "gpt-4o-mini",
       messages,
       ...(opts.json ? { response_format: { type: "json_object" } } : {}),
     }),

@@ -1,4 +1,4 @@
-// Content Studio — generate per-platform captions via Lovable AI Gateway
+﻿// Content Studio â€” generate per-platform captions via Lovable AI Gateway
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -10,8 +10,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     const body = await req.json();
     const { brand, seed, platforms, imageBase64, model } = body as {
@@ -33,10 +33,10 @@ Deno.serve(async (req) => {
     }).join("\n");
 
     const imgNote = imageBase64
-      ? "An image is attached. Analyze it carefully — setting, mood, people, property — and write content specifically for what you see. Do not be generic."
+      ? "An image is attached. Analyze it carefully â€” setting, mood, people, property â€” and write content specifically for what you see. Do not be generic."
       : "";
 
-    const systemPrompt = `You generate ready-to-post social content. Match the brand voice exactly. Never use hashtags unless the brand voice example uses them. Output must be a JSON object only — no markdown fences.`;
+    const systemPrompt = `You generate ready-to-post social content. Match the brand voice exactly. Never use hashtags unless the brand voice example uses them. Output must be a JSON object only â€” no markdown fences.`;
 
     const userText = `BRAND: ${brand.name}
 AUDIENCE: ${brand.audience}
@@ -48,20 +48,20 @@ ${imgNote}
 Return ONLY valid JSON. Keys: ${platforms.map((p) => p.id).join(", ")}. Values: ready-to-post strings.
 ${platInstr}`;
 
-    // Build messages — Lovable AI gateway supports multimodal via image_url
+    // Build messages â€” Lovable AI gateway supports multimodal via image_url
     const userContent: any[] = [{ type: "text", text: userText }];
     if (imageBase64) {
       userContent.push({ type: "image_url", image_url: { url: imageBase64 } });
     }
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: model || "google/gemini-2.5-flash",
+        model: model || "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -74,7 +74,7 @@ ${platInstr}`;
       const text = await aiResp.text();
       console.error("AI gateway error", aiResp.status, text);
       if (aiResp.status === 429) return jsonErr("Rate limit. Try again in a moment.", 429);
-      if (aiResp.status === 402) return jsonErr("AI credits exhausted. Add funds in Settings → Workspace → Usage.", 402);
+      if (aiResp.status === 402) return jsonErr("AI credits exhausted. Add funds in Settings â†’ Workspace â†’ Usage.", 402);
       return jsonErr(`AI error ${aiResp.status}`, 500);
     }
 
