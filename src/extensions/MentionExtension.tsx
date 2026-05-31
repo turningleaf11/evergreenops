@@ -91,14 +91,24 @@ const renderItems = () => {
     onStart: (props: any) => {
       component = new ReactRenderer(MentionList, { props, editor: props.editor });
       if (!props.clientRect) return;
+      // Mount inside the nearest Radix Dialog/Sheet content if there is one —
+      // otherwise Radix's pointer-events: none lockdown on the body blocks
+      // clicks/hovers on the dropdown. Falls back to body when not in a dialog.
+      const editorEl: HTMLElement | undefined = props.editor?.options?.element;
+      const dialogContent =
+        editorEl?.closest('[role="dialog"]') as HTMLElement | null
+        ?? editorEl?.closest('[data-radix-popper-content-wrapper]') as HTMLElement | null
+        ?? null;
+      const mountTarget = dialogContent ?? document.body;
       popup = tippy("body", {
         getReferenceClientRect: props.clientRect,
-        appendTo: () => document.body,
+        appendTo: () => mountTarget,
         content: component.element,
         showOnCreate: true,
         interactive: true,
         trigger: "manual",
         placement: "bottom-start",
+        zIndex: 99999,
       });
     },
     onUpdate: (props: any) => {
