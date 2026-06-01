@@ -35,14 +35,16 @@ import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { OrbitRoster } from "@/components/orbit/OrbitRoster";
 import { ProgramOverview } from "@/components/orbit/ProgramOverview";
+import { DepartmentOverviewV2, type ViewerRole } from "@/components/department/DepartmentOverviewV2";
+import { useDeptTemplate } from "@/hooks/useDeptTemplate";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
 interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; tags: string[] | null; icon?: string | null; }
 interface DB { id: string; title: string; description: string | null; icon: string | null; visibility: string; shared_with: any; }
-interface Goal { id: string; title: string; progress: number; status: string; quarter: string; }
-interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; }
-interface Task { id: string; title: string; status: string; priority: string; project_id: string | null; }
+interface Goal { id: string; title: string; progress: number; status: string; quarter: string; deadline?: string | null; }
+interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; due_date?: string | null; updated_at?: string | null; }
+interface Task { id: string; title: string; status: string; priority: string; project_id: string | null; assigned_to?: string | null; due_date?: string | null; updated_at?: string | null; }
 interface Issue { id: string; title: string; status: string; priority: number; }
 interface StrategyItem { id: string; title: string; type: string; status: string; description: string | null; assigned_departments: string[] | null; }
 interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
@@ -86,6 +88,13 @@ export default function DepartmentPage() {
   const { user, isAdmin, profile } = useAuth();
   const isDeptLeader = isAdmin || (!!profile?.is_leader && profile?.department_id === id);
 
+  // Viewer role drives the role-aware first-row ordering in the new Overview.
+  const viewerRole: ViewerRole = isAdmin ? "admin" : isDeptLeader ? "leader" : "member";
+
+  // Configurable per-dept template (sales / operations / portfolio / creative / ...).
+  // Controls what queue/focus/stuck/KPI rules apply inside the universal block spine.
+  const { template: deptTemplate } = useDeptTemplate(id);
+
   const [members, setMembers] = useState<Profile[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -123,8 +132,8 @@ export default function DepartmentPage() {
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
         supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon"),
         supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
-        supabase.from("goals").select("id, title, progress, status, quarter").eq("department_id", id).eq("year", currentYear),
-        supabase.from("projects").select("id, title, status, priority, owner_id").eq("department_id", id),
+        supabase.from("goals").select("id, title, progress, status, quarter, deadline").eq("department_id", id).eq("year", currentYear),
+        supabase.from("projects").select("id, title, status, priority, owner_id, due_date, updated_at").eq("department_id", id),
         supabase.from("issues").select("id, title, status, priority").eq("department_id", id).eq("status", "open").order("priority", { ascending: true }).limit(10),
         supabase.from("strategy_items").select("id, title, type, status, description, assigned_departments"),
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id"),
@@ -151,7 +160,7 @@ export default function DepartmentPage() {
       // Fetch tasks for department projects
       const deptProjectIds = deptProjects.map(p => p.id);
       if (deptProjectIds.length > 0) {
-        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority, project_id").in("project_id", deptProjectIds).in("status", ["todo", "in_progress"]).limit(20);
+        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority, project_id, assigned_to, due_date, updated_at").in("project_id", deptProjectIds).in("status", ["todo", "in_progress"]).limit(50);
         setTasks((deptTasks as Task[]) || []);
       } else {
         setTasks([]);
@@ -389,10 +398,29 @@ export default function DepartmentPage() {
             />
           )}
 
-          {/* Dept Focus / Key Initiatives / Execution Snapshot moved to the
-             Performance tab. Resources / Playbooks moved to their own Resources
-             tab — Overview is for live signal only (announcements + pinboard;
-             "Today's focus" / "My queue" / "Goals" / "Stuck" land here in PR 2). */}
+          {/* The universal "what's next" surface for every non-program dept.
+             Five-block spine: Today's Focus / My Queue / Goals / Stuck / Team,
+             reordered by viewer role. Template (sales/ops/creative/portfolio)
+             controls the RULES inside each block but the structure is the
+             same for every dept type — productizable as a SaaS surface. */}
+          {!dept.is_program && (
+            <DepartmentOverviewV2
+              deptName={dept.name}
+              deptId={id!}
+              deptColor={deptColor}
+              template={deptTemplate}
+              viewerRole={viewerRole}
+              currentUserId={user?.id}
+              goals={goals}
+              tasks={tasks}
+              projects={projects}
+              issues={issues}
+              members={members}
+              getName={getName}
+              onTaskClick={openTaskDrawer}
+              onProjectClick={openProjectDrawer}
+            />
+          )}
 
           {/* PINBOARD */}
           <section className="space-y-3">
