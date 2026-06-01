@@ -14,8 +14,11 @@
 // rules INSIDE each block (what counts as a queue item, what flags as
 // stuck, what KPI strip appears). Adding a new dept type → no UI change.
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,10 +26,23 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Target, Flame, AlertCircle, Users, Sparkles, ArrowRight,
-  CircleDot, Clock, ChevronRight,
+  CircleDot, Clock, ChevronRight, Loader2, RefreshCw, FileText, Folder, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DeptTemplate } from "@/hooks/useDeptTemplate";
+
+const sb = supabase as any;
+
+interface FocusLink {
+  type: "goal" | "project" | "task" | "issue";
+  id: string;
+  label: string;
+}
+interface FocusPriority {
+  title: string;
+  why: string;
+  links: FocusLink[];
+}
 
 // ── Shared types ─────────────────────────────────────────────────────────────
 
@@ -81,6 +97,7 @@ interface Props {
   template: DeptTemplate | null;
   viewerRole: ViewerRole;
   currentUserId: string | undefined;
+  isAdmin: boolean;
   goals: Goal[];
   tasks: Task[];
   projects: Project[];
@@ -91,28 +108,155 @@ interface Props {
   onProjectClick: (p: Project) => void;
 }
 
-// ── Block: Today's Focus (placeholder until PR 2B) ───────────────────────────
+// ── Block: Today's Focus (Albus-powered) ─────────────────────────────────────
 
-function TodaysFocusBlock({ template, deptColor }: { template: DeptTemplate | null; deptColor: string }) {
+const LINK_ICON: Record<FocusLink["type"], any> = {
+  goal: Target, project: Folder, task: FileText, issue: AlertTriangle,
+};
+
+function TodaysFocusBlock({
+  deptId, deptColor, isAdmin, onTaskClick, onProjectClick, tasks, projects,
+}: {
+  deptId: string;
+  deptColor: string;
+  isAdmin: boolean;
+  onTaskClick: (t: Task) => void;
+  onProjectClick: (p: Project) => void;
+  tasks: Task[];
+  projects: Project[];
+}) {
+  const [priorities, setPriorities] = useState<FocusPriority[] | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchFocus = useCallback(async (force = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: invokeErr } = await sb.functions.invoke("dept-focus", {
+        body: { department_id: deptId, force },
+      });
+      if (invokeErr) throw invokeErr;
+      if (data?.error) throw new Error(data.error);
+      setPriorities(Array.isArray(data?.priorities) ? data.priorities : []);
+      setGeneratedAt(data?.generated_at ?? null);
+    } catch (e: any) {
+      setError(e?.message ?? "Could not generate focus");
+    } finally {
+      setLoading(false);
+    }
+  }, [deptId]);
+
+  // Auto-load cached focus on mount (won't burn OpenAI if cached).
+  useEffect(() => { fetchFocus(false); }, [fetchFocus]);
+
+  // Resolve a focus link to an in-app action (open drawer or navigate)
+  const handleLinkClick = (link: FocusLink) => {
+    if (link.type === "task") {
+      const t = tasks.find((x) => x.id === link.id);
+      if (t) onTaskClick(t);
+    } else if (link.type === "project") {
+      const p = projects.find((x) => x.id === link.id);
+      if (p) onProjectClick(p);
+    }
+    // goals + issues navigate via the <Link> wrapper below.
+  };
+
   return (
     <Card className="overflow-hidden border-2" style={{ borderColor: `hsl(${deptColor} / 0.35)` }}>
       <div className="h-1" style={{ background: `hsl(${deptColor})` }} />
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4" style={{ color: `hsl(${deptColor})` }} />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Today's Focus</h2>
-          <Badge variant="secondary" className="text-[9px] uppercase tracking-wider">
-            From Albus
-          </Badge>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">This Week's Focus</h2>
+          <Badge variant="secondary" className="text-[9px] uppercase tracking-wider">From Albus</Badge>
+          <div className="flex-1" />
+          {generatedAt && (
+            <span className="text-[10px] text-muted-foreground/70">
+              {formatDistanceToNow(new Date(generatedAt), { addSuffix: true })}
+            </span>
+          )}
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px]"
+              onClick={() => { fetchFocus(true).then(() => toast.success("Focus refreshed")); }}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-3 w-3 mr-1", loading && "animate-spin")} />
+              {loading ? "Thinking..." : "Refresh"}
+            </Button>
+          )}
         </div>
-        <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 p-6 text-center space-y-2">
-          <Sparkles className="h-5 w-5 mx-auto text-muted-foreground/40" />
-          <p className="text-sm text-foreground/80">Albus hasn't generated this week's focus yet.</p>
-          <p className="text-xs text-muted-foreground/70">
-            In the next update, Albus will synthesize 1-3 priorities for this team based on your goals,
-            active work, and recent activity — with links to the specific tasks and projects involved.
-          </p>
-        </div>
+
+        {loading && !priorities && (
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 p-6 text-center space-y-2">
+            <Loader2 className="h-5 w-5 mx-auto text-muted-foreground/40 animate-spin" />
+            <p className="text-sm text-muted-foreground">Albus is thinking through what matters this week...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {priorities && priorities.length === 0 && !loading && (
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 p-6 text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Nothing critical to flag — clear runway. {isAdmin && "Hit Refresh to re-ask Albus."}
+            </p>
+          </div>
+        )}
+
+        {priorities && priorities.length > 0 && (
+          <ol className="space-y-3">
+            {priorities.map((p, i) => (
+              <li key={i} className="rounded-lg bg-muted/30 border border-border/40 p-3.5 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <div
+                    className="h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: `hsl(${deptColor} / 0.25)`, color: `hsl(${deptColor})` }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-semibold leading-snug">{p.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{p.why}</p>
+                  </div>
+                </div>
+                {p.links && p.links.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pl-7">
+                    {p.links.map((link, j) => {
+                      const Icon = LINK_ICON[link.type] ?? FileText;
+                      const chip = (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background border border-border/60 hover:border-border text-[10px] text-foreground/80 hover:text-foreground transition-colors max-w-[200px]">
+                          <Icon className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{link.label}</span>
+                        </span>
+                      );
+                      if (link.type === "task" || link.type === "project") {
+                        return (
+                          <button key={j} onClick={() => handleLinkClick(link)} className="cursor-pointer">{chip}</button>
+                        );
+                      }
+                      if (link.type === "goal") {
+                        return <Link key={j} to="/execution">{chip}</Link>;
+                      }
+                      if (link.type === "issue") {
+                        return <Link key={j} to="/issues">{chip}</Link>;
+                      }
+                      return <span key={j}>{chip}</span>;
+                    })}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
       </CardContent>
     </Card>
   );
@@ -385,7 +529,7 @@ export function DepartmentOverviewV2(props: Props) {
     :                            ["stuck", "focus", "goals", "queue", "team"];
 
   const blocks: Record<string, JSX.Element> = {
-    focus: <TodaysFocusBlock key="focus" template={template} deptColor={deptColor} />,
+    focus: <TodaysFocusBlock key="focus" deptId={props.deptId} deptColor={deptColor} isAdmin={props.isAdmin} tasks={props.tasks} projects={props.projects} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
     queue: <MyQueueBlock key="queue" tasks={props.tasks} projects={props.projects} currentUserId={props.currentUserId} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
     goals: <GoalsBlock key="goals" goals={props.goals} deptColor={deptColor} />,
     stuck: <StuckBlock key="stuck" tasks={props.tasks} projects={props.projects} issues={props.issues} template={template} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
@@ -394,14 +538,6 @@ export function DepartmentOverviewV2(props: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Template badge — small chip so you can see at a glance which template this dept is on */}
-      {template && (
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-          <span className="uppercase tracking-widest">Template</span>
-          <Badge variant="outline" className="text-[10px]">{template.name}</Badge>
-        </div>
-      )}
-
       {blockOrder.map((k) => blocks[k])}
     </div>
   );

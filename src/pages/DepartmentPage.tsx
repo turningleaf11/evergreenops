@@ -411,6 +411,7 @@ export default function DepartmentPage() {
               template={deptTemplate}
               viewerRole={viewerRole}
               currentUserId={user?.id}
+              isAdmin={isAdmin}
               goals={goals}
               tasks={tasks}
               projects={projects}
