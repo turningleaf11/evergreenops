@@ -359,8 +359,9 @@ export default function DepartmentPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {dept.is_program && isAdmin && <TabsTrigger value="roster">Roster</TabsTrigger>}
-          {isDeptLeader && <TabsTrigger value="leadership">Leadership</TabsTrigger>}
-          <TabsTrigger value="team">Team</TabsTrigger>
+          {isDeptLeader && <TabsTrigger value="leadership">Performance</TabsTrigger>}
+          <TabsTrigger value="people">People</TabsTrigger>
+          {!dept.is_program && <TabsTrigger value="resources">Resources</TabsTrigger>}
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -388,12 +389,10 @@ export default function DepartmentPage() {
             />
           )}
 
-          {/* Dept Focus / Key Initiatives / Execution Snapshot moved to the Leadership tab.
-             Overview keeps Announcements + Resources + Pinboard for the broader team. */}
-          {!dept.is_program && (
-            <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
-          )}
-
+          {/* Dept Focus / Key Initiatives / Execution Snapshot moved to the
+             Performance tab. Resources / Playbooks moved to their own Resources
+             tab — Overview is for live signal only (announcements + pinboard;
+             "Today's focus" / "My queue" / "Goals" / "Stuck" land here in PR 2). */}
 
           {/* PINBOARD */}
           <section className="space-y-3">
@@ -632,9 +631,15 @@ export default function DepartmentPage() {
           </TabsContent>
         )}
 
-        <TabsContent value="team" className="space-y-4 mt-4">
+        {!dept.is_program && (
+          <TabsContent value="resources" className="space-y-4 mt-4">
+            <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
+          </TabsContent>
+        )}
+
+        <TabsContent value="people" className="space-y-4 mt-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Users className="h-4 w-4" /> Team
+            <Users className="h-4 w-4" /> People
           </h2>
           {memberWithLeads.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
