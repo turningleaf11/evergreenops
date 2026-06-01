@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMentionPeek } from "@/components/mention-peek/MentionPeekProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,20 +116,17 @@ const LINK_ICON: Record<FocusLink["type"], any> = {
 };
 
 function TodaysFocusBlock({
-  deptId, deptColor, isAdmin, onTaskClick, onProjectClick, tasks, projects,
+  deptId, deptColor, isAdmin,
 }: {
   deptId: string;
   deptColor: string;
   isAdmin: boolean;
-  onTaskClick: (t: Task) => void;
-  onProjectClick: (p: Project) => void;
-  tasks: Task[];
-  projects: Project[];
 }) {
   const [priorities, setPriorities] = useState<FocusPriority[] | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { openPeek } = useMentionPeek();
 
   const fetchFocus = useCallback(async (force = false) => {
     setLoading(true);
@@ -151,16 +149,13 @@ function TodaysFocusBlock({
   // Auto-load cached focus on mount (won't burn OpenAI if cached).
   useEffect(() => { fetchFocus(false); }, [fetchFocus]);
 
-  // Resolve a focus link to an in-app action (open drawer or navigate)
+  // All chips open the universal MentionPeek drawer. From the drawer the user
+  // can click through to the full page if they want.
+  // (Issue peek isn't built yet — those chips still link out to /issues.)
   const handleLinkClick = (link: FocusLink) => {
-    if (link.type === "task") {
-      const t = tasks.find((x) => x.id === link.id);
-      if (t) onTaskClick(t);
-    } else if (link.type === "project") {
-      const p = projects.find((x) => x.id === link.id);
-      if (p) onProjectClick(p);
+    if (link.type === "task" || link.type === "project" || link.type === "goal") {
+      openPeek(link.type, link.id);
     }
-    // goals + issues navigate via the <Link> wrapper below.
   };
 
   return (
@@ -238,16 +233,22 @@ function TodaysFocusBlock({
                           <span className="truncate">{link.label}</span>
                         </span>
                       );
-                      if (link.type === "task" || link.type === "project") {
+                      // task / project / goal → open the universal peek drawer
+                      if (link.type === "task" || link.type === "project" || link.type === "goal") {
                         return (
-                          <button key={j} onClick={() => handleLinkClick(link)} className="cursor-pointer">{chip}</button>
+                          <button
+                            key={j}
+                            onClick={() => handleLinkClick(link)}
+                            className="cursor-pointer"
+                            title="Open preview"
+                          >
+                            {chip}
+                          </button>
                         );
                       }
-                      if (link.type === "goal") {
-                        return <Link key={j} to="/execution">{chip}</Link>;
-                      }
+                      // issue: no peek built yet — fall back to navigation
                       if (link.type === "issue") {
-                        return <Link key={j} to="/issues">{chip}</Link>;
+                        return <Link key={j} to="/issues" title="Open issues">{chip}</Link>;
                       }
                       return <span key={j}>{chip}</span>;
                     })}
@@ -529,7 +530,7 @@ export function DepartmentOverviewV2(props: Props) {
     :                            ["stuck", "focus", "goals", "queue", "team"];
 
   const blocks: Record<string, JSX.Element> = {
-    focus: <TodaysFocusBlock key="focus" deptId={props.deptId} deptColor={deptColor} isAdmin={props.isAdmin} tasks={props.tasks} projects={props.projects} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
+    focus: <TodaysFocusBlock key="focus" deptId={props.deptId} deptColor={deptColor} isAdmin={props.isAdmin} />,
     queue: <MyQueueBlock key="queue" tasks={props.tasks} projects={props.projects} currentUserId={props.currentUserId} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
     goals: <GoalsBlock key="goals" goals={props.goals} deptColor={deptColor} />,
     stuck: <StuckBlock key="stuck" tasks={props.tasks} projects={props.projects} issues={props.issues} template={template} onTaskClick={props.onTaskClick} onProjectClick={props.onProjectClick} />,
