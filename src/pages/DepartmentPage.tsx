@@ -423,78 +423,6 @@ export default function DepartmentPage() {
             />
           )}
 
-          {/* PINBOARD */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4" /> Pinboard
-              </h2>
-              <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handlePinFileUpload} disabled={pinUploading}>
-                  <Paperclip className="h-3 w-3 mr-1" /> Upload
-                </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAddPinOpen(true)}>
-                  <Plus className="h-3 w-3 mr-1" /> Add
-                </Button>
-              </div>
-            </div>
-            {pinboardItems.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {pinboardItems.map(pin => {
-                  const isImage = pin.type === "image" && !!pin.url;
-                  return (
-                    <Card key={pin.id} className="group hover:border-primary/40 transition-colors overflow-hidden">
-                      {isImage && (
-                        <a href={pin.url!} target="_blank" rel="noopener noreferrer" className="block aspect-video bg-muted overflow-hidden">
-                          <img src={pin.url!} alt={pin.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                        </a>
-                      )}
-                      <CardContent className={`p-3 space-y-1.5 ${isImage ? "" : ""}`}>
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {pinTypeIcon(pin.type)}
-                            <p className="text-sm font-medium truncate">{pin.title}</p>
-                          </div>
-                          <button
-                            onClick={() => deletePinboardItem(pin.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            title="Remove pin"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                          </button>
-                        </div>
-                        {pin.type === "note" ? (
-                          <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{pin.description}</p>
-                        ) : pin.description ? (
-                          <p className="text-[11px] text-muted-foreground line-clamp-2">{pin.description}</p>
-                        ) : null}
-                        {(pin.type === "link" || pin.type === "file") && pin.url && (
-                          <a
-                            href={pin.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {pin.type === "file" ? <><Download className="h-3 w-3" /> Download</> : <><ExternalLink className="h-3 w-3" /> Open</>}
-                          </a>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card className="border-dashed">
-                <CardContent className="p-8 text-center space-y-2">
-                  <LayoutGrid className="h-6 w-6 mx-auto text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">No pins yet</p>
-                  <p className="text-xs text-muted-foreground/70">Add quick links, files, screenshots, or notes — anything your team should have at hand.</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
-
-
         </TabsContent>
 
         {dept.is_program && isAdmin && (
@@ -661,7 +589,81 @@ export default function DepartmentPage() {
         )}
 
         {!dept.is_program && (
-          <TabsContent value="resources" className="space-y-4 mt-4">
+          <TabsContent value="resources" className="space-y-8 mt-4">
+            {/* PINBOARD — quick-access surface for the team. Lives here (not on
+                Overview) because Overview is reserved for live "what's next"
+                signal; pinboard is "where to find stuff." */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" /> Pinboard
+                </h2>
+                <div className="flex gap-1.5">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handlePinFileUpload} disabled={pinUploading}>
+                    <Paperclip className="h-3 w-3 mr-1" /> Upload
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAddPinOpen(true)}>
+                    <Plus className="h-3 w-3 mr-1" /> Add
+                  </Button>
+                </div>
+              </div>
+              {pinboardItems.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {pinboardItems.map(pin => {
+                    const isImage = pin.type === "image" && !!pin.url;
+                    return (
+                      <Card key={pin.id} className="group hover:border-primary/40 transition-colors overflow-hidden">
+                        {isImage && (
+                          <a href={pin.url!} target="_blank" rel="noopener noreferrer" className="block aspect-video bg-muted overflow-hidden">
+                            <img src={pin.url!} alt={pin.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          </a>
+                        )}
+                        <CardContent className="p-3 space-y-1.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {pinTypeIcon(pin.type)}
+                              <p className="text-sm font-medium truncate">{pin.title}</p>
+                            </div>
+                            <button
+                              onClick={() => deletePinboardItem(pin.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              title="Remove pin"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                            </button>
+                          </div>
+                          {pin.type === "note" ? (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{pin.description}</p>
+                          ) : pin.description ? (
+                            <p className="text-[11px] text-muted-foreground line-clamp-2">{pin.description}</p>
+                          ) : null}
+                          {(pin.type === "link" || pin.type === "file") && pin.url && (
+                            <a
+                              href={pin.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                            >
+                              {pin.type === "file" ? <><Download className="h-3 w-3" /> Download</> : <><ExternalLink className="h-3 w-3" /> Open</>}
+                            </a>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card className="border-dashed">
+                  <CardContent className="p-8 text-center space-y-2">
+                    <LayoutGrid className="h-6 w-6 mx-auto text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">No pins yet</p>
+                    <p className="text-xs text-muted-foreground/70">Add quick links, files, screenshots, or notes — anything your team should have at hand.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </section>
+
+            {/* Structured library (SOPs, playbooks, scripts, references) */}
             <ResourcesSection docs={docs} dbs={dbs} openDocPreview={openDocPreview} />
           </TabsContent>
         )}

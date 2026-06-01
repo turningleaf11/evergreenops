@@ -151,11 +151,8 @@ function TodaysFocusBlock({
 
   // All chips open the universal MentionPeek drawer. From the drawer the user
   // can click through to the full page if they want.
-  // (Issue peek isn't built yet — those chips still link out to /issues.)
   const handleLinkClick = (link: FocusLink) => {
-    if (link.type === "task" || link.type === "project" || link.type === "goal") {
-      openPeek(link.type, link.id);
-    }
+    openPeek(link.type, link.id);
   };
 
   return (
@@ -233,24 +230,17 @@ function TodaysFocusBlock({
                           <span className="truncate">{link.label}</span>
                         </span>
                       );
-                      // task / project / goal → open the universal peek drawer
-                      if (link.type === "task" || link.type === "project" || link.type === "goal") {
-                        return (
-                          <button
-                            key={j}
-                            onClick={() => handleLinkClick(link)}
-                            className="cursor-pointer"
-                            title="Open preview"
-                          >
-                            {chip}
-                          </button>
-                        );
-                      }
-                      // issue: no peek built yet — fall back to navigation
-                      if (link.type === "issue") {
-                        return <Link key={j} to="/issues" title="Open issues">{chip}</Link>;
-                      }
-                      return <span key={j}>{chip}</span>;
+                      // All entity types now have a peek — open the universal drawer.
+                      return (
+                        <button
+                          key={j}
+                          onClick={() => handleLinkClick(link)}
+                          className="cursor-pointer"
+                          title="Open preview"
+                        >
+                          {chip}
+                        </button>
+                      );
                     })}
                   </div>
                 )}

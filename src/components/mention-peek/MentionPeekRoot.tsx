@@ -5,6 +5,7 @@ import TaskPeek from "./peeks/TaskPeek";
 import ProjectPeek from "./peeks/ProjectPeek";
 import RecordPeek from "./peeks/RecordPeek";
 import GoalPeekWrapper from "./peeks/GoalPeekWrapper";
+import IssuePeek from "./peeks/IssuePeek";
 
 export function MentionPeekRoot() {
   const { active, closePeek } = useMentionPeek();
@@ -19,6 +20,7 @@ export function MentionPeekRoot() {
     case "project": return <ProjectPeek id={id} open onClose={closePeek} />;
     case "goal":    return <GoalPeekWrapper id={id} open onClose={closePeek} />;
     case "record":  return <RecordPeek id={id} open onClose={closePeek} />;
+    case "issue":   return <IssuePeek id={id} open onClose={closePeek} />;
     default:        return null;
   }
 }

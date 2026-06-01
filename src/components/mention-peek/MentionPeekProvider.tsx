@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, ReactNode } from "react";
 
-export type PeekType = "person" | "doc" | "note" | "task" | "project" | "goal" | "record";
+export type PeekType = "person" | "doc" | "note" | "task" | "project" | "goal" | "record" | "issue";
 
 interface PeekState { type: PeekType; id: string; }
 
