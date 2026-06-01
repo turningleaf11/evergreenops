@@ -36,6 +36,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { OrbitRoster } from "@/components/orbit/OrbitRoster";
 import { ProgramOverview } from "@/components/orbit/ProgramOverview";
 import { DepartmentOverviewV2, type ViewerRole } from "@/components/department/DepartmentOverviewV2";
+import { DepartmentWorkTab } from "@/components/department/DepartmentWorkTab";
 import { useDeptTemplate } from "@/hooks/useDeptTemplate";
 
 interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
@@ -160,7 +161,7 @@ export default function DepartmentPage() {
       // Fetch tasks for department projects
       const deptProjectIds = deptProjects.map(p => p.id);
       if (deptProjectIds.length > 0) {
-        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority, project_id, assigned_to, due_date, updated_at").in("project_id", deptProjectIds).in("status", ["todo", "in_progress"]).limit(50);
+        const { data: deptTasks } = await supabase.from("tasks").select("id, title, status, priority, project_id, assigned_to, due_date, updated_at").in("project_id", deptProjectIds).limit(200);
         setTasks((deptTasks as Task[]) || []);
       } else {
         setTasks([]);
@@ -367,6 +368,7 @@ export default function DepartmentPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {!dept.is_program && <TabsTrigger value="work">Work</TabsTrigger>}
           {dept.is_program && isAdmin && <TabsTrigger value="roster">Roster</TabsTrigger>}
           <TabsTrigger value="people">People</TabsTrigger>
           {!dept.is_program && <TabsTrigger value="resources">Resources</TabsTrigger>}
@@ -423,6 +425,18 @@ export default function DepartmentPage() {
           )}
 
         </TabsContent>
+
+        {!dept.is_program && (
+          <TabsContent value="work" className="mt-4">
+            <DepartmentWorkTab
+              projects={projects}
+              tasks={tasks}
+              members={members}
+              currentUserId={user?.id}
+              getName={getName}
+            />
+          </TabsContent>
+        )}
 
         {dept.is_program && isAdmin && (
           <TabsContent value="roster" className="mt-4">
