@@ -37,9 +37,10 @@ import { OrbitRoster } from "@/components/orbit/OrbitRoster";
 import { ProgramOverview } from "@/components/orbit/ProgramOverview";
 import { DepartmentOverviewV2, type ViewerRole } from "@/components/department/DepartmentOverviewV2";
 import { DepartmentWorkTab } from "@/components/department/DepartmentWorkTab";
+import { DepartmentPeopleTab } from "@/components/department/DepartmentPeopleTab";
 import { useDeptTemplate } from "@/hooks/useDeptTemplate";
 
-interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; }
+interface Profile { user_id: string; full_name: string | null; avatar_url: string | null; department_id: string | null; title?: string | null; reports_to?: string | null; is_leader?: boolean; }
 interface Announcement { id: string; title: string; content: string | null; pinned: boolean; }
 interface Doc { id: string; title: string; description?: string; author_name: string | null; updated_at: string; visibility: string; shared_with: any; tags: string[] | null; icon?: string | null; }
 interface DB { id: string; title: string; description: string | null; icon: string | null; visibility: string; shared_with: any; }
@@ -129,7 +130,7 @@ export default function DepartmentPage() {
     const load = async () => {
       const currentYear = new Date().getFullYear();
       const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, strategyRes, allProfilesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, avatar_url, department_id").eq("department_id", id),
+        supabase.from("profiles").select("user_id, full_name, avatar_url, department_id, title, reports_to, is_leader").eq("department_id", id),
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
         supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon"),
         supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
@@ -137,7 +138,7 @@ export default function DepartmentPage() {
         supabase.from("projects").select("id, title, status, priority, owner_id, due_date, updated_at").eq("department_id", id),
         supabase.from("issues").select("id, title, status, priority").eq("department_id", id).eq("status", "open").order("priority", { ascending: true }).limit(10),
         supabase.from("strategy_items").select("id, title, type, status, description, assigned_departments"),
-        supabase.from("profiles").select("user_id, full_name, avatar_url, department_id"),
+        supabase.from("profiles").select("user_id, full_name, avatar_url, department_id, title, reports_to, is_leader"),
       ]);
 
       setMembers((profilesRes.data as Profile[]) || []);
@@ -525,42 +526,15 @@ export default function DepartmentPage() {
           </TabsContent>
         )}
 
-        <TabsContent value="people" className="space-y-4 mt-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Users className="h-4 w-4" /> People
-          </h2>
-          {memberWithLeads.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {memberWithLeads.map((m) => (
-                <Card key={m.user_id}>
-                  <CardContent className="p-4 flex items-start gap-3">
-                    <Avatar className="h-9 w-9 shrink-0">
-                      <AvatarFallback className="text-xs bg-muted" style={{ borderColor: `hsl(${deptColor} / 0.4)`, borderWidth: 2 }}>
-                        {(m.full_name || "U").split(" ").map((n) => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p>
-                      {m.leads.length > 0 && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          Leads: {m.leads.join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={Users}
-              title="No team members yet"
-              description="Assign people to this department from the People page so they show up here with the projects they own."
-              actionLabel="Go to People"
-              actionIcon={Users}
-              onAction={() => navigate("/people")}
-            />
-          )}
+        <TabsContent value="people" className="mt-4">
+          <DepartmentPeopleTab
+            members={members}
+            allProfiles={profiles}
+            tasks={tasks}
+            projects={projects}
+            deptColor={deptColor}
+            onNavigateToPeople={() => navigate("/people")}
+          />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4 mt-4">
