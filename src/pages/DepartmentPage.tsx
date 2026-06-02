@@ -4,11 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import {
-  FileText, Pin, Database, Target, FolderKanban, CheckSquare, 
-  AlertTriangle, Activity, Bot, Zap, Brain, Crosshair, BookOpen,
-  Users, Flame, Shield, CircleDot, Maximize2, LayoutGrid,
+  FileText, Pin, Database, Activity, Zap, BookOpen,
+  Users, Maximize2, LayoutGrid,
   LinkIcon, Paperclip, StickyNote, ImageIcon, Plus, Trash2, ExternalLink, Download,
   MoreHorizontal, ChevronDown,
 } from "lucide-react";
@@ -17,11 +15,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
 
-import { LeadershipAiChat } from "@/components/LeadershipAiChat";
-import { DeptRecentSync } from "@/components/sync/DeptRecentSync";
 import { formatDistanceToNow } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
-import ScorecardSection from "@/components/scorecard/ScorecardSection";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -48,7 +43,6 @@ interface Goal { id: string; title: string; progress: number; status: string; qu
 interface ProjectFull { id: string; title: string; status: string; priority: string; owner_id: string | null; due_date?: string | null; updated_at?: string | null; }
 interface Task { id: string; title: string; status: string; priority: string; project_id: string | null; assigned_to?: string | null; due_date?: string | null; updated_at?: string | null; }
 interface Issue { id: string; title: string; status: string; priority: number; }
-interface StrategyItem { id: string; title: string; type: string; status: string; description: string | null; assigned_departments: string[] | null; }
 interface EntityActivity { id: string; action: string; entity_type: string; entity_id: string; actor_id: string | null; created_at: string; metadata: any; }
 interface PinboardItem { id: string; department_id: string; type: string; title: string; url: string | null; description: string | null; icon: string | null; sort_order: number; created_by: string | null; }
 
@@ -60,27 +54,6 @@ function isSharedWithDept(item: { visibility: string; shared_with: any }, deptId
   }
   return false;
 }
-
-const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-
-const statusColors: Record<string, string> = {
-  on_track: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-  at_risk: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  behind: "bg-destructive/15 text-destructive",
-  completed: "bg-primary/15 text-primary",
-  in_progress: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-  todo: "bg-muted text-muted-foreground",
-  done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-  not_started: "bg-muted text-muted-foreground",
-  open: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-};
-
-const priorityColors: Record<string, string> = {
-  urgent: "bg-red-500/15 text-red-700 dark:text-red-400",
-  high: "bg-red-500/10 text-red-600 dark:text-red-400",
-  medium: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  low: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-};
 
 export default function DepartmentPage() {
   const { id } = useParams<{ id: string }>();
@@ -105,7 +78,6 @@ export default function DepartmentPage() {
   const [projects, setProjects] = useState<ProjectFull[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [strategyItems, setStrategyItems] = useState<StrategyItem[]>([]);
   const [activity, setActivity] = useState<EntityActivity[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +101,7 @@ export default function DepartmentPage() {
     if (!id) return;
     const load = async () => {
       const currentYear = new Date().getFullYear();
-      const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, strategyRes, allProfilesRes] = await Promise.all([
+      const [profilesRes, announcementsRes, docsRes, dbsRes, goalsRes, projectsRes, issuesRes, allProfilesRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id, title, reports_to, is_leader").eq("department_id", id),
         supabase.from("announcements").select("id, title, content, pinned").eq("department_id", id),
         supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon"),
@@ -137,7 +109,6 @@ export default function DepartmentPage() {
         supabase.from("goals").select("id, title, progress, status, quarter, deadline").eq("department_id", id).eq("year", currentYear),
         supabase.from("projects").select("id, title, status, priority, owner_id, due_date, updated_at").eq("department_id", id),
         supabase.from("issues").select("id, title, status, priority").eq("department_id", id).eq("status", "open").order("priority", { ascending: true }).limit(10),
-        supabase.from("strategy_items").select("id, title, type, status, description, assigned_departments"),
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id, title, reports_to, is_leader"),
       ]);
 
@@ -154,10 +125,6 @@ export default function DepartmentPage() {
       const deptProjects = (projectsRes.data as ProjectFull[]) || [];
       setProjects(deptProjects);
       setIssues((issuesRes.data as Issue[]) || []);
-
-      // Filter strategy items assigned to this department
-      const allStrategy = (strategyRes.data as StrategyItem[]) || [];
-      setStrategyItems(allStrategy.filter(s => (s.assigned_departments || []).includes(id)));
 
       // Fetch tasks for department projects
       const deptProjectIds = deptProjects.map(p => p.id);
@@ -295,32 +262,6 @@ export default function DepartmentPage() {
       default: return <LinkIcon className="h-4 w-4" />;
     }
   };
-
-  // Department Focus data
-  const currentPriorities = [...goals]
-    .filter(g => g.status !== "completed")
-    .sort((a, b) => a.progress - b.progress)
-    .slice(0, 2);
-
-  const keyObjective = strategyItems.find(s => s.type === "objective" && (s.status === "in_execution" || s.status === "acknowledged"));
-  const constraints = strategyItems.filter(s => s.type === "constraint");
-
-  // Key initiatives — top 5 projects sorted by priority
-  const keyInitiatives = [...projects]
-    .sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2))
-    .slice(0, 5);
-
-  // Execution snapshot — high priority tasks
-  const highPriorityTasks = [...tasks]
-    .filter(t => t.priority === "urgent" || t.priority === "high")
-    .slice(0, 6);
-  const allActiveTasks = highPriorityTasks.length > 0 ? highPriorityTasks : tasks.slice(0, 6);
-
-  // Team with project ownership
-  const memberWithLeads = members.map(m => ({
-    ...m,
-    leads: projects.filter(p => p.owner_id === m.user_id).map(p => p.title),
-  }));
 
   const deptColor = dept.color || "220 65% 48%";
 
@@ -796,19 +737,3 @@ function ResourcesSection({ docs, dbs, openDocPreview }: { docs: Doc[]; dbs: DB[
   );
 }
 
-/** Floating AI chat button — rendered inside the Leadership tab so it only shows when the leader is here. */
-function DeptLeadershipAiChatFab({ deptId }: { deptId: string }) {
-  const [chatOpen, setChatOpen] = useState(false);
-  return (
-    <>
-      <button
-        onClick={() => setChatOpen(!chatOpen)}
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
-        title="Ask Albus about this dept"
-      >
-        <Bot className="h-5 w-5" />
-      </button>
-      {chatOpen && <LeadershipAiChat open={chatOpen} onOpenChange={setChatOpen} departmentId={deptId} />}
-    </>
-  );
-}
