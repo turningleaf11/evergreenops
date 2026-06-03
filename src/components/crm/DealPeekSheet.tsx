@@ -24,6 +24,7 @@ import {
   PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
+import { CoverImageZone } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ interface Deal {
   lost_reason: string | null;
   description: string;
   custom_fields: Record<string, unknown>;
+  cover_url: string | null;
   // Portfolio fields
   property_address: string | null;
   property_city: string | null;
@@ -553,8 +555,18 @@ export function DealPeekSheet({
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
+                  {/* Cover image — pinned at the very top. Hero photo for the
+                      property (or whatever else the user wants). Same image
+                      appears as the kanban card hero. */}
+                  <div className="px-6 pt-4 pb-3 bg-background">
+                    <CoverImageZone
+                      url={deal.cover_url}
+                      onChange={(url) => saveField({ cover_url: url } as any)}
+                    />
+                  </div>
+
                   {/* Composer pinned above the tabs */}
-                  <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
+                  <div className="px-6 pt-2 pb-4 bg-background border-b border-border/50">
                     <EntityComposer
                       workspaceId={deal.workspace_id}
                       entityType="deal"

@@ -20,3 +20,5 @@ export { EntityCard } from "./EntityCard";
 
 export { EntityViewTabs } from "./EntityViewTabs";
 export type { ViewType } from "./EntityViewTabs";
+
+export { CoverImageZone } from "./CoverImageZone";
