@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Briefcase, Plus, LayoutGrid, Table as TableIcon, ArrowUpDown } from "lucide-react";
+import { Loader2, Briefcase, Plus, LayoutGrid, Table as TableIcon, ArrowUpDown, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -14,6 +14,7 @@ import { useViewPreference } from "@/hooks/useViewPreference";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableShell, DataTableHeader, DataTableRow, DataTablePill, DataTableEmpty } from "@/components/ui/data-table-shell";
 import { InlinePopoverCell, InlineOptionList, InlineTextCell, InlineDateCell } from "./InlineCellEditors";
+import { EntityCard } from "@/components/primitives";
 
 interface Stage {
   id: string;
@@ -42,6 +43,7 @@ interface Deal {
   owner_id?: string | null;
   source_contact_id?: string | null;
   stage_entered_at?: string | null;
+  cover_url?: string | null;
 }
 
 interface PersonLite { user_id: string; full_name: string | null; avatar_url: string | null }
@@ -333,60 +335,42 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
                   const days = enteredAt
                     ? Math.floor((Date.now() - enteredAt.getTime()) / 86400000)
                     : 0;
-                  const daysClass =
-                    days >= 7
-                      ? "text-red-600 bg-red-500/10 border-red-500/30"
-                      : days >= 3
-                      ? "text-amber-600 bg-amber-400/15 border-amber-400/30"
-                      : "text-muted-foreground bg-muted/40 border-border/40";
                   const headline = d.property_address?.trim() || d.title;
-                  const ownerInitials = owner?.full_name
-                    ? owner.full_name.split(" ").map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase()
-                    : null;
+
+                  // Compact metadata: $price · property_type · via Source
+                  const descParts = [
+                    formatMoney(Number(d.asking_price || d.value || 0), d.currency),
+                    d.property_type,
+                    sourceName ? `via ${sourceName}` : null,
+                  ].filter(Boolean);
+
                   return (
                     <div
                       key={d.id}
                       draggable
                       onDragStart={() => setDraggingId(d.id)}
                       onDragEnd={() => { setDraggingId(null); setHoverStageId(null); }}
-                      onClick={() => setOpenDealId(d.id)}
                       className={cn(
-                        "rounded-lg border border-border/40 bg-card p-2.5 text-xs hover:shadow-sm hover:border-border transition-all cursor-pointer space-y-1.5",
-                        draggingId === d.id && "opacity-40"
+                        "transition-opacity cursor-grab active:cursor-grabbing",
+                        draggingId === d.id && "opacity-40",
                       )}
                     >
-                      <p className="font-medium text-sm leading-snug line-clamp-2">{headline}</p>
-                      <div className="flex items-center justify-between text-muted-foreground">
-                        <span className="font-medium text-foreground tabular-nums">
-                          {formatMoney(Number(d.asking_price || d.value || 0), d.currency)}
-                        </span>
-                        {d.property_type && (
-                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                            {d.property_type}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {ownerInitials ? (
-                            owner?.avatar_url ? (
-                              <img src={owner.avatar_url} className="h-5 w-5 rounded-full" alt={owner.full_name ?? ""} />
-                            ) : (
-                              <div className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[9px] font-semibold flex items-center justify-center shrink-0">
-                                {ownerInitials}
-                              </div>
-                            )
-                          ) : (
-                            <div className="h-5 w-5 rounded-full bg-muted shrink-0" />
-                          )}
-                          {sourceName && (
-                            <span className="text-[10px] text-muted-foreground truncate">via {sourceName}</span>
-                          )}
-                        </div>
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border tabular-nums shrink-0", daysClass)}>
-                          {days}d
-                        </span>
-                      </div>
+                      <EntityCard
+                        kind="deal"
+                        // Only flag won/lost — open is implied by the column position.
+                        status={d.status !== "open" ? d.status : null}
+                        coverUrl={d.cover_url}
+                        title={headline}
+                        description={descParts.join(" · ")}
+                        assignees={owner ? [{
+                          user_id: owner.user_id,
+                          full_name: owner.full_name,
+                          avatar_url: owner.avatar_url,
+                        }] : []}
+                        dateLabel={`${days}d in stage`}
+                        dateIcon={Clock}
+                        onClick={() => setOpenDealId(d.id)}
+                      />
                     </div>
                   );
                 })}
