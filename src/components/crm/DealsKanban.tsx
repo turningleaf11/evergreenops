@@ -312,6 +312,7 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
                 <EntityCard
                   key={d.id}
                   kind="deal"
+                  layout="row"
                   status={d.status !== "open" ? d.status : null}
                   coverUrl={d.cover_url}
                   title={headline}
