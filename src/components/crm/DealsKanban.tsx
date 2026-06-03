@@ -14,7 +14,7 @@ import { useViewPreference } from "@/hooks/useViewPreference";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableShell, DataTableHeader, DataTableRow, DataTablePill, DataTableEmpty } from "@/components/ui/data-table-shell";
 import { InlinePopoverCell, InlineOptionList, InlineTextCell, InlineDateCell } from "./InlineCellEditors";
-import { EntityCard } from "@/components/primitives";
+import { EntityCard, EntityViewTabs, type ViewType } from "@/components/primitives";
 
 interface Stage {
   id: string;
@@ -61,7 +61,7 @@ const formatMoney = (n: number, currency = "USD") =>
 export function DealsKanban({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
-  const [view, setView] = useViewPreference<"board" | "table">("crm:deals:view", "board");
+  const [view, setView] = useViewPreference<ViewType>("crm:deals:view", "board");
   const [loading, setLoading] = useState(true);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
@@ -235,7 +235,14 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
 
   return (
     <div className="p-6 space-y-4">
-      {/* Forecast strip */}
+      {/* Unified view switcher — same component every entity surface uses. */}
+      <EntityViewTabs
+        views={["board", "list", "table", "timeline"]}
+        active={view}
+        onChange={setView}
+      />
+
+      {/* Forecast strip + pipeline switcher */}
       <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card px-4 py-3 text-sm gap-3">
         <div className="flex items-center gap-6">
           <div>
@@ -261,28 +268,6 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
               {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
-          <div className="inline-flex rounded-lg border border-border/50 bg-muted/30 p-0.5">
-            <button
-              onClick={() => setView("board")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
-                view === "board" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Board view"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" /> Board
-            </button>
-            <button
-              onClick={() => setView("table")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
-                view === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Table view"
-            >
-              <TableIcon className="h-3.5 w-3.5" /> Table
-            </button>
-          </div>
         </div>
       </div>
 
@@ -297,6 +282,63 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
           onSort={toggleSort}
           onUpdate={updateDeal}
         />
+      )}
+
+      {/* List view — full-width EntityCard stack. Same card visual as the
+         kanban but one column wide; status shows since stage is no longer
+         implied by column position. */}
+      {view === "list" && (
+        <div className="space-y-2">
+          {filteredSortedDeals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-12 text-center text-sm text-muted-foreground">
+              No deals match your filters.
+            </div>
+          ) : (
+            filteredSortedDeals.map((d) => {
+              const owner = people.find((p) => p.user_id === d.owner_id);
+              const sourceContact = sourceContacts.find((c) => c.id === d.source_contact_id);
+              const sourceName = sourceContact
+                ? `${sourceContact.first_name ?? ""} ${sourceContact.last_name ?? ""}`.trim()
+                : null;
+              const stageName = stageMap.get(d.stage_id)?.name;
+              const headline = d.property_address?.trim() || d.title;
+              const descParts = [
+                formatMoney(Number(d.asking_price || d.value || 0), d.currency),
+                d.property_type,
+                stageName,
+                sourceName ? `via ${sourceName}` : null,
+              ].filter(Boolean);
+              return (
+                <EntityCard
+                  key={d.id}
+                  kind="deal"
+                  status={d.status !== "open" ? d.status : null}
+                  coverUrl={d.cover_url}
+                  title={headline}
+                  description={descParts.join(" · ")}
+                  assignees={owner ? [{
+                    user_id: owner.user_id,
+                    full_name: owner.full_name,
+                    avatar_url: owner.avatar_url,
+                  }] : []}
+                  dateLabel={d.expected_close_date || null}
+                  onClick={() => setOpenDealId(d.id)}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Timeline placeholder — calendar/Gantt view comes in a follow-up
+         once we settle on the timeline infra. */}
+      {view === "timeline" && (
+        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-16 text-center space-y-2">
+          <p className="text-sm font-medium text-foreground/80">Timeline view coming soon</p>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            Deals plotted by expected close date with stage swimlanes. Use Board, List, or Table for now.
+          </p>
+        </div>
       )}
 
       {view === "board" && (
