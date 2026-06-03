@@ -29,6 +29,9 @@ import { toast } from "@/hooks/use-toast";
 import RichTextEditor from "@/components/RichTextEditor";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { cn } from "@/lib/utils";
+import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 const sb = supabase as any;
 
@@ -142,8 +145,21 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Left main column */}
             <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
+              {/* Cover image (only when set — added via the (⋯) menu). */}
+              {(project as any).cover_url && (
+                <div className="px-6 pt-5">
+                  <CoverImageZone
+                    url={(project as any).cover_url}
+                    onChange={(url) => update({ cover_url: url })}
+                  />
+                </div>
+              )}
+
               {/* Header */}
-              <div className="px-6 py-5 border-b border-border/40 shrink-0">
+              <div className={cn(
+                "px-6 border-b border-border/40 shrink-0",
+                (project as any).cover_url ? "pt-3 pb-5" : "py-5",
+              )}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -161,6 +177,22 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                   >
                     Expand <ExternalLink className="h-3 w-3" />
                   </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                        aria-label="More actions"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <CoverMenuItems
+                        url={(project as any).cover_url}
+                        onChange={(url) => update({ cover_url: url })}
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap text-xs">
                   <select

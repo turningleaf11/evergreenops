@@ -24,7 +24,11 @@ import {
   PrimaryContactCard,
 } from "./_shell";
 import { EntityComposer } from "./EntityComposer";
-import { CoverImageZone } from "@/components/primitives";
+import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -525,11 +529,31 @@ export function DealPeekSheet({
                       Create Transaction →
                     </Button>
                   )}
-                  {canManage && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
+                  {/* (⋯) menu — cover image actions + delete. Cover is an
+                      OPTION, not a passive empty dropzone — only shows when
+                      the user opts in via this menu. */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
+                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <CoverMenuItems
+                        url={deal.cover_url}
+                        onChange={(url) => saveField({ cover_url: url } as any)}
+                      />
+                      {canManage && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Delete deal</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               }
             />
@@ -555,18 +579,22 @@ export function DealPeekSheet({
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
                 {/* Main column */}
                 <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
-                  {/* Cover image — pinned at the very top. Hero photo for the
-                      property (or whatever else the user wants). Same image
-                      appears as the kanban card hero. */}
-                  <div className="px-6 pt-4 pb-3 bg-background">
-                    <CoverImageZone
-                      url={deal.cover_url}
-                      onChange={(url) => saveField({ cover_url: url } as any)}
-                    />
-                  </div>
+                  {/* Cover image (only when set — added via the (⋯) menu).
+                      Same image renders as the kanban card hero. */}
+                  {deal.cover_url && (
+                    <div className="px-6 pt-4 pb-3 bg-background">
+                      <CoverImageZone
+                        url={deal.cover_url}
+                        onChange={(url) => saveField({ cover_url: url } as any)}
+                      />
+                    </div>
+                  )}
 
                   {/* Composer pinned above the tabs */}
-                  <div className="px-6 pt-2 pb-4 bg-background border-b border-border/50">
+                  <div className={cn(
+                    "px-6 pb-4 bg-background border-b border-border/50",
+                    deal.cover_url ? "pt-2" : "pt-4",
+                  )}>
                     <EntityComposer
                       workspaceId={deal.workspace_id}
                       entityType="deal"

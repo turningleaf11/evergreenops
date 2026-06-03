@@ -301,7 +301,9 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
 
       {view === "board" && (
 
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
+      {/* Same column sizing convention as KanbanBoard (Projects/Tasks) so
+         every kanban in the app feels visually consistent. */}
+      <div className="flex gap-3 overflow-x-auto pb-2">
         {stages.map((stage) => {
           const items = dealsByStage.get(stage.id) || [];
           const sum = items.reduce((s, d) => s + Number(d.value || 0), 0);
@@ -314,6 +316,7 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
               onDrop={() => handleDrop(stage.id)}
               className={cn(
                 "flex flex-col rounded-xl bg-muted/30 border border-border/30 min-h-[200px] transition-colors",
+                "flex-1 min-w-[280px] max-w-[340px] shrink-0",
                 isHover && "border-primary/50 bg-primary/5"
               )}
             >

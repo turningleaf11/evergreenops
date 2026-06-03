@@ -131,7 +131,7 @@ export default function KanbanBoard({
             const cls = KANBAN_CLASSES[colorName];
 
             return (
-              <div key={col.key} className={cn("flex-1 min-w-[260px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
+              <div key={col.key} className={cn("flex-1 min-w-[280px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
               {/* Sticky tinted header bar */}
               <div className={cn(
                 "sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg group",

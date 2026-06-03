@@ -9,7 +9,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ExternalLink, Github, Copy, Trash2, Plus, X, Upload, FileText, Wrench } from "lucide-react";
+import { ExternalLink, Github, Copy, Trash2, Plus, X, Upload, FileText, Wrench, MoreHorizontal } from "lucide-react";
+import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -204,24 +206,16 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
         {project && (
           <div className="flex flex-col h-full">
-            {/* Cover */}
-            {project.cover_url ? (
-              <div className="relative h-36 bg-muted">
-                <img src={project.cover_url} alt="" className="w-full h-full object-cover" />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="absolute top-2 right-12"
-                  onClick={() => coverInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  <Upload className="h-3 w-3 mr-1" /> {uploading ? "Uploading..." : "Replace"}
-                </Button>
+            {/* Cover — unified CoverImageZone primitive. Add/remove via the
+                (⋯) menu next to delete. */}
+            {project.cover_url && (
+              <div className="px-6 pt-4">
+                <CoverImageZone
+                  url={project.cover_url}
+                  onChange={(url) => update({ cover_url: url })}
+                />
               </div>
-            ) : (
-              <div className="h-12 border-b" />
             )}
-            <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={(e) => handleUpload(e, true)} />
 
             <div className="px-6 py-4 space-y-4 flex-1">
               <div className="flex items-start gap-3">
@@ -231,7 +225,24 @@ export default function AiProjectPeek({ projectId, onClose, onChange }: Props) {
                   onBlur={(e) => update({ name: e.target.value })}
                   className="text-2xl font-semibold border-0 px-0 h-auto focus-visible:ring-0 shadow-none"
                 />
-                <Button variant="ghost" size="icon" onClick={handleDelete}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <CoverMenuItems
+                      url={project.cover_url}
+                      onChange={(url) => update({ cover_url: url })}
+                    />
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete project</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
