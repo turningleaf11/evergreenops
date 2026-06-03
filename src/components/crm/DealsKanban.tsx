@@ -300,9 +300,8 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
       )}
 
       {view === "board" && (
-
-      {/* Same column sizing convention as KanbanBoard (Projects/Tasks) so
-         every kanban in the app feels visually consistent. */}
+      // Same column sizing convention as KanbanBoard (Projects/Tasks) so
+      // every kanban in the app feels visually consistent (280–340px / col).
       <div className="flex gap-3 overflow-x-auto pb-2">
         {stages.map((stage) => {
           const items = dealsByStage.get(stage.id) || [];
