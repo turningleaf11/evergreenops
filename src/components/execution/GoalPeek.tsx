@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import LinkProjectPicker from "./LinkProjectPicker";
+import { OwnerPicker, FollowersPicker } from "@/components/crm/PeoplePickers";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
 
@@ -171,7 +172,21 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
               <User className="h-3 w-3" /> {getName(goal.owner_id)}
             </span>
           </div>
-          <div className="space-y-1.5">
+
+          {/* People — owner (single) + followers (many) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <OwnerPicker
+              ownerId={goal.owner_id}
+              onChange={(id) => update({ owner_id: id })}
+            />
+            <FollowersPicker
+              followerIds={Array.isArray(goal.followers) ? goal.followers : []}
+              ownerId={goal.owner_id}
+              onChange={(ids) => update({ followers: ids })}
+            />
+          </div>
+
+          <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Progress</span>
               <span className="font-medium">{progress}%</span>

@@ -142,6 +142,135 @@ export function OwnerPicker({
   );
 }
 
+// ─── FollowersPicker ─────────────────────────────────────────────────────────
+// Multi-select people picker for "followers" / "watchers" — people who follow
+// an entity (goal / project / task) without owning or actively working on it.
+// Renders as a stacked avatar row that opens a checkbox list on click.
+
+export function FollowersPicker({
+  followerIds,
+  onChange,
+  label = "Followers",
+  ownerId,
+}: {
+  followerIds: string[];
+  onChange: (ids: string[]) => Promise<void> | void;
+  label?: string;
+  /** When provided, the owner is shown as a static lead avatar and hidden
+      from the picker list so they can't double as a follower. */
+  ownerId?: string | null;
+}) {
+  const people = usePeople();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+
+  const followers = useMemo(
+    () => followerIds.map((id) => people.find((p) => p.user_id === id)).filter(Boolean) as Person[],
+    [people, followerIds],
+  );
+
+  const candidates = useMemo(
+    () => people.filter((p) => p.user_id !== ownerId),
+    [people, ownerId],
+  );
+
+  const filtered = q.trim()
+    ? candidates.filter((p) => (p.full_name || "").toLowerCase().includes(q.toLowerCase()))
+    : candidates;
+
+  const toggle = async (uid: string) => {
+    const next = followerIds.includes(uid)
+      ? followerIds.filter((x) => x !== uid)
+      : [...followerIds, uid];
+    await onChange(next);
+  };
+
+  return (
+    <div>
+      {label ? <div className="text-xs text-muted-foreground mb-1">{label}</div> : null}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button className="w-full flex items-center gap-2 text-sm rounded-md border border-input bg-background px-2 py-1.5 hover:bg-muted/50 transition-colors">
+            {followers.length === 0 ? (
+              <>
+                <Avatar person={null} />
+                <span className="text-muted-foreground text-left flex-1">No followers</span>
+                <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </>
+            ) : (
+              <>
+                <div className="flex -space-x-1.5 shrink-0">
+                  {followers.slice(0, 4).map((p) => (
+                    <div
+                      key={p.user_id}
+                      className="ring-2 ring-background rounded-full"
+                      title={p.full_name || "Unnamed"}
+                    >
+                      <Avatar person={p} size={22} />
+                    </div>
+                  ))}
+                  {followers.length > 4 && (
+                    <div
+                      className="ring-2 ring-background rounded-full bg-muted text-muted-foreground text-[10px] font-medium flex items-center justify-center"
+                      style={{ width: 22, height: 22 }}
+                    >
+                      +{followers.length - 4}
+                    </div>
+                  )}
+                </div>
+                <span className="truncate text-left flex-1 text-xs text-muted-foreground">
+                  {followers.length} {followers.length === 1 ? "follower" : "followers"}
+                </span>
+                <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-72 p-0">
+          <div className="px-2 py-1.5 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search people…"
+                className="h-8 pl-7 text-sm"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-auto">
+            {filtered.length === 0 && (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                {q.trim() ? "No people found." : "No team members."}
+              </div>
+            )}
+            {filtered.map((p) => {
+              const checked = followerIds.includes(p.user_id);
+              return (
+                <button
+                  key={p.user_id}
+                  onClick={() => toggle(p.user_id)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    readOnly
+                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                  />
+                  <Avatar person={p} />
+                  <span className="truncate flex-1 text-left">{p.full_name || "Unnamed"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 interface TeamMember {
   id: string;
   user_id: string;

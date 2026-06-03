@@ -1,8 +1,9 @@
 import { format } from "date-fns";
-import { Calendar, FileText, Target, User, Users, Plus, X, Check } from "lucide-react";
+import { Calendar, FileText, Target, User, Users, Plus, X, Check, Eye } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { FollowersPicker } from "@/components/crm/PeoplePickers";
 
 interface ProjectInfoSidebarProps {
   project: any;
@@ -161,6 +162,22 @@ export default function ProjectInfoSidebar({
             </div>
           )}
         </div>
+
+        {/* Followers — separate from "Team" because they watch, not work */}
+        {onUpdate && (
+          <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-3">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              Followers
+            </div>
+            <FollowersPicker
+              followerIds={Array.isArray(project.followers) ? project.followers : []}
+              ownerId={project.owner_id}
+              onChange={(ids) => onUpdate({ followers: ids })}
+              label=""
+            />
+          </div>
+        )}
 
         <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
