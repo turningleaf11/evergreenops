@@ -316,42 +316,46 @@ export function PersonDetail({ person, open, onOpenChange, departments, profiles
                 </TabsContent>
 
                 <TabsContent value="notes" className="space-y-3 mt-4">
-                  <Tabs defaultValue="one_on_one">
-                    <TabsList className="h-8">
-                      <TabsTrigger value="one_on_one" className="text-xs">1-on-1</TabsTrigger>
-                      <TabsTrigger value="growth" className="text-xs">Growth</TabsTrigger>
-                      <TabsTrigger value="general" className="text-xs">General</TabsTrigger>
-                    </TabsList>
-                    {["one_on_one", "growth", "general"].map((type) => (
-                      <TabsContent key={type} value={type} className="space-y-3 mt-3">
-                        <div className="flex gap-2">
-                          <Textarea
-                            placeholder={`Add ${type.replace("_", " ")} note...`}
-                            value={noteType === type ? newNote : ""}
-                            onFocus={() => setNoteType(type)}
-                            onChange={(e) => { setNoteType(type); setNewNote(e.target.value); }}
-                            className="text-sm"
-                            rows={2}
-                          />
-                          <Button size="icon" variant="outline" className="shrink-0 mt-auto" onClick={addNote} disabled={!newNote.trim() || noteType !== type}>
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {filteredNotes(type).map((note) => (
-                          <div key={note.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-sm">
-                            <div className="flex-1">
-                              <p className="whitespace-pre-wrap">{note.content}</p>
-                              <p className="text-[10px] text-muted-foreground mt-1">{new Date(note.created_at).toLocaleDateString()}</p>
-                            </div>
-                            <button onClick={() => deleteNote(note.id)} className="text-muted-foreground hover:text-destructive shrink-0">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                  {/* Single flat notes surface — composer at top, list below.
+                     The 1-on-1 / Growth / General sub-categories were
+                     redundant with the outer 1-on-1s / Growth tabs, so we
+                     collapse to one stream. Notes still get type='general'
+                     in the DB for compatibility but no UI sub-divides them. */}
+                  <div className="flex gap-2">
+                    <Textarea
+                      placeholder="Add a note..."
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      className="text-sm"
+                      rows={2}
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="shrink-0 mt-auto"
+                      onClick={() => { setNoteType("general"); addNote(); }}
+                      disabled={!newNote.trim()}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {notes.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No notes yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {notes.map((note) => (
+                        <div key={note.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-sm">
+                          <div className="flex-1">
+                            <p className="whitespace-pre-wrap">{note.content}</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">{new Date(note.created_at).toLocaleDateString()}</p>
                           </div>
-                        ))}
-                        {filteredNotes(type).length === 0 && <p className="text-xs text-muted-foreground">No notes yet.</p>}
-                      </TabsContent>
-                    ))}
-                  </Tabs>
+                          <button onClick={() => deleteNote(note.id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
