@@ -699,6 +699,7 @@ export default function ExecutionPage() {
                   getName={getName}
                   ownerField="owner_id"
                   type="project"
+                  profiles={profiles}
                 />
               )}
 
@@ -763,6 +764,7 @@ export default function ExecutionPage() {
                   getName={getName}
                   ownerField="assigned_to"
                   type="task"
+                  profiles={profiles}
                   onAddCard={(status) => {
                     const title = window.prompt("Task title");
                     if (!title?.trim() || !user) return;

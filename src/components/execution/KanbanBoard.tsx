@@ -5,6 +5,8 @@ import { Calendar, Repeat, Plus, Palette, Check, ChevronLeft, ChevronRight } fro
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { KANBAN_CLASSES, KANBAN_COLORS, resolveColor, type KanbanColorName } from "@/lib/kanban-colors";
+import { EntityCard } from "@/components/primitives";
+import type { EntityKind } from "@/lib/statusTone";
 
 interface KanbanColumn {
   key: string;
@@ -23,6 +25,9 @@ interface KanbanBoardProps {
   type: "project" | "task" | "row";
   onAddCard?: (status: string) => void;
   onEditColumnColor?: (key: string, newColor: KanbanColorName) => void;
+  /** Full profile list — used so the EntityCard can render real avatars
+      (with avatar_url) in the AvatarStack instead of just initials. */
+  profiles?: Array<{ user_id: string; full_name: string | null; avatar_url?: string | null }>;
 }
 
 const priorityStyles: Record<string, string> = {
@@ -75,7 +80,7 @@ function ColorSwatchPicker({ current, onPick }: { current: KanbanColorName; onPi
 }
 
 export default function KanbanBoard({
-  columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor,
+  columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor, profiles,
 }: KanbanBoardProps) {
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -173,57 +178,44 @@ export default function KanbanBoard({
                 }}
               >
                 {colItems.map(item => {
-                  const ownerName = getName(item[ownerField]);
-                  const stripeColor = item.priority ? priorityStripe[item.priority] || cls.stripe : cls.stripe;
+                  // Resolve owner / assignee into a real Person object so the
+                  // AvatarStack inside EntityCard can show a proper avatar
+                  // (with avatar_url) instead of just initials.
+                  const ownerId = item[ownerField];
+                  const ownerProfile = ownerId
+                    ? profiles?.find((p) => p.user_id === ownerId)
+                    : null;
+                  const assignees = ownerProfile
+                    ? [{
+                        user_id: ownerProfile.user_id,
+                        full_name: ownerProfile.full_name,
+                        avatar_url: ownerProfile.avatar_url ?? null,
+                      }]
+                    : (ownerId ? [{ user_id: ownerId, full_name: getName(ownerId), avatar_url: null }] : []);
+
+                  // Map kanban type -> EntityKind. "row" falls back to "task"
+                  // since database_rows are typically task-like.
+                  const kind: EntityKind = type === "project" ? "project" : "task";
+
                   return (
-                    <Card
+                    <div
                       key={item.id}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                      className="cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all overflow-hidden border-border/40"
-                      onClick={() => onItemClick(item)}
+                      className="cursor-grab active:cursor-grabbing"
                     >
-                      <div className={cn("h-[3px] w-full", stripeColor)} />
-                      <CardContent className="p-2.5 space-y-1.5">
-                        <p className="text-sm font-semibold leading-snug flex items-start gap-1">
-                          {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />}
-                          <span className="line-clamp-2">{item.title}</span>
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {item.priority && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[9px] capitalize border-0 rounded-full px-1.5 py-0 h-4",
-                                priorityStyles[item.priority] || ""
-                              )}
-                            >
-                              {item.priority}
-                            </Badge>
-                          )}
-                          {item.due_date && (
-                            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-                              <Calendar className="h-2.5 w-2.5" /> {item.due_date}
-                            </span>
-                          )}
-                        </div>
-                        {ownerName && ownerName !== "Unassigned" ? (
-                          <div className="flex items-center gap-1.5 pt-0.5">
-                            <div
-                              className={cn(
-                                "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0",
-                                hashColor(ownerName)
-                              )}
-                            >
-                              {getInitials(ownerName)}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground truncate">{ownerName}</span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground/70">Unassigned</span>
-                        )}
-                      </CardContent>
-                    </Card>
+                      <EntityCard
+                        kind={kind}
+                        // Column position implies status — don't duplicate it on the card
+                        priority={item.priority}
+                        title={item.title}
+                        coverUrl={item.cover_url}
+                        assignees={assignees}
+                        dateLabel={item.due_date || null}
+                        dateIcon={Calendar}
+                        onClick={() => onItemClick(item)}
+                      />
+                    </div>
                   );
                 })}
 
