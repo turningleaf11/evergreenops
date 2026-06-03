@@ -14,44 +14,42 @@ export function OnboardingTab({ employeeId }: { employeeId: string }) {
   const { onboardingSteps, loading } = useTraining();
   const { completedOnboardingSteps } = useTrainingProgress();
   const { user } = useAuth();
-  const [employeeIsAdmin, setEmployeeIsAdmin] = useState<boolean | null>(null);
+  const [employeeIsPrimaryAdmin, setEmployeeIsPrimaryAdmin] = useState<boolean | null>(null);
 
   // Onboarding progress is currently stored in localStorage per-viewer.
   // We can only show real completion status when the viewer IS the employee.
   const isSelf = user?.id === employeeId;
 
-  // Resolve the EMPLOYEE's role (not the viewer's) so we filter steps for
-  // the person being viewed. Workspace-setup steps (audience='admin') only
-  // make sense for whoever's setting up the workspace.
+  // Resolve whether the EMPLOYEE is the PRIMARY admin (the workspace creator).
+  // Workspace-setup steps (audience='admin') are ONLY for them — not for
+  // later-flipped admins, who join an already-configured workspace.
   useEffect(() => {
     let active = true;
     (async () => {
       const { data } = await sb
         .from("user_roles")
-        .select("role")
+        .select("role, is_primary")
         .eq("user_id", employeeId);
       if (!active) return;
-      const roles = (data ?? []).map((r: any) => r.role);
-      setEmployeeIsAdmin(roles.includes("admin"));
+      const rows = (data ?? []) as Array<{ role: string; is_primary: boolean }>;
+      setEmployeeIsPrimaryAdmin(rows.some((r) => r.role === "admin" && r.is_primary === true));
     })();
     return () => { active = false; };
   }, [employeeId]);
 
-  // Filter to the steps this employee actually needs. Admins see admin + everyone;
-  // regular users see user + everyone. Workspace-setup tasks ("Set your vision",
-  // "Connect Gmail", "Confirm departments") are admin-only and are hidden from
-  // team members.
+  // Filter steps. Primary admins (workspace creators) see admin + everyone.
+  // Everyone else — including later-promoted admins — only sees user + everyone.
   const visibleSteps = useMemo(() => {
-    if (employeeIsAdmin === null) return [];
+    if (employeeIsPrimaryAdmin === null) return [];
     return onboardingSteps.filter((s) => {
       if (s.audience === "everyone") return true;
-      if (s.audience === "admin")    return employeeIsAdmin;
-      if (s.audience === "user")     return !employeeIsAdmin;
+      if (s.audience === "admin")    return employeeIsPrimaryAdmin;
+      if (s.audience === "user")     return !employeeIsPrimaryAdmin;
       return true;
     });
-  }, [onboardingSteps, employeeIsAdmin]);
+  }, [onboardingSteps, employeeIsPrimaryAdmin]);
 
-  if (loading || employeeIsAdmin === null) {
+  if (loading || employeeIsPrimaryAdmin === null) {
     return <p className="text-xs text-muted-foreground">Loading…</p>;
   }
 
