@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, X, Target, FolderKanban, FileText, ChevronDown, CircleDot, User } from "lucide-react";
+import { Plus, X, Target, FolderKanban, FileText, ChevronDown, CircleDot, User, MoreHorizontal, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import LinkProjectPicker from "./LinkProjectPicker";
 import { OwnerPicker, FollowersPicker } from "@/components/crm/PeoplePickers";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { appConfirm } from "@/components/AppConfirm";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
 
@@ -58,6 +60,26 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   }, [goalId]);
 
   useEffect(() => { if (goalId) fetchGoal(); else setGoal(null); }, [goalId, fetchGoal]);
+
+  const handleDeleteGoal = async () => {
+    if (!goalId) return;
+    const confirmed = await appConfirm({
+      title: "Delete this goal?",
+      body: `This will permanently remove "${goal.title}". This action cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    const { error } = await supabase.from("goals").delete().eq("id", goalId);
+    if (error) {
+      toast({ title: "Error deleting goal", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Goal deleted successfully" });
+      onChanged();
+      onClose();
+    }
+  };
 
   if (!goalId || !goal) {
     return (
@@ -125,9 +147,31 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-0">
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 space-y-3 border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur z-10">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Target className="h-3.5 w-3.5 text-primary/70" />
-            <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Target className="h-3.5 w-3.5 text-primary/70" />
+              <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0 mr-4"
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={handleDeleteGoal}
+                  className="text-destructive focus:text-destructive flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete Goal
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <DialogTitle asChild>
             {editingTitle ? (
