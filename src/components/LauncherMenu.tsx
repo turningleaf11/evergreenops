@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Rocket, Plus, X, ExternalLink, Globe } from "lucide-react";
+import { Rocket, Plus, X, Globe, Smile } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -62,6 +64,7 @@ export function LauncherMenu() {
   const [url, setUrl] = useState("");
   const [icon, setIcon] = useState("");
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -93,7 +96,7 @@ export function LauncherMenu() {
       custom_icon: icon.trim() || null,
     });
     if (error) { toast.error(error.message); return; }
-    setLabel(""); setUrl(""); setIcon(""); setAdding(false); setFaviconPreview(null);
+    setLabel(""); setUrl(""); setIcon(""); setAdding(false); setFaviconPreview(null); setPickerOpen(false);
     load();
   };
 
@@ -112,7 +115,7 @@ export function LauncherMenu() {
   };
 
   const cancelAdd = () => {
-    setAdding(false); setLabel(""); setUrl(""); setIcon(""); setFaviconPreview(null);
+    setAdding(false); setLabel(""); setUrl(""); setIcon(""); setFaviconPreview(null); setPickerOpen(false);
   };
 
   return (
@@ -188,16 +191,47 @@ export function LauncherMenu() {
             />
 
             {/* Emoji override */}
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Emoji override (optional)"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="h-9 text-sm bg-background/60"
-                maxLength={8}
-              />
-              {icon && isEmoji(icon) && (
-                <span className="text-xl shrink-0">{icon}</span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPickerOpen((p) => !p)}
+                className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-input bg-background/60 text-sm hover:bg-muted/50 transition-colors"
+              >
+                {icon ? (
+                  <span className="text-lg leading-none">{icon}</span>
+                ) : (
+                  <Smile className="w-4 h-4 text-muted-foreground" />
+                )}
+                <span className="text-muted-foreground text-xs">
+                  {icon ? "Emoji override active" : "Pick an emoji icon (optional)"}
+                </span>
+                {icon && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIcon(""); }}
+                    className="ml-auto text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </button>
+
+              {pickerOpen && (
+                <div className="absolute z-50 bottom-full mb-1 right-0" onClick={(e) => e.stopPropagation()}>
+                  <Picker
+                    data={data}
+                    onEmojiSelect={(e: { native: string }) => {
+                      setIcon(e.native);
+                      setPickerOpen(false);
+                    }}
+                    theme="auto"
+                    previewPosition="none"
+                    skinTonePosition="none"
+                    navPosition="bottom"
+                    perLine={8}
+                    maxFrequentRows={2}
+                  />
+                </div>
               )}
             </div>
 
