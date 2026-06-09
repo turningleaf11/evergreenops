@@ -4,7 +4,7 @@ import data from "@emoji-mart/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Rocket, Plus, X, Globe, Smile } from "lucide-react";
+import { Rocket, Plus, X, Globe, Smile, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -252,7 +252,7 @@ export function LauncherMenu() {
           </div>
         )}
 
-        {/* Grid */}
+        {/* List */}
         {favorites.length === 0 && !adding ? (
           <div className="py-8 text-center">
             <Rocket className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
@@ -261,30 +261,31 @@ export function LauncherMenu() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto pr-0.5">
+          <div className="space-y-0.5 max-h-72 overflow-y-auto">
             {favorites.map((f) => (
-              <div key={f.id} className="group relative flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-muted/60 transition-colors cursor-pointer">
+              <div key={f.id} className="group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/60 transition-colors">
+                {/* Icon */}
+                <div className="w-7 h-7 rounded-md bg-background border border-border/50 shadow-sm flex items-center justify-center shrink-0 group-hover:border-border transition-colors">
+                  <ItemIcon fav={f} />
+                </div>
+
+                {/* Label */}
                 <a
                   href={f.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center gap-1.5 w-full"
-                  title={f.url}
+                  className="flex-1 min-w-0 flex items-center justify-between gap-2"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-background border border-border/50 shadow-sm flex items-center justify-center group-hover:border-border transition-colors">
-                    <ItemIcon fav={f} />
-                  </div>
-                  <span className="text-[10px] text-center leading-tight text-foreground/80 max-w-full truncate w-full">
-                    {f.label}
-                  </span>
+                  <span className="text-sm text-foreground/90 truncate">{f.label}</span>
+                  <ExternalLink className="w-3 h-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
                 </a>
 
-                {/* Remove button */}
+                {/* Remove */}
                 <button
-                  onClick={(e) => { e.preventDefault(); remove(f.id); }}
-                  className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center shadow-sm"
+                  onClick={() => remove(f.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-destructive shrink-0"
                 >
-                  <X className="w-2.5 h-2.5" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
