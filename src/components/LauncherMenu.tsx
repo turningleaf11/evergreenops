@@ -217,7 +217,7 @@ export function LauncherMenu() {
               </button>
 
               {pickerOpen && (
-                <div className="absolute z-50 bottom-full mb-1 right-0" onClick={(e) => e.stopPropagation()}>
+                <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                   <Picker
                     data={data}
                     onEmojiSelect={(e: { native: string }) => {
@@ -228,8 +228,9 @@ export function LauncherMenu() {
                     previewPosition="none"
                     skinTonePosition="none"
                     navPosition="bottom"
-                    perLine={8}
-                    maxFrequentRows={2}
+                    perLine={7}
+                    maxFrequentRows={1}
+                    width="100%"
                   />
                 </div>
               )}
