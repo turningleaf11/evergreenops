@@ -487,9 +487,12 @@ Deno.serve(async (req) => {
         }
 
         if (fetchedOpps && fetchedOpps.length < 3000) {
-          // Full pipeline in memory — count by exact pipelineStageId match
-          value = fetchedOpps.filter((o: any) => o.pipelineStageId === stage.id).length;
-          console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps): ${value}`);
+          // Full pipeline in memory — count open opps in this stage only
+          // (won/lost/abandoned opps retain their last pipelineStageId, must be excluded)
+          value = fetchedOpps.filter((o: any) =>
+            o.pipelineStageId === stage.id && (o.status ?? "open") === "open"
+          ).length;
+          console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps, open only): ${value}`);
         } else {
           // Pipeline too large to batch — fall back to API filter + meta.total
           value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
