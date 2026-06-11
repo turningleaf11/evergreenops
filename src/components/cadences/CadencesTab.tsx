@@ -39,6 +39,7 @@ export interface CadenceRun {
   due_date: string;
   completed_at: string | null;
   status: string;
+  note: string | null;
 }
 
 const FREQUENCY_ORDER = ["daily", "weekly", "monthly", "quarterly", "custom"] as const;

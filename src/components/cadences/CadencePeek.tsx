@@ -4,9 +4,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar, CheckCircle2, Clock, FileText, Flame,
   User, Building2, Edit2, CheckCheck, Circle, ExternalLink,
+  SkipForward, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -64,6 +66,9 @@ export function cadenceNextDue(c: Cadence): Date {
 
 export function CadencePeek({ cadence, runs, profiles, departments, docs, open, onOpenChange, onEdit, onRefresh }: Props) {
   const [docPeekId, setDocPeekId] = useState<string | null>(null);
+  // "complete" | "skip" | null
+  const [logMode, setLogMode] = useState<"complete" | "skip" | null>(null);
+  const [logNote, setLogNote] = useState("");
 
   if (!cadence) return null;
 
@@ -92,24 +97,31 @@ export function CadencePeek({ cadence, runs, profiles, departments, docs, open, 
   const currentRun = cadenceRuns.find(r => r.due_date === todayStr);
   const isCompletedToday = currentRun?.status === "completed";
 
-  const markComplete = async () => {
+  const submitLog = async () => {
+    const status = logMode === "complete" ? "completed" : "skipped";
+    const payload: any = {
+      cadence_id: cadence.id,
+      due_date: todayStr,
+      status,
+      note: logNote.trim() || null,
+      ...(status === "completed" ? { completed_at: new Date().toISOString() } : {}),
+    };
+
+    let error;
     if (currentRun) {
-      const { error } = await supabase.from("cadence_runs")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", currentRun.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      ({ error } = await supabase.from("cadence_runs").update(payload).eq("id", currentRun.id));
     } else {
-      const { error } = await supabase.from("cadence_runs").insert({
-        cadence_id: cadence.id,
-        due_date: todayStr,
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      });
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      ({ error } = await supabase.from("cadence_runs").insert(payload));
     }
-    toast({ title: "Marked complete ✓" });
+
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: status === "completed" ? "Marked complete ✓" : "Logged as skipped" });
+    setLogMode(null);
+    setLogNote("");
     onRefresh();
   };
+
+  const cancelLog = () => { setLogMode(null); setLogNote(""); };
 
   const doc = getDoc(cadence.sop_doc_id);
   const dept = getDept(cadence.department_id);
@@ -146,16 +158,56 @@ export function CadencePeek({ cadence, runs, profiles, departments, docs, open, 
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            {/* Mark complete */}
-            <Button
-              className={cn("w-full gap-2", isCompletedToday && "bg-green-600 hover:bg-green-700")}
-              onClick={markComplete}
-              disabled={isCompletedToday}
-            >
-              {isCompletedToday
-                ? <><CheckCheck className="h-4 w-4" /> Completed today</>
-                : <><CheckCircle2 className="h-4 w-4" /> Mark complete</>}
-            </Button>
+            {/* Actions */}
+            {isCompletedToday ? (
+              <div className="flex items-center justify-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 py-2.5 text-sm text-green-600 font-medium">
+                <CheckCheck className="h-4 w-4" /> Completed today
+              </div>
+            ) : currentRun?.status === "skipped" ? (
+              <div className="flex items-center justify-center gap-2 rounded-lg bg-muted border border-border py-2.5 text-sm text-muted-foreground font-medium">
+                <SkipForward className="h-4 w-4" /> Skipped this cycle
+              </div>
+            ) : logMode ? (
+              <div className="space-y-2.5 rounded-xl border border-border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {logMode === "complete" ? "Add a completion note (optional)" : "Reason for skipping (required)"}
+                </p>
+                <Textarea
+                  autoFocus
+                  value={logNote}
+                  onChange={e => setLogNote(e.target.value)}
+                  placeholder={logMode === "complete"
+                    ? "e.g. loaded 2,891 leads into GHL"
+                    : "e.g. holiday week, pushing to next Monday"}
+                  rows={2}
+                  className="text-sm resize-none"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className={cn("flex-1 gap-1.5", logMode === "complete" ? "" : "bg-amber-500 hover:bg-amber-600")}
+                    onClick={submitLog}
+                    disabled={logMode === "skip" && !logNote.trim()}
+                  >
+                    {logMode === "complete"
+                      ? <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm complete</>
+                      : <><SkipForward className="h-3.5 w-3.5" /> Confirm skip</>}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={cancelLog} className="px-2.5">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button className="flex-1 gap-1.5" onClick={() => setLogMode("complete")}>
+                  <CheckCircle2 className="h-4 w-4" /> Mark complete
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-muted-foreground" onClick={() => setLogMode("skip")}>
+                  <SkipForward className="h-4 w-4" /> Skip
+                </Button>
+              </div>
+            )}
 
             <Separator />
 
@@ -224,21 +276,29 @@ export function CadencePeek({ cadence, runs, profiles, departments, docs, open, 
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Recent runs</p>
                   <div className="space-y-1.5">
                     {cadenceRuns.slice(0, 8).map(r => (
-                      <div key={r.id} className="flex items-center gap-2 text-xs">
-                        {r.status === "completed"
-                          ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                          : <Circle className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />}
-                        <span className="text-muted-foreground">{format(new Date(r.due_date), "MMM d")}</span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] ml-auto",
-                            r.status === "completed" && "border-green-500/30 text-green-600",
-                            r.status === "missed" && "border-red-500/30 text-red-500",
-                          )}
-                        >
-                          {r.status}
-                        </Badge>
+                      <div key={r.id} className="space-y-0.5">
+                        <div className="flex items-center gap-2 text-xs">
+                          {r.status === "completed"
+                            ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                            : r.status === "skipped"
+                              ? <SkipForward className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                              : <Circle className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />}
+                          <span className="text-muted-foreground">{format(new Date(r.due_date), "MMM d")}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] ml-auto",
+                              r.status === "completed" && "border-green-500/30 text-green-600",
+                              r.status === "skipped" && "border-amber-400/30 text-amber-500",
+                              r.status === "missed" && "border-red-500/30 text-red-500",
+                            )}
+                          >
+                            {r.status}
+                          </Badge>
+                        </div>
+                        {r.note && (
+                          <p className="text-[11px] text-muted-foreground/70 pl-5 italic">{r.note}</p>
+                        )}
                       </div>
                     ))}
                   </div>
