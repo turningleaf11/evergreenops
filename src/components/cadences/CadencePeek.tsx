@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addDays, startOfDay, addMonths, addQuarters } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ interface Props {
   departments: { id: string; name: string }[];
   docs: { id: string; title: string }[];
   open: boolean;
+  initialLogMode?: "complete" | "skip" | null;
   onOpenChange: (o: boolean) => void;
   onEdit: () => void;
   onRefresh: () => void;
@@ -64,11 +65,22 @@ export function cadenceNextDue(c: Cadence): Date {
   return today;
 }
 
-export function CadencePeek({ cadence, runs, profiles, departments, docs, open, onOpenChange, onEdit, onRefresh }: Props) {
+export function CadencePeek({ cadence, runs, profiles, departments, docs, open, initialLogMode, onOpenChange, onEdit, onRefresh }: Props) {
   const [docPeekId, setDocPeekId] = useState<string | null>(null);
-  // "complete" | "skip" | null
   const [logMode, setLogMode] = useState<"complete" | "skip" | null>(null);
   const [logNote, setLogNote] = useState("");
+
+  // When the peek opens with a pre-selected mode (e.g. Skip from card menu), apply it
+  useEffect(() => {
+    if (open && initialLogMode) {
+      setLogMode(initialLogMode);
+      setLogNote("");
+    }
+    if (!open) {
+      setLogMode(null);
+      setLogNote("");
+    }
+  }, [open, initialLogMode]);
 
   if (!cadence) return null;
 
