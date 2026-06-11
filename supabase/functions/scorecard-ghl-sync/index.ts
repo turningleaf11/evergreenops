@@ -1,10 +1,14 @@
 /**
- * scorecard-ghl-sync v28
+ * scorecard-ghl-sync v29
  *
  * GHL API v2021-07-28:
  *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
- *   GET /opportunities/search?location_id=...&pipeline_id=...&pipeline_stage_id=...&limit=1
- *     → meta.total gives exact stage count without fetching all records
+ *
+ * Stage counting strategy:
+ *   - Small/medium pipelines (<2900 total opps): fetch all, filter client-side by
+ *     pipelineStageId — most accurate, immune to API-side filter quirks.
+ *   - Large pipelines (≥2900 opps, e.g. Seller Outreach 17k): fall back to
+ *     pipeline_stage_id filter + meta.total.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -427,7 +431,7 @@ Deno.serve(async (req) => {
 
     let synced = 0;
 
-    // ── Process stage metrics via direct stage count API ─────────────────────
+    // ── Process stage metrics — batch-filter for small pipelines, fetchStageCount for large ──
     for (const m of stageMetrics) {
       const key = (m.ghl_field_key as string).trim();
       // Format: alias:stage:Stage Name
@@ -454,8 +458,44 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
-        console.log(`Stage "${stageName}" in "${pipeline.name}": ${value}`);
+        let value: number;
+
+        // Prefer batch filtering (exact pipelineStageId match) over API-side filter.
+        // batchMetrics already fetched opps for this pipeline — reuse the cache.
+        let fetchedOpps = oppsByPipelineId.get(pipeline.id);
+
+        if (!fetchedOpps) {
+          // Not cached yet — check total size before deciding to fetch all
+          const checkParams = new URLSearchParams({
+            location_id: locationId,
+            pipeline_id: pipeline.id,
+            limit: "1",
+            page: "1",
+          });
+          const checkRes = await fetch(
+            `https://services.leadconnectorhq.com/opportunities/search?${checkParams}`,
+            { headers: { Authorization: `Bearer ${ghlApiKey}`, Version: "2021-07-28", Accept: "application/json" } },
+          );
+          const checkData = checkRes.ok ? await checkRes.json() : {};
+          const pipelineTotal: number = checkData.meta?.total ?? 9999;
+
+          if (pipelineTotal < 2900) {
+            fetchedOpps = await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id);
+            oppsByPipelineId.set(pipeline.id, fetchedOpps);
+            console.log(`Batch-fetched "${pipeline.name}": ${fetchedOpps.length} opps for stage filter`);
+          }
+        }
+
+        if (fetchedOpps && fetchedOpps.length < 3000) {
+          // Full pipeline in memory — count by exact pipelineStageId match
+          value = fetchedOpps.filter((o: any) => o.pipelineStageId === stage.id).length;
+          console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps): ${value}`);
+        } else {
+          // Pipeline too large to batch — fall back to API filter + meta.total
+          value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
+          console.log(`Stage "${stageName}" in "${pipeline.name}" (fetchStageCount large): ${value}`);
+        }
+
         const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
           { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from GHL" },
           { onConflict: "metric_id,week_start_date" },
