@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Send, Loader2, Paperclip, X, Download, ExternalLink, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -253,11 +253,7 @@ export function DirectiveThread({ strategyItemId, departmentId }: Props) {
           const roleLabel = msg.author_role === "ceo" ? "CEO" : msg.author_role === "admin" ? "Admin" : "Leader";
           return (
             <div key={msg.id} className={cn("flex gap-2", isMine && "flex-row-reverse")}>
-              <Avatar className="h-6 w-6 shrink-0 mt-0.5">
-                <AvatarFallback className="text-[10px] bg-muted">
-                  {initials(author?.full_name || null)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar name={author?.full_name} avatarUrl={author?.avatar_url} className="h-6 w-6 shrink-0 mt-0.5" fallbackClassName="text-[10px] bg-muted" />
               <div className={cn("flex-1 min-w-0 space-y-1", isMine && "flex flex-col items-end")}>
                 <div className={cn("flex items-center gap-1.5", isMine && "flex-row-reverse")}>
                   <span className="text-[11px] font-medium text-foreground truncate">{author?.full_name || "Unknown"}</span>

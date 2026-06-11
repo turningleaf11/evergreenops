@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Users, ListFilter, UserPlus2 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 type DelegatedItem = {
@@ -92,9 +92,7 @@ export function DelegationBoard() {
       return (
         <div key={userId} className="space-y-1">
           <div className="flex items-center gap-2 py-1">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-[10px]">{getInitials(p?.full_name || null)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={p?.full_name} avatarUrl={p?.avatar_url} className="h-6 w-6" fallbackClassName="text-[10px]" />
             <span className="text-sm font-medium">{p?.full_name || "Unknown"}</span>
             <span className="text-xs text-muted-foreground">({userItems.length})</span>
           </div>

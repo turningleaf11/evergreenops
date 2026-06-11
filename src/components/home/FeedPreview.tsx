@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageSquare } from "lucide-react";
 import { PostCard } from "@/components/feed/PostCard";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 
 interface FeedPreviewProps {
@@ -50,9 +50,7 @@ export function FeedPreview({ variant = "vertical" }: FeedPreviewProps) {
                   className="snap-start shrink-0 w-[280px] rounded-xl border border-border/40 bg-card hover:border-border hover:shadow-sm transition-all p-3 space-y-2"
                 >
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="text-[10px] bg-muted">{initials}</AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={post.author_name} avatarUrl={undefined} className="h-7 w-7" fallbackClassName="text-[10px] bg-muted" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium truncate">{post.author_name || "Unknown"}</p>
                       <p className="text-[10px] text-muted-foreground">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,9 +59,7 @@ export function PostCard({ post, onRefresh }: PostCardProps) {
   return (
     <div className="rounded-xl border bg-card p-3 space-y-2 group">
       <div className="flex items-center gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="text-xs bg-muted">{initials}</AvatarFallback>
-        </Avatar>
+        <UserAvatar name={post.author_name} avatarUrl={undefined} className="h-8 w-8" fallbackClassName="text-xs bg-muted" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">{post.author_name || "Unknown"}</p>
           <p className="text-[10px] text-muted-foreground">

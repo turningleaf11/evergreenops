@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Heart, ArrowRight, Plus, Sparkles, Star, Users, Lightbulb, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -25,6 +25,7 @@ const CONFETTI_COLORS = [
 export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
   const [items, setItems] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -36,13 +37,15 @@ export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
           .gte("created_at", sevenDaysAgo)
           .order("created_at", { ascending: false })
           .limit(3),
-        supabase.from("profiles").select("user_id, full_name"),
+        supabase.from("profiles").select("user_id, full_name, avatar_url"),
       ]);
       if (kudosRes.data) setItems(kudosRes.data);
       if (profRes.data) {
         const map: Record<string, string> = {};
-        profRes.data.forEach((p: any) => { map[p.user_id] = p.full_name || "Teammate"; });
+        const urlMap: Record<string, string | null> = {};
+        profRes.data.forEach((p: any) => { map[p.user_id] = p.full_name || "Teammate"; urlMap[p.user_id] = p.avatar_url || null; });
         setProfiles(map);
+        setAvatarUrls(urlMap);
       }
     };
     load();
@@ -98,11 +101,7 @@ export function RecognitionWidget({ onGiveKudos }: RecognitionWidgetProps) {
               >
                 <div className="relative shrink-0">
                   <div className="kudos-avatar-ring">
-                    <Avatar className="h-8 w-8 border-2 border-card">
-                      <AvatarFallback className={`text-[10px] text-white bg-gradient-to-br ${meta.color}`}>
-                        {initials(fromName)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={fromName} avatarUrl={avatarUrls[k.from_user_id]} className={`h-8 w-8 border-2 border-card`} fallbackClassName={`text-[10px] text-white bg-gradient-to-br ${meta.color}`} />
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center ring-2 ring-card">
                     <Icon className="h-2 w-2 text-white fill-white" />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
 import { SyncChannel, SyncTag, SyncThread } from "@/hooks/useSync";
@@ -26,14 +26,14 @@ interface Props {
 }
 
 export function SyncThreadList({ threads, channels, tags, selectedThreadId, onSelect, emptyHint }: Props) {
-  const [authors, setAuthors] = useState<Map<string, { full_name: string | null }>>(new Map());
+  const [authors, setAuthors] = useState<Map<string, { full_name: string | null; avatar_url?: string | null }>>(new Map());
 
   useEffect(() => {
     const ids = Array.from(new Set(threads.map((t) => t.author_id).filter(Boolean))) as string[];
     if (ids.length === 0) return;
     (async () => {
-      const { data } = await sb.from("profiles").select("user_id, full_name").in("user_id", ids);
-      setAuthors(new Map((data ?? []).map((p: any) => [p.user_id, { full_name: p.full_name }])));
+      const { data } = await sb.from("profiles").select("user_id, full_name, avatar_url").in("user_id", ids);
+      setAuthors(new Map((data ?? []).map((p: any) => [p.user_id, { full_name: p.full_name, avatar_url: p.avatar_url }])));
     })();
   }, [threads.map((t) => t.author_id).join(",")]);
 
@@ -62,11 +62,7 @@ export function SyncThreadList({ threads, channels, tags, selectedThreadId, onSe
               )}
             >
               <div className="flex items-start gap-2.5">
-                <Avatar className="h-7 w-7 mt-0.5 shrink-0">
-                  <AvatarFallback className="text-[10px] bg-muted">
-                    {initials(author?.full_name || null)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar name={author?.full_name} avatarUrl={author?.avatar_url} className="h-7 w-7 mt-0.5 shrink-0" fallbackClassName="text-[10px] bg-muted" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className={cn(

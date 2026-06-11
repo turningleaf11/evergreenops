@@ -24,7 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   Target, Flame, AlertCircle, Users, Sparkles, ArrowRight,
   CircleDot, Clock, ChevronRight, Loader2, RefreshCw, FileText, Folder, AlertTriangle,
@@ -490,11 +490,7 @@ function TeamBlock({ members, deptColor }: { members: Member[]; deptColor: strin
           <div className="flex flex-wrap gap-2">
             {members.map((m) => (
               <div key={m.user_id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-muted/50">
-                <Avatar className="h-5 w-5 shrink-0">
-                  <AvatarFallback className="text-[9px]" style={{ background: `hsl(${deptColor} / 0.25)` }}>
-                    {(m.full_name || "U").split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar name={m.full_name} avatarUrl={undefined} className="h-5 w-5 shrink-0" fallbackClassName="text-[9px]" />
                 <span className="text-xs">{m.full_name || "Unnamed"}</span>
               </div>
             ))}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Download, FileText, CheckCircle2, RotateCcw, Trash2, FolderPlus, ExternalLink, ListTodo } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LinkedItemPicker, LinkedItemChip, type LinkedItem } from "./LinkedItemPicker";
@@ -26,7 +26,7 @@ type Message = {
   attachments: Attachment[];
   created_at: string;
 };
-type Profile = { user_id: string; full_name: string | null };
+type Profile = { user_id: string; full_name: string | null; avatar_url?: string | null };
 
 function relTime(iso: string) {
   try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; }
@@ -100,7 +100,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
         thread.author_id,
       ].filter(Boolean) as string[]));
       if (ids.length > 0) {
-        const { data: profs } = await sb.from("profiles").select("user_id, full_name").in("user_id", ids);
+        const { data: profs } = await sb.from("profiles").select("user_id, full_name, avatar_url").in("user_id", ids);
         if (!cancelled && profs) setAuthors(new Map((profs as Profile[]).map((p) => [p.user_id, p])));
       }
       setLoaded(true);
@@ -343,9 +343,7 @@ export function SyncThreadDetail({ thread, channel, tags, onChanged, onClose }: 
           const a = msg.author_id ? authors.get(msg.author_id) : undefined;
           return (
             <div key={msg.id} className={cn("flex gap-2", isMine && "flex-row-reverse")}>
-              <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-                <AvatarFallback className="text-[10px] bg-muted">{initials(a?.full_name || null)}</AvatarFallback>
-              </Avatar>
+              <UserAvatar name={a?.full_name} avatarUrl={a?.avatar_url} className="h-7 w-7 shrink-0 mt-0.5" fallbackClassName="text-[10px] bg-muted" />
               <div className={cn("flex-1 min-w-0 space-y-1", isMine && "flex flex-col items-end")}>
                 <div className={cn("flex items-center gap-1.5", isMine && "flex-row-reverse")}>
                   <span className="text-[11px] font-medium text-foreground truncate">{a?.full_name || "Unknown"}</span>

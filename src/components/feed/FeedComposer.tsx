@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -144,9 +144,7 @@ export function FeedComposer({ onPost, people, compact = false, requestedMode, r
     <div className="rounded-2xl bg-card elevation-2 border border-border/40 overflow-hidden">
       <div className="p-5">
         <div className="flex gap-3">
-          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/10">
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} className="h-10 w-10 shrink-0 ring-2 ring-primary/10" fallbackClassName="bg-primary/10 text-primary text-sm font-semibold" />
 
           {!expanded ? (
             <button

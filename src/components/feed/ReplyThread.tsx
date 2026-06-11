@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Send, Trash2, Mic, Square, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ReactionBar } from "./ReactionBar";
@@ -112,11 +112,7 @@ export function ReplyThread({ entityType, entityId, onCountChange }: ReplyThread
       {replies.map((r) => (
         <div key={r.id} className="space-y-1">
           <div className="flex gap-2 group/reply">
-            <Avatar className="h-6 w-6 shrink-0">
-              <AvatarFallback className="text-[10px] bg-muted">
-                {(r.author_name || "U").split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar name={r.author_name} avatarUrl={undefined} className="h-6 w-6 shrink-0" fallbackClassName="text-[10px] bg-muted" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium">{r.author_name || "Unknown"}</span>

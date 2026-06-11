@@ -5,7 +5,7 @@ import { useTraining, TrainingModule, TrainingModuleType, TrainingCategory } fro
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -938,11 +938,7 @@ function UsersTab() {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={u.full_name} avatarUrl={u.avatar_url} className="h-9 w-9 shrink-0" fallbackClassName="text-xs bg-primary text-primary-foreground" />
                   <div className="min-w-0">
                     {isEditing ? (
                       <div className="flex items-center gap-1.5">

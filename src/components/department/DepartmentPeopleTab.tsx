@@ -14,7 +14,7 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Users, CheckSquare, Folder, ChevronRight } from "lucide-react";
 import { useMentionPeek } from "@/components/mention-peek/MentionPeekProvider";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -137,14 +137,12 @@ export function DepartmentPeopleTab({
                 <CardContent className="p-4 space-y-3">
                   {/* Header: avatar + name + chevron */}
                   <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarFallback
-                        className="text-xs"
-                        style={{ background: `hsl(${deptColor} / 0.18)`, color: `hsl(${deptColor})` }}
-                      >
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      name={m.full_name}
+                      avatarUrl={m.avatar_url}
+                      className="h-10 w-10 shrink-0"
+                      fallbackClassName="text-xs"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="font-medium text-sm truncate">{m.full_name || "Unnamed"}</p>

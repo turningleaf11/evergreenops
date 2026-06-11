@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageSquare, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,9 +108,7 @@ export function FeedCarousel() {
                 )}
                 <div className="p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-[9px] bg-muted">{initials}</AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={post.author_name} avatarUrl={undefined} className="h-6 w-6" fallbackClassName="text-[9px] bg-muted" />
                     <div className="min-w-0 flex-1">
                       <span className="text-xs font-medium block truncate">{post.author_name || "Unknown"}</span>
                       <span className="text-[9px] text-muted-foreground">

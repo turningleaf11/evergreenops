@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Search, Folder, CheckSquare, Circle, CircleDot, CheckCircle2, AlertCircle, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMentionPeek } from "@/components/mention-peek/MentionPeekProvider";
@@ -217,11 +217,7 @@ function ProjectsList({ projects, members, currentUserId, getName }: {
                   )}
                   {ownerName && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Avatar className="h-5 w-5">
-                        <AvatarFallback className="text-[9px] bg-muted">
-                          {ownerName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar name={ownerName} avatarUrl={undefined} className="h-5 w-5" fallbackClassName="text-[9px] bg-muted" />
                     </div>
                   )}
                 </button>
@@ -305,11 +301,7 @@ function TasksList({ tasks, members, currentUserId, getName }: {
                     <span className="text-[10px] text-muted-foreground shrink-0">{t.due_date}</span>
                   )}
                   {assigneeName && (
-                    <Avatar className="h-5 w-5 shrink-0">
-                      <AvatarFallback className="text-[9px] bg-muted">
-                        {assigneeName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={assigneeName} avatarUrl={undefined} className="h-5 w-5 shrink-0" fallbackClassName="text-[9px] bg-muted" />
                   )}
                 </button>
               </li>

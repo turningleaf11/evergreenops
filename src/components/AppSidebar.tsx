@@ -30,7 +30,7 @@ import {
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -132,7 +132,6 @@ export function AppSidebar() {
     );
   };
 
-  const initials = (profile?.full_name || "U").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
     <Sidebar collapsible="icon">
@@ -321,11 +320,12 @@ export function AppSidebar() {
               "w-full flex items-center gap-2.5 rounded-lg p-2 hover:bg-sidebar-accent transition-colors",
               collapsed && "justify-center",
             )}>
-              <Avatar className="h-7 w-7 shrink-0">
-                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={profile?.full_name}
+                avatarUrl={profile?.avatar_url}
+                className="h-7 w-7 shrink-0"
+                fallbackClassName="text-xs bg-primary text-primary-foreground"
+              />
               {!collapsed && (
                 <>
                   <div className="flex flex-col flex-1 min-w-0 text-left">

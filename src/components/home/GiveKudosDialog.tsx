@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Heart, Loader2, Send, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
@@ -103,9 +103,7 @@ export function GiveKudosDialog({ open, onOpenChange, onSent }: GiveKudosDialogP
 
         <div className="p-5 space-y-3">
           <div className="flex gap-3">
-            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/10">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{initials}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} className="h-10 w-10 shrink-0 ring-2 ring-primary/10" fallbackClassName="bg-primary/10 text-primary text-sm font-semibold" />
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex gap-2">
                 <Select value={toUser} onValueChange={setToUser}>

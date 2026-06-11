@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -37,6 +37,7 @@ export default function ActivitySidebar({ entityType, entityId, collapsed = fals
   const [filter, setFilter] = useState<FilterTab>("all");
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string | null>>({});
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -92,11 +93,13 @@ export default function ActivitySidebar({ entityType, entityId, collapsed = fals
     // Fetch profiles
     const ids = [...allActorIds];
     if (ids.length > 0) {
-      const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", ids);
+      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", ids);
       if (profs) {
         const map: Record<string, string> = {};
-        profs.forEach(p => { map[p.user_id] = p.full_name || "Unknown"; });
+        const urlMap: Record<string, string | null> = {};
+        profs.forEach((p: any) => { map[p.user_id] = p.full_name || "Unknown"; urlMap[p.user_id] = p.avatar_url || null; });
         setProfiles(map);
+        setAvatarUrls(urlMap);
       }
     }
 
@@ -173,9 +176,7 @@ export default function ActivitySidebar({ entityType, entityId, collapsed = fals
     return (
       <div key={event.id} className="py-2.5">
         <div className="flex gap-2.5">
-          <Avatar className="h-6 w-6 shrink-0">
-            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{initials(name)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={name} avatarUrl={avatarUrls[event.actorId || ""] || undefined} className="h-6 w-6 shrink-0" fallbackClassName="text-[9px] bg-primary/10 text-primary" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium">{name}</span>
@@ -218,9 +219,7 @@ export default function ActivitySidebar({ entityType, entityId, collapsed = fals
             {getReplies(event.commentId!).map(reply => (
               <div key={reply.id} className="ml-4 mt-2 pt-2 border-l-2 border-border/40 pl-3">
                 <div className="flex gap-2">
-                  <Avatar className="h-5 w-5 shrink-0">
-                    <AvatarFallback className="text-[8px] bg-primary/10 text-primary">{initials(getName(reply.actorId))}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={getName(reply.actorId)} avatarUrl={avatarUrls[reply.actorId || ""] || undefined} className="h-5 w-5 shrink-0" fallbackClassName="text-[8px] bg-primary/10 text-primary" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-medium">{getName(reply.actorId)}</span>

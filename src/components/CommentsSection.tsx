@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { MessageSquare, Reply, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { RichCommentInput, AttachmentChips, type CommentAttachment } from "@/components/shared/RichCommentInput";
@@ -30,6 +30,7 @@ export default function CommentsSection({ entityType, entityId, hideHeader = fal
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string | null>>({});
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,14 +52,17 @@ export default function CommentsSection({ entityType, entityId, hideHeader = fal
       if (ids.length > 0) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("user_id, full_name")
+          .select("user_id, full_name, avatar_url")
           .in("user_id", ids);
         if (profs) {
           const map: Record<string, string> = {};
-          profs.forEach((p) => {
+          const urlMap: Record<string, string | null> = {};
+          profs.forEach((p: any) => {
             map[p.user_id] = p.full_name || "Unknown";
+            urlMap[p.user_id] = p.avatar_url || null;
           });
           setProfiles(map);
+          setAvatarUrls(urlMap);
         }
       }
     }
@@ -124,9 +128,7 @@ export default function CommentsSection({ entityType, entityId, hideHeader = fal
 
     return (
       <div className={`flex gap-3 ${isReply ? "ml-10" : ""}`}>
-        <Avatar className="h-7 w-7 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-[10px] text-primary">{initials(name)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar name={name} avatarUrl={avatarUrls[comment.author_id]} className="h-7 w-7 shrink-0" fallbackClassName="bg-primary/10 text-[10px] text-primary" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{name}</span>

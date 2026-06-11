@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, Sparkles, Star, Users, Lightbulb, Trophy, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { ReactionBar } from "./ReactionBar";
 import { ReplyThread } from "./ReplyThread";
 import { FeedItemMenu } from "./FeedItemMenu";
@@ -34,6 +34,8 @@ interface KudosCardProps {
 export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
   const [fromName, setFromName] = useState("");
   const [toName, setToName] = useState("");
+  const [fromAvatar, setFromAvatar] = useState<string | null>(null);
+  const [toAvatar, setToAvatar] = useState<string | null>(null);
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const [replyCount, setReplyCount] = useState(0);
 
@@ -41,11 +43,15 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
     const fetchNames = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("user_id, full_name")
+        .select("user_id, full_name, avatar_url")
         .in("user_id", [kudo.from_user_id, kudo.to_user_id]);
       if (data) {
-        setFromName(data.find((p) => p.user_id === kudo.from_user_id)?.full_name || "Someone");
-        setToName(data.find((p) => p.user_id === kudo.to_user_id)?.full_name || "Someone");
+        const from = data.find((p) => p.user_id === kudo.from_user_id);
+        const to = data.find((p) => p.user_id === kudo.to_user_id);
+        setFromName(from?.full_name || "Someone");
+        setToName(to?.full_name || "Someone");
+        setFromAvatar((from as any)?.avatar_url || null);
+        setToAvatar((to as any)?.avatar_url || null);
       }
     };
     fetchNames();
@@ -103,9 +109,7 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
       {/* Centerpiece — celebrating WHO */}
       <div className="relative flex items-center justify-center gap-4 py-2">
         <div className="flex flex-col items-center gap-1">
-          <Avatar className="h-12 w-12 ring-2 ring-border">
-            <AvatarFallback className="text-xs bg-muted">{initials(fromName)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={fromName} avatarUrl={fromAvatar} className="h-12 w-12 ring-2 ring-border" fallbackClassName="text-xs bg-muted" />
           <span className="text-[10px] text-muted-foreground">{fromName}</span>
         </div>
 
@@ -116,11 +120,7 @@ export function KudosCard({ kudo, onRefresh }: KudosCardProps) {
 
         <div className="flex flex-col items-center gap-1">
           <div className="kudos-avatar-ring">
-            <Avatar className="h-14 w-14 border-2 border-card">
-              <AvatarFallback className={`text-sm font-bold text-white bg-gradient-to-br ${meta.color}`}>
-                {initials(toName)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar name={toName} avatarUrl={toAvatar} className="h-14 w-14 border-2 border-card" fallbackClassName={`text-sm font-bold text-white bg-gradient-to-br ${meta.color}`} />
           </div>
           <span className="text-xs font-semibold bg-gradient-to-r from-pink-500 to-fuchsia-500 bg-clip-text text-transparent">
             {toName}
