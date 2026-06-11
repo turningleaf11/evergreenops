@@ -28,13 +28,13 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [doneLooksLike, setDoneLooksLike] = useState("");
   const [ownerId, setOwnerId] = useState<string>("");
   const [deptId, setDeptId] = useState<string>("");
   const [sopDocId, setSopDocId] = useState<string>("");
-  const [scheduleType, setScheduleType] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [scheduleType, setScheduleType] = useState<"daily" | "weekly" | "monthly" | "quarterly">("weekly");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
-  const [priority, setPriority] = useState("medium");
 
   useEffect(() => {
     if (!open) return;
@@ -46,17 +46,17 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
     if (cadence) {
       setTitle(cadence.title);
       setDescription(cadence.description || "");
+      setDoneLooksLike(cadence.task_template?.done_looks_like || "");
       setOwnerId(cadence.owner_id || user?.id || "");
       setDeptId(cadence.department_id || "");
       setSopDocId(cadence.sop_doc_id || "");
       setScheduleType((cadence.schedule_type as any) || "weekly");
       setDayOfWeek(cadence.schedule_config?.day_of_week ?? 1);
       setDayOfMonth(cadence.schedule_config?.day_of_month ?? 1);
-      setPriority(cadence.task_template?.priority || "medium");
     } else {
-      setTitle(""); setDescription(""); setOwnerId(user?.id || "");
-      setDeptId(""); setSopDocId(""); setScheduleType("weekly");
-      setDayOfWeek(1); setDayOfMonth(1); setPriority("medium");
+      setTitle(""); setDescription(""); setDoneLooksLike("");
+      setOwnerId(user?.id || ""); setDeptId(""); setSopDocId("");
+      setScheduleType("weekly"); setDayOfWeek(1); setDayOfMonth(1);
     }
   }, [cadence, open, user?.id]);
 
@@ -67,8 +67,6 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
     if (scheduleType === "weekly") schedule_config.day_of_week = dayOfWeek;
     if (scheduleType === "monthly") schedule_config.day_of_month = dayOfMonth;
 
-    const task_template = { title: title.trim(), priority };
-
     const payload: any = {
       title: title.trim(),
       description: description.trim(),
@@ -77,7 +75,10 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
       sop_doc_id: sopDocId || null,
       schedule_type: scheduleType,
       schedule_config,
-      task_template,
+      task_template: {
+        title: title.trim(),
+        done_looks_like: doneLooksLike.trim() || null,
+      },
       is_active: true,
     };
 
@@ -99,14 +100,34 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
         <DialogHeader>
           <DialogTitle>{cadence ? "Edit cadence" : "New cadence"}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <Label className="text-xs">Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Build leads list and import to GHL" />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Build and load seller list"
+            />
           </div>
+
           <div>
-            <Label className="text-xs">Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Why this matters and what success looks like" />
+            <Label className="text-xs">Purpose <span className="text-muted-foreground">(why this matters)</span></Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="What this cadence drives and why it can't slip"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">What done looks like</Label>
+            <Textarea
+              value={doneLooksLike}
+              onChange={(e) => setDoneLooksLike(e.target.value)}
+              rows={2}
+              placeholder="e.g. 2,500+ leads loaded in GHL Seller Outreach, confirmed live"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -115,7 +136,9 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
               <Select value={ownerId} onValueChange={setOwnerId}>
                 <SelectTrigger><SelectValue placeholder="Select owner" /></SelectTrigger>
                 <SelectContent>
-                  {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "User"}</SelectItem>)}
+                  {profiles.map(p => (
+                    <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "User"}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -135,11 +158,12 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
             <Label className="text-xs">Schedule</Label>
             <div className="flex gap-2 mt-1">
               <Select value={scheduleType} onValueChange={(v: any) => setScheduleType(v)}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
                 </SelectContent>
               </Select>
               {scheduleType === "weekly" && (
@@ -154,41 +178,35 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
                 <Select value={String(dayOfMonth)} onValueChange={(v) => setDayOfMonth(Number(v))}>
                   <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map(n => <SelectItem key={n} value={String(n)}>Day {n}</SelectItem>)}
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map(n => (
+                      <SelectItem key={n} value={String(n)}>Day {n}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+              )}
+              {scheduleType === "quarterly" && (
+                <div className="flex-1 flex items-center px-3 text-xs text-muted-foreground rounded-md border border-input bg-muted/40">
+                  Runs at the start of each quarter
+                </div>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Task priority</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Linked SOP doc (optional)</Label>
-              <Select value={sopDocId || "none"} onValueChange={(v) => setSopDocId(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {docs.map(d => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label className="text-xs">Wiki / SOP <span className="text-muted-foreground">(optional)</span></Label>
+            <Select value={sopDocId || "none"} onValueChange={(v) => setSopDocId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Link a wiki or SOP doc" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {docs.map(d => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </div>
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save}>Save cadence</Button>
+          <Button onClick={save}>{cadence ? "Save changes" : "Create cadence"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
