@@ -212,7 +212,7 @@ function FunnelRow({
   };
 
   return (
-    <div className="grid grid-cols-[180px_1fr_160px_80px] gap-3 items-center px-4 py-2.5 border-b border-border/[0.08] last:border-0 hover:bg-white/[0.012] group transition-colors">
+    <div className="grid grid-cols-[240px_1fr_160px_80px] gap-3 items-center px-4 py-2.5 border-b border-border/[0.08] last:border-0 hover:bg-white/[0.012] group transition-colors">
       {/* Name */}
       <div className="min-w-0 pr-2">
         <p className="text-[13px] font-medium text-foreground/85 truncate leading-snug">
@@ -407,7 +407,7 @@ function PipelineFunnelSection({
 
       {/* ── Column labels ── */}
       <div
-        className="grid grid-cols-[180px_1fr_160px_80px] gap-3 px-4 py-1.5"
+        className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5"
         style={{ borderBottom: `1px solid ${style.color}0d` }}
       >
         <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">
@@ -609,9 +609,26 @@ export default function ScorecardPage() {
       }
       groups.get(key)!.items.push(m);
     }
+    const SECTION_PRIORITY: [string, number][] = [
+      ["dts", 1], ["seller", 1],
+      ["dta", 2], ["agent", 2],
+      ["listing", 3], ["hawk", 3],
+      ["main", 4],
+      ["dispo", 5],
+      ["portfolio", 6],
+    ];
+    const sectionRank = (name: string) => {
+      const n = name.toLowerCase();
+      for (const [key, rank] of SECTION_PRIORITY) {
+        if (n.includes(key)) return rank;
+      }
+      return 99;
+    };
     return Array.from(groups.values()).sort((a, b) => {
       if (!a.deptId && b.deptId) return 1;
       if (a.deptId && !b.deptId) return -1;
+      const ra = sectionRank(a.name), rb = sectionRank(b.name);
+      if (ra !== rb) return ra - rb;
       return a.name.localeCompare(b.name);
     });
   }, [metrics, departments]);
