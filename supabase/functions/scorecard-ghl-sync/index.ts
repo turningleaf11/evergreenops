@@ -67,28 +67,37 @@ async function fetchPipelines(apiKey: string, locationId: string): Promise<any[]
   return data.pipelines || [];
 }
 
-async function fetchPipelineOpps(apiKey: string, pipelineId: string): Promise<any[]> {
+async function fetchPipelineOpps(apiKey: string, locationId: string, pipelineId: string): Promise<any[]> {
   const all: any[] = [];
   let startAfterId: string | null = null;
 
   for (let page = 0; page < 20; page++) {
-    // cap at 20 pages (2000 opps) as a safety guard
-    const body: Record<string, unknown> = { pipelineId, limit: 100 };
-    if (startAfterId) body.startAfterId = startAfterId;
+    // Use GET endpoint (camelCase query params) — more reliable than POST /search
+    const params = new URLSearchParams({
+      locationId,
+      pipelineId,
+      limit: "100",
+    });
+    if (startAfterId) params.set("startAfterId", startAfterId);
 
-    const res = await fetch("https://services.leadconnectorhq.com/opportunities/search", {
-      method: "POST",
+    const url = `https://services.leadconnectorhq.com/opportunities/?${params}`;
+    const res = await fetch(url, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
         Version: "2021-07-28",
+        Accept: "application/json",
       },
-      body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`GHL opps ${res.status}`);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`GHL opps GET ${res.status}: ${errText.slice(0, 300)}`);
+    }
 
     const data = await res.json();
     const batch: any[] = data.opportunities || [];
+    console.log(`  page ${page + 1}: ${batch.length} opps (meta: ${JSON.stringify(data.meta ?? {})})`);
     all.push(...batch);
 
     startAfterId = data.meta?.startAfterId ?? null;
@@ -233,18 +242,19 @@ Deno.serve(async (req) => {
     const week = mondayOf(new Date());
     const weekStart = new Date(week);
 
-    // Parse force flag from body or query string
+    // Parse flags from body or query string
     let force = false;
+    let debug = false;
     try {
       if (req.method === "POST") {
         const body = await req.json().catch(() => ({}));
         force = body?.force === true;
+        debug = body?.debug === true;
       }
     } catch { /* no body */ }
-    if (!force) {
-      const url = new URL(req.url);
-      force = url.searchParams.get("force") === "true";
-    }
+    const urlParams = new URL(req.url).searchParams;
+    if (!force) force = urlParams.get("force") === "true";
+    if (!debug) debug = urlParams.get("debug") === "true";
 
     // Load GHL credentials from app_settings (primary) or env vars (fallback)
     const { data: settings } = await adminClient
@@ -296,6 +306,30 @@ Deno.serve(async (req) => {
 
     const errors: { metric_id: string; error: string }[] = [];
 
+    // ── DEBUG mode: return raw GHL data without writing anything ──
+    if (debug) {
+      const pipelines = await fetchPipelines(ghlApiKey!, locationId!);
+      const debugResult: Record<string, unknown> = {
+        pipelines: pipelines.map((p: any) => ({ id: p.id, name: p.name, stageCount: (p.stages ?? []).length })),
+        pipelineSamples: {} as Record<string, unknown>,
+      };
+      for (const p of pipelines.slice(0, 5)) {
+        try {
+          const opps = await fetchPipelineOpps(ghlApiKey!, locationId!, p.id);
+          (debugResult.pipelineSamples as Record<string, unknown>)[p.name] = {
+            count: opps.length,
+            sample: opps.slice(0, 2).map((o: any) => ({
+              id: o.id, status: o.status, pipelineId: o.pipelineId,
+              createdAt: o.createdAt, updatedAt: o.updatedAt,
+            })),
+          };
+        } catch (e: any) {
+          (debugResult.pipelineSamples as Record<string, unknown>)[p.name] = { error: e.message };
+        }
+      }
+      return json(debugResult);
+    }
+
     // Fetch pipeline definitions (includes stage IDs for stage: lookups)
     let pipelines: any[] = [];
     try {
@@ -324,7 +358,7 @@ Deno.serve(async (req) => {
       // Legacy mode — fetch all pipelines
       for (const pipeline of pipelines) {
         try {
-          oppsByPipelineId.set(pipeline.id, await fetchPipelineOpps(ghlApiKey, pipeline.id));
+          oppsByPipelineId.set(pipeline.id, await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id));
         } catch (e: any) {
           console.error(`Failed to fetch opps for pipeline "${pipeline.name}": ${e.message}`);
         }
@@ -341,7 +375,7 @@ Deno.serve(async (req) => {
         console.log(`Alias "${alias}" → pipeline "${pipeline.name}" (${pipeline.id})`);
         if (!oppsByPipelineId.has(pipeline.id)) {
           try {
-            const opps = await fetchPipelineOpps(ghlApiKey, pipeline.id);
+            const opps = await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id);
             oppsByPipelineId.set(pipeline.id, opps);
             console.log(`Fetched ${opps.length} opps from "${pipeline.name}"`);
           } catch (e: any) {

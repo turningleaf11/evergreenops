@@ -520,19 +520,43 @@ export default function ScorecardPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const synced = data?.synced ?? 0;
+      const errList = data?.errors ?? [];
+      const pipelines = data?.pipelinesFound ?? [];
+      // Always reload entries so UI reflects latest DB state
+      setEntries(await loadEntries(metrics));
       if (synced > 0) {
-        toast.success(`Synced ${synced} metric${synced !== 1 ? "s" : ""} from GHL`);
-        setEntries(await loadEntries(metrics));
+        toast.success(`Synced ${synced} metric${synced !== 1 ? "s" : ""} from GHL — pipelines: ${pipelines.join(", ")}`);
+      } else if (errList.length) {
+        toast.error(`Sync wrote 0s. Errors: ${errList.map((e: any) => e.error).slice(0, 2).join(" | ")}`, { duration: 10000 });
       } else {
-        const errList = data?.errors;
-        if (errList?.length) {
-          toast.error(`Sync returned 0. First error: ${errList[0].error}`);
-        } else {
-          toast.info("Sync ran — no new values (all entries up to date)");
-        }
+        toast.info(`Sync ran — pipelines found: ${pipelines.join(", ") || "none"}`);
       }
     } catch (e: any) {
       toast.error("Sync failed: " + (e.message || "unknown error"));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // ── Debug GHL (shows raw API response) ──────────────────────────────────
+  const debugGhl = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "scorecard-ghl-sync",
+        { body: { debug: true } },
+      );
+      if (error) throw error;
+      console.log("GHL DEBUG RESPONSE:", JSON.stringify(data, null, 2));
+      const pipes = (data?.pipelines ?? []) as Array<{ name: string; stageCount: number }>;
+      const samples = data?.pipelineSamples ?? {};
+      const summary = pipes.map((p: { name: string; stageCount: number }) => {
+        const s = (samples as Record<string, { count?: number; error?: string }>)[p.name];
+        return `${p.name}: ${s?.error ? "ERROR: " + s.error : (s?.count ?? "?") + " opps"}`;
+      }).join("\n");
+      toast.info(`GHL Pipelines:\n${summary || "none found"}`, { duration: 15000 });
+    } catch (e: any) {
+      toast.error("Debug failed: " + (e.message || "unknown error"));
     } finally {
       setSyncing(false);
     }
@@ -645,6 +669,16 @@ export default function ScorecardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={debugGhl}
+            disabled={syncing || loading}
+            className="gap-1.5 h-8 text-amber-600 border-amber-300 hover:bg-amber-50"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Debug GHL
+          </Button>
           <Button
             variant="outline"
             size="sm"
