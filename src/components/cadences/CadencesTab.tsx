@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Repeat, Plus, Calendar, CheckCircle2, Clock,
+  Repeat, Plus, CheckCircle2,
   FileText, Flame, MoreHorizontal, Pause, Play,
 } from "lucide-react";
 import {
@@ -193,7 +193,7 @@ export function CadencesTab() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 px-1">
               {FREQUENCY_LABELS[freq]}
             </p>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {items.map(c => {
                 const streak = streakFor(c.id);
                 const done = isCompletedToday(c.id);
@@ -208,30 +208,82 @@ export function CadencesTab() {
                     key={c.id}
                     onClick={() => setPeekCadence(c)}
                     className={cn(
-                      "group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 cursor-pointer",
-                      "hover:border-border/80 hover:shadow-sm transition-all",
+                      "group relative rounded-xl border border-border bg-card cursor-pointer overflow-hidden",
+                      "hover:shadow-sm hover:border-border/60 transition-all",
                       !c.is_active && "opacity-50",
-                      done && "border-green-500/20 bg-green-500/5",
+                      done && "border-green-500/25 bg-green-500/[0.03]",
                     )}
                   >
-                    {/* Status indicator */}
+                    {/* Left accent bar */}
                     <div className={cn(
-                      "h-2 w-2 rounded-full shrink-0 mt-0.5",
-                      done ? "bg-green-500" : isDue ? "bg-amber-400" : "bg-muted-foreground/20"
+                      "absolute left-0 top-0 bottom-0 w-[3px]",
+                      done ? "bg-green-500" : isDue ? "bg-amber-400" : "bg-muted-foreground/15"
                     )} />
 
-                    {/* Main content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="px-4 py-3 pl-[18px]">
+                      {/* Row 1: Title + status pill + menu */}
+                      <div className="flex items-start justify-between gap-2">
                         <span className={cn(
-                          "text-sm font-medium truncate",
+                          "text-sm font-semibold leading-snug",
                           done && "text-muted-foreground line-through"
                         )}>
                           {c.title}
                         </span>
+                        <div className="flex items-center gap-1 shrink-0 mt-px">
+                          {done ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Done
+                            </span>
+                          ) : isDue ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                              Due today
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/60 tabular-nums">
+                              {format(next, "MMM d")}
+                            </span>
+                          )}
+                          {canEdit && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity -mr-1"
+                                >
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem onClick={(e) => openEdit(c, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => toggleActive(c, e)}>
+                                  {c.is_active
+                                    ? <><Pause className="h-3.5 w-3.5 mr-2" /> Pause</>
+                                    : <><Play className="h-3.5 w-3.5 mr-2" /> Resume</>}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => deleteCadence(c, e)}
+                                  className="text-red-500 focus:text-red-500"
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2.5 mt-1 flex-wrap">
-                        {/* Owner */}
+
+                      {/* Row 2: Description preview */}
+                      {c.description && (
+                        <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed line-clamp-1">
+                          {c.description}
+                        </p>
+                      )}
+
+                      {/* Row 3: Owner · SOP · streak */}
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Avatar className="h-3.5 w-3.5">
                             <AvatarFallback className="text-[7px]">
@@ -240,64 +292,19 @@ export function CadencesTab() {
                           </Avatar>
                           {getName(c.owner_id)}
                         </span>
-                        {/* Next due */}
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {isDue ? "Due today" : format(next, "MMM d")}
-                        </span>
-                        {/* SOP badge */}
                         {doc && (
-                          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                             <FileText className="h-3 w-3" />
-                            {doc.title.slice(0, 20)}{doc.title.length > 20 ? "…" : ""}
+                            {doc.title.length > 22 ? doc.title.slice(0, 22) + "…" : doc.title}
                           </span>
                         )}
-                        {/* Streak */}
                         {streak > 1 && (
-                          <span className="flex items-center gap-1 text-[11px] text-orange-500">
+                          <span className="flex items-center gap-1 text-[11px] text-orange-500 ml-auto">
                             <Flame className="h-3 w-3" /> {streak}
-                          </span>
-                        )}
-                        {/* Completed check */}
-                        {done && (
-                          <span className="flex items-center gap-1 text-[11px] text-green-600">
-                            <CheckCircle2 className="h-3 w-3" /> Done
                           </span>
                         )}
                       </div>
                     </div>
-
-                    {/* Actions menu */}
-                    {canEdit && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem onClick={(e) => openEdit(c, e)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => toggleActive(c, e)}>
-                            {c.is_active
-                              ? <><Pause className="h-3.5 w-3.5 mr-2" /> Pause</>
-                              : <><Play className="h-3.5 w-3.5 mr-2" /> Resume</>}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => deleteCadence(c, e)}
-                            className="text-red-500 focus:text-red-500"
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
                   </div>
                 );
               })}
