@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { CheckCircle2, Circle, Clock, FileText, Users, Upload } from "lucide-react";
 import { useState, useCallback } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/RichTextEditor";
 import { uploadFileWithPath } from "@/lib/file-upload";
@@ -13,7 +13,7 @@ interface Props {
   project: any;
   tasks: any[];
   linkedDocs: any[];
-  profiles: { user_id: string; full_name: string | null }[];
+  profiles: { user_id: string; full_name: string | null; avatar_url?: string | null }[];
   onOpenTab: (tab: string) => void;
   onNotesChange: (html: string) => void;
   onFilesChanged: () => void;
@@ -106,9 +106,7 @@ export default function ProjectOverviewTab({
             <div className="space-y-2">
               {team.slice(0, 6).map((m) => (
                 <div key={m.user_id} className="flex items-center gap-2.5">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-muted text-[10px]">{initials(m.full_name || "U")}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={m.full_name || "U"} avatarUrl={m.avatar_url} className="h-7 w-7" fallbackClassName="bg-muted text-[10px]" />
                   <span className="text-sm truncate flex-1">{m.full_name || "Unknown"}</span>
                   {m.user_id === project.owner_id && (
                     <span className="text-[10px] uppercase text-muted-foreground tracking-wide">Owner</span>

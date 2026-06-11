@@ -165,7 +165,7 @@ export default function ExecutionPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
   const [stageColors, setStageColors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState(() => {
     if (typeof window === "undefined") return "goals";
@@ -222,7 +222,7 @@ export default function ExecutionPage() {
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
     ]);
     if (g.data) setGoals(g.data as any);

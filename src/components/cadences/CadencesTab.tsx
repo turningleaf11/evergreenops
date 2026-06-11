@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   Repeat, Plus, CheckCircle2, Clock,
   FileText, Flame, MoreHorizontal, Pause, Play, SkipForward, Building2,
@@ -55,7 +55,7 @@ export function CadencesTab() {
   const { departments } = useDepartments();
   const [cadences, setCadences] = useState<Cadence[]>([]);
   const [runs, setRuns] = useState<CadenceRun[]>([]);
-  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
+  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
   const [docs, setDocs] = useState<{ id: string; title: string }[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Cadence | null>(null);
@@ -69,7 +69,7 @@ export function CadencesTab() {
     const [c, r, p, d] = await Promise.all([
       supabase.from("cadences").select("*").order("created_at", { ascending: true }),
       supabase.from("cadence_runs").select("*").order("due_date", { ascending: false }).limit(500),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("documents").select("id, title").eq("status", "active"),
     ]);
     if (c.data) setCadences(c.data as any);
@@ -333,11 +333,12 @@ export function CadencesTab() {
                       <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                         {/* Owner */}
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Avatar className="h-3.5 w-3.5">
-                            <AvatarFallback className="text-[7px]">
-                              {getName(c.owner_id).slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
+                          <UserAvatar
+                            name={getName(c.owner_id)}
+                            avatarUrl={profiles.find(p => p.user_id === c.owner_id)?.avatar_url}
+                            className="h-3.5 w-3.5"
+                            fallbackClassName="text-[7px]"
+                          />
                           {getName(c.owner_id)}
                         </span>
                         {/* Department */}

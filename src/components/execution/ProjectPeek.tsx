@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -351,11 +351,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                 <div className="space-y-1.5">
                   {owner && (
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px] bg-muted">
-                          {(owner.full_name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar name={owner.full_name} avatarUrl={owner.avatar_url} className="h-6 w-6" fallbackClassName="text-[10px] bg-muted" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">{owner.full_name}</p>
                         <p className="text-[10px] text-muted-foreground">Owner</p>
@@ -368,11 +364,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                     if (!p) return null;
                     return (
                       <div key={uid} className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-[10px] bg-muted">
-                            {(p.full_name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar name={p.full_name} avatarUrl={p.avatar_url} className="h-6 w-6" fallbackClassName="text-[10px] bg-muted" />
                         <p className="text-xs truncate flex-1">{p.full_name}</p>
                       </div>
                     );

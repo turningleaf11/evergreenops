@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Calendar, FileText, Target, User, Users, Plus, X, Check, Eye } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { FollowersPicker } from "@/components/crm/PeoplePickers";
@@ -9,7 +9,7 @@ interface ProjectInfoSidebarProps {
   project: any;
   goalTitle?: string;
   linkedDocs: any[];
-  profiles: { user_id: string; full_name: string | null }[];
+  profiles: { user_id: string; full_name: string | null; avatar_url?: string | null }[];
   onOpenGoal?: () => void;
   onUpdate?: (updates: Record<string, any>) => void;
 }
@@ -132,11 +132,7 @@ export default function ProjectInfoSidebar({
                 const isOwner = member.user_id === project.owner_id;
                 return (
                   <div key={member.user_id} className="group flex items-center gap-2.5">
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="bg-muted text-[10px] text-foreground">
-                        {initials(name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={name} avatarUrl={member.avatar_url} className="h-7 w-7" fallbackClassName="bg-muted text-[10px] text-foreground" />
                     <span className="min-w-0 truncate text-sm text-foreground">{name}</span>
                     {isOwner ? (
                       <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">Lead</span>
