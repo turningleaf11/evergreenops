@@ -1,29 +1,10 @@
 /**
- * scorecard-ghl-sync
+ * scorecard-ghl-sync v28
  *
- * Pulls opportunity data from GHL and writes weekly scorecard entries.
- *
- * ghl_field_key formats supported:
- *
- * Legacy (all-pipeline):
- *   "pipeline_value"          → total monetary value across all open opps
- *   "opportunities_won"       → opps marked won this week (any pipeline)
- *   "opportunities_open"      → all open opps
- *   "revenue_won"             → sum of monetary value for opps won this week
- *
- * Pipeline-aware (preferred):
- *   "{alias}:new_week"        → new opps created this week in that pipeline
- *   "{alias}:won_week"        → opps marked won this week in that pipeline
- *   "{alias}:open"            → all open opps in that pipeline
- *   "{alias}:active"          → non-won/lost opps in that pipeline
- *   "{alias}:stage:{name}"    → opps currently in a specific stage (case-insensitive match)
- *
- * Pipeline aliases:
- *   seller   → Seller Outreach pipeline
- *   realtor  → Realtor Outreach pipeline
- *   listing  → ListingHawk pipeline
- *   main     → Main Wholesale pipeline
- *   portfolio → Portfolio pipeline
+ * GHL API v2021-07-28:
+ *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
+ *   GET /opportunities/search?location_id=...&pipeline_id=...&pipeline_stage_id=...&limit=1
+ *     → meta.total gives exact stage count without fetching all records
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -49,7 +30,7 @@ function mondayOf(date: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ── GHL API helpers ──────────────────────────────────────────────────────────
+// ── GHL helpers ───────────────────────────────────────────────────────────────
 
 async function fetchPipelines(apiKey: string, locationId: string): Promise<any[]> {
   const res = await fetch(
@@ -67,59 +48,127 @@ async function fetchPipelines(apiKey: string, locationId: string): Promise<any[]
   return data.pipelines || [];
 }
 
+/**
+ * Fetch opps for a pipeline (used for weekly-filtered metrics: new_week, won_week, open, active).
+ * Capped at 30 pages (3000) — sufficient for recent/status-based counts.
+ */
 async function fetchPipelineOpps(apiKey: string, locationId: string, pipelineId: string): Promise<any[]> {
   const all: any[] = [];
-  let startAfterId: string | null = null;
+  let page = 1;
 
-  for (let page = 0; page < 20; page++) {
-    // Use GET endpoint (camelCase query params) — more reliable than POST /search
+  for (let attempt = 0; attempt < 30; attempt++) {
     const params = new URLSearchParams({
-      locationId,
-      pipelineId,
+      location_id: locationId,
+      pipeline_id: pipelineId,
       limit: "100",
+      page: String(page),
     });
-    if (startAfterId) params.set("startAfterId", startAfterId);
 
-    const url = `https://services.leadconnectorhq.com/opportunities/?${params}`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Version: "2021-07-28",
-        Accept: "application/json",
+    const res = await fetch(
+      `https://services.leadconnectorhq.com/opportunities/search?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Version: "2021-07-28",
+          Accept: "application/json",
+        },
       },
-    });
+    );
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`GHL opps GET ${res.status}: ${errText.slice(0, 300)}`);
+      throw new Error(`GHL opps ${res.status}: ${errText.slice(0, 300)}`);
     }
 
     const data = await res.json();
     const batch: any[] = data.opportunities || [];
-    console.log(`  page ${page + 1}: ${batch.length} opps (meta: ${JSON.stringify(data.meta ?? {})})`);
     all.push(...batch);
 
-    startAfterId = data.meta?.startAfterId ?? null;
-    if (batch.length < 100 || !startAfterId) break;
+    if (batch.length < 100) break;
+    page++;
   }
 
   return all;
 }
 
-// ── Pipeline alias resolution ────────────────────────────────────────────────
+/**
+ * Get exact count of opps in a specific stage using pipeline_stage_id filter.
+ * Reads meta.total from response — no need to paginate, works for any pipeline size.
+ */
+async function fetchStageCount(
+  apiKey: string,
+  locationId: string,
+  pipelineId: string,
+  stageId: string,
+): Promise<number> {
+  const params = new URLSearchParams({
+    location_id: locationId,
+    pipeline_id: pipelineId,
+    pipeline_stage_id: stageId,
+    limit: "1",
+    page: "1",
+  });
+
+  const res = await fetch(
+    `https://services.leadconnectorhq.com/opportunities/search?${params}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-07-28",
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`GHL stage count ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  console.log(`  stage ${stageId} meta: ${JSON.stringify(data.meta)}`);
+
+  // meta.total is the exact count without fetching all records
+  if (typeof data.meta?.total === "number") return data.meta.total;
+
+  // Fallback: paginate to count (if GHL doesn't return meta.total)
+  let count = (data.opportunities || []).length;
+  if (count < 1) return count;
+
+  let page = 2;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const p = new URLSearchParams({
+      location_id: locationId,
+      pipeline_id: pipelineId,
+      pipeline_stage_id: stageId,
+      limit: "100",
+      page: String(page),
+    });
+    const r = await fetch(`https://services.leadconnectorhq.com/opportunities/search?${p}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Version: "2021-07-28", Accept: "application/json" },
+    });
+    if (!r.ok) break;
+    const d = await r.json();
+    const batch = d.opportunities || [];
+    count += batch.length;
+    if (batch.length < 100) break;
+    page++;
+  }
+  return count;
+}
+
+// ── Pipeline alias resolution ─────────────────────────────────────────────────
 
 const PIPELINE_ALIASES: Record<string, string[]> = {
   seller:    ["seller outreach", "seller"],
-  realtor:   ["realtor outreach", "realtor", "agent outreach", "offer rocket", "offerrocket"],
-  listing:   ["listinghawk", "listing hawk", "listing hawk"],
-  main:      ["acquisitions", "main wholesale", "wholesale pipeline", "wholesale", "main pipeline", "main"],
+  realtor:   ["realtor outreach", "realtor", "offerrocket", "offer rocket", "agent outreach"],
+  listing:   ["listinghawk", "listing hawk"],
+  main:      ["main pipeline", "main wholesale", "acquisitions", "wholesale pipeline", "wholesale", "main"],
   portfolio: ["portfolio", "deal inbox", "deals"],
 };
 
 function resolvePipeline(alias: string, pipelines: any[]): any | null {
-  const a = alias.toLowerCase();
-  const terms = PIPELINE_ALIASES[a] ?? [a];
+  const terms = PIPELINE_ALIASES[alias.toLowerCase()] ?? [alias.toLowerCase()];
   for (const term of terms) {
     const found = pipelines.find((p) => p.name.toLowerCase().includes(term));
     if (found) return found;
@@ -127,9 +176,9 @@ function resolvePipeline(alias: string, pipelines: any[]): any | null {
   return null;
 }
 
-// ── Value computation ────────────────────────────────────────────────────────
+// ── Non-stage value computation (uses pre-fetched opps batch) ─────────────────
 
-function computeValue(
+function computeNonStageValue(
   key: string,
   pipelines: any[],
   oppsByPipelineId: Map<string, any[]>,
@@ -146,7 +195,6 @@ function computeValue(
 
   const k = key.trim();
 
-  // ── Legacy / global keys ──
   switch (k.toLowerCase()) {
     case "pipeline_value":
       return allOpps().reduce((s, o) => s + (o.monetaryValue || 0), 0);
@@ -170,7 +218,6 @@ function computeValue(
         .reduce((s, o) => s + (o.monetaryValue || 0), 0);
   }
 
-  // ── Pipeline-aware keys: {alias}:{metric} or {alias}:stage:{name} ──
   const colonIdx = k.indexOf(":");
   if (colonIdx === -1) return 0;
 
@@ -179,47 +226,26 @@ function computeValue(
 
   const pipeline = resolvePipeline(pipelineAlias, pipelines);
   if (!pipeline) {
-    console.warn(`scorecard-ghl-sync: could not resolve pipeline alias "${pipelineAlias}"`);
+    console.warn(`Could not resolve alias "${pipelineAlias}"`);
     return 0;
   }
 
   const opps = oppsByPipelineId.get(pipeline.id) ?? [];
 
-  if (rest === "new_week") {
-    return opps.filter((o) => inWeek(o.createdAt)).length;
-  }
-  if (rest === "won_week") {
-    return opps.filter((o) => o.status === "won" && inWeek(o.updatedAt)).length;
-  }
-  if (rest === "open") {
-    return opps.filter((o) => (o.status ?? "open") === "open").length;
-  }
-  if (rest === "active") {
-    return opps.filter((o) => o.status !== "won" && o.status !== "lost").length;
-  }
+  if (rest === "new_week") return opps.filter((o) => inWeek(o.createdAt)).length;
+  if (rest === "won_week") return opps.filter((o) => o.status === "won" && inWeek(o.updatedAt)).length;
+  if (rest === "open") return opps.filter((o) => (o.status ?? "open") === "open").length;
+  if (rest === "active") return opps.filter((o) => o.status !== "won" && o.status !== "lost").length;
   if (rest === "won_value") {
     return opps
       .filter((o) => o.status === "won" && inWeek(o.updatedAt))
       .reduce((s, o) => s + (o.monetaryValue || 0), 0);
   }
-  if (rest.startsWith("stage:")) {
-    const stageName = rest.slice(6).trim().toLowerCase();
-    const stage = (pipeline.stages ?? []).find(
-      (s: any) => s.name.toLowerCase() === stageName,
-    );
-    if (!stage) {
-      console.warn(
-        `scorecard-ghl-sync: stage "${stageName}" not found in pipeline "${pipeline.name}"`,
-      );
-      return 0;
-    }
-    return opps.filter((o) => o.pipelineStageId === stage.id).length;
-  }
 
   return 0;
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -242,7 +268,6 @@ Deno.serve(async (req) => {
     const week = mondayOf(new Date());
     const weekStart = new Date(week);
 
-    // Parse flags from body or query string
     let force = false;
     let debug = false;
     try {
@@ -256,7 +281,7 @@ Deno.serve(async (req) => {
     if (!force) force = urlParams.get("force") === "true";
     if (!debug) debug = urlParams.get("debug") === "true";
 
-    // Load GHL credentials from app_settings (primary) or env vars (fallback)
+    // Load GHL credentials
     const { data: settings } = await adminClient
       .from("app_settings")
       .select("key, value")
@@ -267,7 +292,52 @@ Deno.serve(async (req) => {
     const ghlApiKey = settingMap.GHL_API_KEY || Deno.env.get("GHL_API_KEY");
     const locationId = settingMap.GHL_LOCATION_ID || Deno.env.get("GHL_LOCATION_ID");
 
-    // Load active GHL-sourced metrics
+    if (!ghlApiKey || !locationId) {
+      return json({ synced: 0, error: "GHL_API_KEY or GHL_LOCATION_ID not configured" });
+    }
+
+    // ── DEBUG mode ───────────────────────────────────────────────────────────
+    if (debug) {
+      const pipelines = await fetchPipelines(ghlApiKey, locationId);
+      const pipelineSamples: Record<string, unknown> = {};
+      let totalOpps = 0;
+      for (const p of pipelines) {
+        try {
+          const opps = await fetchPipelineOpps(ghlApiKey, locationId, p.id);
+          totalOpps += opps.length;
+          // For first stage, also test fetchStageCount to verify meta.total
+          let stageTest: unknown = "no stages";
+          if (p.stages?.length) {
+            try {
+              const s = p.stages[0];
+              const cnt = await fetchStageCount(ghlApiKey, locationId, p.id, s.id);
+              stageTest = { stage: s.name, count: cnt };
+            } catch (e: any) {
+              stageTest = { error: e.message };
+            }
+          }
+          pipelineSamples[p.name] = {
+            count: opps.length,
+            // stage name → id map so we can cross-reference with opp.pipelineStageId
+            stages: (p.stages ?? []).map((s: any) => s.name),
+            stageIds: Object.fromEntries((p.stages ?? []).map((s: any) => [s.name, s.id])),
+            stageTest,
+            sample: opps.slice(0, 3).map((o: any) => ({
+              id: o.id, status: o.status, stageId: o.pipelineStageId, createdAt: o.createdAt,
+            })),
+          };
+        } catch (e: any) {
+          pipelineSamples[p.name] = { error: e.message };
+        }
+      }
+      return json({
+        totalOpps,
+        pipelines: pipelines.map((p: any) => ({ id: p.id, name: p.name, stageCount: (p.stages || []).length })),
+        pipelineSamples,
+      });
+    }
+
+    // ── Normal sync ──────────────────────────────────────────────────────────
     const { data: metrics, error: mErr } = await adminClient
       .from("scorecard_metrics")
       .select("id, ghl_field_key, weekly_target")
@@ -279,7 +349,6 @@ Deno.serve(async (req) => {
 
     const ids = metrics.map((m: any) => m.id);
 
-    // If force mode, delete all existing entries for this week so we re-fetch fresh
     if (force) {
       await adminClient
         .from("scorecard_entries")
@@ -288,7 +357,6 @@ Deno.serve(async (req) => {
         .eq("week_start_date", week);
     }
 
-    // Find which metrics are missing an entry this week
     const { data: existing } = await adminClient
       .from("scorecard_entries")
       .select("metric_id")
@@ -300,111 +368,115 @@ Deno.serve(async (req) => {
 
     if (!needed.length) return json({ synced: 0, skipped: metrics.length });
 
-    if (!ghlApiKey || !locationId) {
-      return json({ synced: 0, error: "GHL_API_KEY or GHL_LOCATION_ID not configured" });
-    }
-
     const errors: { metric_id: string; error: string }[] = [];
 
-    // ── DEBUG mode: return raw GHL data without writing anything ──
-    if (debug) {
-      const pipelines = await fetchPipelines(ghlApiKey!, locationId!);
-      const debugResult: Record<string, unknown> = {
-        pipelines: pipelines.map((p: any) => ({ id: p.id, name: p.name, stageCount: (p.stages ?? []).length })),
-        pipelineSamples: {} as Record<string, unknown>,
-      };
-      for (const p of pipelines.slice(0, 5)) {
-        try {
-          const opps = await fetchPipelineOpps(ghlApiKey!, locationId!, p.id);
-          (debugResult.pipelineSamples as Record<string, unknown>)[p.name] = {
-            count: opps.length,
-            sample: opps.slice(0, 2).map((o: any) => ({
-              id: o.id, status: o.status, pipelineId: o.pipelineId,
-              createdAt: o.createdAt, updatedAt: o.updatedAt,
-            })),
-          };
-        } catch (e: any) {
-          (debugResult.pipelineSamples as Record<string, unknown>)[p.name] = { error: e.message };
-        }
-      }
-      return json(debugResult);
-    }
-
-    // Fetch pipeline definitions (includes stage IDs for stage: lookups)
+    // Fetch pipelines (includes stage IDs)
     let pipelines: any[] = [];
     try {
       pipelines = await fetchPipelines(ghlApiKey, locationId);
-      console.log(`Fetched ${pipelines.length} pipelines: ${pipelines.map((p: any) => p.name).join(", ")}`);
+      console.log(`Fetched ${pipelines.length} pipelines`);
     } catch (e: any) {
       return json({ synced: 0, error: `Pipeline fetch failed: ${e.message}` });
     }
 
-    // Determine which pipeline aliases are needed
-    const neededAliases = new Set<string>();
-    for (const m of needed) {
-      const key = (m.ghl_field_key as string).trim().toLowerCase();
-      const colonIdx = key.indexOf(":");
-      if (colonIdx > 0) {
-        neededAliases.add(key.slice(0, colonIdx));
-      } else {
-        neededAliases.add("_all");
-      }
-    }
+    // Split metrics into stage-snapshot vs batch-computed
+    const stageMetrics = needed.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
+    const batchMetrics = needed.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
 
-    // Fetch opps per pipeline (only the ones we actually need)
+    // Pre-fetch opps batches for non-stage metrics
     const oppsByPipelineId = new Map<string, any[]>();
 
-    if (neededAliases.has("_all")) {
-      // Legacy mode — fetch all pipelines
-      for (const pipeline of pipelines) {
-        try {
-          oppsByPipelineId.set(pipeline.id, await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id));
-        } catch (e: any) {
-          console.error(`Failed to fetch opps for pipeline "${pipeline.name}": ${e.message}`);
+    if (batchMetrics.length > 0) {
+      const needsAllPipelines = batchMetrics.some((m: any) => !(m.ghl_field_key as string).includes(":"));
+      if (needsAllPipelines) {
+        for (const p of pipelines) {
+          if (!oppsByPipelineId.has(p.id)) {
+            try {
+              const opps = await fetchPipelineOpps(ghlApiKey, locationId, p.id);
+              oppsByPipelineId.set(p.id, opps);
+            } catch (e: any) {
+              console.error(`Failed "${p.name}": ${e.message}`);
+            }
+          }
         }
-      }
-    } else {
-      for (const alias of neededAliases) {
-        const pipeline = resolvePipeline(alias, pipelines);
-        if (!pipeline) {
-          const names = pipelines.map((p: any) => p.name).join(", ");
-          console.warn(`Could not resolve alias "${alias}". Available pipelines: ${names}`);
-          errors.push({ metric_id: `alias:${alias}`, error: `No pipeline matched alias "${alias}". Available: ${names}` });
-          continue;
+      } else {
+        const aliasSet = new Set<string>();
+        for (const m of batchMetrics) {
+          const key = (m.ghl_field_key as string).trim().toLowerCase();
+          const colonIdx = key.indexOf(":");
+          if (colonIdx > 0) aliasSet.add(key.slice(0, colonIdx));
         }
-        console.log(`Alias "${alias}" → pipeline "${pipeline.name}" (${pipeline.id})`);
-        if (!oppsByPipelineId.has(pipeline.id)) {
-          try {
-            const opps = await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id);
-            oppsByPipelineId.set(pipeline.id, opps);
-            console.log(`Fetched ${opps.length} opps from "${pipeline.name}"`);
-          } catch (e: any) {
-            errors.push({ metric_id: alias, error: e.message });
+        for (const alias of aliasSet) {
+          const pipeline = resolvePipeline(alias, pipelines);
+          if (!pipeline) {
+            errors.push({ metric_id: `alias:${alias}`, error: `No pipeline matched "${alias}"` });
+            continue;
+          }
+          if (!oppsByPipelineId.has(pipeline.id)) {
+            try {
+              const opps = await fetchPipelineOpps(ghlApiKey, locationId, pipeline.id);
+              oppsByPipelineId.set(pipeline.id, opps);
+              console.log(`"${pipeline.name}": ${opps.length} opps fetched`);
+            } catch (e: any) {
+              errors.push({ metric_id: alias, error: e.message });
+            }
           }
         }
       }
     }
 
-    // Compute values and upsert entries
     let synced = 0;
-    for (const m of needed) {
+
+    // ── Process stage metrics via direct stage count API ─────────────────────
+    for (const m of stageMetrics) {
+      const key = (m.ghl_field_key as string).trim();
+      // Format: alias:stage:Stage Name
+      const stageIdx = key.indexOf(":stage:");
+      const pipelineAlias = key.slice(0, stageIdx);
+      const stageName = key.slice(stageIdx + 7).trim();
+
+      const pipeline = resolvePipeline(pipelineAlias, pipelines);
+      if (!pipeline) {
+        errors.push({ metric_id: m.id, error: `No pipeline for alias "${pipelineAlias}"` });
+        continue;
+      }
+
+      const stage = (pipeline.stages ?? []).find(
+        (s: any) => s.name.toLowerCase() === stageName.toLowerCase(),
+      );
+      if (!stage) {
+        const available = (pipeline.stages ?? []).map((s: any) => s.name).join(", ");
+        errors.push({
+          metric_id: m.id,
+          error: `Stage "${stageName}" not in "${pipeline.name}". Available: ${available}`,
+        });
+        continue;
+      }
+
       try {
-        const value = computeValue(m.ghl_field_key as string, pipelines, oppsByPipelineId, weekStart);
+        const value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
+        console.log(`Stage "${stageName}" in "${pipeline.name}": ${value}`);
         const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
-          {
-            metric_id: m.id,
-            week_start_date: week,
-            actual_value: value,
-            entered_by: null,
-            note: "Auto-synced from GHL",
-          },
+          { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from GHL" },
           { onConflict: "metric_id,week_start_date" },
         );
-        if (insErr) {
-          errors.push({ metric_id: m.id, error: insErr.message });
-        } else {
-          synced++;
-        }
+        if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
+        else synced++;
+      } catch (e: any) {
+        errors.push({ metric_id: m.id, error: e.message });
+      }
+    }
+
+    // ── Process batch metrics ─────────────────────────────────────────────────
+    for (const m of batchMetrics) {
+      try {
+        const value = computeNonStageValue(m.ghl_field_key as string, pipelines, oppsByPipelineId, weekStart);
+        const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
+          { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from GHL" },
+          { onConflict: "metric_id,week_start_date" },
+        );
+        if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
+        else synced++;
       } catch (e: any) {
         errors.push({ metric_id: m.id, error: e.message });
       }

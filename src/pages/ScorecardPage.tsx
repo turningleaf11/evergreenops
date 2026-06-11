@@ -548,13 +548,30 @@ export default function ScorecardPage() {
       );
       if (error) throw error;
       console.log("GHL DEBUG RESPONSE:", JSON.stringify(data, null, 2));
-      const pipes = (data?.pipelines ?? []) as Array<{ name: string; stageCount: number }>;
+      const pipes = (data?.pipelines ?? []) as Array<{ id: string; name: string; stageCount: number }>;
       const samples = data?.pipelineSamples ?? {};
-      const summary = pipes.map((p: { name: string; stageCount: number }) => {
-        const s = (samples as Record<string, { count?: number; error?: string }>)[p.name];
-        return `${p.name}: ${s?.error ? "ERROR: " + s.error : (s?.count ?? "?") + " opps"}`;
-      }).join("\n");
-      toast.info(`GHL Pipelines:\n${summary || "none found"}`, { duration: 15000 });
+      // Show stage names + stageTest for Main Pipeline and Portfolio in detail
+      const KEY_PIPES = ["main pipeline", "portfolio"];
+      const lines: string[] = [];
+      for (const p of pipes) {
+        const s = (samples as Record<string, any>)[p.name];
+        const count = s?.count ?? "?";
+        const stages: string[] = s?.stages ?? [];
+        const stageTest = s?.stageTest;
+        const sampleStageId = s?.sample?.[0]?.stageId ?? null;
+        const isKey = KEY_PIPES.some((k) => p.name.toLowerCase().includes(k));
+        if (isKey) {
+          lines.push(`\n▶ ${p.name} (${count} opps)`);
+          lines.push(`  Stages: ${stages.join(" | ") || "none"}`);
+          if (stageTest && typeof stageTest === "object" && !("error" in stageTest)) {
+            lines.push(`  StageTest[${stageTest.stage}]: ${stageTest.count}`);
+          }
+          if (sampleStageId) lines.push(`  Sample opp stageId: ${sampleStageId}`);
+        } else {
+          lines.push(`${p.name}: ${count} opps`);
+        }
+      }
+      toast.info(lines.join("\n") || "none found", { duration: 20000 });
     } catch (e: any) {
       toast.error("Debug failed: " + (e.message || "unknown error"));
     } finally {
