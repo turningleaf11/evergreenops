@@ -164,7 +164,7 @@ function getFunnelLayer(m: Metric): FunnelLayer | null {
 
   // Outcome — won deals
   if (key === "main:won_week" || name === "contracts signed") return "outcome";
-  if (name.includes("deals closed") || name.includes("deals won")) return "outcome";
+  if (name === "deals closed") return "outcome"; // company-wide total only (not "portfolio deals closed")
 
   return null;
 }
@@ -256,7 +256,7 @@ function FunnelRow({
       <div className="min-w-0 pr-2">
         <p className="text-[13px] font-medium text-foreground/85 truncate leading-snug">{metric.name}</p>
         {metric.description && (
-          <p className="text-[10px] text-muted-foreground/40 truncate leading-tight mt-0.5">{metric.description}</p>
+          <p className="text-[10px] text-muted-foreground/40 leading-tight mt-0.5">{metric.description}</p>
         )}
       </div>
 
@@ -437,6 +437,13 @@ function BusinessFunnelView({
       const layer = getFunnelLayer(m);
       if (layer) out[layer].push(m);
     }
+    // Activities: New Leads Loaded always first, then other activity metrics
+    out.activities.sort((a, b) => {
+      const aFirst = a.ghl_field_key === "seller:new_week" ? -1 : 0;
+      const bFirst = b.ghl_field_key === "seller:new_week" ? -1 : 0;
+      if (aFirst !== bFirst) return aFirst - bFirst;
+      return a.sort_order - b.sort_order;
+    });
     return out;
   }, [metrics]);
 
@@ -509,12 +516,9 @@ function BusinessFunnelView({
                 className="flex items-center justify-between px-4 py-3"
                 style={{ borderBottom: `1px solid ${meta.color}18` }}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="h-3.5 w-[3px] rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
-                    {meta.label}
-                  </span>
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
+                  {meta.label}
+                </span>
                 <span className="text-[10px] text-muted-foreground/35 font-medium">{meta.sublabel}</span>
               </div>
 
@@ -593,7 +597,6 @@ function PipelineFunnelSection({
       {/* Section header */}
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${style.color}18` }}>
         <div className="flex items-center gap-2.5">
-          <div className="h-3.5 w-[3px] rounded-full shrink-0" style={{ backgroundColor: style.color }} />
           <span className={cn("text-[11px] font-bold uppercase tracking-[0.12em]", style.textClass)}>{name}</span>
           <span className="text-[10px] text-muted-foreground/35 font-medium">
             {items.length} metric{items.length !== 1 ? "s" : ""}
