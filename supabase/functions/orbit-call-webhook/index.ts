@@ -62,13 +62,29 @@ Deno.serve(async (req) => {
     // fall back to nested 'data' or 'payload' wrappers.
     const data = raw.data || raw.payload || raw;
 
-    const ghlUserId: string | undefined = data.ghl_user_id || data.userId || data.user_id || data.assignedUserId;
-    const disposition: string | undefined = data.disposition || data.call_disposition || data.callDisposition || data.outcome;
+    // GHL sends the assigned user as "user" (object or string) — check all common shapes
+    const ghlUserId: string | undefined =
+      data.ghl_user_id ||
+      data.userId ||
+      data.user_id ||
+      data.assignedUserId ||
+      (typeof data.user === "string" ? data.user : data.user?.id);
+
+    const disposition: string | undefined =
+      data.disposition || data.call_disposition || data.callDisposition ||
+      data.phoneCall_dispositions || data.phoneCallDispositions || data.outcome;
+
     const contactId: string | undefined = data.contact_id || data.contactId || data.contact?.id;
-    const durationRaw = data.duration ?? data.duration_seconds ?? data.callDuration;
-    const duration = typeof durationRaw === "number" ? durationRaw : (durationRaw ? parseInt(String(durationRaw), 10) : null);
+
+    const durationRaw = data.duration ?? data.duration_seconds ?? data.callDuration ?? data.phoneCall_duration;
+    const duration = typeof durationRaw === "number"
+      ? durationRaw
+      : (durationRaw ? parseInt(String(durationRaw), 10) : null);
+
+    // GHL date strings can be in various formats — fall back to now() if unparseable
     const occurredAtRaw: string | undefined = data.occurred_at || data.timestamp || data.dateAdded || data.createdAt;
-    const occurredAt = occurredAtRaw ? new Date(occurredAtRaw) : new Date();
+    const occurredAtParsed = occurredAtRaw ? new Date(occurredAtRaw) : null;
+    const occurredAt = (occurredAtParsed && !isNaN(occurredAtParsed.getTime())) ? occurredAtParsed : new Date();
 
     if (!ghlUserId) {
       return json({
