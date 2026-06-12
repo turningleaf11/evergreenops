@@ -374,6 +374,49 @@ Deno.serve(async (req) => {
 
     const errors: { metric_id: string; error: string }[] = [];
 
+    // ── Process calls:total_week metrics (reads orbit_call_events, no GHL API needed) ──
+    const callsMetrics = needed.filter((m: any) =>
+      (m.ghl_field_key as string).trim().toLowerCase() === "calls:total_week"
+    );
+    const ghlNeeded = needed.filter((m: any) =>
+      (m.ghl_field_key as string).trim().toLowerCase() !== "calls:total_week"
+    );
+
+    let synced = 0;
+
+    if (callsMetrics.length > 0) {
+      const nextWeek = new Date(weekStart);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextWeekIso = nextWeek.toISOString();
+
+      const { count: callCount, error: callErr } = await adminClient
+        .from("orbit_call_events")
+        .select("*", { count: "exact", head: true })
+        .gte("occurred_at", weekStart.toISOString())
+        .lt("occurred_at", nextWeekIso);
+
+      if (callErr) {
+        for (const m of callsMetrics) {
+          errors.push({ metric_id: m.id, error: `orbit_call_events query failed: ${callErr.message}` });
+        }
+      } else {
+        const total = callCount ?? 0;
+        console.log(`calls:total_week = ${total} (${weekStart.toISOString()} → ${nextWeekIso})`);
+        for (const m of callsMetrics) {
+          const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
+            { metric_id: m.id, week_start_date: week, actual_value: total, entered_by: null, note: "Auto-synced from call events" },
+            { onConflict: "metric_id,week_start_date" },
+          );
+          if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
+          else synced++;
+        }
+      }
+    }
+
+    if (!ghlNeeded.length) {
+      return json({ synced, skipped: metrics.length - needed.length, errors });
+    }
+
     // Fetch pipelines (includes stage IDs)
     let pipelines: any[] = [];
     try {
@@ -384,8 +427,8 @@ Deno.serve(async (req) => {
     }
 
     // Split metrics into stage-snapshot vs batch-computed
-    const stageMetrics = needed.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
-    const batchMetrics = needed.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
+    const stageMetrics = ghlNeeded.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
+    const batchMetrics = ghlNeeded.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
 
     // Pre-fetch opps batches for non-stage metrics
     const oppsByPipelineId = new Map<string, any[]>();
@@ -428,8 +471,6 @@ Deno.serve(async (req) => {
         }
       }
     }
-
-    let synced = 0;
 
     // ── Process stage metrics — batch-filter for small pipelines, fetchStageCount for large ──
     for (const m of stageMetrics) {

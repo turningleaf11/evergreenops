@@ -1,14 +1,17 @@
-// Webhook receiver for GHL call disposition events.
+// Webhook receiver for GHL call events.
 //
-// Triggered from a GHL Workflow when a call is logged or its disposition updated.
+// Triggered from a GHL Workflow when a call starts or is completed.
 // GHL workflow should POST a JSON body with at minimum:
 //   {
 //     "ghl_user_id":  "<the user who logged the call>",
-//     "disposition":  "<the disposition value, e.g. 'Connected – Seller'>",
 //     "contact_id":   "<optional, the contact being called>",
+//     "disposition":  "<optional, e.g. 'Connected – Seller'>",
 //     "duration":     <optional, seconds>,
 //     "occurred_at":  <optional ISO timestamp; defaults to now()>
 //   }
+//
+// disposition is OPTIONAL — GHL may not include it on initial call events.
+// ghl_user_id IS required (used to attribute calls to a team member).
 //
 // Authentication: header X-Webhook-Secret must match ORBIT_WEBHOOK_SECRET env var.
 // Set this secret in Supabase Dashboard → Edge Functions → Secrets, then include
@@ -73,16 +76,13 @@ Deno.serve(async (req) => {
         received_keys: Object.keys(data),
       }, 400);
     }
-    if (!disposition) {
-      return json({
-        error: "Missing disposition value",
-        received_keys: Object.keys(data),
-      }, 400);
-    }
+    // disposition is optional — don't reject if absent (GHL sends call-start events without it)
 
     // Dedup key: user + contact + minute. Retries within the same minute = duplicate.
+    // disposition intentionally excluded so call-start and call-end events for the same
+    // call don't both count (first one wins).
     const minuteBucket = new Date(Math.floor(occurredAt.getTime() / 60000) * 60000).toISOString();
-    const dedupeInput = `${ghlUserId}|${contactId || "noContact"}|${minuteBucket}|${disposition}`;
+    const dedupeInput = `${ghlUserId}|${contactId || "noContact"}|${minuteBucket}`;
     const dedupeKey = await sha256Hex(dedupeInput);
 
     const { error: insertError } = await admin.from("orbit_call_events").insert({
