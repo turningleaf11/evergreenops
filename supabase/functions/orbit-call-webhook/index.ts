@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
 
     // GHL can be configured to send various shapes — try the common fields first,
     // fall back to nested 'data' or 'payload' wrappers.
-    const data = raw.data || raw.payload || raw;
+    // GHL also nests "Custom Data" key-value pairs inside raw.customData — merge them
+    // to the top level so we can find fields regardless of where GHL puts them.
+    const base = raw.data || raw.payload || raw;
+    const data = { ...base, ...(base.customData || raw.customData || {}) };
 
     // GHL sends the assigned user as "user" (object or string) — check all common shapes
     const ghlUserId: string | undefined =
