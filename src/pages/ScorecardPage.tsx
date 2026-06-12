@@ -141,7 +141,7 @@ function getFunnelLayer(m: Metric): FunnelLayer | null {
   const name = m.name.toLowerCase().trim();
 
   // Activities — inputs we control
-  if (name.includes("orbit calls")) return "activities";
+  if (key === "calls:total_week" || name === "calls made") return "activities";
   if (key === "seller:new_week") return "activities";
 
   // Engagement — seller top-of-funnel signal (no targets)
