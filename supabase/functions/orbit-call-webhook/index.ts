@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
 
     const disposition: string | undefined =
       data.disposition || data.call_disposition || data.callDisposition ||
-      data.phoneCall_dispositions || data.phoneCallDispositions || data.outcome;
+      data.phoneCall_dispositions || data.phoneCallDispositions || data.outcome ||
+      // callStatus as fallback (e.g. "completed", "no-answer") when explicit disposition absent
+      data.callStatus || data.call_status || data.status;
 
     const contactId: string | undefined = data.contact_id || data.contactId || data.contact?.id;
 
