@@ -141,7 +141,12 @@ function getFunnelLayer(m: Metric): FunnelLayer | null {
   const name = m.name.toLowerCase().trim();
 
   // Activities — inputs we control
-  if (key === "calls:total_week" || name === "calls made") return "activities";
+  if (
+    key === "calls:total_week" || key === "calls:total_week:team" || key === "calls:total_week:cara" ||
+    key === "calls:connection_rate_week:team" || key === "calls:connection_rate_week:cara" ||
+    name === "calls made" || name === "calls made — team" || name === "calls made — cara" ||
+    name === "connection rate — team" || name === "connection rate — cara"
+  ) return "activities";
   if (key === "seller:new_week") return "activities";
 
   // Engagement — seller top-of-funnel signal (no targets)
@@ -161,10 +166,15 @@ function getFunnelLayer(m: Metric): FunnelLayer | null {
   if (name === "offer sent") return "pipeline";
   if (name === "offers under negotiation" || name.includes("under negotiation")) return "pipeline";
   if (name === "under contract") return "pipeline";
+  if (key === "dispo:active" || name === "active deals in escrow") return "pipeline";
 
   // Outcome — won deals
   if (key === "main:won_week" || name === "contracts signed") return "outcome";
   if (name === "deals closed") return "outcome"; // company-wide total only (not "portfolio deals closed")
+  if (
+    key === "dispo:won_count" || key === "dispo:win_rate" || key === "dispo:revenue" ||
+    name === "deals closed — won" || name === "win rate" || name === "total revenue closed"
+  ) return "outcome";
 
   return null;
 }
