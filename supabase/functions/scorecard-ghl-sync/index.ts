@@ -1,5 +1,5 @@
 /**
- * scorecard-ghl-sync v29
+ * scorecard-ghl-sync v32
  *
  * GHL API v2021-07-28:
  *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
@@ -9,6 +9,19 @@
  *     pipelineStageId — most accurate, immune to API-side filter quirks.
  *   - Large pipelines (≥2900 opps, e.g. Seller Outreach 17k): fall back to
  *     pipeline_stage_id filter + meta.total.
+ *
+ * Calls metrics (orbit_call_events, no GHL API needed):
+ *   calls:total_week          - all users (legacy key, still supported)
+ *   calls:total_week:team     - human reps only (excludes Cara)
+ *   calls:total_week:cara     - Cara VA only
+ *   calls:connection_rate_week:team  - connection % for human reps this week
+ *   calls:connection_rate_week:cara  - connection % for Cara this week
+ *
+ * Dispo pipeline metrics (Dispo Active Deals, hardcoded pipeline ID):
+ *   dispo:active     - open deal count (all non-won, non-lost)
+ *   dispo:won_count  - all-time closed-won count
+ *   dispo:win_rate   - won ÷ (won + lost) × 100
+ *   dispo:revenue    - sum of monetaryValue for all won deals
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -17,6 +30,22 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/** Cara's GHL user ID — tracked separately from the human rep team. */
+const CARA_USER_ID = "fH16f37RPnDnVFwLiJap";
+
+/** Dispo Active Deals pipeline ID — hardcoded to avoid alias mismatch. */
+const DISPO_PIPELINE_ID = "iRmZ78SRBCSRO6LeqYpF";
+
+/**
+ * A call is "connected" when duration ≥ 30 seconds.
+ * This is more reliable than disposition strings (which vary by rep).
+ */
+const CONNECTION_DURATION_THRESHOLD = 30;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -132,10 +161,8 @@ async function fetchStageCount(
   const data = await res.json();
   console.log(`  stage ${stageId} meta: ${JSON.stringify(data.meta)}`);
 
-  // meta.total is the exact count without fetching all records
   if (typeof data.meta?.total === "number") return data.meta.total;
 
-  // Fallback: paginate to count (if GHL doesn't return meta.total)
   let count = (data.opportunities || []).length;
   if (count < 1) return count;
 
@@ -309,7 +336,6 @@ Deno.serve(async (req) => {
         try {
           const opps = await fetchPipelineOpps(ghlApiKey, locationId, p.id);
           totalOpps += opps.length;
-          // For first stage, also test fetchStageCount to verify meta.total
           let stageTest: unknown = "no stages";
           if (p.stages?.length) {
             try {
@@ -322,7 +348,6 @@ Deno.serve(async (req) => {
           }
           pipelineSamples[p.name] = {
             count: opps.length,
-            // stage name → id map so we can cross-reference with opp.pipelineStageId
             stages: (p.stages ?? []).map((s: any) => s.name),
             stageIds: Object.fromEntries((p.stages ?? []).map((s: any) => [s.name, s.id])),
             stageTest,
@@ -373,42 +398,146 @@ Deno.serve(async (req) => {
     if (!needed.length) return json({ synced: 0, skipped: metrics.length });
 
     const errors: { metric_id: string; error: string }[] = [];
-
-    // ── Process calls:total_week metrics (reads orbit_call_events, no GHL API needed) ──
-    const callsMetrics = needed.filter((m: any) =>
-      (m.ghl_field_key as string).trim().toLowerCase() === "calls:total_week"
-    );
-    const ghlNeeded = needed.filter((m: any) =>
-      (m.ghl_field_key as string).trim().toLowerCase() !== "calls:total_week"
-    );
-
     let synced = 0;
 
+    const nextWeek = new Date(weekStart);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekIso = nextWeek.toISOString();
+    const weekStartIso = weekStart.toISOString();
+
+    // ── 1. CALLS METRICS (orbit_call_events — no GHL API) ────────────────────
+
+    const isCallsKey = (key: string) => {
+      const k = key.trim().toLowerCase();
+      return k === "calls:total_week" ||
+        k === "calls:total_week:team" ||
+        k === "calls:total_week:cara" ||
+        k === "calls:connection_rate_week:team" ||
+        k === "calls:connection_rate_week:cara";
+    };
+
+    const callsMetrics = needed.filter((m: any) => isCallsKey(m.ghl_field_key));
+    const afterCallsNeeded = needed.filter((m: any) => !isCallsKey(m.ghl_field_key));
+
     if (callsMetrics.length > 0) {
-      const nextWeek = new Date(weekStart);
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      const nextWeekIso = nextWeek.toISOString();
+      // Fetch call stats for team (excl. Cara) and Cara separately in parallel
+      const [teamTotalRes, caraTotalRes, teamConnRes, caraConnRes] = await Promise.all([
+        // Team total (all non-Cara users this week)
+        adminClient
+          .from("orbit_call_events")
+          .select("*", { count: "exact", head: true })
+          .neq("ghl_user_id", CARA_USER_ID)
+          .gte("occurred_at", weekStartIso)
+          .lt("occurred_at", nextWeekIso),
 
-      const { count: callCount, error: callErr } = await adminClient
-        .from("orbit_call_events")
-        .select("*", { count: "exact", head: true })
-        .gte("occurred_at", weekStart.toISOString())
-        .lt("occurred_at", nextWeekIso);
+        // Cara total this week
+        adminClient
+          .from("orbit_call_events")
+          .select("*", { count: "exact", head: true })
+          .eq("ghl_user_id", CARA_USER_ID)
+          .gte("occurred_at", weekStartIso)
+          .lt("occurred_at", nextWeekIso),
 
-      if (callErr) {
-        for (const m of callsMetrics) {
-          errors.push({ metric_id: m.id, error: `orbit_call_events query failed: ${callErr.message}` });
+        // Team connected (duration >= threshold)
+        adminClient
+          .from("orbit_call_events")
+          .select("*", { count: "exact", head: true })
+          .neq("ghl_user_id", CARA_USER_ID)
+          .gte("occurred_at", weekStartIso)
+          .lt("occurred_at", nextWeekIso)
+          .gte("duration_seconds", CONNECTION_DURATION_THRESHOLD),
+
+        // Cara connected
+        adminClient
+          .from("orbit_call_events")
+          .select("*", { count: "exact", head: true })
+          .eq("ghl_user_id", CARA_USER_ID)
+          .gte("occurred_at", weekStartIso)
+          .lt("occurred_at", nextWeekIso)
+          .gte("duration_seconds", CONNECTION_DURATION_THRESHOLD),
+      ]);
+
+      const teamTotal = teamTotalRes.count ?? 0;
+      const caraTotal = caraTotalRes.count ?? 0;
+      const legacyTotal = teamTotal + caraTotal;
+      const teamConn = teamConnRes.count ?? 0;
+      const caraConn = caraConnRes.count ?? 0;
+
+      const teamConnRate = teamTotal > 0 ? Math.round((teamConn / teamTotal) * 100 * 10) / 10 : 0;
+      const caraConnRate = caraTotal > 0 ? Math.round((caraConn / caraTotal) * 100 * 10) / 10 : 0;
+
+      console.log(`calls team=${teamTotal} cara=${caraTotal} teamConn=${teamConn}(${teamConnRate}%) caraConn=${caraConn}(${caraConnRate}%)`);
+
+      for (const m of callsMetrics) {
+        const key = (m.ghl_field_key as string).trim().toLowerCase();
+        let value: number;
+
+        if (key === "calls:total_week:team") value = teamTotal;
+        else if (key === "calls:total_week:cara") value = caraTotal;
+        else if (key === "calls:total_week") value = legacyTotal;
+        else if (key === "calls:connection_rate_week:team") value = teamConnRate;
+        else if (key === "calls:connection_rate_week:cara") value = caraConnRate;
+        else continue;
+
+        const errQuery = teamTotalRes.error || caraTotalRes.error || teamConnRes.error || caraConnRes.error;
+        if (errQuery) {
+          errors.push({ metric_id: m.id, error: `orbit_call_events error: ${errQuery.message}` });
+          continue;
         }
-      } else {
-        const total = callCount ?? 0;
-        console.log(`calls:total_week = ${total} (${weekStart.toISOString()} → ${nextWeekIso})`);
-        for (const m of callsMetrics) {
+
+        const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
+          { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from call events" },
+          { onConflict: "metric_id,week_start_date" },
+        );
+        if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
+        else synced++;
+      }
+    }
+
+    // ── 2. DISPO PIPELINE METRICS ─────────────────────────────────────────────
+
+    const isDispoKey = (key: string) => key.trim().toLowerCase().startsWith("dispo:");
+    const dispoMetrics = afterCallsNeeded.filter((m: any) => isDispoKey(m.ghl_field_key));
+    const ghlNeeded = afterCallsNeeded.filter((m: any) => !isDispoKey(m.ghl_field_key));
+
+    if (dispoMetrics.length > 0) {
+      try {
+        const dispoOpps = await fetchPipelineOpps(ghlApiKey, locationId, DISPO_PIPELINE_ID);
+        console.log(`Dispo pipeline: ${dispoOpps.length} total opps fetched`);
+
+        const wonOpps = dispoOpps.filter((o: any) => o.status === "won");
+        const lostOpps = dispoOpps.filter((o: any) => o.status === "lost");
+        const activeOpps = dispoOpps.filter((o: any) => o.status !== "won" && o.status !== "lost");
+        const wonRevenue = wonOpps.reduce((s: number, o: any) => s + (o.monetaryValue || 0), 0);
+        const winRate = (wonOpps.length + lostOpps.length) > 0
+          ? Math.round((wonOpps.length / (wonOpps.length + lostOpps.length)) * 100 * 10) / 10
+          : 0;
+
+        console.log(`Dispo: won=${wonOpps.length} lost=${lostOpps.length} active=${activeOpps.length} revenue=$${wonRevenue} winRate=${winRate}%`);
+
+        for (const m of dispoMetrics) {
+          const key = (m.ghl_field_key as string).trim().toLowerCase();
+          let value: number;
+
+          if (key === "dispo:active") value = activeOpps.length;
+          else if (key === "dispo:won_count") value = wonOpps.length;
+          else if (key === "dispo:win_rate") value = winRate;
+          else if (key === "dispo:revenue") value = wonRevenue;
+          else {
+            errors.push({ metric_id: m.id, error: `Unknown dispo key: ${key}` });
+            continue;
+          }
+
           const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
-            { metric_id: m.id, week_start_date: week, actual_value: total, entered_by: null, note: "Auto-synced from call events" },
+            { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from Dispo Active Deals pipeline" },
             { onConflict: "metric_id,week_start_date" },
           );
           if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
           else synced++;
+        }
+      } catch (e: any) {
+        for (const m of dispoMetrics) {
+          errors.push({ metric_id: m.id, error: `Dispo pipeline fetch failed: ${e.message}` });
         }
       }
     }
@@ -417,20 +546,19 @@ Deno.serve(async (req) => {
       return json({ synced, skipped: metrics.length - needed.length, errors });
     }
 
-    // Fetch pipelines (includes stage IDs)
+    // ── 3. GHL PIPELINE METRICS ───────────────────────────────────────────────
+
     let pipelines: any[] = [];
     try {
       pipelines = await fetchPipelines(ghlApiKey, locationId);
       console.log(`Fetched ${pipelines.length} pipelines`);
     } catch (e: any) {
-      return json({ synced: 0, error: `Pipeline fetch failed: ${e.message}` });
+      return json({ synced, error: `Pipeline fetch failed: ${e.message}`, errors });
     }
 
-    // Split metrics into stage-snapshot vs batch-computed
     const stageMetrics = ghlNeeded.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
     const batchMetrics = ghlNeeded.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
 
-    // Pre-fetch opps batches for non-stage metrics
     const oppsByPipelineId = new Map<string, any[]>();
 
     if (batchMetrics.length > 0) {
@@ -472,10 +600,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Process stage metrics — batch-filter for small pipelines, fetchStageCount for large ──
+    // Stage metrics
     for (const m of stageMetrics) {
       const key = (m.ghl_field_key as string).trim();
-      // Format: alias:stage:Stage Name
       const stageIdx = key.indexOf(":stage:");
       const pipelineAlias = key.slice(0, stageIdx);
       const stageName = key.slice(stageIdx + 7).trim();
@@ -500,13 +627,9 @@ Deno.serve(async (req) => {
 
       try {
         let value: number;
-
-        // Prefer batch filtering (exact pipelineStageId match) over API-side filter.
-        // batchMetrics already fetched opps for this pipeline — reuse the cache.
         let fetchedOpps = oppsByPipelineId.get(pipeline.id);
 
         if (!fetchedOpps) {
-          // Not cached yet — check total size before deciding to fetch all
           const checkParams = new URLSearchParams({
             location_id: locationId,
             pipeline_id: pipeline.id,
@@ -528,14 +651,11 @@ Deno.serve(async (req) => {
         }
 
         if (fetchedOpps && fetchedOpps.length < 3000) {
-          // Full pipeline in memory — count open opps in this stage only
-          // (won/lost/abandoned opps retain their last pipelineStageId, must be excluded)
           value = fetchedOpps.filter((o: any) =>
             o.pipelineStageId === stage.id && (o.status ?? "open") === "open"
           ).length;
           console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps, open only): ${value}`);
         } else {
-          // Pipeline too large to batch — fall back to API filter + meta.total
           value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
           console.log(`Stage "${stageName}" in "${pipeline.name}" (fetchStageCount large): ${value}`);
         }
@@ -551,7 +671,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Process batch metrics ─────────────────────────────────────────────────
+    // Batch metrics
     for (const m of batchMetrics) {
       try {
         const value = computeNonStageValue(m.ghl_field_key as string, pipelines, oppsByPipelineId, weekStart);
