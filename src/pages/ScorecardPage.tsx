@@ -118,6 +118,8 @@ type DeptStyle = { color: string; textClass: string; borderClass: string; dimBg:
 
 function getDeptStyle(name: string): DeptStyle {
   const n = (name || "").toLowerCase();
+  if (n.includes("acq") || n.includes("acquisition"))
+    return { color: "#6366f1", textClass: "text-indigo-400", borderClass: "border-indigo-500/20", dimBg: "rgba(99,102,241,0.04)" };
   if (n.includes("dts") || n.includes("seller"))
     return { color: "#6366f1", textClass: "text-indigo-400", borderClass: "border-indigo-500/20", dimBg: "rgba(99,102,241,0.04)" };
   if (n.includes("dta") || n.includes("agent"))
@@ -128,6 +130,8 @@ function getDeptStyle(name: string): DeptStyle {
     return { color: "#10b981", textClass: "text-emerald-400", borderClass: "border-emerald-500/20", dimBg: "rgba(16,185,129,0.04)" };
   if (n.includes("portfolio"))
     return { color: "#14b8a6", textClass: "text-teal-400", borderClass: "border-teal-500/20", dimBg: "rgba(20,184,166,0.04)" };
+  if (n.includes("ops") || n.includes("orbit"))
+    return { color: "#8b5cf6", textClass: "text-violet-400", borderClass: "border-violet-500/20", dimBg: "rgba(139,92,246,0.04)" };
   return { color: "#64748b", textClass: "text-slate-400", borderClass: "border-border/40", dimBg: "rgba(100,116,139,0.03)" };
 }
 
