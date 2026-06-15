@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   ChevronUp, ChevronDown, Plus, Trash2,
   X, Loader2, Check, Lightbulb,
-  AlertTriangle, Eye, ArrowUpCircle, ListTodo,
+  AlertTriangle, Eye, ArrowUpCircle, ListTodo, FolderOpen,
   Pencil, Link2, Layers, FileText, User, ExternalLink, GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,11 +35,11 @@ const sb = supabase as any;
 const NODE_TYPE_OPTIONS = ["source", "process", "decision", "outcome"] as const;
 type NodeType = typeof NODE_TYPE_OPTIONS[number];
 
-const NODE_TYPE_STYLE: Record<NodeType, { label: string; cls: string }> = {
-  source:   { label: "Source",   cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
-  process:  { label: "Process",  cls: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" },
-  decision: { label: "Decision", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
-  outcome:  { label: "Outcome",  cls: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" },
+const NODE_TYPE_STYLE: Record<NodeType, { label: string; cls: string; color: string }> = {
+  source:   { label: "Source",   cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", color: "#10b981" },
+  process:  { label: "Process",  cls: "bg-blue-500/10 text-blue-700 dark:text-blue-300",          color: "#3b82f6" },
+  decision: { label: "Decision", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300",       color: "#f59e0b" },
+  outcome:  { label: "Outcome",  cls: "bg-purple-500/10 text-purple-700 dark:text-purple-300",    color: "#8b5cf6" },
 };
 
 type ImprovementKind = "idea" | "pain_point" | "observation" | "improvement";
@@ -182,10 +182,10 @@ function StepCard({
 
   return (
     <div className={cn(
-      "group rounded-xl border bg-card transition-all",
+      "group rounded-xl border bg-card transition-all overflow-hidden",
       expanded ? "border-primary/30 shadow-md shadow-primary/5" : "border-border/50 hover:border-border/80 hover:shadow-sm",
       inGroup && "h-full flex flex-col",
-    )}>
+    )} style={{ borderLeft: `3px solid ${typeMeta.color}` }}>
       <div className="flex items-start gap-3 p-4">
         {/* Step number + health dot */}
         <div className="relative shrink-0 mt-0.5">
@@ -199,17 +199,21 @@ function StepCard({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          {/* Type + Owner row */}
+          {/* Type dot + Owner row */}
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            {/* Type dot — click to change type */}
             <div className="relative group/type">
-              <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none", typeMeta.cls)}>
-                {typeMeta.label}
-              </span>
-              <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+              <button
+                className="w-2 h-2 rounded-full shrink-0 ring-1 ring-offset-1 ring-offset-card hover:scale-125 transition-transform"
+                style={{ background: typeMeta.color, ringColor: typeMeta.color }}
+                title={typeMeta.label}
+              />
+              <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[110px]">
                 {NODE_TYPE_OPTIONS.map((t) => (
                   <button key={t} onClick={() => setType(t)}
-                    className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 transition-colors capitalize", step.node_type === t && "font-semibold text-primary")}>
-                    {t}
+                    className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 transition-colors flex items-center gap-2", step.node_type === t && "font-semibold")}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: NODE_TYPE_STYLE[t].color }} />
+                    {NODE_TYPE_STYLE[t].label}
                   </button>
                 ))}
               </div>
@@ -635,6 +639,17 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
     toast.success("Task created");
   };
 
+  const promoteImpToProject = async (imp: Improvement) => {
+    if (!user) return;
+    const { error } = await sb.from("projects").insert({
+      title: imp.title, owner_id: user.id, created_by: user.id,
+    });
+    if (error) { toast.error(error.message); return; }
+    await sb.from("process_improvements").update({ status: "converted" }).eq("id", imp.id);
+    setImprovements((prev) => prev.map((i) => i.id === imp.id ? { ...i, status: "converted" } : i));
+    toast.success("Project created");
+  };
+
   // ── Derived ────────────────────────────────────────────────
 
   const openImprovements = improvements.filter((i) => i.status === "open" || i.status === "in_review");
@@ -927,8 +942,11 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                           <p className={cn("flex-1 text-xs text-foreground leading-relaxed", done && "line-through")}>{imp.title}</p>
                           {!done && (
                             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => promoteImpToTask(imp)} className="p-1 rounded text-muted-foreground/40 hover:text-emerald-600 hover:bg-emerald-500/10" title="Create task">
+                              <button onClick={() => promoteImpToTask(imp)} className="p-1 rounded text-muted-foreground/40 hover:text-emerald-600 hover:bg-emerald-500/10" title="Convert to task">
                                 <ListTodo className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => promoteImpToProject(imp)} className="p-1 rounded text-muted-foreground/40 hover:text-blue-600 hover:bg-blue-500/10" title="Convert to project">
+                                <FolderOpen className="h-3 w-3" />
                               </button>
                               <button onClick={() => closeImprovement(imp.id)} className="p-1 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted" title="Close">
                                 <Check className="h-3 w-3" />
