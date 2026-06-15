@@ -1,5 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export type ProcessVertical = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  sort_order: number;
+  visibility: string;
+  created_at: string;
+};
+
 export type ProcessBucket = {
   id: string;
   slug: string;
@@ -11,6 +23,14 @@ export type ProcessBucket = {
   bucket_order: number;
   parent_id: string | null;
   node_type: string;
+  vertical_id: string | null;
+};
+
+export type LinkedDoc = {
+  id: string;
+  title: string;
+  updated_at: string;
+  icon: string | null;
 };
 
 export type ProcessStep = {
@@ -65,6 +85,64 @@ export type ProcessAnnotation = {
   created_at: string;
 };
 
+// ── Verticals ──────────────────────────────────────────────
+
+export const getProcessVerticals = async (): Promise<ProcessVertical[]> => {
+  const { data, error } = await supabase
+    .from('process_verticals')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const createVertical = async (
+  workspaceId: string,
+  name: string,
+  color: string,
+  description?: string,
+): Promise<ProcessVertical> => {
+  const { data: last } = await supabase
+    .from('process_verticals')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .single();
+  const { data, error } = await supabase
+    .from('process_verticals')
+    .insert({ workspace_id: workspaceId, name, color, description: description || null, sort_order: (last?.sort_order ?? 0) + 1 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateVertical = async (
+  id: string,
+  fields: Partial<Pick<ProcessVertical, 'name' | 'description' | 'color' | 'sort_order'>>,
+): Promise<void> => {
+  const { error } = await supabase.from('process_verticals').update(fields).eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteVertical = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('process_verticals').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ── Linked Docs ────────────────────────────────────────────
+
+export const getLinkedDocs = async (bucketSlug: string): Promise<LinkedDoc[]> => {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, title, updated_at, icon')
+    .contains('tags', [bucketSlug])
+    .order('updated_at', { ascending: false })
+    .limit(8);
+  if (error) throw error;
+  return (data ?? []) as LinkedDoc[];
+};
+
 // ── Buckets ────────────────────────────────────────────────
 
 export const getProcessBuckets = async (parentId?: string | null): Promise<ProcessBucket[]> => {
@@ -77,18 +155,22 @@ export const getProcessBuckets = async (parentId?: string | null): Promise<Proce
 };
 
 export const createBucket = async (
+  workspaceId: string,
   name: string,
   parentId: string | null,
   position: { x: number; y: number },
   siblings: number,
+  verticalId?: string | null,
 ): Promise<ProcessBucket> => {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const { data, error } = await supabase
     .from('process_buckets')
     .insert({
+      workspace_id: workspaceId,
       slug: `${slug}-${Date.now()}`,
       name,
       parent_id: parentId,
+      vertical_id: verticalId ?? null,
       position_x: position.x,
       position_y: position.y,
       bucket_order: siblings + 1,
