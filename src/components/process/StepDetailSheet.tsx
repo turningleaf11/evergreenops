@@ -1,5 +1,5 @@
 // StepDetailSheet — slide-out panel for a single process step.
-// Contains: rich text description, sub-process ReactFlow canvas, linked docs, step issues.
+// Tabbed layout: Overview | Notes | Map | Docs
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RichTextEditor from "@/components/RichTextEditor";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -19,11 +20,10 @@ import {
 } from "@/lib/processMap";
 import {
   X, Plus, Loader2, Link2, FileText, Lightbulb, AlertTriangle,
-  Eye, ArrowUpCircle, Check, User, Layers, GitBranch,
+  Eye, ArrowUpCircle, Check, User, Layers, GitBranch, StickyNote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import "@xyflow/react/dist/style.css";
 
 const sb = supabase as any;
 
@@ -153,7 +153,6 @@ function SubProcessNode({ data, selected }: NodeProps) {
 SubProcessNode.displayName = "SubProcessNode";
 const SUB_NODE_TYPES = { subNode: SubProcessNode };
 
-// Auto-fit whenever nodes are added/removed (must be inside ReactFlow context)
 function AutoFitter({ nodeCount }: { nodeCount: number }) {
   const { fitView } = useReactFlow();
   useEffect(() => {
@@ -164,7 +163,7 @@ function AutoFitter({ nodeCount }: { nodeCount: number }) {
   return null;
 }
 
-// ── Mini canvas ─────────────────────────────────────────────
+// ── Sub-process canvas ──────────────────────────────────────
 
 function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspaceId: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -176,8 +175,7 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
   const subBucketsRef = useRef<ProcessBucket[]>([]);
 
   const toNode = useCallback((b: ProcessBucket, onDelete: (id: string) => void, onRename: (id: string, name: string) => void): Node => ({
-    id: b.id,
-    type: "subNode",
+    id: b.id, type: "subNode",
     position: { x: b.position_x, y: b.position_y },
     data: { bucket: b, onDelete, onRename },
   }), []);
@@ -211,14 +209,11 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
     load();
   }, [step.id, toNode, handleDelete, handleRename, setNodes, setEdges]);
 
-  // Optimistically add edge, then persist — same pattern as ProcessMapPage
   const onConnect = useCallback(async (connection: Connection) => {
     if (!connection.source || !connection.target) return;
     const tempId = `${connection.source}-${connection.target}-${Date.now()}`;
     setEdges((prev) => addEdge({
-      ...connection,
-      id: tempId,
-      type: "smoothstep",
+      ...connection, id: tempId, type: "smoothstep",
       style: { strokeWidth: 1.5, stroke: "hsl(var(--muted-foreground))" },
     }, prev));
     try {
@@ -227,7 +222,6 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
     } catch { /* keep temp edge */ }
   }, [setEdges]);
 
-  // Intercept edge changes to delete from DB on "remove"
   const handleEdgesChange = useCallback(async (changes: any[]) => {
     for (const change of changes) {
       if (change.type === "remove") {
@@ -245,17 +239,14 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
   const addNode = async () => {
     if (!newNodeName.trim()) return;
     const count = subBucketsRef.current.length;
-    const bucket = await createBucket(
-      workspaceId, newNodeName.trim(), step.id,
-      { x: count * 200, y: 60 }, count, null, newNodeType,
-    );
+    const bucket = await createBucket(workspaceId, newNodeName.trim(), step.id, { x: count * 200, y: 60 }, count, null, newNodeType);
     subBucketsRef.current = [...subBucketsRef.current, bucket];
     setNodes((prev) => [...prev, toNode(bucket, handleDelete, handleRename)]);
     setNewNodeName(""); setAddingNode(false);
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-[280px] text-muted-foreground/40 text-xs gap-2">
+    <div className="flex items-center justify-center h-[260px] text-muted-foreground/40 text-xs gap-2">
       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading map…
     </div>
   );
@@ -264,13 +255,10 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5">
-          <GitBranch className="h-3 w-3" /> Sub-Process Map
+          <GitBranch className="h-3 w-3" /> Sub-process map
         </p>
         {!addingNode && (
-          <button
-            onClick={() => setAddingNode(true)}
-            className="text-[10px] text-muted-foreground/40 hover:text-foreground flex items-center gap-1 transition-colors"
-          >
+          <button onClick={() => setAddingNode(true)} className="text-[10px] text-muted-foreground/40 hover:text-foreground flex items-center gap-1 transition-colors">
             <Plus className="h-3 w-3" /> Add node
           </button>
         )}
@@ -298,31 +286,18 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
       )}
 
       {nodes.length === 0 && !addingNode ? (
-        <div
-          onClick={() => setAddingNode(true)}
-          className="flex flex-col items-center justify-center h-[300px] rounded-xl border-2 border-dashed border-border/40 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all text-center"
-        >
+        <div onClick={() => setAddingNode(true)}
+          className="flex flex-col items-center justify-center h-[260px] rounded-xl border-2 border-dashed border-border/40 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all text-center">
           <GitBranch className="h-6 w-6 text-muted-foreground/20 mb-2" />
           <p className="text-xs text-muted-foreground/40">Map out the sub-process for this step</p>
           <p className="text-[10px] text-muted-foreground/30 mt-1">Click to add a node</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden" style={{ height: 360 }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={onConnect}
-            onNodeDragStop={onNodeDragStop}
-            nodeTypes={SUB_NODE_TYPES}
-            fitView
-            fitViewOptions={{ padding: 0.35 }}
-            minZoom={0.3}
-            maxZoom={2}
-            deleteKeyCode="Delete"
-            className="bg-muted/10"
-          >
+        <div className="rounded-xl border border-border/50 overflow-hidden" style={{ height: 320 }}>
+          <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={handleEdgesChange}
+            onConnect={onConnect} onNodeDragStop={onNodeDragStop} nodeTypes={SUB_NODE_TYPES}
+            fitView fitViewOptions={{ padding: 0.35 }} minZoom={0.3} maxZoom={2}
+            deleteKeyCode="Delete" className="bg-muted/10">
             <Background color="hsl(var(--border))" gap={18} size={1} />
             <Controls showInteractive={false} className="!bg-card !border-border/50 !shadow-sm" />
             <AutoFitter nodeCount={nodes.length} />
@@ -357,20 +332,22 @@ export function StepDetailSheet({
   step, workspaceId, stepDocs, onLinkStepDoc, onUnlinkStepDoc,
   profiles, onOwnerChange, onStepUpdate, improvements, onClose,
 }: StepDetailSheetProps) {
-  const [editName, setEditName]     = useState(step?.name ?? "");
-  const [nameChanged, setNameChanged] = useState(false);
+  const [editName, setEditName]         = useState(step?.name ?? "");
+  const [nameChanged, setNameChanged]   = useState(false);
+  const [editDesc, setEditDesc]         = useState(step?.description ?? "");
+  const [descChanged, setDescChanged]   = useState(false);
   const [showOwnerPicker, setShowOwnerPicker] = useState(false);
-  const [descOpen, setDescOpen]     = useState(!!step?.description);
-  const [docSearch, setDocSearch]   = useState("");
-  const [docResults, setDocResults] = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
+  const [docSearch, setDocSearch]       = useState("");
+  const [docResults, setDocResults]     = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
   const [docSearching, setDocSearching] = useState(false);
   const [linkingDocId, setLinkingDocId] = useState<string | null>(null);
-  const descSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const notesSaveTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setEditName(step?.name ?? "");
+    setEditDesc(step?.description ?? "");
     setNameChanged(false);
-    setDescOpen(!!step?.description);
+    setDescChanged(false);
   }, [step?.id]);
 
   if (!step) return null;
@@ -382,12 +359,20 @@ export function StepDetailSheet({
     setNameChanged(false);
   };
 
-  const handleDescChange = (html: string) => {
-    clearTimeout(descSaveTimer.current);
-    descSaveTimer.current = setTimeout(async () => {
-      const plain = stripHtml(html);
-      await updateBucket(step.id, { description: plain || null });
-      onStepUpdate({ description: plain || null });
+  const saveDesc = async () => {
+    if (!descChanged) return;
+    const val = editDesc.trim() || null;
+    await updateBucket(step.id, { description: val });
+    onStepUpdate({ description: val });
+    setDescChanged(false);
+  };
+
+  const handleNotesChange = (html: string) => {
+    clearTimeout(notesSaveTimer.current);
+    notesSaveTimer.current = setTimeout(async () => {
+      const val = html && stripHtml(html) ? html : null;
+      await updateBucket(step.id, { notes: val });
+      onStepUpdate({ notes: val });
     }, 600);
   };
 
@@ -412,137 +397,174 @@ export function StepDetailSheet({
 
   return (
     <Sheet open={!!step} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-[680px] p-0 flex flex-col overflow-hidden"
-      >
+      <SheetContent side="right" className="w-full sm:max-w-[680px] p-0 flex flex-col overflow-hidden">
+
         {/* ── Header ──────────────────────────────────────── */}
         <div className="shrink-0 px-6 py-5 border-b border-border/40" style={{ borderLeft: `3px solid ${step.color}` }}>
-          <div className="flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              {/* Type badge row */}
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <div className="relative group/type">
-                  <span className={cn("inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wide cursor-pointer", typeMeta.cls)}>
-                    {typeMeta.label}
-                  </span>
-                  <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-                    {NODE_TYPE_OPTIONS.map((t) => (
-                      <button key={t} onClick={async () => { await updateBucket(step.id, { node_type: t }); onStepUpdate({ node_type: t }); }}
-                        className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 capitalize", step.node_type === t && "font-semibold text-primary")}>
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Owner chip */}
-                <div className="relative">
-                  {owner ? (
-                    <button onClick={() => setShowOwnerPicker((v) => !v)}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/60 hover:bg-muted text-[11px] text-muted-foreground transition-colors">
-                      {owner.avatar_url
-                        ? <img src={owner.avatar_url} className="w-3.5 h-3.5 rounded-full object-cover" />
-                        : <span className="w-3.5 h-3.5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">{initials(owner.full_name)}</span>
-                      }
-                      {owner.full_name ?? "Owner"}
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowOwnerPicker((v) => !v)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40 transition-all">
-                      <User className="h-3 w-3" /> Assign owner
-                    </button>
-                  )}
-                  {showOwnerPicker && (
-                    <div className="absolute top-full left-0 mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
-                      {profiles.map((p) => (
-                        <button key={p.user_id} onClick={() => { onOwnerChange(step.id, p.user_id); setShowOwnerPicker(false); }}
-                          className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50", step.owner_id === p.user_id && "font-semibold text-primary")}>
-                          {p.avatar_url
-                            ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
-                            : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
-                          }
-                          <span className="truncate">{p.full_name ?? p.user_id.slice(0, 8)}</span>
-                        </button>
-                      ))}
-                      {step.owner_id && (
-                        <button onClick={() => { onOwnerChange(step.id, null); setShowOwnerPicker(false); }}
-                          className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground/50 hover:bg-muted/40 border-t border-border/40">
-                          Remove owner
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {openIssues.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
-                    {openIssues.length} open {openIssues.length === 1 ? "issue" : "issues"}
-                  </span>
-                )}
+          {/* Type badge + owner + issue count */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {/* Type picker */}
+            <div className="relative group/type">
+              <span className={cn("inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wide cursor-pointer", typeMeta.cls)}>
+                {typeMeta.label}
+              </span>
+              <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                {NODE_TYPE_OPTIONS.map((t) => (
+                  <button key={t} onClick={async () => { await updateBucket(step.id, { node_type: t }); onStepUpdate({ node_type: t }); }}
+                    className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 capitalize", step.node_type === t && "font-semibold text-primary")}>
+                    {t}
+                  </button>
+                ))}
               </div>
-
-              {/* Step name */}
-              <input
-                value={editName}
-                onChange={(e) => { setEditName(e.target.value); setNameChanged(true); }}
-                onBlur={saveName}
-                onKeyDown={(e) => e.key === "Enter" && saveName()}
-                className="w-full text-xl font-bold text-foreground bg-transparent outline-none border-b-2 border-transparent hover:border-border/30 focus:border-primary/40 pb-0.5 transition-colors"
-                placeholder="Step name"
-              />
             </div>
-          </div>
-        </div>
 
-        {/* ── Scrollable body ──────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Description — rich text */}
-          <div className="px-6 pt-5 pb-4 border-b border-border/30">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Description</p>
-              {descOpen && (
-                <button
-                  onClick={() => setDescOpen(false)}
-                  className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground transition-colors"
-                >
-                  collapse
+            {/* Owner */}
+            <div className="relative">
+              {owner ? (
+                <button onClick={() => setShowOwnerPicker((v) => !v)}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/60 hover:bg-muted text-[11px] text-muted-foreground transition-colors">
+                  {owner.avatar_url
+                    ? <img src={owner.avatar_url} className="w-3.5 h-3.5 rounded-full object-cover" />
+                    : <span className="w-3.5 h-3.5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">{initials(owner.full_name)}</span>
+                  }
+                  {owner.full_name ?? "Owner"}
+                </button>
+              ) : (
+                <button onClick={() => setShowOwnerPicker((v) => !v)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40 transition-all">
+                  <User className="h-3 w-3" /> Assign owner
                 </button>
               )}
+              {showOwnerPicker && (
+                <div className="absolute top-full left-0 mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+                  {profiles.map((p) => (
+                    <button key={p.user_id} onClick={() => { onOwnerChange(step.id, p.user_id); setShowOwnerPicker(false); }}
+                      className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50", step.owner_id === p.user_id && "font-semibold text-primary")}>
+                      {p.avatar_url
+                        ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                        : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
+                      }
+                      <span className="truncate">{p.full_name ?? p.user_id.slice(0, 8)}</span>
+                    </button>
+                  ))}
+                  {step.owner_id && (
+                    <button onClick={() => { onOwnerChange(step.id, null); setShowOwnerPicker(false); }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground/50 hover:bg-muted/40 border-t border-border/40">
+                      Remove owner
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {descOpen ? (
-              <div className="rounded-xl border border-border/40 bg-background/50 overflow-hidden">
-                <RichTextEditor
-                  key={step.id}
-                  content={toRichContent(step.description)}
-                  onChange={handleDescChange}
-                  placeholder="Describe what happens in this step, who's responsible, key decisions…"
-                  borderless
-                  minHeight="240px"
-                />
-              </div>
-            ) : (
-              <button
-                onClick={() => setDescOpen(true)}
-                className="w-full text-left px-3 py-3 rounded-xl border border-dashed border-border/40 text-sm text-muted-foreground/40 hover:text-muted-foreground/70 hover:border-border/60 hover:bg-muted/20 transition-all"
-              >
-                {step.description ? "Click to view description…" : "Add a description…"}
-              </button>
+
+            {openIssues.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+                {openIssues.length} open {openIssues.length === 1 ? "issue" : "issues"}
+              </span>
             )}
           </div>
 
-          {/* Sub-process canvas */}
-          <div className="px-6 py-5 border-b border-border/30">
-            <SubProcessCanvas step={step} workspaceId={workspaceId} />
-          </div>
+          {/* Step name */}
+          <input
+            value={editName}
+            onChange={(e) => { setEditName(e.target.value); setNameChanged(true); }}
+            onBlur={saveName}
+            onKeyDown={(e) => e.key === "Enter" && saveName()}
+            className="w-full text-xl font-bold text-foreground bg-transparent outline-none border-b-2 border-transparent hover:border-border/30 focus:border-primary/40 pb-0.5 transition-colors"
+            placeholder="Step name"
+          />
 
-          {/* Linked docs */}
-          <div className="px-6 py-5 border-b border-border/30 space-y-3">
+          {/* Short description — subtitle */}
+          <input
+            value={editDesc}
+            onChange={(e) => { setEditDesc(e.target.value); setDescChanged(true); }}
+            onBlur={saveDesc}
+            onKeyDown={(e) => e.key === "Enter" && saveDesc()}
+            placeholder="Short description…"
+            className="w-full mt-1.5 text-sm text-muted-foreground bg-transparent outline-none border-b border-transparent hover:border-border/20 focus:border-border/40 pb-0.5 transition-colors placeholder:text-muted-foreground/30"
+          />
+        </div>
+
+        {/* ── Tabs ────────────────────────────────────────── */}
+        <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="shrink-0 w-full justify-start rounded-none border-b border-border/30 bg-transparent px-6 h-10 gap-0">
+            {[
+              { value: "overview", label: "Overview" },
+              { value: "notes",    label: "Notes" },
+              { value: "map",      label: "Map" },
+              { value: "docs",     label: "Docs" },
+            ].map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-10 text-xs font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Overview — issues & ideas */}
+          <TabsContent value="overview" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
+            {stepIssues.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Lightbulb className="h-8 w-8 text-muted-foreground/20 mb-3" />
+                <p className="text-sm text-muted-foreground/50">No issues or ideas yet</p>
+                <p className="text-xs text-muted-foreground/30 mt-1">Log them from the Issues & Ideas tab on the process page</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-3 flex items-center gap-1.5">
+                  <Lightbulb className="h-3 w-3" /> Issues & Ideas ({stepIssues.length})
+                </p>
+                {stepIssues.map((imp) => {
+                  const Icon = KIND_ICON[imp.kind];
+                  const done = imp.status === "converted" || imp.status === "closed";
+                  return (
+                    <div key={imp.id} className={cn("rounded-xl border border-border/40 bg-background/50 p-3.5 flex items-start gap-3", done && "opacity-40")}>
+                      <span className={cn("inline-flex items-center p-1.5 rounded-lg shrink-0 mt-0.5", KIND_CLS[imp.kind])}>
+                        <Icon className="h-3 w-3" />
+                      </span>
+                      <p className={cn("text-sm text-foreground leading-relaxed flex-1", done && "line-through")}>{imp.title}</p>
+                      {done && (
+                        <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                          <Check className="h-3 w-3" /> {imp.status}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Notes — full rich text */}
+          <TabsContent value="notes" className="flex-1 overflow-y-auto mt-0">
+            <div className="h-full">
+              <RichTextEditor
+                key={`${step.id}-notes`}
+                content={toRichContent(step.notes)}
+                onChange={handleNotesChange}
+                placeholder="Add detailed notes, images, checklists… type '/' for commands"
+                borderless
+                showToolbar
+              />
+            </div>
+          </TabsContent>
+
+          {/* Map — sub-process canvas */}
+          <TabsContent value="map" className="flex-1 overflow-y-auto px-6 py-5 mt-0">
+            <SubProcessCanvas step={step} workspaceId={workspaceId} />
+          </TabsContent>
+
+          {/* Docs — linked documents */}
+          <TabsContent value="docs" className="flex-1 overflow-y-auto px-6 py-5 mt-0 space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1.5">
-              <FileText className="h-3 w-3" /> Docs
+              <FileText className="h-3 w-3" /> Linked docs
             </p>
+
             {stepDocs.map((doc) => (
-              <div key={doc.id} className="group flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-background/50 hover:border-border/70 transition-colors">
+              <div key={doc.id} className="group flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/40 bg-background/50 hover:border-border/70 transition-colors">
                 <span className="text-sm shrink-0">{doc.icon ?? "📄"}</span>
                 <span className="flex-1 text-xs font-medium text-foreground truncate">{doc.title}</span>
                 <button onClick={() => onUnlinkStepDoc(step, doc.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity shrink-0">
@@ -550,15 +572,17 @@ export function StepDetailSheet({
                 </button>
               </div>
             ))}
+
             <div className="relative">
               <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
               <input value={docSearch} onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
-                placeholder="Link a doc…"
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-border/40 bg-background outline-none focus:border-primary/40 transition-colors" />
+                placeholder="Search to link a doc…"
+                className="w-full pl-8 pr-3 py-2.5 text-xs rounded-xl border border-border/40 bg-background outline-none focus:border-primary/40 transition-colors" />
               {docSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
             </div>
+
             {docResults.length > 0 && (
-              <div className="rounded-lg border border-border/50 bg-background shadow-sm overflow-hidden divide-y divide-border/20">
+              <div className="rounded-xl border border-border/50 bg-background shadow-sm overflow-hidden divide-y divide-border/20">
                 {docResults.map((doc) => {
                   const already = stepDocs.some((d) => d.id === doc.id);
                   return (
@@ -573,33 +597,12 @@ export function StepDetailSheet({
                 })}
               </div>
             )}
+
             {stepDocs.length === 0 && !docSearch && (
               <p className="text-xs text-muted-foreground/30 italic">No docs linked yet</p>
             )}
-          </div>
-
-          {/* Issues tied to this step */}
-          {stepIssues.length > 0 && (
-            <div className="px-6 py-5 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1.5">
-                <Lightbulb className="h-3 w-3" /> Issues & Ideas
-              </p>
-              {stepIssues.map((imp) => {
-                const Icon = KIND_ICON[imp.kind];
-                const done = imp.status === "converted" || imp.status === "closed";
-                return (
-                  <div key={imp.id} className={cn("rounded-lg border border-border/40 bg-background/50 p-3 flex items-start gap-2", done && "opacity-40")}>
-                    <span className={cn("inline-flex items-center p-1 rounded-full shrink-0 mt-0.5", KIND_CLS[imp.kind])}>
-                      <Icon className="h-2.5 w-2.5" />
-                    </span>
-                    <p className={cn("text-xs text-foreground leading-relaxed", done && "line-through")}>{imp.title}</p>
-                    {done && <span className="text-[10px] text-muted-foreground/40 shrink-0 ml-auto">{imp.status}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

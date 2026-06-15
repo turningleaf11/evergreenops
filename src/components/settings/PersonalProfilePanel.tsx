@@ -13,7 +13,7 @@ import { Sun, Moon, Monitor, Upload, KeyRound, Loader2 } from "lucide-react";
 
 export function PersonalProfilePanel() {
   const { user, profile, refreshProfile } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, palette, setPalette } = useTheme();
   const { departments } = useDepartments();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,31 +142,66 @@ export function PersonalProfilePanel() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Appearance</CardTitle>
-          <CardDescription>Light, dark, or follow your system.</CardDescription>
+          <CardDescription>Choose a color theme or control light/dark mode.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            {([
-              { value: "light", label: "Light", icon: Sun },
-              { value: "dark", label: "Dark", icon: Moon },
-              { value: "system", label: "System", icon: Monitor },
-            ] as const).map((opt) => {
-              const Icon = opt.icon;
-              const active = theme === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => setTheme(opt.value)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                    active ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-muted"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {opt.label}
-                </button>
-              );
-            })}
+        <CardContent className="space-y-5">
+          {/* Palette */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Color theme</p>
+            <div className="flex gap-2 flex-wrap">
+              {([
+                { value: "default",    label: "Default",        swatch: ["#FAFBFC", "#3E54D3"], dark: false },
+                { value: "midnight",   label: "Midnight Slate", swatch: ["#0D1117", "#4F6EF7"], dark: true },
+                { value: "warm-sand",  label: "Warm Sand",      swatch: ["#FAF7F2", "#C1440E"], dark: false },
+              ] as const).map((opt) => {
+                const active = palette === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setPalette(opt.value)}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                      active ? "border-primary bg-primary/8 text-foreground" : "bg-card border-border hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <span className="flex gap-0.5 shrink-0">
+                      <span className="w-3 h-3 rounded-full border border-border/40" style={{ background: opt.swatch[0] }} />
+                      <span className="w-3 h-3 rounded-full border border-border/40" style={{ background: opt.swatch[1] }} />
+                    </span>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Light / dark — only relevant for Default palette */}
+          {palette === "default" && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Mode</p>
+              <div className="flex gap-2">
+                {([
+                  { value: "light", label: "Light", icon: Sun },
+                  { value: "dark",  label: "Dark",  icon: Moon },
+                  { value: "system", label: "System", icon: Monitor },
+                ] as const).map((opt) => {
+                  const Icon = opt.icon;
+                  const active = theme === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setTheme(opt.value)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                        active ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-muted"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

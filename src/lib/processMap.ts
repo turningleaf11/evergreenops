@@ -17,6 +17,7 @@ export type ProcessBucket = {
   slug: string;
   name: string;
   description: string | null;
+  notes: string | null;
   color: string;
   position_x: number;
   position_y: number;
@@ -200,7 +201,7 @@ export const createBucket = async (
   return data;
 };
 
-export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'color' | 'bucket_order' | 'node_type' | 'step_group' | 'owner_id'>>): Promise<void> => {
+export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'notes' | 'color' | 'bucket_order' | 'node_type' | 'step_group' | 'owner_id'>>): Promise<void> => {
   const { error } = await supabase.from('process_buckets').update(fields).eq('id', id);
   if (error) throw error;
 };
