@@ -211,22 +211,32 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
     load();
   }, [step.id, toNode, handleDelete, handleRename, setNodes, setEdges]);
 
+  // Optimistically add edge, then persist — same pattern as ProcessMapPage
   const onConnect = useCallback(async (connection: Connection) => {
     if (!connection.source || !connection.target) return;
-    const edge = await createDbEdge(connection.source, connection.target);
+    const tempId = `${connection.source}-${connection.target}-${Date.now()}`;
     setEdges((prev) => addEdge({
       ...connection,
-      id: edge.id,
+      id: tempId,
+      type: "smoothstep",
       style: { strokeWidth: 1.5, stroke: "hsl(var(--muted-foreground))" },
     }, prev));
+    try {
+      const saved = await createDbEdge(connection.source, connection.target);
+      setEdges((prev) => prev.map((e) => e.id === tempId ? { ...e, id: saved.id } : e));
+    } catch { /* keep temp edge */ }
   }, [setEdges]);
 
-  const onEdgeDelete = useCallback(async (edgesToDelete: Edge[]) => {
-    for (const e of edgesToDelete) {
-      await deleteDbEdge(e.source, e.target).catch(() => {});
+  // Intercept edge changes to delete from DB on "remove"
+  const handleEdgesChange = useCallback(async (changes: any[]) => {
+    for (const change of changes) {
+      if (change.type === "remove") {
+        const edge = edges.find((e: Edge) => e.id === change.id);
+        if (edge) deleteDbEdge(edge.source, edge.target).catch(() => {});
+      }
     }
-    setEdges((prev) => prev.filter((e) => !edgesToDelete.find((d) => d.id === e.id)));
-  }, [setEdges]);
+    onEdgesChange(changes);
+  }, [edges, onEdgesChange]);
 
   const onNodeDragStop = useCallback((_: any, node: Node) => {
     saveBucketPosition(node.id, node.position.x, node.position.y).catch(() => {});
@@ -302,9 +312,8 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
-            onEdgesDelete={onEdgeDelete}
             onNodeDragStop={onNodeDragStop}
             nodeTypes={SUB_NODE_TYPES}
             fitView
