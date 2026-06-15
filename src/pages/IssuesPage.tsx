@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X, LayoutGrid, List } from "lucide-react";
+import { StatusBadge, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
 import { toast } from "@/hooks/use-toast";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 
@@ -143,11 +144,11 @@ export default function IssuesPage() {
       <CardContent className="py-3">
         <h3 className="font-medium text-sm">{issue.title}</h3>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
-          <Badge variant="outline" className="text-xs">{categoryLabels[issue.category] || issue.category}</Badge>
+          <StatusBadge label={PRIORITY_LABEL[issue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[issue.priority] ?? "warning"} dot />
+          <StatusBadge label={categoryLabels[issue.category] || issue.category} variant="default" />
           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
           {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
-          <Badge variant="outline" className="text-xs capitalize">{issue.status}</Badge>
+          <StatusBadge label={issue.status} variant={issue.status === "solved" ? "success" : issue.status === "dismissed" ? "muted" : "info"} />
         </div>
       </CardContent>
     </Card>

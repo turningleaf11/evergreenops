@@ -1,8 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Target, FolderKanban, Calendar, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { StatusBadge, TASK_STATUS_VARIANT } from "@/components/shared/StatusBadge";
 
 interface KeyResult { label?: string; title?: string; target?: string | number; current?: string | number; done?: boolean; }
 
@@ -16,14 +15,6 @@ interface GoalCardProps {
   ownerName: string;
   onClick: () => void;
 }
-
-const statusStyles: Record<string, string> = {
-  on_track: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  behind: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  at_risk: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  done: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  not_done: "bg-muted text-muted-foreground",
-};
 
 const statusLabels: Record<string, string> = {
   on_track: "On Track", behind: "Behind", at_risk: "At Risk", done: "Done", not_done: "Not Done",
@@ -81,9 +72,11 @@ export default function GoalCard({ goal, projects, ownerName, onClick }: GoalCar
               <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{goal.description}</p>
             )}
           </div>
-          <Badge className={cn("text-[10px] rounded-full px-2 py-0.5 border-0 shrink-0", statusStyles[goal.status] || "")}>
-            {statusLabels[goal.status] || goal.status}
-          </Badge>
+          <StatusBadge
+            label={statusLabels[goal.status] || goal.status}
+            variant={TASK_STATUS_VARIANT[goal.status] ?? "default"}
+            size="xs"
+          />
         </div>
 
         {/* Progress */}

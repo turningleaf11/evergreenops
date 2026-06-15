@@ -6,6 +6,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   useCallback,
 } from "react";
@@ -299,8 +300,15 @@ interface CommandListRef {
 const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => setSelectedIndex(0), [items]);
+
+    useEffect(() => {
+      if (!containerRef.current) return;
+      const el = containerRef.current.querySelector<HTMLElement>(".slash-menu-item.is-selected");
+      el?.scrollIntoView({ block: "nearest" });
+    }, [selectedIndex]);
 
     const selectItem = useCallback(
       (index: number) => {
@@ -347,7 +355,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     });
 
     return (
-      <div className="slash-menu">
+      <div ref={containerRef} className="slash-menu">
         {grouped.map((group) => (
           <div key={group.category}>
             <div className="px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">

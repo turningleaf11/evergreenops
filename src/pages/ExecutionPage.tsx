@@ -33,6 +33,7 @@ import { toast } from "@/hooks/use-toast";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { StatusBadge as SharedStatusBadge, TASK_STATUS_VARIANT, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 
@@ -400,11 +401,6 @@ export default function ExecutionPage() {
   const filteredIssues = issueCategoryFilter === "all" ? issues : issues.filter(i => i.category === issueCategoryFilter);
   const openIssues = filteredIssues.filter(i => !["solved", "dismissed"].includes(i.status));
   const resolvedIssues = filteredIssues.filter(i => ["solved", "dismissed"].includes(i.status));
-
-  const StatusBadge = ({ status }: { status: string }) => {
-    const cfg = statusConfig[status] || { label: status, color: "bg-muted text-muted-foreground", icon: Circle };
-    return <Badge variant="secondary" className={`${cfg.color} text-xs`}>{cfg.label}</Badge>;
-  };
 
   // Shared click handlers
   // Projects now open as a slide-over peek (with Expand → full page button)
@@ -909,7 +905,7 @@ export default function ExecutionPage() {
                       <div>
                         <h3 className="font-medium">{issue.title}</h3>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge className={`text-xs ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <SharedStatusBadge label={PRIORITY_LABEL[issue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[issue.priority] ?? "warning"} dot />
                           <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
                           {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
@@ -981,7 +977,7 @@ export default function ExecutionPage() {
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs capitalize">{(selectedIssue.category || "general").replace("_", " ")}</Badge>
-                <Badge className={`text-xs ${priorityLabels[selectedIssue.priority]?.color}`}>{priorityLabels[selectedIssue.priority]?.label}</Badge>
+                <SharedStatusBadge label={PRIORITY_LABEL[selectedIssue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[selectedIssue.priority] ?? "warning"} dot />
                 {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
                 <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
               </div>

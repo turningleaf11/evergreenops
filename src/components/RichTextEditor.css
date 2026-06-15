@@ -25,6 +25,15 @@
   background: white;
 }
 
+/* When a custom min-height wrapper is present (sheet/panel mode), don't impose vh height */
+.rich-editor-borderless > [style*="min-height"] {
+  min-height: inherit;
+}
+.rich-editor-borderless > [style*="min-height"] .tiptap {
+  min-height: inherit;
+  padding: 0.75rem 1rem;
+}
+
 /* === Compact Borderless (feed composer, inline editors) === */
 .rich-editor-compact {
   cursor: text;

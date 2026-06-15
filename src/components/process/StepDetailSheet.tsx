@@ -360,6 +360,7 @@ export function StepDetailSheet({
   const [editName, setEditName]     = useState(step?.name ?? "");
   const [nameChanged, setNameChanged] = useState(false);
   const [showOwnerPicker, setShowOwnerPicker] = useState(false);
+  const [descOpen, setDescOpen]     = useState(!!step?.description);
   const [docSearch, setDocSearch]   = useState("");
   const [docResults, setDocResults] = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
   const [docSearching, setDocSearching] = useState(false);
@@ -369,6 +370,7 @@ export function StepDetailSheet({
   useEffect(() => {
     setEditName(step?.name ?? "");
     setNameChanged(false);
+    setDescOpen(!!step?.description);
   }, [step?.id]);
 
   if (!step) return null;
@@ -496,18 +498,37 @@ export function StepDetailSheet({
         {/* ── Scrollable body ──────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
           {/* Description — rich text */}
-          <div className="px-6 pt-5 pb-2 border-b border-border/30">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-2">Description</p>
-            <div className="min-h-[80px]">
-              <RichTextEditor
-                key={step.id}
-                content={toRichContent(step.description)}
-                onChange={handleDescChange}
-                placeholder="Describe what happens in this step, who's responsible, key decisions…"
-                borderless
-                compact
-              />
+          <div className="px-6 pt-5 pb-4 border-b border-border/30">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Description</p>
+              {descOpen && (
+                <button
+                  onClick={() => setDescOpen(false)}
+                  className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+                >
+                  collapse
+                </button>
+              )}
             </div>
+            {descOpen ? (
+              <div className="rounded-xl border border-border/40 bg-background/50 overflow-hidden">
+                <RichTextEditor
+                  key={step.id}
+                  content={toRichContent(step.description)}
+                  onChange={handleDescChange}
+                  placeholder="Describe what happens in this step, who's responsible, key decisions…"
+                  borderless
+                  minHeight="240px"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setDescOpen(true)}
+                className="w-full text-left px-3 py-3 rounded-xl border border-dashed border-border/40 text-sm text-muted-foreground/40 hover:text-muted-foreground/70 hover:border-border/60 hover:bg-muted/20 transition-all"
+              >
+                {step.description ? "Click to view description…" : "Add a description…"}
+              </button>
+            )}
           </div>
 
           {/* Sub-process canvas */}

@@ -39,6 +39,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   borderless?: boolean;
   compact?: boolean;
+  /** Override the editor's min-height (e.g. "220px") */
+  minHeight?: string;
   /** Show a permanent top toolbar above the editor (for surfaces without their own chrome) */
   showToolbar?: boolean;
 }
@@ -101,7 +103,7 @@ function createImageUploadPlugin() {
   });
 }
 
-export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false, compact = false, showToolbar = false }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, placeholder = "Type '/' for commands...", borderless = false, compact = false, minHeight, showToolbar = false }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const isInternalChange = useRef(false);
 
@@ -272,7 +274,9 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
         </button>
       </DragHandle>
 
-      <EditorContent editor={editor} />
+      <div style={minHeight ? { minHeight } : undefined}>
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
