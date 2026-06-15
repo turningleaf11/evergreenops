@@ -55,6 +55,7 @@ import {
   deleteEdge as deleteDbEdge,
   getAnnotations,
   getBucketProjects,
+  getChildCounts,
   getLinkedDocs,
   getProcessBuckets,
   getProcessEdges,
@@ -63,6 +64,9 @@ import {
   saveBucketPosition,
   updateBucket,
 } from "@/lib/processMap";
+import { supabase } from "@/integrations/supabase/client";
+
+const sb = supabase as any;
 
 // ── Icon map ────────────────────────────────────────────────────────────────
 
@@ -251,6 +255,7 @@ export default function ProcessMapPage() {
   // Landing data
   const [verticals, setVerticals] = useState<ProcessVertical[]>([]);
   const [areas, setAreas] = useState<ProcessBucket[]>([]);
+  const [childCounts, setChildCounts] = useState<Record<string, number>>({});
 
   // Canvas state (subprocess only)
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -282,6 +287,40 @@ export default function ProcessMapPage() {
   // Add node dialog
   const [addNodeOpen, setAddNodeOpen] = useState(false);
 
+  // Doc linking
+  const [docSearch, setDocSearch] = useState("");
+  const [docResults, setDocResults] = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
+  const [docSearching, setDocSearching] = useState(false);
+  const [linkingDocId, setLinkingDocId] = useState<string | null>(null);
+
+  const searchDocs = useCallback(async (q: string) => {
+    if (!q.trim()) { setDocResults([]); return; }
+    setDocSearching(true);
+    const { data } = await sb.from("documents").select("id, title, icon, tags").ilike("title", `%${q}%`).limit(8);
+    setDocResults(data ?? []);
+    setDocSearching(false);
+  }, []);
+
+  const linkDoc = useCallback(async (doc: { id: string; title: string; icon: string | null; tags: string[] }) => {
+    if (!selected) return;
+    setLinkingDocId(doc.id);
+    const newTags = Array.from(new Set([...(doc.tags ?? []), selected.slug]));
+    await sb.from("documents").update({ tags: newTags }).eq("id", doc.id);
+    setLinkedDocs((prev) => [...prev, { id: doc.id, title: doc.title, updated_at: new Date().toISOString(), icon: doc.icon }]);
+    setDocSearch("");
+    setDocResults([]);
+    setLinkingDocId(null);
+    toast({ title: `"${doc.title}" linked` });
+  }, [selected]);
+
+  const unlinkDoc = useCallback(async (doc: LinkedDoc) => {
+    if (!selected) return;
+    const { data } = await sb.from("documents").select("tags").eq("id", doc.id).single();
+    const newTags = ((data?.tags ?? []) as string[]).filter((t: string) => t !== selected.slug);
+    await sb.from("documents").update({ tags: newTags }).eq("id", doc.id);
+    setLinkedDocs((prev) => prev.filter((d) => d.id !== doc.id));
+  }, [selected]);
+
   const deleteNodeRef = useRef<(id: string) => void>(() => {});
   const stableOnDelete = useCallback((id: string) => deleteNodeRef.current(id), []);
 
@@ -296,6 +335,8 @@ export default function ProcessMapPage() {
       ]);
       setVerticals(verts);
       setAreas(areaRows);
+      const counts = await getChildCounts(areaRows.map((a) => a.id));
+      setChildCounts(counts);
     } catch (e) {
       toast({ title: "Failed to load", description: String(e), variant: "destructive" });
     } finally {
@@ -331,13 +372,13 @@ export default function ProcessMapPage() {
 
   // ── Counts for landing cards ───────────────────────────────────────────────
 
-  const bucketCounts = (() => {
-    const out: Record<string, { children: number; steps: number; projects: number }> = {};
-    for (const area of areas) {
-      out[area.id] = { children: 0, steps: 0, projects: 0 };
-    }
-    return out;
-  })();
+  const bucketCounts: Record<string, { children: number; steps: number; projects: number }> =
+    Object.fromEntries(areas.map((a) => [a.id, { children: childCounts[a.id] ?? 0, steps: 0, projects: 0 }]));
+
+  // Vertical context for breadcrumb
+  const viewingVertical = viewingArea
+    ? verticals.find((v) => v.id === viewingArea.vertical_id) ?? null
+    : null;
 
   // ── Handlers: landing ──────────────────────────────────────────────────────
 
@@ -351,6 +392,15 @@ export default function ProcessMapPage() {
       toast({ title: "Failed", description: String(e), variant: "destructive" });
     }
   }, [workspaceId]);
+
+  const handleVerticalUpdated = useCallback((id: string, patch: Partial<ProcessVertical>) => {
+    setVerticals((prev) => prev.map((v) => v.id === id ? { ...v, ...patch } : v));
+  }, []);
+
+  const handleVerticalDeleted = useCallback((id: string) => {
+    setVerticals((prev) => prev.filter((v) => v.id !== id));
+    setAreas((prev) => prev.map((a) => a.vertical_id === id ? { ...a, vertical_id: null } : a));
+  }, []);
 
   const handleCreateArea = useCallback(async (name: string, verticalId: string | null) => {
     if (!workspaceId) return;
@@ -392,11 +442,7 @@ export default function ProcessMapPage() {
     if (!workspaceId || !viewingArea) return;
     const offsetX = 80 + canvasBuckets.length * 40;
     const offsetY = 80 + (canvasBuckets.length % 4) * 200;
-    const bucket = await createBucket(workspaceId, name, viewingArea.id, { x: offsetX, y: offsetY }, canvasBuckets.length);
-    // patch node_type if not default
-    if (nodeType !== "process") {
-      (bucket as any).node_type = nodeType;
-    }
+    const bucket = await createBucket(workspaceId, name, viewingArea.id, { x: offsetX, y: offsetY }, canvasBuckets.length, null, nodeType);
     setCanvasBuckets((prev) => [...prev, bucket]);
     setNodes((prev) => [...prev, toFlowNode(bucket, stableOnDelete, true)]);
     toast({ title: `"${bucket.name}" added` });
@@ -519,6 +565,14 @@ export default function ProcessMapPage() {
           >
             OS Map
           </button>
+          {isSubprocess && viewingVertical && (
+            <>
+              <ChevronRight size={14} className="text-muted-foreground/40" />
+              <span className="text-muted-foreground font-medium" style={{ color: viewingVertical.color + "99" }}>
+                {viewingVertical.name}
+              </span>
+            </>
+          )}
           {isSubprocess && (
             <>
               <ChevronRight size={14} className="text-muted-foreground/60" />
@@ -548,6 +602,8 @@ export default function ProcessMapPage() {
               onOpenArea={(b) => setViewingArea(b)}
               onCreateVertical={handleCreateVertical}
               onCreateArea={handleCreateArea}
+              onVerticalUpdated={handleVerticalUpdated}
+              onVerticalDeleted={handleVerticalDeleted}
             />
           ) : (
             <ReactFlow
@@ -705,21 +761,55 @@ export default function ProcessMapPage() {
                     </div>
 
                     {/* Linked Docs */}
-                    {linkedDocs.length > 0 && (
-                      <div className="px-4 pb-4 border-t border-border/40 pt-3">
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-                          <FileText size={11} /> Linked Playbook Docs
-                        </h4>
-                        <div className="space-y-1.5">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <FileText size={11} /> Playbook Docs
+                      </h4>
+                      {linkedDocs.length > 0 && (
+                        <div className="space-y-1 mb-2">
                           {linkedDocs.map((doc) => (
-                            <div key={doc.id} className="flex items-center gap-2 text-xs text-foreground">
+                            <div key={doc.id} className="group flex items-center gap-2 text-xs text-foreground py-0.5">
                               <span className="shrink-0">{doc.icon ?? "📄"}</span>
-                              <span className="truncate">{doc.title}</span>
+                              <span className="truncate flex-1">{doc.title}</span>
+                              <button
+                                onClick={() => unlinkDoc(doc)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40 hover:text-red-400 shrink-0"
+                                title="Unlink"
+                              >
+                                <X size={10} />
+                              </button>
                             </div>
                           ))}
                         </div>
+                      )}
+                      <div className="relative">
+                        <Input
+                          value={docSearch}
+                          onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
+                          placeholder="Search docs to link…"
+                          className="h-7 text-xs pr-6"
+                        />
+                        {docSearching && <span className="absolute right-2 top-1.5 text-[10px] text-muted-foreground/50">…</span>}
                       </div>
-                    )}
+                      {docResults.length > 0 && (
+                        <div className="mt-1 rounded-lg border border-border/60 bg-background divide-y divide-border/30 overflow-hidden">
+                          {docResults.map((doc) => (
+                            <button
+                              key={doc.id}
+                              onClick={() => linkDoc(doc)}
+                              disabled={linkingDocId === doc.id || linkedDocs.some((d) => d.id === doc.id)}
+                              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-muted/40 disabled:opacity-40 transition-colors"
+                            >
+                              <span>{doc.icon ?? "📄"}</span>
+                              <span className="truncate flex-1">{doc.title}</span>
+                              {linkedDocs.some((d) => d.id === doc.id) && (
+                                <span className="shrink-0 text-[10px] text-emerald-600">linked</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Process Steps */}
                     {steps.length > 0 && (

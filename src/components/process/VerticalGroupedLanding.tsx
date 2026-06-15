@@ -5,11 +5,12 @@ import {
   FolderTree, ChevronRight, MessageSquare, Loader2,
   Lightbulb, AlertTriangle, Eye, ArrowUpCircle, Plus, Trash2,
   ListTodo, FolderPlus, Check, Megaphone, Pin, ChevronDown,
-  ChevronUp, LayoutGrid, X,
+  ChevronUp, LayoutGrid, X, Pencil, Trash2 as TrashIcon, Check as CheckIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { appConfirm } from "@/components/AppConfirm";
 import type { ProcessBucket, ProcessVertical } from "@/lib/processMap";
+import { updateVertical, deleteVertical } from "@/lib/processMap";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -116,13 +117,45 @@ interface VerticalSectionProps {
   bucketCounts: Record<string, { children: number; steps: number; projects: number }>;
   onOpenArea: (b: ProcessBucket) => void;
   onCreateArea: (name: string, verticalId: string) => Promise<void>;
+  onUpdated: (id: string, patch: Partial<ProcessVertical>) => void;
+  onDeleted: (id: string) => void;
 }
 
-function VerticalSection({ vertical, areas, bucketCounts, onOpenArea, onCreateArea }: VerticalSectionProps) {
+function VerticalSection({ vertical, areas, bucketCounts, onOpenArea, onCreateArea, onUpdated, onDeleted }: VerticalSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Inline edit state
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(vertical.name);
+  const [editColor, setEditColor] = useState(vertical.color);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      await updateVertical(vertical.id, { name: editName.trim(), color: editColor });
+      onUpdated(vertical.id, { name: editName.trim(), color: editColor });
+      setEditing(false);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!await (import("@/components/AppConfirm").then(m => m.appConfirm({ title: `Delete "${vertical.name}"?`, body: "All areas in this vertical will become unassigned.", confirmLabel: "Delete", destructive: true })))) return;
+    try {
+      await deleteVertical(vertical.id);
+      onDeleted(vertical.id);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -138,29 +171,60 @@ function VerticalSection({ vertical, areas, bucketCounts, onOpenArea, onCreateAr
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex items-center gap-2 group"
-        >
-          <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: vertical.color }} />
-          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
-            {vertical.name}
-          </h2>
-          {collapsed
-            ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />}
-        </button>
-        {vertical.description && !collapsed && (
-          <span className="text-[11px] text-muted-foreground/60 truncate max-w-sm">{vertical.description}</span>
-        )}
-        {!collapsed && (
-          <button
-            onClick={() => setAdding((v) => !v)}
-            className="ml-auto text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
-          >
-            <Plus className="h-3 w-3" /> Area
-          </button>
+      <div className="flex items-center gap-2 group/header">
+        {editing ? (
+          <>
+            <div className="flex items-center gap-2 flex-1">
+              {VERTICAL_COLORS.map((c) => (
+                <button key={c} onClick={() => setEditColor(c)}
+                  className={cn("w-4 h-4 rounded-full shrink-0 transition-transform", editColor === c && "scale-125 ring-2 ring-offset-1 ring-offset-background")}
+                  style={{ background: c }} />
+              ))}
+              <input
+                autoFocus
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") setEditing(false); }}
+                className="flex-1 text-sm font-bold bg-transparent border-b border-primary/40 outline-none"
+              />
+            </div>
+            <button onClick={handleSaveEdit} disabled={savingEdit} className="text-emerald-600 hover:text-emerald-700 shrink-0">
+              <CheckIcon className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setCollapsed((v) => !v)} className="flex items-center gap-2 group">
+              <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: vertical.color }} />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                {vertical.name}
+              </h2>
+              {collapsed
+                ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />}
+            </button>
+            {vertical.description && !collapsed && (
+              <span className="text-[11px] text-muted-foreground/60 truncate max-w-sm">{vertical.description}</span>
+            )}
+            <div className="ml-auto flex items-center gap-2 opacity-0 group-hover/header:opacity-100 transition-opacity">
+              <button onClick={() => { setEditing(true); setEditName(vertical.name); setEditColor(vertical.color); }}
+                className="text-muted-foreground/50 hover:text-foreground" title="Edit vertical">
+                <Pencil className="h-3 w-3" />
+              </button>
+              <button onClick={handleDelete} className="text-muted-foreground/50 hover:text-red-500" title="Delete vertical">
+                <TrashIcon className="h-3 w-3" />
+              </button>
+              {!collapsed && (
+                <button onClick={() => setAdding((v) => !v)}
+                  className="text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors">
+                  <Plus className="h-3 w-3" /> Area
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -245,6 +309,8 @@ interface Props {
   onOpenArea: (b: ProcessBucket) => void;
   onCreateVertical: (name: string, color: string) => Promise<void>;
   onCreateArea: (name: string, verticalId: string | null) => Promise<void>;
+  onVerticalUpdated: (id: string, patch: Partial<ProcessVertical>) => void;
+  onVerticalDeleted: (id: string) => void;
 }
 
 export function VerticalGroupedLanding({
@@ -254,6 +320,8 @@ export function VerticalGroupedLanding({
   onOpenArea,
   onCreateVertical,
   onCreateArea,
+  onVerticalUpdated,
+  onVerticalDeleted,
 }: Props) {
   const { user } = useAuth();
 
@@ -408,6 +476,8 @@ export function VerticalGroupedLanding({
             bucketCounts={bucketCounts}
             onOpenArea={onOpenArea}
             onCreateArea={onCreateArea}
+            onUpdated={onVerticalUpdated}
+            onDeleted={onVerticalDeleted}
           />
         ))}
 

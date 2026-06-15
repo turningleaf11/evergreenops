@@ -145,6 +145,20 @@ export const getLinkedDocs = async (bucketSlug: string): Promise<LinkedDoc[]> =>
 
 // ── Buckets ────────────────────────────────────────────────
 
+export const getChildCounts = async (parentIds: string[]): Promise<Record<string, number>> => {
+  if (parentIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('process_buckets')
+    .select('parent_id')
+    .in('parent_id', parentIds);
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as { parent_id: string | null }[]) {
+    if (row.parent_id) counts[row.parent_id] = (counts[row.parent_id] ?? 0) + 1;
+  }
+  return counts;
+};
+
 export const getProcessBuckets = async (parentId?: string | null): Promise<ProcessBucket[]> => {
   let q = supabase.from('process_buckets').select('*');
   if (parentId === null) q = q.is('parent_id', null);
@@ -161,6 +175,7 @@ export const createBucket = async (
   position: { x: number; y: number },
   siblings: number,
   verticalId?: string | null,
+  nodeType?: string,
 ): Promise<ProcessBucket> => {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const { data, error } = await supabase
@@ -174,7 +189,7 @@ export const createBucket = async (
       position_x: position.x,
       position_y: position.y,
       bucket_order: siblings + 1,
-      node_type: parentId ? 'process' : 'area',
+      node_type: nodeType ?? (parentId ? 'process' : 'area'),
       color: '#6366f1',
     })
     .select()
