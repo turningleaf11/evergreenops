@@ -53,7 +53,7 @@ type Improvement = {
 };
 
 type Profile = {
-  id: string;
+  user_id: string;
   full_name: string | null;
   avatar_url: string | null;
 };
@@ -403,7 +403,7 @@ export function StepDetailSheet({
     setDocSearch(""); setDocResults([]); setLinkingDocId(null);
   };
 
-  const owner = profiles.find((p) => p.id === step.owner_id);
+  const owner = profiles.find((p) => p.user_id === step.owner_id);
   const typeMeta = NODE_TYPE_STYLE[step.node_type as NodeType] ?? NODE_TYPE_STYLE.process;
   const stepIssues = improvements.filter((i) => i.step_id === step.id);
   const openIssues = stepIssues.filter((i) => i.status === "open" || i.status === "in_review");
@@ -454,13 +454,13 @@ export function StepDetailSheet({
                   {showOwnerPicker && (
                     <div className="absolute top-full left-0 mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[160px]">
                       {profiles.map((p) => (
-                        <button key={p.id} onClick={() => { onOwnerChange(step.id, p.id); setShowOwnerPicker(false); }}
-                          className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50", step.owner_id === p.id && "font-semibold text-primary")}>
+                        <button key={p.user_id} onClick={() => { onOwnerChange(step.id, p.user_id); setShowOwnerPicker(false); }}
+                          className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50", step.owner_id === p.user_id && "font-semibold text-primary")}>
                           {p.avatar_url
                             ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
                             : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
                           }
-                          <span className="truncate">{p.full_name ?? p.id.slice(0, 8)}</span>
+                          <span className="truncate">{p.full_name ?? p.user_id.slice(0, 8)}</span>
                         </button>
                       ))}
                       {step.owner_id && (

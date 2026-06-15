@@ -56,7 +56,7 @@ type Improvement = {
 };
 
 type Profile = {
-  id: string;
+  user_id: string;
   full_name: string | null;
   avatar_url: string | null;
 };
@@ -177,7 +177,7 @@ function StepCard({
     setDocSearch(""); setDocResults([]); setLinkingDocId(null);
   };
 
-  const owner = profiles.find((p) => p.id === step.owner_id);
+  const owner = profiles.find((p) => p.user_id === step.owner_id);
   const typeMeta = NODE_TYPE_STYLE[step.node_type as NodeType] ?? NODE_TYPE_STYLE.process;
 
   return (
@@ -236,8 +236,8 @@ function StepCard({
               {showOwnerPicker && (
                 <div className="absolute top-full left-0 mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                   {profiles.map((p) => (
-                    <button key={p.id} onClick={() => { onOwnerChange(step.id, p.id); setShowOwnerPicker(false); }}
-                      className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50 transition-colors", step.owner_id === p.id && "font-semibold text-primary")}>
+                    <button key={p.user_id} onClick={() => { onOwnerChange(step.id, p.user_id); setShowOwnerPicker(false); }}
+                      className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50 transition-colors", step.owner_id === p.user_id && "font-semibold text-primary")}>
                       {p.avatar_url
                         ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
                         : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
@@ -277,7 +277,7 @@ function StepCard({
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               {(subNodeCount ?? 0) > 0 && (
                 <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded-full">
-                  <GitBranch className="h-2.5 w-2.5" /> {subNodeCount} node{subNodeCount !== 1 ? "s" : ""}
+                  <GitBranch className="h-2.5 w-2.5" /> sub-process
                 </span>
               )}
               {stepDocs.length > 0 && (
@@ -470,7 +470,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
       const [linkedDocs, impRows, profileRows, subCounts] = await Promise.all([
         getLinkedDocs(area.slug),
         sb.from("process_improvements").select("*").eq("bucket_id", area.id).order("created_at", { ascending: false }),
-        sb.from("profiles").select("id, full_name, avatar_url").eq("workspace_id", workspaceId),
+        sb.from("profiles").select("user_id, full_name, avatar_url").limit(100),
         getChildCounts(stepIds),
       ]);
 
