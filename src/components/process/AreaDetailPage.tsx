@@ -105,8 +105,7 @@ function initials(name: string | null) {
 
 function StepCard({
   step, flatIndex, total, inGroup, hasIssues,
-  stepDocs, onLinkStepDoc, onUnlinkStepDoc,
-  profiles, onOwnerChange,
+  stepDocs, profiles, onOwnerChange,
   onMoveUp, onMoveDown, onDelete, onUpdate, onOpen,
   subNodeCount, openIssueCount,
 }: {
@@ -116,8 +115,6 @@ function StepCard({
   inGroup?: boolean;
   hasIssues?: boolean;
   stepDocs: LinkedDoc[];
-  onLinkStepDoc: (step: ProcessBucket, doc: { id: string; title: string; icon: string | null; tags: string[] }) => void;
-  onUnlinkStepDoc: (step: ProcessBucket, docId: string) => void;
   profiles: Profile[];
   onOwnerChange: (stepId: string, ownerId: string | null) => void;
   onMoveUp: () => void;
@@ -128,23 +125,12 @@ function StepCard({
   subNodeCount?: number;
   openIssueCount?: number;
 }) {
-  const [editName, setEditName]       = useState(step.name);
+  const [editName, setEditName]   = useState(step.name);
   const [nameChanged, setNameChanged] = useState(false);
-  const [expanded, setExpanded]       = useState(false);
-  const [editGroup, setEditGroup]     = useState(false);
-  const [groupInput, setGroupInput]   = useState(step.step_group ?? "");
-  const [showOwnerPicker, setShowOwnerPicker] = useState(false);
-  const [showMenu, setShowMenu]       = useState(false);
-  const groupInputRef = useRef<HTMLInputElement>(null);
+  const [showMenu, setShowMenu]   = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const [docSearch, setDocSearch]       = useState("");
-  const [docResults, setDocResults]     = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
-  const [docSearching, setDocSearching] = useState(false);
-  const [linkingDocId, setLinkingDocId] = useState<string | null>(null);
-
   useEffect(() => { setEditName(step.name); }, [step.name]);
-  useEffect(() => { setGroupInput(step.step_group ?? ""); }, [step.step_group]);
 
   const saveName = async () => {
     if (!nameChanged || !editName.trim()) return;
@@ -158,224 +144,171 @@ function StepCard({
     onUpdate({ node_type: t });
   };
 
-  const saveGroup = async () => {
-    const val = groupInput.trim() || null;
-    if (val === step.step_group) { setEditGroup(false); return; }
-    await updateBucket(step.id, { step_group: val });
-    onUpdate({ step_group: val });
-    setEditGroup(false);
-  };
-
-  const searchDocs = async (q: string) => {
-    if (!q.trim()) { setDocResults([]); return; }
-    setDocSearching(true);
-    const { data } = await sb.from("documents").select("id, title, icon, tags").ilike("title", `%${q}%`).limit(6);
-    setDocResults(data ?? []);
-    setDocSearching(false);
-  };
-
-  const handleLinkDoc = async (doc: { id: string; title: string; icon: string | null; tags: string[] }) => {
-    setLinkingDocId(doc.id);
-    await onLinkStepDoc(step, doc);
-    setDocSearch(""); setDocResults([]); setLinkingDocId(null);
-  };
-
   const owner = profiles.find((p) => p.user_id === step.owner_id);
   const typeMeta = NODE_TYPE_STYLE[step.node_type as NodeType] ?? NODE_TYPE_STYLE.process;
 
   return (
-    <div className={cn(
-      "group rounded-xl border bg-card transition-all overflow-hidden",
-      expanded ? "border-primary/30 shadow-md shadow-primary/5" : "border-border/50 hover:border-border/80 hover:shadow-sm",
-      inGroup && "h-full flex flex-col",
-    )} style={{ borderLeft: `3px solid ${typeMeta.color}` }}>
-      <div className="p-4">
+    <div
+      className={cn(
+        "group relative rounded-xl border bg-card transition-all duration-150 cursor-pointer",
+        "border-border/40 hover:border-border/60 hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-px",
+        inGroup && "h-full flex flex-col",
+      )}
+      style={{ borderLeft: `3px solid ${typeMeta.color}` }}
+      onClick={onOpen}
+    >
+      <div className="p-5 flex flex-col gap-0" style={inGroup ? { flex: 1 } : {}}>
 
-        {/* Name row + … menu */}
-        <div className="flex items-start gap-2">
+        {/* Name + … */}
+        <div className="flex items-start gap-3">
           <input
             value={editName}
             onChange={(e) => { setEditName(e.target.value); setNameChanged(true); }}
             onBlur={saveName}
             onKeyDown={(e) => e.key === "Enter" && saveName()}
-            className="flex-1 min-w-0 bg-transparent font-semibold text-base text-foreground outline-none border-b border-transparent hover:border-border/40 focus:border-primary/40 pb-0.5 transition-colors leading-snug"
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 bg-transparent text-[15px] font-semibold tracking-tight text-foreground outline-none placeholder:text-foreground/20 leading-snug"
             placeholder="Step name"
           />
-          <div className="relative shrink-0" ref={menuRef}>
+          <div className="relative shrink-0" ref={menuRef} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setShowMenu((v) => !v)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all mt-0.5"
+              className="p-1.5 rounded-lg hover:bg-foreground/6 text-foreground/20 hover:text-foreground/60 opacity-0 group-hover:opacity-100 transition-all"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {showMenu && (
-              <div className="absolute top-full right-0 mt-1 z-40 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[170px]" onMouseLeave={() => setShowMenu(false)}>
-                <button onClick={() => { onOpen(); setShowMenu(false); }}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors">
-                  <ExternalLink className="h-3 w-3 text-muted-foreground/60" /> Open detail
-                </button>
-                <button onClick={() => { setExpanded((v) => !v); setShowMenu(false); }}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors">
-                  <Pencil className="h-3 w-3 text-muted-foreground/60" /> {expanded ? "Collapse" : "Quick edit"}
-                </button>
-                <div className="border-t border-border/40" />
-                <div className="px-3 py-2">
-                  <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-1.5">Type</p>
-                  <div className="flex gap-2">
+              <div
+                className="absolute top-full right-0 mt-1.5 z-40 w-52 bg-popover border border-border/60 rounded-xl shadow-xl shadow-black/10 overflow-hidden py-1"
+                onMouseLeave={() => setShowMenu(false)}
+              >
+                {/* Type */}
+                <div className="px-3.5 pt-2 pb-2.5">
+                  <p className="text-[10px] font-medium text-foreground/30 uppercase tracking-widest mb-2">Step type</p>
+                  <div className="flex gap-2.5">
                     {NODE_TYPE_OPTIONS.map((t) => (
-                      <button key={t} onClick={() => { setType(t); setShowMenu(false); }}
+                      <button
+                        key={t}
+                        onClick={() => { setType(t); setShowMenu(false); }}
                         title={NODE_TYPE_STYLE[t].label}
-                        className={cn("w-4 h-4 rounded-full transition-transform hover:scale-110", step.node_type === t ? "ring-2 ring-offset-1 ring-offset-popover ring-white/40" : "")}
-                        style={{ background: NODE_TYPE_STYLE[t].color }}
+                        className={cn(
+                          "w-5 h-5 rounded-full transition-all hover:scale-110 ring-offset-2 ring-offset-popover",
+                          step.node_type === t ? "ring-2" : "opacity-40 hover:opacity-80",
+                        )}
+                        style={{ background: NODE_TYPE_STYLE[t].color, ...(step.node_type === t ? { ringColor: NODE_TYPE_STYLE[t].color } : {}) }}
                       />
                     ))}
                   </div>
                 </div>
-                <div className="border-t border-border/40" />
-                <div className="px-3 py-2">
-                  <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-1">Owner</p>
-                  {profiles.map((p) => (
-                    <button key={p.user_id} onClick={() => { onOwnerChange(step.id, p.user_id); setShowMenu(false); }}
-                      className={cn("w-full text-left flex items-center gap-2 py-1 text-xs transition-colors", step.owner_id === p.user_id ? "text-foreground font-medium" : "text-muted-foreground/60 hover:text-foreground")}>
-                      {p.avatar_url
-                        ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
-                        : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
-                      }
-                      <span className="truncate">{p.full_name ?? p.user_id.slice(0, 8)}</span>
-                    </button>
-                  ))}
-                  {step.owner_id && (
-                    <button onClick={() => { onOwnerChange(step.id, null); setShowMenu(false); }}
-                      className="text-[10px] text-muted-foreground/40 hover:text-muted-foreground mt-0.5">
-                      Remove owner
-                    </button>
-                  )}
+                <div className="h-px bg-border/40 mx-3.5" />
+                {/* Owner */}
+                <div className="px-3.5 pt-2.5 pb-2">
+                  <p className="text-[10px] font-medium text-foreground/30 uppercase tracking-widest mb-2">Owner</p>
+                  <div className="space-y-0.5">
+                    {profiles.map((p) => (
+                      <button
+                        key={p.user_id}
+                        onClick={() => { onOwnerChange(step.id, p.user_id); setShowMenu(false); }}
+                        className={cn(
+                          "w-full text-left flex items-center gap-2.5 px-1 py-1 rounded-lg text-[13px] transition-colors",
+                          step.owner_id === p.user_id ? "text-foreground font-medium bg-foreground/5" : "text-foreground/50 hover:text-foreground hover:bg-foreground/5",
+                        )}
+                      >
+                        {p.avatar_url
+                          ? <img src={p.avatar_url} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                          : <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">{initials(p.full_name)}</span>
+                        }
+                        <span className="truncate">{p.full_name ?? p.user_id.slice(0, 8)}</span>
+                        {step.owner_id === p.user_id && <Check className="h-3 w-3 ml-auto shrink-0 text-primary" />}
+                      </button>
+                    ))}
+                    {step.owner_id && (
+                      <button
+                        onClick={() => { onOwnerChange(step.id, null); setShowMenu(false); }}
+                        className="w-full text-left px-1 py-1 text-[12px] text-foreground/30 hover:text-foreground/60 transition-colors"
+                      >
+                        Remove owner
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="border-t border-border/40" />
-                <button onClick={() => { onMoveUp(); setShowMenu(false); }} disabled={flatIndex === 0}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors disabled:opacity-30">
-                  <ChevronUp className="h-3 w-3 text-muted-foreground/60" /> Move up
-                </button>
-                <button onClick={() => { onMoveDown(); setShowMenu(false); }} disabled={flatIndex === total - 1}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50 transition-colors disabled:opacity-30">
-                  <ChevronDown className="h-3 w-3 text-muted-foreground/60" /> Move down
-                </button>
-                <div className="border-t border-border/40" />
-                <button onClick={() => { onDelete(); setShowMenu(false); }}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors">
-                  <Trash2 className="h-3 w-3" /> Delete step
-                </button>
+                <div className="h-px bg-border/40 mx-3.5" />
+                {/* Reorder */}
+                <div className="py-1">
+                  <button
+                    onClick={() => { onMoveUp(); setShowMenu(false); }}
+                    disabled={flatIndex === 0}
+                    className="w-full text-left flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-25"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" /> Move up
+                  </button>
+                  <button
+                    onClick={() => { onMoveDown(); setShowMenu(false); }}
+                    disabled={flatIndex === total - 1}
+                    className="w-full text-left flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-25"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" /> Move down
+                  </button>
+                </div>
+                <div className="h-px bg-border/40 mx-3.5" />
+                <div className="py-1">
+                  <button
+                    onClick={() => { onDelete(); setShowMenu(false); }}
+                    className="w-full text-left flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-destructive/70 hover:text-destructive hover:bg-destructive/8 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete step
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Description */}
-        {!expanded && step.description && (
-          <p className="mt-1 text-xs text-muted-foreground/60 line-clamp-2 leading-relaxed">{step.description}</p>
+        {step.description && (
+          <p className="mt-2 text-[13px] text-foreground/45 leading-relaxed line-clamp-2">{step.description}</p>
         )}
 
-        {/* Status strip */}
-        {!expanded && ((subNodeCount ?? 0) > 0 || stepDocs.length > 0 || (openIssueCount ?? 0) > 0) && (
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+        {/* Status signals */}
+        {((subNodeCount ?? 0) > 0 || stepDocs.length > 0 || (openIssueCount ?? 0) > 0) && (
+          <div className="mt-3.5 flex items-center gap-2 flex-wrap">
             {(subNodeCount ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded-full">
-                <GitBranch className="h-2.5 w-2.5" /> sub-process
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground/40 bg-foreground/[0.04] border border-border/30 px-2.5 py-1 rounded-md">
+                <GitBranch className="h-3 w-3" /> sub-process
               </span>
             )}
             {stepDocs.length > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded-full max-w-[160px]">
-                <FileText className="h-2.5 w-2.5 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground/40 bg-foreground/[0.04] border border-border/30 px-2.5 py-1 rounded-md max-w-[200px]">
+                <FileText className="h-3 w-3 shrink-0" />
                 <span className="truncate">{stepDocs[0].title}</span>
-                {stepDocs.length > 1 && <span className="shrink-0 text-muted-foreground/40">+{stepDocs.length - 1}</span>}
+                {stepDocs.length > 1 && <span className="shrink-0 text-foreground/25 ml-0.5">+{stepDocs.length - 1}</span>}
               </span>
             )}
             {(openIssueCount ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-amber-600/70 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
-                <AlertTriangle className="h-2.5 w-2.5" /> {openIssueCount}
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-500/70 bg-amber-500/[0.07] border border-amber-500/15 px-2.5 py-1 rounded-md">
+                <AlertTriangle className="h-3 w-3" /> {openIssueCount} {openIssueCount === 1 ? "issue" : "issues"}
               </span>
             )}
           </div>
         )}
 
-        {/* Expanded: docs */}
-        {expanded && (
-          <div className="mt-3 space-y-3">
-            <button onClick={onOpen} className="text-[10px] text-primary/60 hover:text-primary flex items-center gap-1 transition-colors">
-              <ExternalLink className="h-2.5 w-2.5" /> Open for rich notes & sub-process map
-            </button>
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
-                <FileText className="h-2.5 w-2.5" /> Linked Docs
-              </p>
-              {stepDocs.map((doc) => (
-                <div key={doc.id} className="group/doc flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/30 bg-background/50 text-xs">
-                  <span className="shrink-0">{doc.icon ?? "📄"}</span>
-                  <span className="flex-1 truncate font-medium">{doc.title}</span>
-                  <button onClick={() => onUnlinkStepDoc(step, doc.id)} className="opacity-0 group-hover/doc:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              <div className="relative">
-                <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
-                <input value={docSearch} onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
-                  placeholder="Link a doc…"
-                  className="w-full pl-6 pr-3 py-1 text-[11px] rounded-lg border border-border/30 bg-background outline-none focus:border-primary/30 transition-colors" />
-                {docSearching && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
-              </div>
-              {docResults.length > 0 && (
-                <div className="rounded-lg border border-border/50 bg-background shadow-sm overflow-hidden divide-y divide-border/20">
-                  {docResults.map((doc) => {
-                    const already = stepDocs.some((d) => d.id === doc.id);
-                    return (
-                      <button key={doc.id} onClick={() => !already && handleLinkDoc(doc)} disabled={linkingDocId === doc.id || already}
-                        className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 text-[11px] hover:bg-muted/40 disabled:opacity-50 transition-colors">
-                        <span>{doc.icon ?? "📄"}</span>
-                        <span className="flex-1 truncate">{doc.title}</span>
-                        {already && <span className="text-[10px] text-emerald-600">linked</span>}
-                        {linkingDocId === doc.id && <Loader2 className="h-2.5 w-2.5 animate-spin shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Footer: #n · owner · group */}
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-mono text-muted-foreground/30">#{flatIndex + 1}</span>
-          {hasIssues && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Has open issues" />}
+        {/* Footer */}
+        <div className="mt-4 pt-3.5 border-t border-border/20 flex items-center gap-3">
+          <span className="text-[11px] font-mono text-foreground/20">#{flatIndex + 1}</span>
+          {hasIssues && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
           {owner && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground/40">
               {owner.avatar_url
-                ? <img src={owner.avatar_url} className="w-3 h-3 rounded-full object-cover" />
-                : <span className="w-3 h-3 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[7px] font-bold">{initials(owner.full_name)}</span>
+                ? <img src={owner.avatar_url} className="w-4 h-4 rounded-full object-cover" />
+                : <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-bold">{initials(owner.full_name)}</span>
               }
               {owner.full_name?.split(" ")[0]}
             </span>
           )}
-          {editGroup ? (
-            <div className="flex items-center gap-1">
-              <Layers className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-              <input ref={groupInputRef} value={groupInput} onChange={(e) => setGroupInput(e.target.value)}
-                onBlur={saveGroup}
-                onKeyDown={(e) => { if (e.key === "Enter") saveGroup(); if (e.key === "Escape") setEditGroup(false); }}
-                placeholder="Group name…" autoFocus
-                className="text-[10px] bg-transparent border-b border-primary/40 outline-none w-24 text-muted-foreground placeholder:text-muted-foreground/30" />
-            </div>
-          ) : step.step_group ? (
-            <button onClick={() => setEditGroup(true)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/60 text-[10px] text-muted-foreground hover:bg-muted transition-colors">
-              <Layers className="h-2.5 w-2.5" /> {step.step_group}
-            </button>
-          ) : (
-            <button onClick={() => setEditGroup(true)}
-              className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40 transition-all">
-              <Layers className="h-2.5 w-2.5" /> Group
-            </button>
+          {step.step_group && (
+            <span className="inline-flex items-center gap-1 text-[12px] text-foreground/30">
+              <Layers className="h-3 w-3" /> {step.step_group}
+            </span>
           )}
         </div>
 
@@ -744,8 +677,6 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                             <StepCard key={step.id} step={step} flatIndex={fi} total={steps.length} inGroup
                               hasIssues={stepsWithOpenIssues.has(step.id)}
                               stepDocs={stepDocsMap[step.id] ?? []}
-                              onLinkStepDoc={handleLinkStepDoc}
-                              onUnlinkStepDoc={handleUnlinkStepDoc}
                               profiles={profiles}
                               onOwnerChange={handleOwnerChange}
                               onMoveUp={() => moveStep(fi, "up")}
@@ -767,8 +698,6 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                     <StepCard key={row.id} step={row} flatIndex={fi} total={steps.length}
                       hasIssues={stepsWithOpenIssues.has(row.id)}
                       stepDocs={stepDocsMap[row.id] ?? []}
-                      onLinkStepDoc={handleLinkStepDoc}
-                      onUnlinkStepDoc={handleUnlinkStepDoc}
                       profiles={profiles}
                       onOwnerChange={handleOwnerChange}
                       onMoveUp={() => moveStep(fi, "up")}
@@ -925,7 +854,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
               {improvements.length === 0 ? (
                 <p className="text-xs text-muted-foreground/30 italic px-1 py-2">None logged yet</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {improvements.map((imp) => {
                     const Icon = KIND_ICON[imp.kind];
                     const closed = imp.status === "closed";
@@ -934,44 +863,64 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                     const stepName = stepNameFor(imp.step_id);
                     const creator = profiles.find((p) => p.user_id === imp.created_by);
                     return (
-                      <div key={imp.id} className={cn("group rounded-lg border border-border/40 bg-background/50 hover:border-border/60 transition-colors p-3 space-y-1.5", closed && "opacity-40")}>
-                        <div className="flex items-start gap-2">
-                          <span className={cn("inline-flex items-center p-1 rounded-full text-[10px] shrink-0 mt-0.5", KIND_CLS[imp.kind])}>
-                            <Icon className="h-2.5 w-2.5" />
+                      <div key={imp.id} className={cn(
+                        "group rounded-xl border bg-card/60 hover:bg-card transition-all p-3.5",
+                        closed ? "border-border/20 opacity-40" : "border-border/40 hover:border-border/60",
+                        converted && "opacity-60",
+                      )}>
+                        <div className="flex items-start gap-3">
+                          <span className={cn(
+                            "inline-flex items-center justify-center w-6 h-6 rounded-lg shrink-0 mt-0.5",
+                            converted ? "bg-emerald-500/10 text-emerald-500/60" : KIND_CLS[imp.kind],
+                          )}>
+                            {converted
+                              ? <Check className="h-3 w-3" />
+                              : <Icon className="h-3 w-3" />
+                            }
                           </span>
-                          <p className={cn("flex-1 text-xs text-foreground leading-relaxed", closed && "line-through")}>{imp.title}</p>
-                          {converted && (
-                            <span className="text-[10px] text-emerald-600/70 bg-emerald-500/10 px-1.5 py-0.5 rounded-full shrink-0">converted</span>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              "text-[13px] leading-snug",
+                              closed ? "line-through text-foreground/30" : converted ? "text-foreground/50" : "text-foreground",
+                            )}>
+                              {imp.title}
+                              {converted && <span className="ml-2 text-[11px] text-foreground/25">→ done</span>}
+                            </p>
+                            {(stepName || creator) && (
+                              <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                                {stepName && (
+                                  <button
+                                    onClick={() => { const s = steps.find((st) => st.id === imp.step_id); if (s) setSelectedStep(s); }}
+                                    className="text-[11px] text-foreground/35 hover:text-foreground transition-colors flex items-center gap-1"
+                                  >
+                                    <span className="w-1 h-1 rounded-full bg-foreground/25 inline-block" />
+                                    Step {steps.findIndex((s) => s.id === imp.step_id) + 1}: {stepName}
+                                  </button>
+                                )}
+                                {creator && (
+                                  <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground/30">
+                                    {creator.avatar_url
+                                      ? <img src={creator.avatar_url} className="w-3.5 h-3.5 rounded-full object-cover" />
+                                      : <span className="w-3.5 h-3.5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[7px] font-bold">{initials(creator.full_name)}</span>
+                                    }
+                                    {creator.full_name?.split(" ")[0]}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           {active && (
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => promoteImpToTask(imp)} className="p-1 rounded text-muted-foreground/40 hover:text-emerald-600 hover:bg-emerald-500/10" title="Convert to task">
-                                <ListTodo className="h-3 w-3" />
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+                              <button onClick={() => promoteImpToTask(imp)} className="p-1.5 rounded-lg text-foreground/30 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors" title="Convert to task">
+                                <ListTodo className="h-3.5 w-3.5" />
                               </button>
-                              <button onClick={() => promoteImpToProject(imp)} className="p-1 rounded text-muted-foreground/40 hover:text-blue-600 hover:bg-blue-500/10" title="Convert to project">
-                                <FolderOpen className="h-3 w-3" />
+                              <button onClick={() => promoteImpToProject(imp)} className="p-1.5 rounded-lg text-foreground/30 hover:text-blue-500 hover:bg-blue-500/10 transition-colors" title="Convert to project">
+                                <FolderOpen className="h-3.5 w-3.5" />
                               </button>
-                              <button onClick={() => closeImprovement(imp.id)} className="p-1 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted" title="Close">
-                                <Check className="h-3 w-3" />
+                              <button onClick={() => closeImprovement(imp.id)} className="p-1.5 rounded-lg text-foreground/30 hover:text-foreground hover:bg-foreground/8 transition-colors" title="Dismiss">
+                                <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                          )}
-                        </div>
-                        <div className="pl-7 flex items-center gap-3 flex-wrap">
-                          {stepName && (
-                            <button
-                              onClick={() => { const s = steps.find((st) => st.id === imp.step_id); if (s) setSelectedStep(s); }}
-                              className="text-[10px] text-muted-foreground/50 flex items-center gap-1 hover:text-foreground transition-colors"
-                            >
-                              <span className="inline-block w-1 h-1 rounded-full bg-muted-foreground/40" />
-                              Step {steps.findIndex((s) => s.id === imp.step_id) + 1}: {stepName}
-                            </button>
-                          )}
-                          {creator && (
-                            <span className="text-[10px] text-muted-foreground/40 flex items-center gap-1">
-                              <User className="h-2.5 w-2.5" />
-                              {creator.full_name?.split(" ")[0] ?? "Unknown"}
-                            </span>
                           )}
                         </div>
                       </div>
