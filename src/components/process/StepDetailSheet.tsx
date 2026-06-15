@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Background, Controls, Edge, Handle, Node, NodeProps, Position,
-  ReactFlow, addEdge, useEdgesState, useNodesState, Connection,
+  ReactFlow, addEdge, useEdgesState, useNodesState, useReactFlow, Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -153,6 +153,17 @@ function SubProcessNode({ data, selected }: NodeProps) {
 SubProcessNode.displayName = "SubProcessNode";
 const SUB_NODE_TYPES = { subNode: SubProcessNode };
 
+// Auto-fit whenever nodes are added/removed (must be inside ReactFlow context)
+function AutoFitter({ nodeCount }: { nodeCount: number }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (nodeCount > 0) {
+      setTimeout(() => fitView({ padding: 0.35, duration: 300 }), 60);
+    }
+  }, [nodeCount, fitView]);
+  return null;
+}
+
 // ── Mini canvas ─────────────────────────────────────────────
 
 function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspaceId: string }) {
@@ -279,14 +290,14 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
       {nodes.length === 0 && !addingNode ? (
         <div
           onClick={() => setAddingNode(true)}
-          className="flex flex-col items-center justify-center h-[220px] rounded-xl border-2 border-dashed border-border/40 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all text-center"
+          className="flex flex-col items-center justify-center h-[300px] rounded-xl border-2 border-dashed border-border/40 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all text-center"
         >
           <GitBranch className="h-6 w-6 text-muted-foreground/20 mb-2" />
           <p className="text-xs text-muted-foreground/40">Map out the sub-process for this step</p>
           <p className="text-[10px] text-muted-foreground/30 mt-1">Click to add a node</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/40 overflow-hidden" style={{ height: 280 }}>
+        <div className="rounded-xl border border-border/50 overflow-hidden" style={{ height: 360 }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -297,14 +308,15 @@ function SubProcessCanvas({ step, workspaceId }: { step: ProcessBucket; workspac
             onNodeDragStop={onNodeDragStop}
             nodeTypes={SUB_NODE_TYPES}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
-            minZoom={0.4}
+            fitViewOptions={{ padding: 0.35 }}
+            minZoom={0.3}
             maxZoom={2}
             deleteKeyCode="Delete"
-            className="bg-background/50"
+            className="bg-muted/10"
           >
-            <Background color="hsl(var(--border))" gap={20} size={0.8} />
+            <Background color="hsl(var(--border))" gap={18} size={1} />
             <Controls showInteractive={false} className="!bg-card !border-border/50 !shadow-sm" />
+            <AutoFitter nodeCount={nodes.length} />
           </ReactFlow>
         </div>
       )}
