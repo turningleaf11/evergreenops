@@ -1,8 +1,7 @@
 // AreaDetailPage — premium two-panel view for an OS Map area.
-// Left: ordered process steps with optional grouping (parallel rows).
-// Right: sticky sidebar — Connections, Playbook, Issues & Ideas.
-// Steps: expand to reveal step-level docs + descriptions.
-// Issues: optionally pinned to a specific step; step card shows a health dot.
+// Left: process steps (grouped rows, step owners, expand for step-level docs/description).
+// Right: sticky sidebar — Connections, Playbook (area + all step docs, 2-way sync), Issues & Ideas.
+// Step doc state is lifted to parent so sidebar and expanded cards share the same source of truth.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +10,7 @@ import {
   ChevronUp, ChevronDown, Plus, Trash2,
   ArrowRight, ArrowLeft, X, Loader2, Check, Lightbulb,
   AlertTriangle, Eye, ArrowUpCircle, ListTodo,
-  Pencil, Link2, Layers, FileText,
+  Pencil, Link2, Layers, FileText, User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { appConfirm } from "@/components/AppConfirm";
@@ -32,7 +31,7 @@ import {
 
 const sb = supabase as any;
 
-// ── Constants ──────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────
 
 const NODE_TYPE_OPTIONS = ["source", "process", "decision", "outcome"] as const;
 type NodeType = typeof NODE_TYPE_OPTIONS[number];
@@ -43,8 +42,6 @@ const NODE_TYPE_STYLE: Record<NodeType, { label: string; cls: string }> = {
   decision: { label: "Decision", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
   outcome:  { label: "Outcome",  cls: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" },
 };
-
-// ── Types ──────────────────────────────────────────────────
 
 type ImprovementKind = "idea" | "pain_point" | "observation" | "improvement";
 type ImprovementStatus = "open" | "in_review" | "converted" | "closed";
@@ -59,6 +56,12 @@ type Improvement = {
   created_at: string;
 };
 
+type Profile = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
 const KIND_ICON: Record<ImprovementKind, React.ElementType> = {
   idea: Lightbulb, pain_point: AlertTriangle, observation: Eye, improvement: ArrowUpCircle,
 };
@@ -69,7 +72,7 @@ const KIND_CLS: Record<ImprovementKind, string> = {
   improvement: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
 };
 
-// ── Step grouping ──────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────
 
 type StepRow = ProcessBucket | ProcessBucket[];
 
@@ -93,16 +96,29 @@ function groupSteps(steps: ProcessBucket[]): StepRow[] {
   return rows;
 }
 
+function initials(name: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
 // ── StepCard ───────────────────────────────────────────────
 
 function StepCard({
-  step, flatIndex, total, inGroup, hasIssues, onMoveUp, onMoveDown, onDelete, onUpdate,
+  step, flatIndex, total, inGroup, hasIssues,
+  stepDocs, onLinkStepDoc, onUnlinkStepDoc,
+  profiles, onOwnerChange,
+  onMoveUp, onMoveDown, onDelete, onUpdate,
 }: {
   step: ProcessBucket;
   flatIndex: number;
   total: number;
   inGroup?: boolean;
   hasIssues?: boolean;
+  stepDocs: LinkedDoc[];
+  onLinkStepDoc: (step: ProcessBucket, doc: { id: string; title: string; icon: string | null; tags: string[] }) => void;
+  onUnlinkStepDoc: (step: ProcessBucket, docId: string) => void;
+  profiles: Profile[];
+  onOwnerChange: (stepId: string, ownerId: string | null) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDelete: () => void;
@@ -113,31 +129,20 @@ function StepCard({
   const [nameChanged, setNameChanged] = useState(false);
   const [descChanged, setDescChanged] = useState(false);
   const [expanded, setExpanded]       = useState(false);
-  const [editGroup, setEditGroup]     = useState<string | null>(null);
+  const [editGroup, setEditGroup]     = useState(false);
   const [groupInput, setGroupInput]   = useState(step.step_group ?? "");
+  const [showOwnerPicker, setShowOwnerPicker] = useState(false);
   const groupInputRef = useRef<HTMLInputElement>(null);
 
-  // Step-level docs (loaded lazily on first expand)
-  const [stepDocs, setStepDocs]               = useState<LinkedDoc[]>([]);
-  const [stepDocSearch, setStepDocSearch]     = useState("");
-  const [stepDocResults, setStepDocResults]   = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
-  const [stepDocsLoaded, setStepDocsLoaded]   = useState(false);
-  const [stepDocSearching, setStepDocSearching] = useState(false);
-  const [linkingStepDocId, setLinkingStepDocId] = useState<string | null>(null);
+  // Doc search (ephemeral UI state — actual list comes from parent via props)
+  const [docSearch, setDocSearch]       = useState("");
+  const [docResults, setDocResults]     = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
+  const [docSearching, setDocSearching] = useState(false);
+  const [linkingDocId, setLinkingDocId] = useState<string | null>(null);
 
   useEffect(() => { setEditName(step.name); }, [step.name]);
   useEffect(() => { setEditDesc(step.description ?? ""); }, [step.description]);
   useEffect(() => { setGroupInput(step.step_group ?? ""); }, [step.step_group]);
-
-  // Load step-level docs once on first expand
-  useEffect(() => {
-    if (expanded && !stepDocsLoaded) {
-      getLinkedDocs(step.slug).then((docs) => {
-        setStepDocs(docs);
-        setStepDocsLoaded(true);
-      });
-    }
-  }, [expanded, stepDocsLoaded, step.slug]);
 
   const saveName = async () => {
     if (!nameChanged || !editName.trim()) return;
@@ -157,38 +162,27 @@ function StepCard({
   };
   const saveGroup = async () => {
     const val = groupInput.trim() || null;
-    if (val === step.step_group) { setEditGroup(null); return; }
+    if (val === step.step_group) { setEditGroup(false); return; }
     await updateBucket(step.id, { step_group: val });
     onUpdate({ step_group: val });
-    setEditGroup(null);
-  };
-  const openGroupEdit = () => {
-    setGroupInput(step.step_group ?? "");
-    setEditGroup(step.id);
-    setTimeout(() => groupInputRef.current?.focus(), 50);
+    setEditGroup(false);
   };
 
-  const searchStepDocs = async (q: string) => {
-    if (!q.trim()) { setStepDocResults([]); return; }
-    setStepDocSearching(true);
+  const searchDocs = async (q: string) => {
+    if (!q.trim()) { setDocResults([]); return; }
+    setDocSearching(true);
     const { data } = await sb.from("documents").select("id, title, icon, tags").ilike("title", `%${q}%`).limit(6);
-    setStepDocResults(data ?? []);
-    setStepDocSearching(false);
-  };
-  const linkStepDoc = async (doc: { id: string; title: string; icon: string | null; tags: string[] }) => {
-    setLinkingStepDocId(doc.id);
-    const newTags = Array.from(new Set([...(doc.tags ?? []), step.slug]));
-    await sb.from("documents").update({ tags: newTags }).eq("id", doc.id);
-    setStepDocs((prev) => [...prev, { id: doc.id, title: doc.title, updated_at: new Date().toISOString(), icon: doc.icon }]);
-    setStepDocSearch(""); setStepDocResults([]); setLinkingStepDocId(null);
-  };
-  const unlinkStepDoc = async (doc: LinkedDoc) => {
-    const { data } = await sb.from("documents").select("tags").eq("id", doc.id).single();
-    const newTags = ((data?.tags ?? []) as string[]).filter((t: string) => t !== step.slug);
-    await sb.from("documents").update({ tags: newTags }).eq("id", doc.id);
-    setStepDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    setDocResults(data ?? []);
+    setDocSearching(false);
   };
 
+  const handleLinkDoc = async (doc: { id: string; title: string; icon: string | null; tags: string[] }) => {
+    setLinkingDocId(doc.id);
+    await onLinkStepDoc(step, doc);
+    setDocSearch(""); setDocResults([]); setLinkingDocId(null);
+  };
+
+  const owner = profiles.find((p) => p.id === step.owner_id);
   const typeMeta = NODE_TYPE_STYLE[step.node_type as NodeType] ?? NODE_TYPE_STYLE.process;
 
   return (
@@ -200,10 +194,7 @@ function StepCard({
       <div className="flex items-start gap-3 p-4">
         {/* Step number + health dot */}
         <div className="relative shrink-0 mt-0.5">
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
-            style={{ background: step.color || "#6366f1" }}
-          >
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm" style={{ background: step.color || "#6366f1" }}>
             {flatIndex + 1}
           </div>
           {hasIssues && (
@@ -213,21 +204,73 @@ function StepCard({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          {/* Type badge */}
-          <div className="relative group/type mb-1.5">
-            <span className={cn(
-              "inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none",
-              typeMeta.cls,
-            )}>
-              {typeMeta.label}
-            </span>
-            <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-              {NODE_TYPE_OPTIONS.map((t) => (
-                <button key={t} onClick={() => setType(t)}
-                  className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 transition-colors capitalize", step.node_type === t && "font-semibold text-primary")}>
-                  {t}
+          {/* Type + Owner row */}
+          <div className="flex items-center gap-2 mb-1.5">
+            {/* Type selector */}
+            <div className="relative group/type">
+              <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none", typeMeta.cls)}>
+                {typeMeta.label}
+              </span>
+              <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover/type:flex flex-col bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                {NODE_TYPE_OPTIONS.map((t) => (
+                  <button key={t} onClick={() => setType(t)}
+                    className={cn("px-3 py-1.5 text-xs text-left hover:bg-muted/50 transition-colors capitalize", step.node_type === t && "font-semibold text-primary")}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Owner chip */}
+            <div className="relative">
+              {owner ? (
+                <button
+                  onClick={() => setShowOwnerPicker((v) => !v)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/60 hover:bg-muted text-[10px] text-muted-foreground transition-colors"
+                  title={owner.full_name ?? "Owner"}
+                >
+                  {owner.avatar_url ? (
+                    <img src={owner.avatar_url} className="w-3 h-3 rounded-full object-cover" />
+                  ) : (
+                    <span className="w-3.5 h-3.5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">
+                      {initials(owner.full_name)}
+                    </span>
+                  )}
+                  <span className="max-w-[80px] truncate">{owner.full_name ?? "Owner"}</span>
                 </button>
-              ))}
+              ) : (
+                <button
+                  onClick={() => setShowOwnerPicker((v) => !v)}
+                  className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40 transition-all"
+                >
+                  <User className="h-2.5 w-2.5" /> Owner
+                </button>
+              )}
+              {showOwnerPicker && (
+                <div className="absolute top-full left-0 mt-1 z-30 bg-popover border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
+                  {profiles.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => { onOwnerChange(step.id, p.id); setShowOwnerPicker(false); }}
+                      className={cn("w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50 transition-colors", step.owner_id === p.id && "font-semibold text-primary")}
+                    >
+                      {p.avatar_url
+                        ? <img src={p.avatar_url} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                        : <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">{initials(p.full_name)}</span>
+                      }
+                      <span className="truncate">{p.full_name ?? p.id.slice(0, 8)}</span>
+                    </button>
+                  ))}
+                  {step.owner_id && (
+                    <button
+                      onClick={() => { onOwnerChange(step.id, null); setShowOwnerPicker(false); }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 hover:bg-muted/40 border-t border-border/40 transition-colors"
+                    >
+                      Remove owner
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -237,14 +280,19 @@ function StepCard({
             onChange={(e) => { setEditName(e.target.value); setNameChanged(true); }}
             onBlur={saveName}
             onKeyDown={(e) => e.key === "Enter" && saveName()}
-            onClick={() => setExpanded(true)}
+            onClick={() => !expanded && setExpanded(true)}
             className="w-full bg-transparent font-semibold text-sm text-foreground outline-none border-b border-transparent hover:border-border/40 focus:border-primary/40 pb-0.5 transition-colors"
             placeholder="Step name"
           />
 
-          {/* Collapsed: preview description */}
+          {/* Collapsed preview */}
           {!expanded && step.description && (
             <p className="mt-1 text-xs text-muted-foreground/60 line-clamp-1">{step.description}</p>
+          )}
+          {!expanded && stepDocs.length > 0 && (
+            <p className="mt-1 text-[10px] text-muted-foreground/40 flex items-center gap-1">
+              <FileText className="h-2.5 w-2.5" /> {stepDocs.length} doc{stepDocs.length !== 1 ? "s" : ""}
+            </p>
           )}
 
           {/* Expanded: description + step docs */}
@@ -259,74 +307,74 @@ function StepCard({
                 className="w-full bg-transparent text-xs text-muted-foreground outline-none border border-border/30 focus:border-primary/30 rounded-lg p-2 resize-none transition-colors placeholder:text-muted-foreground/30"
               />
 
-              {/* Step-level docs */}
+              {/* Step docs (lifted state from parent) */}
               <div className="space-y-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
                   <FileText className="h-2.5 w-2.5" /> Step Docs
                 </p>
-                {!stepDocsLoaded ? (
-                  <p className="text-[11px] text-muted-foreground/30 italic">Loading…</p>
-                ) : (
-                  <>
-                    {stepDocs.map((doc) => (
-                      <div key={doc.id} className="group/doc flex items-center gap-2 px-2 py-1 rounded-lg border border-border/30 bg-background/50 text-xs">
-                        <span className="shrink-0">{doc.icon ?? "📄"}</span>
-                        <span className="flex-1 truncate font-medium">{doc.title}</span>
-                        <button onClick={() => unlinkStepDoc(doc)} className="opacity-0 group-hover/doc:opacity-100 text-muted-foreground/30 hover:text-red-400">
-                          <X className="h-3 w-3" />
+                {stepDocs.map((doc) => (
+                  <div key={doc.id} className="group/doc flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/30 bg-background/50 text-xs">
+                    <span className="shrink-0">{doc.icon ?? "📄"}</span>
+                    <span className="flex-1 truncate font-medium">{doc.title}</span>
+                    <button onClick={() => onUnlinkStepDoc(step, doc.id)} className="opacity-0 group-hover/doc:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <div className="relative">
+                  <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
+                  <input
+                    value={docSearch}
+                    onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
+                    placeholder="Link a doc to this step…"
+                    className="w-full pl-6 pr-3 py-1 text-[11px] rounded-lg border border-border/30 bg-background outline-none focus:border-primary/30 transition-colors"
+                  />
+                  {docSearching && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
+                </div>
+                {docResults.length > 0 && (
+                  <div className="rounded-lg border border-border/50 bg-background shadow-sm overflow-hidden divide-y divide-border/20">
+                    {docResults.map((doc) => {
+                      const already = stepDocs.some((d) => d.id === doc.id);
+                      return (
+                        <button key={doc.id} onClick={() => !already && handleLinkDoc(doc)}
+                          disabled={linkingDocId === doc.id || already}
+                          className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 text-[11px] hover:bg-muted/40 disabled:opacity-50 transition-colors">
+                          <span>{doc.icon ?? "📄"}</span>
+                          <span className="flex-1 truncate">{doc.title}</span>
+                          {already && <span className="text-[10px] text-emerald-600">linked</span>}
+                          {linkingDocId === doc.id && <Loader2 className="h-2.5 w-2.5 animate-spin shrink-0" />}
                         </button>
-                      </div>
-                    ))}
-                    <div className="relative">
-                      <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
-                      <input
-                        value={stepDocSearch}
-                        onChange={(e) => { setStepDocSearch(e.target.value); searchStepDocs(e.target.value); }}
-                        placeholder="Link a doc to this step…"
-                        className="w-full pl-6 pr-3 py-1 text-[11px] rounded-lg border border-border/30 bg-background outline-none focus:border-primary/30 transition-colors"
-                      />
-                      {stepDocSearching && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
-                    </div>
-                    {stepDocResults.length > 0 && (
-                      <div className="rounded-lg border border-border/50 bg-background shadow-sm overflow-hidden divide-y divide-border/20">
-                        {stepDocResults.map((doc) => {
-                          const alreadyLinked = stepDocs.some((d) => d.id === doc.id);
-                          return (
-                            <button key={doc.id} onClick={() => !alreadyLinked && linkStepDoc(doc)}
-                              disabled={linkingStepDocId === doc.id || alreadyLinked}
-                              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 text-[11px] hover:bg-muted/40 disabled:opacity-50 transition-colors">
-                              <span>{doc.icon ?? "📄"}</span>
-                              <span className="flex-1 truncate">{doc.title}</span>
-                              {alreadyLinked && <span className="text-[10px] text-emerald-600">linked</span>}
-                              {linkingStepDocId === doc.id && <Loader2 className="h-2.5 w-2.5 animate-spin shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
           {/* Group chip */}
-          <div className="mt-2 flex items-center gap-1">
-            {editGroup === step.id ? (
+          <div className="mt-2">
+            {editGroup ? (
               <div className="flex items-center gap-1">
                 <Layers className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                <input ref={groupInputRef} value={groupInput} onChange={(e) => setGroupInput(e.target.value)}
-                  onBlur={saveGroup} onKeyDown={(e) => { if (e.key === "Enter") saveGroup(); if (e.key === "Escape") setEditGroup(null); }}
+                <input
+                  ref={groupInputRef}
+                  value={groupInput}
+                  onChange={(e) => setGroupInput(e.target.value)}
+                  onBlur={saveGroup}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveGroup(); if (e.key === "Escape") setEditGroup(false); }}
                   placeholder="Group name…"
-                  className="text-[10px] bg-transparent border-b border-primary/40 outline-none w-28 text-muted-foreground placeholder:text-muted-foreground/30" />
+                  autoFocus
+                  className="text-[10px] bg-transparent border-b border-primary/40 outline-none w-28 text-muted-foreground placeholder:text-muted-foreground/30"
+                />
               </div>
             ) : step.step_group ? (
-              <button onClick={openGroupEdit}
+              <button onClick={() => setEditGroup(true)}
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/60 text-[10px] text-muted-foreground hover:bg-muted transition-colors">
                 <Layers className="h-2.5 w-2.5" /> {step.step_group}
               </button>
             ) : (
-              <button onClick={openGroupEdit}
+              <button onClick={() => setEditGroup(true)}
                 className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/40 transition-all">
                 <Layers className="h-2.5 w-2.5" /> Group
               </button>
@@ -336,18 +384,12 @@ function StepCard({
 
         {/* Actions */}
         <div className="shrink-0 flex flex-col items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onMoveUp} disabled={flatIndex === 0} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground disabled:opacity-20" title="Move up">
-            <ChevronUp className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={onMoveDown} disabled={flatIndex === total - 1} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground disabled:opacity-20" title="Move down">
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={() => setExpanded((v) => !v)} className={cn("p-1 rounded hover:bg-muted transition-colors", expanded ? "text-primary" : "text-muted-foreground/50 hover:text-foreground")} title="Expand">
+          <button onClick={onMoveUp} disabled={flatIndex === 0} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground disabled:opacity-20"><ChevronUp className="h-3.5 w-3.5" /></button>
+          <button onClick={onMoveDown} disabled={flatIndex === total - 1} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground disabled:opacity-20"><ChevronDown className="h-3.5 w-3.5" /></button>
+          <button onClick={() => setExpanded((v) => !v)} className={cn("p-1 rounded hover:bg-muted transition-colors", expanded ? "text-primary" : "text-muted-foreground/50 hover:text-foreground")}>
             <Pencil className="h-3 w-3" />
           </button>
-          <button onClick={onDelete} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive" title="Delete">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          <button onClick={onDelete} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
     </div>
@@ -368,7 +410,7 @@ function SidebarSection({ title, badge, children }: { title: string; badge?: Rea
   );
 }
 
-// ── Main component ─────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────
 
 interface Props {
   area: ProcessBucket;
@@ -381,35 +423,45 @@ interface Props {
 export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUpdated }: Props) {
   const { user } = useAuth();
 
+  // Header
   const [editName, setEditName]       = useState(area.name);
   const [editDesc, setEditDesc]       = useState(area.description ?? "");
   const [nameChanged, setNameChanged] = useState(false);
   const [descChanged, setDescChanged] = useState(false);
 
+  // Steps
   const [steps, setSteps]               = useState<ProcessBucket[]>([]);
   const [stepsLoading, setStepsLoading] = useState(true);
+  const [addingStep, setAddingStep]     = useState(false);
+  const [newStepName, setNewStepName]   = useState("");
+  const [newStepType, setNewStepType]   = useState<NodeType>("process");
+  const [savingStep, setSavingStep]     = useState(false);
 
-  const [addingStep, setAddingStep]   = useState(false);
-  const [newStepName, setNewStepName] = useState("");
-  const [newStepType, setNewStepType] = useState<NodeType>("process");
-  const [savingStep, setSavingStep]   = useState(false);
+  // Step docs — keyed by step.id (lifted for 2-way sidebar sync)
+  const [stepDocsMap, setStepDocsMap]   = useState<Record<string, LinkedDoc[]>>({});
 
+  // Area-level docs
   const [docs, setDocs]                 = useState<LinkedDoc[]>([]);
   const [docSearch, setDocSearch]       = useState("");
   const [docResults, setDocResults]     = useState<{ id: string; title: string; icon: string | null; tags: string[] }[]>([]);
   const [docSearching, setDocSearching] = useState(false);
   const [linkingDocId, setLinkingDocId] = useState<string | null>(null);
 
-  const [incoming, setIncoming]       = useState<ProcessBucket[]>([]);
-  const [outgoing, setOutgoing]       = useState<ProcessBucket[]>([]);
-  const [addingConn, setAddingConn]   = useState<"in" | "out" | null>(null);
-  const [savingConn, setSavingConn]   = useState(false);
+  // Connections
+  const [incoming, setIncoming]         = useState<ProcessBucket[]>([]);
+  const [outgoing, setOutgoing]         = useState<ProcessBucket[]>([]);
+  const [addingConn, setAddingConn]     = useState<"in" | "out" | null>(null);
+  const [savingConn, setSavingConn]     = useState(false);
 
+  // Improvements
   const [improvements, setImprovements] = useState<Improvement[]>([]);
   const [newImpTitle, setNewImpTitle]   = useState("");
   const [newImpKind, setNewImpKind]     = useState<ImprovementKind>("idea");
-  const [newImpStepId, setNewImpStepId] = useState<string>("");
+  const [newImpStepId, setNewImpStepId] = useState("");
   const [addingImp, setAddingImp]       = useState(false);
+
+  // Profiles (for owner picker)
+  const [profiles, setProfiles]         = useState<Profile[]>([]);
 
   // ── Load ──────────────────────────────────────────────────
 
@@ -418,23 +470,49 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
     setEditDesc(area.description ?? "");
     setNameChanged(false);
     setDescChanged(false);
+    setStepDocsMap({});
+
     const load = async () => {
       setStepsLoading(true);
-      const [subBuckets, linkedDocs, connections, impRows] = await Promise.all([
+      const [subBuckets, linkedDocs, connections, impRows, profileRows] = await Promise.all([
         getProcessBuckets(area.id),
         getLinkedDocs(area.slug),
         getAreaConnections(area.id),
         sb.from("process_improvements").select("*").eq("bucket_id", area.id).order("created_at", { ascending: false }),
+        sb.from("profiles").select("id, full_name, avatar_url").eq("workspace_id", workspaceId),
       ]);
+
       setSteps(subBuckets);
       setDocs(linkedDocs);
       setIncoming(connections.incoming);
       setOutgoing(connections.outgoing);
       setImprovements(impRows.data ?? []);
+      setProfiles(profileRows.data ?? []);
+
+      // Batch-load step docs for all steps (2-way sync source of truth)
+      if (subBuckets.length > 0) {
+        const slugs = subBuckets.map((s: ProcessBucket) => s.slug);
+        const { data: stepDocRows } = await sb
+          .from("documents")
+          .select("id, title, updated_at, icon, tags")
+          .overlaps("tags", slugs);
+
+        const docsMap: Record<string, LinkedDoc[]> = {};
+        subBuckets.forEach((s: ProcessBucket) => { docsMap[s.id] = []; });
+        (stepDocRows ?? []).forEach((doc: any) => {
+          subBuckets.forEach((s: ProcessBucket) => {
+            if ((doc.tags ?? []).includes(s.slug)) {
+              docsMap[s.id] = [...(docsMap[s.id] ?? []), { id: doc.id, title: doc.title, updated_at: doc.updated_at, icon: doc.icon }];
+            }
+          });
+        });
+        setStepDocsMap(docsMap);
+      }
+
       setStepsLoading(false);
     };
     load();
-  }, [area.id, area.slug]);
+  }, [area.id, area.slug, workspaceId]);
 
   // ── Header ────────────────────────────────────────────────
 
@@ -466,6 +544,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
     if (!(await appConfirm({ title: "Delete this step?", confirmLabel: "Delete", destructive: true }))) return;
     await deleteBucket(id);
     setSteps((prev) => prev.filter((s) => s.id !== id));
+    setStepDocsMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   const addStep = async () => {
@@ -474,14 +553,36 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
     try {
       const bucket = await createBucket(workspaceId, newStepName.trim(), area.id, { x: 0, y: steps.length * 180 }, steps.length, null, newStepType);
       setSteps((prev) => [...prev, bucket]);
-      setNewStepName("");
-      setNewStepType("process");
-      setAddingStep(false);
+      setStepDocsMap((prev) => ({ ...prev, [bucket.id]: [] }));
+      setNewStepName(""); setNewStepType("process"); setAddingStep(false);
     } catch (e) { toast.error(String(e)); }
     finally { setSavingStep(false); }
   };
 
-  // ── Docs (area-level) ──────────────────────────────────────
+  // ── Step docs (2-way) ──────────────────────────────────────
+
+  const handleLinkStepDoc = async (step: ProcessBucket, doc: { id: string; title: string; icon: string | null; tags: string[] }) => {
+    const newTags = Array.from(new Set([...(doc.tags ?? []), step.slug]));
+    await sb.from("documents").update({ tags: newTags }).eq("id", doc.id);
+    const linked: LinkedDoc = { id: doc.id, title: doc.title, updated_at: new Date().toISOString(), icon: doc.icon };
+    setStepDocsMap((prev) => ({ ...prev, [step.id]: [...(prev[step.id] ?? []), linked] }));
+  };
+
+  const handleUnlinkStepDoc = async (step: ProcessBucket, docId: string) => {
+    const { data } = await sb.from("documents").select("tags").eq("id", docId).single();
+    const newTags = ((data?.tags ?? []) as string[]).filter((t: string) => t !== step.slug);
+    await sb.from("documents").update({ tags: newTags }).eq("id", docId);
+    setStepDocsMap((prev) => ({ ...prev, [step.id]: (prev[step.id] ?? []).filter((d) => d.id !== docId) }));
+  };
+
+  // ── Step owner ─────────────────────────────────────────────
+
+  const handleOwnerChange = async (stepId: string, ownerId: string | null) => {
+    await updateBucket(stepId, { owner_id: ownerId });
+    setSteps((prev) => prev.map((s) => s.id === stepId ? { ...s, owner_id: ownerId } : s));
+  };
+
+  // ── Area-level docs ────────────────────────────────────────
 
   const searchDocs = useCallback(async (q: string) => {
     if (!q.trim()) { setDocResults([]); return; }
@@ -544,8 +645,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
     setAddingImp(false);
     if (error) { toast.error(error.message); return; }
     if (data) setImprovements((prev) => [data, ...prev]);
-    setNewImpTitle("");
-    setNewImpStepId("");
+    setNewImpTitle(""); setNewImpStepId("");
   };
 
   const closeImprovement = async (id: string) => {
@@ -568,11 +668,12 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
 
   const openImprovements = improvements.filter((i) => i.status === "open" || i.status === "in_review");
   const stepRows = groupSteps(steps);
+  const stepsWithOpenIssues = new Set(openImprovements.filter((i) => i.step_id).map((i) => i.step_id!));
 
-  // Step health: which step IDs have open issues pinned to them?
-  const stepsWithOpenIssues = new Set(
-    openImprovements.filter((i) => i.step_id).map((i) => i.step_id!),
-  );
+  // All step docs flat + grouped (for sidebar)
+  const allStepDocsFlat = steps.flatMap((s) => (stepDocsMap[s.id] ?? []).map((d) => ({ ...d, stepId: s.id, stepName: s.name, stepIndex: steps.indexOf(s) })));
+  const stepsWithDocs = steps.filter((s) => (stepDocsMap[s.id] ?? []).length > 0);
+  const totalDocCount = docs.length + allStepDocsFlat.length;
 
   const stepNameFor = (stepId: string | null) =>
     stepId ? (steps.find((s) => s.id === stepId)?.name ?? null) : null;
@@ -609,7 +710,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
         />
         <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground/50">
           <span>{steps.length} {steps.length === 1 ? "step" : "steps"}</span>
-          {docs.length > 0 && <><span>·</span><span>{docs.length} {docs.length === 1 ? "doc" : "docs"}</span></>}
+          {totalDocCount > 0 && <><span>·</span><span>{totalDocCount} {totalDocCount === 1 ? "doc" : "docs"}</span></>}
           {openImprovements.length > 0 && (
             <><span>·</span><span className="text-amber-600 dark:text-amber-400">{openImprovements.length} open {openImprovements.length === 1 ? "issue" : "issues"}</span></>
           )}
@@ -638,10 +739,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
           ) : (
             <div className="space-y-3">
               {steps.length === 0 && !addingStep && (
-                <div
-                  className="rounded-xl border-2 border-dashed border-border/40 p-10 text-center cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all"
-                  onClick={() => setAddingStep(true)}
-                >
+                <div className="rounded-xl border-2 border-dashed border-border/40 p-10 text-center cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all" onClick={() => setAddingStep(true)}>
                   <Plus className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground/50">Add your first process step</p>
                 </div>
@@ -657,12 +755,17 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                       </p>
                       <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
                         {row.map((step) => {
-                          const flatIndex = steps.indexOf(step);
+                          const fi = steps.indexOf(step);
                           return (
-                            <StepCard key={step.id} step={step} flatIndex={flatIndex} total={steps.length} inGroup
+                            <StepCard key={step.id} step={step} flatIndex={fi} total={steps.length} inGroup
                               hasIssues={stepsWithOpenIssues.has(step.id)}
-                              onMoveUp={() => moveStep(flatIndex, "up")}
-                              onMoveDown={() => moveStep(flatIndex, "down")}
+                              stepDocs={stepDocsMap[step.id] ?? []}
+                              onLinkStepDoc={handleLinkStepDoc}
+                              onUnlinkStepDoc={handleUnlinkStepDoc}
+                              profiles={profiles}
+                              onOwnerChange={handleOwnerChange}
+                              onMoveUp={() => moveStep(fi, "up")}
+                              onMoveDown={() => moveStep(fi, "down")}
                               onDelete={() => deleteStep(step.id)}
                               onUpdate={(patch) => setSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, ...patch } : s))}
                             />
@@ -672,12 +775,17 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                     </div>
                   );
                 } else {
-                  const flatIndex = steps.indexOf(row);
+                  const fi = steps.indexOf(row);
                   return (
-                    <StepCard key={row.id} step={row} flatIndex={flatIndex} total={steps.length}
+                    <StepCard key={row.id} step={row} flatIndex={fi} total={steps.length}
                       hasIssues={stepsWithOpenIssues.has(row.id)}
-                      onMoveUp={() => moveStep(flatIndex, "up")}
-                      onMoveDown={() => moveStep(flatIndex, "down")}
+                      stepDocs={stepDocsMap[row.id] ?? []}
+                      onLinkStepDoc={handleLinkStepDoc}
+                      onUnlinkStepDoc={handleUnlinkStepDoc}
+                      profiles={profiles}
+                      onOwnerChange={handleOwnerChange}
+                      onMoveUp={() => moveStep(fi, "up")}
+                      onMoveDown={() => moveStep(fi, "down")}
                       onDelete={() => deleteStep(row.id)}
                       onUpdate={(patch) => setSteps((prev) => prev.map((s) => s.id === row.id ? { ...s, ...patch } : s))}
                     />
@@ -690,18 +798,13 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                   <div className="flex gap-2 flex-wrap">
                     {NODE_TYPE_OPTIONS.map((t) => (
                       <button key={t} onClick={() => setNewStepType(t)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize",
-                          newStepType === t ? "border-primary bg-primary text-primary-foreground" : "border-border/40 text-muted-foreground hover:border-border",
-                        )}>
+                        className={cn("px-2.5 py-1 rounded-md text-xs font-medium border transition-all capitalize",
+                          newStepType === t ? "border-primary bg-primary text-primary-foreground" : "border-border/40 text-muted-foreground hover:border-border")}>
                         {t}
                       </button>
                     ))}
                   </div>
-                  <input
-                    autoFocus
-                    value={newStepName}
-                    onChange={(e) => setNewStepName(e.target.value)}
+                  <input autoFocus value={newStepName} onChange={(e) => setNewStepName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") addStep(); if (e.key === "Escape") { setAddingStep(false); setNewStepName(""); } }}
                     placeholder="Step name…"
                     className="w-full bg-transparent text-sm font-medium outline-none border-b border-border/40 focus:border-primary/40 pb-1 transition-colors"
@@ -709,13 +812,9 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                   <div className="flex gap-2">
                     <button onClick={addStep} disabled={!newStepName.trim() || savingStep}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-40">
-                      {savingStep ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      Add step
+                      {savingStep ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Add step
                     </button>
-                    <button onClick={() => { setAddingStep(false); setNewStepName(""); }}
-                      className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground">
-                      Cancel
-                    </button>
+                    <button onClick={() => { setAddingStep(false); setNewStepName(""); }} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground">Cancel</button>
                   </div>
                 </div>
               )}
@@ -724,18 +823,14 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
         </div>
 
         {/* ── Right: Sidebar ─────────────────────────────────────── */}
-        <div
-          className="w-96 shrink-0 border-l border-border/30 px-6 py-8 space-y-5 sticky top-0 self-start overflow-y-auto"
-          style={{ maxHeight: "calc(100vh - 4rem)" }}
-        >
+        <div className="w-96 shrink-0 border-l border-border/30 px-6 py-8 space-y-5 sticky top-0 self-start overflow-y-auto" style={{ maxHeight: "calc(100vh - 4rem)" }}>
 
           {/* Connections */}
           <SidebarSection title="Connections">
             <div className="space-y-5">
+              {/* Receives from */}
               <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5">
-                  <ArrowLeft className="h-3 w-3" /> Receives from
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5"><ArrowLeft className="h-3 w-3" /> Receives from</p>
                 <div className="space-y-1.5">
                   {incoming.map((a) => (
                     <div key={a.id} className="group flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-background/50 text-xs hover:border-border/70 transition-colors">
@@ -746,11 +841,9 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                   ))}
                   {addingConn === "in" ? (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 space-y-1">
-                      {connectableAreas.length === 0
-                        ? <p className="text-[11px] text-muted-foreground/50 italic">No other areas</p>
+                      {connectableAreas.length === 0 ? <p className="text-[11px] text-muted-foreground/50 italic">No other areas</p>
                         : connectableAreas.map((a) => (
-                            <button key={a.id} onClick={() => addConnection(a, "in")} disabled={savingConn}
-                              className="w-full text-left flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-muted/50">
+                            <button key={a.id} onClick={() => addConnection(a, "in")} disabled={savingConn} className="w-full text-left flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-muted/50">
                               <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: a.color }} />{a.name}
                             </button>
                           ))
@@ -758,17 +851,13 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                       <button onClick={() => setAddingConn(null)} className="text-[11px] text-muted-foreground/40 hover:text-foreground">Cancel</button>
                     </div>
                   ) : (
-                    <button onClick={() => setAddingConn("in")} className="text-[11px] text-muted-foreground/30 hover:text-foreground flex items-center gap-1 transition-colors">
-                      <Plus className="h-3 w-3" /> Add
-                    </button>
+                    <button onClick={() => setAddingConn("in")} className="text-[11px] text-muted-foreground/30 hover:text-foreground flex items-center gap-1"><Plus className="h-3 w-3" /> Add</button>
                   )}
                 </div>
               </div>
-
+              {/* Passes to */}
               <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5">
-                  <ArrowRight className="h-3 w-3" /> Passes to
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5"><ArrowRight className="h-3 w-3" /> Passes to</p>
                 <div className="space-y-1.5">
                   {outgoing.map((a) => (
                     <div key={a.id} className="group flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-background/50 text-xs hover:border-border/70 transition-colors">
@@ -779,11 +868,9 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                   ))}
                   {addingConn === "out" ? (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 space-y-1">
-                      {connectableAreas.length === 0
-                        ? <p className="text-[11px] text-muted-foreground/50 italic">No other areas</p>
+                      {connectableAreas.length === 0 ? <p className="text-[11px] text-muted-foreground/50 italic">No other areas</p>
                         : connectableAreas.map((a) => (
-                            <button key={a.id} onClick={() => addConnection(a, "out")} disabled={savingConn}
-                              className="w-full text-left flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-muted/50">
+                            <button key={a.id} onClick={() => addConnection(a, "out")} disabled={savingConn} className="w-full text-left flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-muted/50">
                               <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: a.color }} />{a.name}
                             </button>
                           ))
@@ -791,115 +878,126 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                       <button onClick={() => setAddingConn(null)} className="text-[11px] text-muted-foreground/40 hover:text-foreground">Cancel</button>
                     </div>
                   ) : (
-                    <button onClick={() => setAddingConn("out")} className="text-[11px] text-muted-foreground/30 hover:text-foreground flex items-center gap-1 transition-colors">
-                      <Plus className="h-3 w-3" /> Add
-                    </button>
+                    <button onClick={() => setAddingConn("out")} className="text-[11px] text-muted-foreground/30 hover:text-foreground flex items-center gap-1"><Plus className="h-3 w-3" /> Add</button>
                   )}
                 </div>
               </div>
             </div>
           </SidebarSection>
 
-          {/* Playbook (area-level) */}
-          <SidebarSection title="Playbook">
-            <div className="space-y-2.5">
-              {docs.length === 0 && (
-                <p className="text-xs text-muted-foreground/40 italic">No area-level docs yet</p>
-              )}
-              {docs.map((doc) => (
-                <div key={doc.id} className="group flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-background/50 hover:border-border/70 transition-colors">
-                  <span className="text-base shrink-0">{doc.icon ?? "📄"}</span>
-                  <span className="flex-1 text-xs font-medium text-foreground truncate">{doc.title}</span>
-                  <button onClick={() => unlinkDoc(doc)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity shrink-0">
-                    <X className="h-3 w-3" />
-                  </button>
+          {/* Playbook — area docs + step docs aggregated */}
+          <SidebarSection title="Playbook" badge={totalDocCount > 0 ? <span className="text-[10px] text-muted-foreground/50">{totalDocCount}</span> : undefined}>
+            <div className="space-y-4">
+
+              {/* Area-level docs */}
+              <div className="space-y-2">
+                {docs.length > 0 && (
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">Area</p>
+                )}
+                {docs.map((doc) => (
+                  <div key={doc.id} className="group flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border/40 bg-background/50 hover:border-border/70 transition-colors">
+                    <span className="text-sm shrink-0">{doc.icon ?? "📄"}</span>
+                    <span className="flex-1 text-xs font-medium text-foreground truncate">{doc.title}</span>
+                    <button onClick={() => unlinkDoc(doc)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity shrink-0"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+                <div className="relative">
+                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
+                  <input value={docSearch} onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
+                    placeholder="Link an area-level doc…"
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-border/40 bg-background outline-none focus:border-primary/40 transition-colors" />
+                  {docSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
                 </div>
-              ))}
-              <div className="relative mt-1">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30" />
-                <input
-                  value={docSearch}
-                  onChange={(e) => { setDocSearch(e.target.value); searchDocs(e.target.value); }}
-                  placeholder="Search to link an area doc…"
-                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-border/40 bg-background outline-none focus:border-primary/40 transition-colors"
-                />
-                {docSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 animate-spin" />}
+                {docResults.length > 0 && (
+                  <div className="rounded-lg border border-border/60 bg-background shadow-sm overflow-hidden divide-y divide-border/30">
+                    {docResults.map((doc) => {
+                      const already = docs.some((d) => d.id === doc.id);
+                      return (
+                        <button key={doc.id} onClick={() => !already && linkDoc(doc)} disabled={linkingDocId === doc.id || already}
+                          className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/40 disabled:opacity-60 transition-colors">
+                          <span>{doc.icon ?? "📄"}</span>
+                          <span className="flex-1 truncate">{doc.title}</span>
+                          {already && <span className="text-[10px] text-emerald-600 shrink-0">linked</span>}
+                          {linkingDocId === doc.id && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {docResults.length > 0 && (
-                <div className="rounded-lg border border-border/60 bg-background shadow-sm overflow-hidden divide-y divide-border/30">
-                  {docResults.map((doc) => {
-                    const alreadyLinked = docs.some((d) => d.id === doc.id);
+
+              {/* Step-level docs aggregated */}
+              {stepsWithDocs.length > 0 && (
+                <div className="space-y-3 pt-1 border-t border-border/30">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40 pt-2">By Step</p>
+                  {stepsWithDocs.map((step) => {
+                    const sDocs = stepDocsMap[step.id] ?? [];
+                    const fi = steps.indexOf(step);
                     return (
-                      <button key={doc.id} onClick={() => !alreadyLinked && linkDoc(doc)}
-                        disabled={linkingDocId === doc.id || alreadyLinked}
-                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/40 disabled:opacity-60 transition-colors">
-                        <span>{doc.icon ?? "📄"}</span>
-                        <span className="flex-1 truncate">{doc.title}</span>
-                        {alreadyLinked && <span className="text-[10px] text-emerald-600 shrink-0">linked</span>}
-                        {linkingDocId === doc.id && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
-                      </button>
+                      <div key={step.id} className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground/50 font-medium flex items-center gap-1">
+                          <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] font-bold text-white" style={{ background: step.color }}>
+                            {fi + 1}
+                          </span>
+                          {step.name}
+                        </p>
+                        {sDocs.map((doc) => (
+                          <div key={doc.id} className="group flex items-center gap-2 pl-5 pr-2 py-1.5 rounded-lg border border-border/30 bg-background/50 text-xs hover:border-border/60 transition-colors">
+                            <span className="shrink-0">{doc.icon ?? "📄"}</span>
+                            <span className="flex-1 truncate font-medium">{doc.title}</span>
+                            <button onClick={() => handleUnlinkStepDoc(step, doc.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/30 hover:text-red-400 transition-opacity shrink-0">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     );
                   })}
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground/30 italic mt-1">Tip: expand a step to link docs directly to it</p>
+
+              {totalDocCount === 0 && (
+                <p className="text-xs text-muted-foreground/30 italic">No docs linked yet — link to the area above or expand a step to link directly to it</p>
+              )}
             </div>
           </SidebarSection>
 
           {/* Issues & Ideas */}
-          <SidebarSection
-            title="Issues & Ideas"
-            badge={openImprovements.length > 0 ? (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
-                {openImprovements.length} open
-              </span>
-            ) : undefined}
-          >
+          <SidebarSection title="Issues & Ideas" badge={openImprovements.length > 0 ? (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+              {openImprovements.length} open
+            </span>
+          ) : undefined}>
             <div className="space-y-3">
-              {/* Add improvement form */}
+              {/* Add form */}
               <div className="space-y-2 p-3 rounded-xl border border-border/40 bg-background/60">
                 <div className="flex items-center gap-2">
-                  <select
-                    value={newImpKind}
-                    onChange={(e) => setNewImpKind(e.target.value as ImprovementKind)}
-                    className="text-[11px] bg-transparent border border-border/40 rounded-md px-2 py-1 outline-none text-muted-foreground shrink-0"
-                  >
+                  <select value={newImpKind} onChange={(e) => setNewImpKind(e.target.value as ImprovementKind)}
+                    className="text-[11px] bg-transparent border border-border/40 rounded-md px-2 py-1 outline-none text-muted-foreground shrink-0">
                     <option value="idea">Idea</option>
                     <option value="pain_point">Pain Point</option>
                     <option value="observation">Observation</option>
                     <option value="improvement">Improvement</option>
                   </select>
                 </div>
-                <input
-                  value={newImpTitle}
-                  onChange={(e) => setNewImpTitle(e.target.value)}
+                <input value={newImpTitle} onChange={(e) => setNewImpTitle(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addImprovement(); }}
                   placeholder="Log an issue or idea…"
-                  className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/40 border-b border-border/30 focus:border-primary/40 pb-1 transition-colors"
-                />
+                  className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/40 border-b border-border/30 focus:border-primary/40 pb-1 transition-colors" />
                 {steps.length > 0 && (
-                  <select
-                    value={newImpStepId}
-                    onChange={(e) => setNewImpStepId(e.target.value)}
-                    className="w-full text-[11px] bg-transparent border border-border/30 rounded-md px-2 py-1 outline-none text-muted-foreground"
-                  >
+                  <select value={newImpStepId} onChange={(e) => setNewImpStepId(e.target.value)}
+                    className="w-full text-[11px] bg-transparent border border-border/30 rounded-md px-2 py-1 outline-none text-muted-foreground">
                     <option value="">Area-level (no specific step)</option>
-                    {steps.map((s, i) => (
-                      <option key={s.id} value={s.id}>{i + 1}. {s.name}</option>
-                    ))}
+                    {steps.map((s, i) => <option key={s.id} value={s.id}>{i + 1}. {s.name}</option>)}
                   </select>
                 )}
-                <button
-                  onClick={addImprovement}
-                  disabled={addingImp || !newImpTitle.trim()}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-40"
-                >
-                  {addingImp ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                  Add
+                <button onClick={addImprovement} disabled={addingImp || !newImpTitle.trim()}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-40">
+                  {addingImp ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} Add
                 </button>
               </div>
 
-              {/* Improvement items */}
+              {/* List */}
               {improvements.length === 0 ? (
                 <p className="text-xs text-muted-foreground/30 italic px-1 py-2">None logged yet</p>
               ) : (
@@ -909,13 +1007,7 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                     const done = imp.status === "converted" || imp.status === "closed";
                     const stepName = stepNameFor(imp.step_id);
                     return (
-                      <div
-                        key={imp.id}
-                        className={cn(
-                          "group rounded-lg border border-border/40 bg-background/50 hover:border-border/60 transition-colors p-3 space-y-1.5",
-                          done && "opacity-40",
-                        )}
-                      >
+                      <div key={imp.id} className={cn("group rounded-lg border border-border/40 bg-background/50 hover:border-border/60 transition-colors p-3 space-y-1.5", done && "opacity-40")}>
                         <div className="flex items-start gap-2">
                           <span className={cn("inline-flex items-center p-1 rounded-full text-[10px] shrink-0 mt-0.5", KIND_CLS[imp.kind])}>
                             <Icon className="h-2.5 w-2.5" />
