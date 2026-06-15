@@ -372,8 +372,11 @@ export function VerticalGroupedLanding({
   const addImprovement = async () => {
     if (!newTitle.trim() || !user) return;
     setAddingImprove(true);
+    const workspaceId = (user as any)?.user_metadata?.workspace_id
+      ?? (await sb.from("profiles").select("workspace_id").eq("id", user.id).single()).data?.workspace_id;
     const { data, error } = await sb.from("process_improvements").insert({
       bucket_id: newBucketId || null,
+      workspace_id: workspaceId,
       title: newTitle.trim(),
       kind: newKind,
       status: "open",

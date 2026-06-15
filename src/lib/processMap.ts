@@ -25,6 +25,7 @@ export type ProcessBucket = {
   node_type: string;
   vertical_id: string | null;
   step_group: string | null;
+  owner_id: string | null;
 };
 
 export type LinkedDoc = {
@@ -199,7 +200,7 @@ export const createBucket = async (
   return data;
 };
 
-export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'color' | 'bucket_order' | 'node_type' | 'step_group'>>): Promise<void> => {
+export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'color' | 'bucket_order' | 'node_type' | 'step_group' | 'owner_id'>>): Promise<void> => {
   const { error } = await supabase.from('process_buckets').update(fields).eq('id', id);
   if (error) throw error;
 };

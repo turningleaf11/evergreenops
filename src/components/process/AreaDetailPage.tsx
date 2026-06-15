@@ -10,7 +10,7 @@ import {
   ChevronUp, ChevronDown, Plus, Trash2,
   X, Loader2, Check, Lightbulb,
   AlertTriangle, Eye, ArrowUpCircle, ListTodo,
-  Pencil, Link2, Layers, FileText, User, ExternalLink,
+  Pencil, Link2, Layers, FileText, User, ExternalLink, GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { appConfirm } from "@/components/AppConfirm";
@@ -24,6 +24,7 @@ import {
   deleteBucket,
   getProcessBuckets,
   getLinkedDocs,
+  getChildCounts,
 } from "@/lib/processMap";
 import { StepDetailSheet } from "@/components/process/StepDetailSheet";
 
@@ -106,6 +107,7 @@ function StepCard({
   stepDocs, onLinkStepDoc, onUnlinkStepDoc,
   profiles, onOwnerChange,
   onMoveUp, onMoveDown, onDelete, onUpdate, onOpen,
+  subNodeCount, openIssueCount,
 }: {
   step: ProcessBucket;
   flatIndex: number;
@@ -122,6 +124,8 @@ function StepCard({
   onDelete: () => void;
   onUpdate: (patch: Partial<ProcessBucket>) => void;
   onOpen: () => void;
+  subNodeCount?: number;
+  openIssueCount?: number;
 }) {
   const [editName, setEditName]       = useState(step.name);
   const [nameChanged, setNameChanged] = useState(false);
@@ -251,12 +255,6 @@ function StepCard({
               )}
             </div>
 
-            {/* Doc count chip (collapsed) */}
-            {!expanded && stepDocs.length > 0 && (
-              <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5">
-                <FileText className="h-2.5 w-2.5" /> {stepDocs.length}
-              </span>
-            )}
           </div>
 
           {/* Name */}
@@ -272,6 +270,29 @@ function StepCard({
           {/* Collapsed description preview */}
           {!expanded && step.description && (
             <p className="mt-1 text-xs text-muted-foreground/60 line-clamp-1">{step.description}</p>
+          )}
+
+          {/* Unified status strip */}
+          {!expanded && (subNodeCount! > 0 || stepDocs.length > 0 || openIssueCount! > 0) && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {(subNodeCount ?? 0) > 0 && (
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded-full">
+                  <GitBranch className="h-2.5 w-2.5" /> {subNodeCount} node{subNodeCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {stepDocs.length > 0 && (
+                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded-full max-w-[160px]">
+                  <FileText className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{stepDocs[0].title}</span>
+                  {stepDocs.length > 1 && <span className="shrink-0 text-muted-foreground/40">+{stepDocs.length - 1}</span>}
+                </span>
+              )}
+              {(openIssueCount ?? 0) > 0 && (
+                <span className="flex items-center gap-1 text-[10px] text-amber-600/70 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                  <AlertTriangle className="h-2.5 w-2.5" /> {openIssueCount}
+                </span>
+              )}
+            </div>
           )}
 
           {/* Expanded: quick doc link + hint to open sheet */}
@@ -406,6 +427,9 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
   // Step docs — keyed by step.id (lifted for 2-way sidebar sync)
   const [stepDocsMap, setStepDocsMap] = useState<Record<string, LinkedDoc[]>>({});
 
+  // Sub-process node counts per step
+  const [subNodeCounts, setSubNodeCounts] = useState<Record<string, number>>({});
+
   // Area-level docs
   const [docs, setDocs]                 = useState<LinkedDoc[]>([]);
   const [docSearch, setDocSearch]       = useState("");
@@ -438,20 +462,26 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
 
     const load = async () => {
       setStepsLoading(true);
-      const [subBuckets, linkedDocs, impRows, profileRows] = await Promise.all([
-        getProcessBuckets(area.id),
+      // Steps first — needed for getChildCounts + stepDocs batch
+      const subBuckets = await getProcessBuckets(area.id);
+      setSteps(subBuckets);
+
+      const stepIds = subBuckets.map((s: ProcessBucket) => s.id);
+      const [linkedDocs, impRows, profileRows, subCounts] = await Promise.all([
         getLinkedDocs(area.slug),
         sb.from("process_improvements").select("*").eq("bucket_id", area.id).order("created_at", { ascending: false }),
         sb.from("profiles").select("id, full_name, avatar_url").eq("workspace_id", workspaceId),
+        getChildCounts(stepIds),
       ]);
 
-      setSteps(subBuckets);
       setDocs(linkedDocs);
       setImprovements(impRows.data ?? []);
       setProfiles(profileRows.data ?? []);
+      setSubNodeCounts(subCounts);
 
       if (subBuckets.length > 0) {
         const slugs = subBuckets.map((s: ProcessBucket) => s.slug);
+        // stepIds already derived above
         const { data: stepDocRows } = await sb
           .from("documents")
           .select("id, title, updated_at, icon, tags")
@@ -610,6 +640,10 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
   const openImprovements = improvements.filter((i) => i.status === "open" || i.status === "in_review");
   const stepRows = groupSteps(steps);
   const stepsWithOpenIssues = new Set(openImprovements.filter((i) => i.step_id).map((i) => i.step_id!));
+  const stepOpenIssueCounts: Record<string, number> = {};
+  for (const imp of openImprovements) {
+    if (imp.step_id) stepOpenIssueCounts[imp.step_id] = (stepOpenIssueCounts[imp.step_id] ?? 0) + 1;
+  }
   const stepsWithDocs = steps.filter((s) => (stepDocsMap[s.id] ?? []).length > 0);
   const totalDocCount = docs.length + steps.reduce((acc, s) => acc + (stepDocsMap[s.id] ?? []).length, 0);
 
@@ -707,6 +741,8 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                               onDelete={() => deleteStep(step.id)}
                               onUpdate={(patch) => setSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, ...patch } : s))}
                               onOpen={() => setSelectedStep(step)}
+                              subNodeCount={subNodeCounts[step.id] ?? 0}
+                              openIssueCount={stepOpenIssueCounts[step.id] ?? 0}
                             />
                           );
                         })}
@@ -728,6 +764,8 @@ export function AreaDetailPage({ area, vertical, allAreas, workspaceId, onAreaUp
                       onDelete={() => deleteStep(row.id)}
                       onUpdate={(patch) => setSteps((prev) => prev.map((s) => s.id === row.id ? { ...s, ...patch } : s))}
                       onOpen={() => setSelectedStep(row)}
+                      subNodeCount={subNodeCounts[row.id] ?? 0}
+                      openIssueCount={stepOpenIssueCounts[row.id] ?? 0}
                     />
                   );
                 }
