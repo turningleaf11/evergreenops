@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VerticalGroupedLanding } from "@/components/process/VerticalGroupedLanding";
+import { AreaDetailPage } from "@/components/process/AreaDetailPage";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Background,
@@ -284,6 +285,9 @@ export default function ProcessMapPage() {
   const [noteContent, setNoteContent] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
+  // View mode when inside an area: 'overview' (detail page) or 'map' (canvas)
+  const [viewMode, setViewMode] = useState<"overview" | "map">("overview");
+
   // Add node dialog
   const [addNodeOpen, setAddNodeOpen] = useState(false);
 
@@ -364,6 +368,7 @@ export default function ProcessMapPage() {
 
   useEffect(() => {
     if (viewingArea) {
+      setViewMode("overview");
       void loadCanvas(viewingArea.id);
     } else {
       void loadLanding();
@@ -584,9 +589,34 @@ export default function ProcessMapPage() {
           )}
         </div>
         {isSubprocess && (
-          <Button size="sm" onClick={() => setAddNodeOpen(true)} className="gap-1.5 h-8">
-            <Plus size={14} /> Add Node
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Overview / Map toggle */}
+            <div className="flex items-center rounded-lg border border-border/50 bg-muted/40 p-0.5 text-xs font-medium">
+              <button
+                onClick={() => setViewMode("overview")}
+                className={cn(
+                  "px-3 py-1 rounded-md transition-all",
+                  viewMode === "overview" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className={cn(
+                  "px-3 py-1 rounded-md transition-all",
+                  viewMode === "map" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Map
+              </button>
+            </div>
+            {viewMode === "map" && (
+              <Button size="sm" onClick={() => setAddNodeOpen(true)} className="gap-1.5 h-8">
+                <Plus size={14} /> Add Node
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -604,6 +634,16 @@ export default function ProcessMapPage() {
               onCreateArea={handleCreateArea}
               onVerticalUpdated={handleVerticalUpdated}
               onVerticalDeleted={handleVerticalDeleted}
+            />
+          ) : viewMode === "overview" ? (
+            <AreaDetailPage
+              area={viewingArea}
+              vertical={viewingVertical}
+              allAreas={areas}
+              workspaceId={workspaceId ?? ""}
+              onAreaUpdated={(patch) => {
+                setAreas((prev) => prev.map((a) => a.id === viewingArea.id ? { ...a, ...patch } : a));
+              }}
             />
           ) : (
             <ReactFlow
@@ -631,8 +671,8 @@ export default function ProcessMapPage() {
           )}
         </div>
 
-        {/* Sidebar — subprocess only */}
-        {isSubprocess && (
+        {/* Sidebar — Map mode only */}
+        {isSubprocess && viewMode === "map" && (
           <aside className="w-80 border-l border-border/40 bg-card flex flex-col overflow-hidden">
             {!selected ? (
               <div className="flex flex-col items-center justify-center h-full p-6 text-center">

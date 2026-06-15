@@ -198,9 +198,26 @@ export const createBucket = async (
   return data;
 };
 
-export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'color'>>): Promise<void> => {
+export const updateBucket = async (id: string, fields: Partial<Pick<ProcessBucket, 'name' | 'description' | 'color' | 'bucket_order' | 'node_type'>>): Promise<void> => {
   const { error } = await supabase.from('process_buckets').update(fields).eq('id', id);
   if (error) throw error;
+};
+
+export const getAreaConnections = async (areaId: string): Promise<{ incoming: ProcessBucket[]; outgoing: ProcessBucket[] }> => {
+  const [{ data: outEdges }, { data: inEdges }] = await Promise.all([
+    supabase.from('process_edges').select('target_id').eq('source_id', areaId),
+    supabase.from('process_edges').select('source_id').eq('target_id', areaId),
+  ]);
+  const outIds = (outEdges ?? []).map((e: any) => e.target_id);
+  const inIds  = (inEdges  ?? []).map((e: any) => e.source_id);
+  const allIds = [...new Set([...outIds, ...inIds])];
+  if (allIds.length === 0) return { incoming: [], outgoing: [] };
+  const { data: buckets } = await supabase.from('process_buckets').select('*').in('id', allIds);
+  const map = Object.fromEntries((buckets ?? []).map((b: any) => [b.id, b]));
+  return {
+    outgoing: outIds.map((id: string) => map[id]).filter(Boolean) as ProcessBucket[],
+    incoming: inIds.map((id: string) => map[id]).filter(Boolean) as ProcessBucket[],
+  };
 };
 
 export const deleteBucket = async (id: string): Promise<void> => {
