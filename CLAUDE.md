@@ -5,6 +5,74 @@ Do not invent new patterns when existing ones cover the case.
 
 ---
 
+## SESSION START PROTOCOL — DO THIS FIRST, EVERY SESSION
+
+Before writing any code or answering any question about status, run these checks:
+
+### 1. Check your task queue (AI Hub)
+```sql
+-- Run against Supabase project: dsxrekabnwvarnroanny
+SELECT title, status, priority, description FROM agent_tasks
+WHERE assigned_to = 'claude' AND status NOT IN ('done', 'cancelled')
+ORDER BY created_at DESC;
+```
+
+### 2. Read shared AI memory
+```sql
+SELECT agent_id, content, metadata, created_at FROM memories
+ORDER BY created_at DESC LIMIT 15;
+```
+
+### 3. Read Miro Task Board (live source of truth for what's pending)
+Miro board: https://miro.com/app/board/o9J_lUDcK7Q=/
+Key frames to read at session start:
+- **Task Board**: https://miro.com/app/board/o9J_lUDcK7Q=/?moveToWidget=3458764674825465445
+- **Notes**: https://miro.com/app/board/o9J_lUDcK7Q=/?moveToWidget=3458764675448531014
+
+Reference frames (read when relevant to the work):
+- Business Map — Birds Eye View: `?moveToWidget=3458764674708214793`
+- AI-First Function Map: `?moveToWidget=3458764674717195454`
+- Evergreen Business Flow: `?moveToWidget=3458764674789723041`
+- GHL Seller Funnel: `?moveToWidget=3458764675448621890`
+
+### 4. Write a memory entry when you learn something new
+```sql
+INSERT INTO memories (agent_id, content, metadata)
+VALUES ('claude', '<what you learned>', '{"type": "session_note", "category": "<topic>"}');
+```
+
+### 5. Write a handoff note at END of session
+Before the session closes, write one memory entry summarizing:
+- What was built/changed
+- What's open/next
+- Any decisions made
+
+---
+
+## AI Team context
+
+| Agent | Role | Assigned_to key |
+|---|---|---|
+| Claude | Integrator / COO / builder | `claude` |
+| Albus | Orchestrator / Chief of Staff | `albus` |
+| Dex | Jr. Coder | `dex` |
+| Codex | Coding tasks | `codex` |
+
+Tasks flow through `agent_tasks` table. Results written back to `result` column.
+Supabase project: `dsxrekabnwvarnroanny`
+
+---
+
+## Miro — editable frames (can update these)
+- Task Board — track work status
+- GHL Seller Funnel — funnel/automation design
+- AI-First Function Map — automation tier assignments
+- Business Map — Birds Eye View — business strategy overview
+
+---
+
+---
+
 ## Stack
 
 - React + TypeScript + Vite
