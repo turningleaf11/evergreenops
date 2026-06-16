@@ -36,10 +36,9 @@ export default function TaskPeek({ id, open, onClose }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("database_rows").select("*").eq("id", id).maybeSingle();
+    const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
     setRow(data);
-    const vals = (data?.values || {}) as any;
-    const assigneeId = vals.assigned_to || vals.owner_id;
+    const assigneeId = data?.assigned_to;
     if (assigneeId) {
       const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", assigneeId).maybeSingle();
       setAssigneeName(prof?.full_name || "");
@@ -53,26 +52,23 @@ export default function TaskPeek({ id, open, onClose }: Props) {
 
   const updateStatus = async (status: string) => {
     if (!row) return;
-    const nextValues = { ...(row.values || {}), status };
-    const { error } = await supabase.from("database_rows").update({ values: nextValues }).eq("id", id);
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
     if (error) toast.error(error.message);
-    else setRow({ ...row, values: nextValues });
+    else setRow({ ...row, status });
   };
 
   const updatePriority = async (priority: string) => {
     if (!row) return;
-    const nextValues = { ...(row.values || {}), priority };
-    const { error } = await supabase.from("database_rows").update({ values: nextValues }).eq("id", id);
+    const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
     if (error) toast.error(error.message);
-    else setRow({ ...row, values: nextValues });
+    else setRow({ ...row, priority });
   };
 
-  const v = row?.values || {};
-  const title = v.title || v.name || "Untitled task";
-  const status = v.status || "todo";
-  const priority = v.priority;
-  const dueDate = v.due_date;
-  const description = v.description;
+  const title = row?.title || "Untitled task";
+  const status = row?.status || "todo";
+  const priority = row?.priority;
+  const dueDate = row?.due_date;
+  const description = row?.description;
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -179,7 +175,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
             </div>
 
             {/* Right rail — Activity */}
-            <aside className="w-80 shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
+            <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
               <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-b border-border/40">
                 Activity · Comments
               </div>

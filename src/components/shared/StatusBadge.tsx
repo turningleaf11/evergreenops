@@ -46,6 +46,7 @@ export const TASK_STATUS_VARIANT: Record<string, BadgeVariant> = {
 };
 
 export const PRIORITY_VARIANT: Record<string, BadgeVariant> = {
+  urgent: "danger",
   high:   "danger",
   "1":    "danger",
   medium: "warning",
@@ -55,6 +56,7 @@ export const PRIORITY_VARIANT: Record<string, BadgeVariant> = {
 };
 
 export const PRIORITY_LABEL: Record<string, string> = {
+  urgent: "Urgent",
   high: "High", "1": "High",
   medium: "Medium", "2": "Medium",
   low: "Low", "3": "Low",

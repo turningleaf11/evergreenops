@@ -48,7 +48,6 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   const [loading, setLoading] = useState(false);
   const [krsOpen, setKrsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
-  const [notesOpen, setNotesOpen] = useState(false);
   const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchGoal = useCallback(async () => {
@@ -136,7 +135,24 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Target className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
+                    <span className="font-medium">Goal</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <Select value={goal.quarter ?? "Q2"} onValueChange={v => update({ quarter: v })}>
+                      <SelectTrigger className="h-auto border-none shadow-none p-0 gap-0.5 focus:ring-0 w-auto text-xs font-medium [&>svg]:h-3 [&>svg]:w-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["Q1","Q2","Q3","Q4"].map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(goal.year ?? new Date().getFullYear())} onValueChange={v => update({ year: parseInt(v) })}>
+                      <SelectTrigger className="h-auto border-none shadow-none p-0 gap-0.5 focus:ring-0 w-auto text-xs font-medium [&>svg]:h-3 [&>svg]:w-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2025,2026,2027,2028].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -297,25 +313,24 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                 </Collapsible>
 
                 {/* Strategy & Notes */}
-                <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
-                  <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
-                    {notesOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground/80 py-1">
                     <FileText className="h-3.5 w-3.5" /> Strategy & Notes
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-3">
+                  </div>
+                  <div className="pt-2">
                     <RichTextEditor
                       content={goal.alignment_notes || ""}
                       onChange={html => update({ alignment_notes: html })}
                       placeholder="Strategy, context, alignment notes..."
                       borderless
                     />
-                  </CollapsibleContent>
-                </Collapsible>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Right rail — Activity */}
-            <aside className="w-80 shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
+            <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
               <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-b border-border/40">
                 Activity · Comments
               </div>

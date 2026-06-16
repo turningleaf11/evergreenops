@@ -375,7 +375,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
             </div>
 
             {/* Right rail */}
-            <aside className="w-80 shrink-0 border-l border-border/40 bg-card/30 flex flex-col">
+            <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
               {/* Team */}
               <div className="px-4 py-3 border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -407,11 +407,11 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
 
               {/* Comments — with @Albus support via the inline activity panel */}
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">
+                <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-t border-border/40">
                   Comments · @Albus
                 </div>
-                <div className="flex-1 min-h-0 overflow-y-auto px-2">
-                  <ActivityPanel entityType="project" entityId={project.id} />
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-2 py-2">
+                  <ActivityPanel entityType="project" entityId={project.id} hideHeader />
                 </div>
               </div>
             </aside>
