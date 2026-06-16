@@ -25,29 +25,35 @@ import {
   ChevronDown, ChevronRight, ExternalLink, FolderOpen, FileText,
   CheckSquare, Plus, Loader2, Upload, X, Users,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { cn } from "@/lib/utils";
 import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  StatusBadge,
+  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
+  PRIORITY_VARIANT, PRIORITY_LABEL,
+} from "@/components/shared/StatusBadge";
 
 const sb = supabase as any;
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
-  in_progress: { label: "In Progress", color: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
-  done: { label: "Done", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
-  blocked: { label: "Blocked", color: "bg-red-500/15 text-red-700 dark:text-red-300" },
-};
+const projectStatusOptions = [
+  { value: "not_started", label: "Not Started" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "done", label: "Done" },
+  { value: "blocked", label: "Blocked" },
+];
 
-const priorityDot: Record<string, string> = {
-  urgent: "bg-red-500",
-  high: "bg-orange-500",
-  medium: "bg-yellow-500",
-  low: "bg-green-500",
-};
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
 
 interface Props {
   projectId: string | null;
@@ -111,7 +117,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
       created_by: user.id,
       assigned_to: user.id,
     }).select().single();
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast.error(error.message); return; }
     setTasks((prev) => [...prev, data]);
     setNewTaskTitle("");
   };
@@ -194,29 +200,56 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap text-xs">
-                  <select
-                    value={project.status}
-                    onChange={(e) => update({ status: e.target.value })}
-                    className="bg-transparent border-none outline-none cursor-pointer"
-                  >
-                    {Object.entries(statusConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span className="flex items-center gap-1">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", priorityDot[project.priority] ?? "bg-muted")} />
-                    <span className="capitalize text-muted-foreground">{project.priority}</span>
-                  </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={project.status} onValueChange={v => update({ status: v })}>
+                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                      <StatusBadge
+                        label={PROJECT_STATUS_LABEL[project.status] ?? project.status}
+                        variant={PROJECT_STATUS_VARIANT[project.status] ?? "default"}
+                        dot
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectStatusOptions.map(s => (
+                        <SelectItem key={s.value} value={s.value}>
+                          <span className="flex items-center gap-2">
+                            <StatusBadge label={s.label} variant={PROJECT_STATUS_VARIANT[s.value] ?? "default"} dot />
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {project.priority && (
+                    <>
+                      <span className="text-muted-foreground/40">·</span>
+                      <Select value={project.priority} onValueChange={v => update({ priority: v })}>
+                        <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                          <StatusBadge
+                            label={PRIORITY_LABEL[project.priority] ?? project.priority}
+                            variant={PRIORITY_VARIANT[project.priority] ?? "default"}
+                            size="xs"
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {priorityOptions.map(p => (
+                            <SelectItem key={p.value} value={p.value}>
+                              <StatusBadge label={p.label} variant={PRIORITY_VARIANT[p.value] ?? "default"} size="xs" />
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                   {owner && (
                     <>
                       <span className="text-muted-foreground/40">·</span>
-                      <span className="text-muted-foreground">{owner.full_name}</span>
+                      <span className="text-xs text-muted-foreground">{owner.full_name}</span>
                     </>
                   )}
                   {project.due_date && (
                     <>
                       <span className="text-muted-foreground/40">·</span>
-                      <span className="text-muted-foreground">Due {project.due_date}</span>
+                      <span className="text-xs text-muted-foreground">Due {project.due_date}</span>
                     </>
                   )}
                 </div>
@@ -286,7 +319,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                           {t.title}
                         </span>
                         {t.priority && t.priority !== "medium" && (
-                          <span className={cn("h-1.5 w-1.5 rounded-full", priorityDot[t.priority] ?? "")} title={t.priority} />
+                          <StatusBadge label={PRIORITY_LABEL[t.priority] ?? t.priority} variant={PRIORITY_VARIANT[t.priority] ?? "default"} size="xs" />
                         )}
                         {t.assigned_to && (
                           <span className="text-[10px] text-muted-foreground shrink-0">

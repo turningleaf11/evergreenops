@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import DetailDrawer from "@/components/DetailDrawer";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Props {
   tasks: any[];
@@ -106,7 +106,7 @@ export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusCha
         onTitleChange={async (title) => {
           if (!drawerTask) return;
           const { error } = await supabase.from("tasks").update({ title }).eq("id", drawerTask.id);
-          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+          if (error) { toast.error(error.message); return; }
           setDrawerTask((p: any) => p ? { ...p, title } : null);
           onChanged?.();
         }}

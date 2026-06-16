@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, FolderKanban, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Project { id: string; title: string; goal_id: string | null; status: string; }
 
@@ -30,8 +30,8 @@ export default function LinkProjectPicker({ goalId, allProjects, onLinked }: Lin
 
   const linkExisting = async (projectId: string) => {
     const { error } = await supabase.from("projects").update({ goal_id: goalId }).eq("id", projectId);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Project linked" }); setOpen(false); setSearch(""); onLinked(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Project linked"); setOpen(false); setSearch(""); onLinked(); }
   };
 
   const createLinked = async () => {
@@ -39,8 +39,8 @@ export default function LinkProjectPicker({ goalId, allProjects, onLinked }: Lin
     const { error } = await supabase.from("projects").insert({
       title, goal_id: goalId, owner_id: user?.id, created_by: user?.id,
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Project created and linked" }); setOpen(false); setSearch(""); onLinked(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Project created and linked"); setOpen(false); setSearch(""); onLinked(); }
   };
 
   return (

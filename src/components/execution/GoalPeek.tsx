@@ -1,20 +1,28 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, X, Target, FolderKanban, FileText, ChevronDown, CircleDot, User, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  Plus, X, Target, FolderKanban, FileText,
+  ChevronDown, ChevronRight, CircleDot, Loader2, MoreHorizontal, Trash2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import LinkProjectPicker from "./LinkProjectPicker";
 import { OwnerPicker, FollowersPicker } from "@/components/crm/PeoplePickers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { appConfirm } from "@/components/AppConfirm";
+import {
+  StatusBadge,
+  GOAL_STATUS_VARIANT, GOAL_STATUS_LABEL,
+  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
+} from "@/components/shared/StatusBadge";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
 
@@ -27,42 +35,41 @@ interface GoalPeekProps {
   onOpenProject: (projectId: string) => void;
 }
 
-const statusOptions = [
-  { value: "on_track", label: "On Track", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  { value: "behind", label: "Behind", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300" },
-  { value: "at_risk", label: "At Risk", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
-  { value: "done", label: "Done", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
-  { value: "not_done", label: "Not Done", color: "bg-muted text-muted-foreground" },
+const goalStatusOptions = [
+  { value: "on_track", label: "On Track" },
+  { value: "behind", label: "Behind" },
+  { value: "at_risk", label: "At Risk" },
+  { value: "done", label: "Done" },
+  { value: "not_done", label: "Not Done" },
 ];
-
-const projectStatusDot: Record<string, string> = {
-  not_started: "bg-muted-foreground",
-  in_progress: "bg-blue-500",
-  done: "bg-green-500",
-  blocked: "bg-red-500",
-};
 
 export default function GoalPeek({ goalId, onClose, allProjects, getName, onChanged, onOpenProject }: GoalPeekProps) {
   const [goal, setGoal] = useState<any>(null);
-  const [titleDraft, setTitleDraft] = useState("");
-  const [editingTitle, setEditingTitle] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [krsOpen, setKrsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
-  // Strategy & Notes starts collapsed — goals are reference, not workspace
   const [notesOpen, setNotesOpen] = useState(false);
-
   const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchGoal = useCallback(async () => {
     if (!goalId) return;
+    setLoading(true);
     const { data } = await supabase.from("goals").select("*").eq("id", goalId).single();
-    if (data) { setGoal(data); setTitleDraft(data.title); }
+    if (data) setGoal(data);
+    setLoading(false);
   }, [goalId]);
 
   useEffect(() => { if (goalId) fetchGoal(); else setGoal(null); }, [goalId, fetchGoal]);
 
-  const handleDeleteGoal = async () => {
+  const update = async (patch: Record<string, any>) => {
     if (!goalId) return;
+    const { error } = await supabase.from("goals").update(patch as any).eq("id", goalId);
+    if (error) toast.error(error.message);
+    else { setGoal((g: any) => ({ ...g, ...patch })); onChanged(); }
+  };
+
+  const handleDeleteGoal = async () => {
+    if (!goalId || !goal) return;
     const confirmed = await appConfirm({
       title: "Delete this goal?",
       body: `This will permanently remove "${goal.title}". This action cannot be undone.`,
@@ -70,51 +77,18 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
       destructive: true,
     });
     if (!confirmed) return;
-
     const { error } = await supabase.from("goals").delete().eq("id", goalId);
-    if (error) {
-      toast({ title: "Error deleting goal", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Goal deleted successfully" });
-      onChanged();
-      onClose();
-    }
+    if (error) toast.error(error.message);
+    else { toast.success("Goal deleted"); onChanged(); onClose(); }
   };
 
-  if (!goalId || !goal) {
-    return (
-      <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-0" />
-      </Dialog>
-    );
-  }
+  const krs: KeyResult[] = goal && Array.isArray(goal.key_results) ? goal.key_results : [];
 
-  const linkedProjects = allProjects.filter(p => p.goal_id === goalId);
-  const doneProjects = linkedProjects.filter(p => p.status === "done").length;
-  const progress = linkedProjects.length > 0
-    ? Math.round((doneProjects / linkedProjects.length) * 100)
-    : goal.progress || 0;
-
-  const update = async (patch: Record<string, any>) => {
-    const { error } = await supabase.from("goals").update(patch as any).eq("id", goalId);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { setGoal((g: any) => ({ ...g, ...patch })); onChanged(); }
-  };
-
-  const saveTitle = () => {
-    if (titleDraft.trim() && titleDraft !== goal.title) update({ title: titleDraft.trim() });
-    setEditingTitle(false);
-  };
-
-  const krs: KeyResult[] = Array.isArray(goal.key_results) ? goal.key_results : [];
-
-  // Debounced KR persistence — keystrokes update local state instantly,
-  // DB write + parent refresh happen 500ms after typing stops.
   const persistKrs = (next: KeyResult[]) => {
     if (krSaveTimer.current) clearTimeout(krSaveTimer.current);
     krSaveTimer.current = setTimeout(async () => {
-      const { error } = await supabase.from("goals").update({ key_results: next as any }).eq("id", goalId);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+      const { error } = await supabase.from("goals").update({ key_results: next as any }).eq("id", goalId!);
+      if (error) toast.error(error.message);
       else onChanged();
     }, 500);
   };
@@ -136,206 +110,222 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
 
   const unlinkProject = async (projectId: string) => {
     const { error } = await supabase.from("projects").update({ goal_id: null }).eq("id", projectId);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) toast.error(error.message);
     else { onChanged(); fetchGoal(); }
   };
 
-  const currentStatus = statusOptions.find(s => s.value === goal.status);
+  const linkedProjects = goal ? allProjects.filter(p => p.goal_id === goalId) : [];
+  const doneProjects = linkedProjects.filter(p => p.status === "done").length;
+  const progress = linkedProjects.length > 0
+    ? Math.round((doneProjects / linkedProjects.length) * 100)
+    : goal?.progress || 0;
 
   return (
-    <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-0">
-        {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 space-y-3 border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Target className="h-3.5 w-3.5 text-primary/70" />
-              <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0 mr-4"
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem
-                  onClick={handleDeleteGoal}
-                  className="text-destructive focus:text-destructive flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete Goal
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+    <Sheet open={!!goalId} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-[1100px] p-0 overflow-hidden flex flex-col">
+        {loading || !goal ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading goal…
           </div>
-          <DialogTitle asChild>
-            {editingTitle ? (
-              <Input
-                value={titleDraft}
-                onChange={e => setTitleDraft(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={e => e.key === "Enter" && saveTitle()}
-                autoFocus
-                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
-              />
-            ) : (
-              <h2
-                onClick={() => setEditingTitle(true)}
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded-md px-2 -mx-2 py-1 transition-colors"
-              >
-                {goal.title}
-              </h2>
-            )}
-          </DialogTitle>
-          {goal.description !== null && (
-            <Input
-              value={goal.description || ""}
-              onChange={e => setGoal({ ...goal, description: e.target.value })}
-              onBlur={() => update({ description: goal.description })}
-              placeholder="Add a short description..."
-              className="border-none shadow-none px-2 -mx-2 text-sm text-muted-foreground focus-visible:ring-1"
-            />
-          )}
-          <div className="flex items-center gap-3">
-            <Select value={goal.status} onValueChange={v => update({ status: v })}>
-              <SelectTrigger className="h-7 w-auto border-none shadow-none px-2 gap-1 focus:ring-0 focus-visible:ring-0 [&>svg:last-child]:hidden">
-                <Badge className={cn("text-[10px] rounded-full px-2.5 py-0.5 border-0 pointer-events-none", currentStatus?.color)}>
-                  {currentStatus?.label}
-                </Badge>
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <User className="h-3 w-3" /> {getName(goal.owner_id)}
-            </span>
-          </div>
-
-          {/* People — owner (single) + followers (many) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <OwnerPicker
-              ownerId={goal.owner_id}
-              onChange={(id) => update({ owner_id: id })}
-            />
-            <FollowersPicker
-              followerIds={Array.isArray(goal.followers) ? goal.followers : []}
-              ownerId={goal.owner_id}
-              onChange={(ids) => update({ followers: ids })}
-            />
-          </div>
-
-          <div className="space-y-1.5 pt-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{progress}%</span>
-            </div>
-            <Progress value={progress} className="h-1.5" />
-          </div>
-        </DialogHeader>
-
-        {/* Body */}
-        <div className="px-6 py-6 space-y-6">
-          {/* Key Results */}
-          <Collapsible open={krsOpen} onOpenChange={setKrsOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !krsOpen && "-rotate-90")} />
-              <CircleDot className="h-3.5 w-3.5" /> Key Results
-              <span className="text-[11px] font-normal text-muted-foreground ml-1">({krs.length})</span>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3 space-y-1.5">
-              {krs.map((kr, i) => (
-                <div key={i} className="flex items-center gap-2 group">
-                  <Input
-                    value={kr.label || kr.title || ""}
-                    onChange={e => updateKr(i, { label: e.target.value })}
-                    placeholder="Result label"
-                    className="h-8 text-sm flex-1"
-                  />
-                  <Input
-                    value={kr.current ?? ""}
-                    onChange={e => updateKr(i, { current: e.target.value })}
-                    placeholder="0"
-                    className="h-8 text-sm w-16"
-                  />
-                  <span className="text-xs text-muted-foreground">/</span>
-                  <Input
-                    value={kr.target ?? ""}
-                    onChange={e => updateKr(i, { target: e.target.value })}
-                    placeholder="100"
-                    className="h-8 text-sm w-16"
-                  />
-                  <button onClick={() => removeKr(i)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+        ) : (
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* Left main column */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-border/40 shrink-0 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Target className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium">Goal · {goal.quarter} {goal.year}</span>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                        aria-label="More actions"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem
+                        onClick={handleDeleteGoal}
+                        className="text-destructive focus:text-destructive flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete Goal
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              ))}
-              <Button variant="ghost" size="sm" onClick={addKr} className="h-7 text-xs text-muted-foreground">
-                <Plus className="h-3 w-3 mr-1" /> Add key result
-              </Button>
-            </CollapsibleContent>
-          </Collapsible>
 
-          {/* Key Projects */}
-          <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
-            <div className="flex items-center justify-between">
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !projectsOpen && "-rotate-90")} />
-                <FolderKanban className="h-3.5 w-3.5" /> Key Projects
-                <span className="text-[11px] font-normal text-muted-foreground ml-1">({linkedProjects.length})</span>
-              </CollapsibleTrigger>
-              <LinkProjectPicker goalId={goalId} allProjects={allProjects} onLinked={() => { onChanged(); fetchGoal(); }} />
-            </div>
-            <CollapsibleContent className="pt-3 space-y-1.5">
-              {linkedProjects.map(p => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/30 hover:bg-muted/60 cursor-pointer group transition-colors"
-                  onClick={() => onOpenProject(p.id)}
-                >
-                  <div className={cn("h-2 w-2 rounded-full shrink-0", projectStatusDot[p.status] || "bg-muted")} />
-                  <span className="text-sm font-medium truncate flex-1">{p.title}</span>
-                  <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
-                  <button
-                    onClick={e => { e.stopPropagation(); unlinkProject(p.id); }}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1"
-                    title="Unlink"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                <input
+                  value={goal.title}
+                  onChange={e => setGoal((g: any) => ({ ...g, title: e.target.value }))}
+                  onBlur={e => update({ title: e.target.value.trim() || goal.title })}
+                  className="text-xl font-bold bg-transparent outline-none w-full"
+                />
+
+                <input
+                  value={goal.description || ""}
+                  onChange={e => setGoal((g: any) => ({ ...g, description: e.target.value }))}
+                  onBlur={e => update({ description: e.target.value })}
+                  placeholder="Add a short description..."
+                  className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground/40"
+                />
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={goal.status} onValueChange={v => update({ status: v })}>
+                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                      <StatusBadge
+                        label={GOAL_STATUS_LABEL[goal.status] ?? goal.status}
+                        variant={GOAL_STATUS_VARIANT[goal.status] ?? "default"}
+                        dot
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {goalStatusOptions.map(s => (
+                        <SelectItem key={s.value} value={s.value}>
+                          <span className="flex items-center gap-2">
+                            <StatusBadge label={s.label} variant={GOAL_STATUS_VARIANT[s.value] ?? "default"} dot />
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-              {linkedProjects.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No projects linked yet.</p>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
 
-          {/* Strategy / Notes */}
-          <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !notesOpen && "-rotate-90")} />
-              <FileText className="h-3.5 w-3.5" /> Strategy & Notes
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <RichTextEditor
-                content={goal.alignment_notes || ""}
-                onChange={html => update({ alignment_notes: html })}
-                placeholder="Strategy, context, alignment notes..."
-                borderless
-              />
-            </CollapsibleContent>
-          </Collapsible>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <OwnerPicker ownerId={goal.owner_id} onChange={id => update({ owner_id: id })} />
+                  <FollowersPicker
+                    followerIds={Array.isArray(goal.followers) ? goal.followers : []}
+                    ownerId={goal.owner_id}
+                    onChange={ids => update({ followers: ids })}
+                  />
+                </div>
 
-          {/* Activity feed intentionally removed — goals are reference + check-in,
-             not a workspace. Discussion happens in Sync or linked project comments. */}
-        </div>
-      </DialogContent>
-    </Dialog>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-medium">{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="h-1.5" />
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-5">
+                {/* Key Results */}
+                <Collapsible open={krsOpen} onOpenChange={setKrsOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
+                    {krsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    <CircleDot className="h-3.5 w-3.5" /> Key Results
+                    <span className="text-[11px] font-normal text-muted-foreground ml-1">({krs.length})</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3 space-y-1.5">
+                    {krs.map((kr, i) => (
+                      <div key={i} className="flex items-center gap-2 group">
+                        <Input
+                          value={kr.label || kr.title || ""}
+                          onChange={e => updateKr(i, { label: e.target.value })}
+                          placeholder="Result label"
+                          className="h-8 text-sm flex-1"
+                        />
+                        <Input
+                          value={kr.current ?? ""}
+                          onChange={e => updateKr(i, { current: e.target.value })}
+                          placeholder="0"
+                          className="h-8 text-sm w-16"
+                        />
+                        <span className="text-xs text-muted-foreground">/</span>
+                        <Input
+                          value={kr.target ?? ""}
+                          onChange={e => updateKr(i, { target: e.target.value })}
+                          placeholder="100"
+                          className="h-8 text-sm w-16"
+                        />
+                        <button
+                          onClick={() => removeKr(i)}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <Button variant="ghost" size="sm" onClick={addKr} className="h-7 text-xs text-muted-foreground">
+                      <Plus className="h-3 w-3 mr-1" /> Add key result
+                    </Button>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Linked Projects */}
+                <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
+                  <div className="flex items-center justify-between">
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
+                      {projectsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      <FolderKanban className="h-3.5 w-3.5" /> Key Projects
+                      <span className="text-[11px] font-normal text-muted-foreground ml-1">({linkedProjects.length})</span>
+                    </CollapsibleTrigger>
+                    <LinkProjectPicker goalId={goalId!} allProjects={allProjects} onLinked={() => { onChanged(); fetchGoal(); }} />
+                  </div>
+                  <CollapsibleContent className="pt-3 space-y-1.5">
+                    {linkedProjects.map(p => (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/30 hover:bg-muted/60 cursor-pointer group transition-colors"
+                        onClick={() => onOpenProject(p.id)}
+                      >
+                        <StatusBadge
+                          label={PROJECT_STATUS_LABEL[p.status] ?? p.status}
+                          variant={PROJECT_STATUS_VARIANT[p.status] ?? "default"}
+                          size="xs"
+                        />
+                        <span className="text-sm font-medium truncate flex-1">{p.title}</span>
+                        <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
+                        <button
+                          onClick={e => { e.stopPropagation(); unlinkProject(p.id); }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1"
+                          title="Unlink"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {linkedProjects.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">No projects linked yet.</p>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Strategy & Notes */}
+                <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm font-semibold text-foreground/80 hover:text-foreground py-1">
+                    {notesOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    <FileText className="h-3.5 w-3.5" /> Strategy & Notes
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3">
+                    <RichTextEditor
+                      content={goal.alignment_notes || ""}
+                      onChange={html => update({ alignment_notes: html })}
+                      placeholder="Strategy, context, alignment notes..."
+                      borderless
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </div>
+
+            {/* Right rail — Activity */}
+            <aside className="w-80 shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
+              <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-b border-border/40">
+                Activity · Comments
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-2 py-2">
+                <ActivityPanel entityType="goal" entityId={goalId!} hideHeader />
+              </div>
+            </aside>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

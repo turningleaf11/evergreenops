@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
-import DetailDrawer from "@/components/DetailDrawer";
 import ProjectPeek from "@/components/execution/ProjectPeek";
+import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
 import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
@@ -29,7 +29,7 @@ import {
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
   User, Repeat,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -176,9 +176,8 @@ export default function ExecutionPage() {
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [drawerItem, setDrawerItem] = useState<any>(null);
-  const [drawerType, setDrawerType] = useState<"project" | "task">("project");
   const [projectPeekId, setProjectPeekId] = useState<string | null>(null);
+  const [taskPeekId, setTaskPeekId] = useState<string | null>(null);
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
   // Goals filters persist across sessions in localStorage
   const [goalQuarter, setGoalQuarter] = useState<string>(() => localStorage.getItem("execution.goals.quarter") || "all");
@@ -274,8 +273,8 @@ export default function ExecutionPage() {
       key_results: data.key_results || [],
       alignment_notes: data.alignment_notes || "",
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Goal created" }); setCreateGoalOpen(false); fetchAll(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Goal created"); setCreateGoalOpen(false); fetchAll(); }
   };
 
   const createProject = async (data: { title: string; goal_id: string; description: string; department_id: string }) => {
@@ -284,8 +283,8 @@ export default function ExecutionPage() {
       description: data.description, department_id: data.department_id || null,
       owner_id: user?.id, created_by: user?.id,
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Project created" }); setCreateProjectOpen(false); fetchAll(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Project created"); setCreateProjectOpen(false); fetchAll(); }
   };
 
   const createTask = async (data: { title: string; project_id: string; goal_id: string; description: string; assigned_to: string }) => {
@@ -294,13 +293,13 @@ export default function ExecutionPage() {
       goal_id: data.goal_id || null, description: data.description,
       assigned_to: data.assigned_to || user?.id, created_by: user?.id,
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Task created" }); setCreateTaskOpen(false); fetchAll(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Task created"); setCreateTaskOpen(false); fetchAll(); }
   };
 
   const updateStatus = async (table: "goals" | "projects" | "tasks", id: string, status: string) => {
     const { error } = await supabase.from(table).update({ status }).eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) toast.error(error.message);
     else {
       // Auto-create next occurrence for recurring tasks
       if (table === "tasks" && status === "done") {
@@ -347,7 +346,7 @@ export default function ExecutionPage() {
       recurring_parent_id: task.recurring_parent_id || task.id,
       created_by: task.created_by,
     });
-    if (!error) toast({ title: "Next recurring task created", description: nextDue ? `Due ${nextDue}` : undefined });
+    if (!error) toast.success(nextDue ? `Next recurring task created — Due ${nextDue}` : "Next recurring task created");
   };
 
   // Issues handlers
@@ -358,13 +357,13 @@ export default function ExecutionPage() {
       raised_by: user?.id, department_id: newIssueDept || null,
       category: newIssueCategory, assigned_to: newIssueAssignee || null,
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Issue raised" }); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); setNewIssueCategory("general"); setNewIssueAssignee(""); fetchAll(); }
+    if (error) toast.error(error.message);
+    else { toast.success("Issue raised"); setCreateIssueOpen(false); setNewIssueTitle(""); setNewIssueDesc(""); setNewIssueCategory("general"); setNewIssueAssignee(""); fetchAll(); }
   };
 
   const updateIssue = async (id: string, updates: Partial<Issue>) => {
     const { error } = await supabase.from("issues").update(updates).eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) toast.error(error.message);
     else {
       fetchAll();
       if (selectedIssue?.id === id) setSelectedIssue(prev => prev ? { ...prev, ...updates } : null);
@@ -378,7 +377,7 @@ export default function ExecutionPage() {
     }).select().single();
     if (data) {
       await updateIssue(issue.id, { status: "solved", resolved_action_type: "todo", resolved_action_id: data.id });
-      toast({ title: "Issue solved — task created" });
+      toast.success("Issue solved — task created");
     }
   };
 
@@ -389,23 +388,21 @@ export default function ExecutionPage() {
     }).select().single();
     if (data) {
       await updateIssue(issue.id, { status: "solved", resolved_action_type: "project", resolved_action_id: data.id });
-      toast({ title: "Issue solved — project created" });
+      toast.success("Issue solved — project created");
     }
   };
 
   const dismiss = async (issue: Issue) => {
     await updateIssue(issue.id, { status: "dismissed", resolved_action_type: "none" });
-    toast({ title: "Issue dismissed" });
+    toast.success("Issue dismissed");
   };
 
   const filteredIssues = issueCategoryFilter === "all" ? issues : issues.filter(i => i.category === issueCategoryFilter);
   const openIssues = filteredIssues.filter(i => !["solved", "dismissed"].includes(i.status));
   const resolvedIssues = filteredIssues.filter(i => ["solved", "dismissed"].includes(i.status));
 
-  // Shared click handlers
-  // Projects now open as a slide-over peek (with Expand → full page button)
   const openProjectDrawer = (p: any) => { setProjectPeekId(p.id); };
-  const openTaskDrawer = (t: any) => { setDrawerType("task"); setDrawerItem(t); };
+  const openTaskDrawer = (t: any) => { setTaskPeekId(t.id); };
 
   return (
     <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
@@ -465,8 +462,8 @@ export default function ExecutionPage() {
                       recurrence_rule: template.recurrence_rule,
                       created_by: user?.id,
                     }).then(({ error }) => {
-                      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                      else { toast({ title: "Task created from template" }); fetchAll(); }
+                      if (error) toast.error(error.message);
+                      else { toast.success("Task created from template"); fetchAll(); }
                     });
                   }}
                 />
@@ -707,7 +704,7 @@ export default function ExecutionPage() {
                   onStatusChange={(id, status) => updateStatus("projects", id, status)}
                   onUpdate={async (id, patch) => {
                     const { error } = await supabase.from("projects").update(patch as any).eq("id", id);
-                    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                    if (error) toast.error(error.message);
                     else fetchAll();
                   }}
                   getName={getName}
@@ -769,7 +766,7 @@ export default function ExecutionPage() {
                       status,
                       created_by: user.id,
                     } as any).then(({ error }) => {
-                      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                      if (error) toast.error(error.message);
                       else fetchAll();
                     });
                   }}
@@ -786,7 +783,7 @@ export default function ExecutionPage() {
                   onStatusChange={(id, status) => updateStatus("tasks", id, status)}
                   onUpdate={async (id, patch) => {
                     const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
-                    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+                    if (error) toast.error(error.message);
                     else fetchAll();
                   }}
                   getName={getName}
@@ -1062,12 +1059,10 @@ export default function ExecutionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Project peek — slide-over (tasks still use DetailDrawer below) */}
       <ProjectPeek
         projectId={projectPeekId}
         onClose={() => setProjectPeekId(null)}
         onChanged={() => {
-          // Refresh projects list quietly
           (async () => {
             const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
             if (data) setProjects(data);
@@ -1075,27 +1070,13 @@ export default function ExecutionPage() {
         }}
       />
 
-      {/* Detail Drawer */}
-      <DetailDrawer
-        open={!!drawerItem}
-        onOpenChange={o => { if (!o) setDrawerItem(null); }}
-        type={drawerType}
-        item={drawerItem}
-        onStatusChange={v => {
-          updateStatus(drawerType === "project" ? "projects" : "tasks", drawerItem.id, v);
-          setDrawerItem((prev: any) => prev ? { ...prev, status: v } : null);
-        }}
-        onTitleChange={async (newTitle) => {
-          if (!drawerItem) return;
-          const table = drawerType === "project" ? "projects" : "tasks";
-          const { error } = await supabase.from(table).update({ title: newTitle }).eq("id", drawerItem.id);
-          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-          setDrawerItem((prev: any) => prev ? { ...prev, title: newTitle } : null);
-          if (drawerType === "project") setProjects(prev => prev.map(p => p.id === drawerItem.id ? { ...p, title: newTitle } : p));
-          else setTasks(prev => prev.map(t => t.id === drawerItem.id ? { ...t, title: newTitle } : t));
-        }}
-        getName={getName}
-      />
+      {taskPeekId && (
+        <TaskPeek
+          id={taskPeekId}
+          open={!!taskPeekId}
+          onClose={() => setTaskPeekId(null)}
+        />
+      )}
 
       {/* Goal Peek */}
       <GoalPeek
@@ -1140,7 +1121,7 @@ function SubmissionsReviewTab() {
       review_notes: notes || "",
     } as any).eq("id", id);
     fetchData();
-    toast({ title: `Submission ${status}` });
+    toast.success(`Submission ${status}`);
   };
 
   const filtered = reviewFilter === "all"
@@ -1226,7 +1207,7 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSubmit = () => {
-    if (!form.title?.trim()) { toast({ title: "Title required", variant: "destructive" }); return; }
+    if (!form.title?.trim()) { toast.error("Title required"); return; }
     onSubmit({
       ...form,
       year: form.year ? parseInt(form.year) : currentYear(),

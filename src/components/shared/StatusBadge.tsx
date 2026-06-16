@@ -60,6 +60,32 @@ export const PRIORITY_LABEL: Record<string, string> = {
   low: "Low", "3": "Low",
 };
 
+export const GOAL_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  on_track:    "success",
+  behind:      "warning",
+  at_risk:     "danger",
+  done:        "success",
+  not_done:    "muted",
+  not_started: "muted",
+};
+
+export const GOAL_STATUS_LABEL: Record<string, string> = {
+  on_track: "On Track", behind: "Behind", at_risk: "At Risk",
+  done: "Done", not_done: "Not Done", not_started: "Not Started",
+};
+
+export const PROJECT_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  not_started: "muted",
+  in_progress: "info",
+  done:        "success",
+  blocked:     "danger",
+};
+
+export const PROJECT_STATUS_LABEL: Record<string, string> = {
+  not_started: "Not Started", in_progress: "In Progress",
+  done: "Done", blocked: "Blocked",
+};
+
 export const PROCESS_NODE_VARIANT: Record<string, BadgeVariant> = {
   source:   "success",
   process:  "info",

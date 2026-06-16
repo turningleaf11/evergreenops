@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type ReviewItem = {
   id: string;
@@ -112,7 +112,7 @@ export function LeadReviewTab() {
       });
       const result = await res.json();
       if (!res.ok || result.error) {
-        toast({ title: "Batch failed", description: result.error ?? "Unknown error", variant: "destructive" });
+        toast.error(result.error ?? "Batch failed");
       } else {
         toast({
           title: "Batch complete",
@@ -121,7 +121,7 @@ export function LeadReviewTab() {
         await loadQueue();
       }
     } catch (e: any) {
-      toast({ title: "Batch failed", description: e.message, variant: "destructive" });
+      toast.error(e.message ?? "Batch failed");
     } finally {
       setBatching(false);
     }
@@ -144,15 +144,15 @@ export function LeadReviewTab() {
       });
       const result = await res.json();
       if (!res.ok || result.error) {
-        toast({ title: "Action failed", description: result.error ?? "Unknown error", variant: "destructive" });
+        toast.error(result.error ?? "Action failed");
       } else {
         setItems((prev) => prev.filter((i) => i.id !== itemId));
         if (act === "approve") {
-          toast({ title: "Applied", description: "Status updated in GHL" });
+          toast.success("Status updated in GHL");
         }
       }
     } catch (e: any) {
-      toast({ title: "Action failed", description: e.message, variant: "destructive" });
+      toast.error(e.message ?? "Action failed");
     } finally {
       setActioning((s) => { const n = new Set(s); n.delete(itemId); return n; });
     }

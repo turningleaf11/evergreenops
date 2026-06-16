@@ -14,7 +14,12 @@ import {
   ArrowLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import {
+  StatusBadge,
+  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
+  PRIORITY_VARIANT, PRIORITY_LABEL,
+} from "@/components/shared/StatusBadge";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
@@ -23,19 +28,19 @@ import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ProjectChatRail from "@/components/execution/ProjectChatRail";
 import GoalPeek from "@/components/execution/GoalPeek";
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  not_started: { label: "Not Started", color: "bg-muted text-muted-foreground" },
-  in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-800" },
-  done: { label: "Done", color: "bg-green-100 text-green-800" },
-  blocked: { label: "Blocked", color: "bg-red-100 text-red-800" },
-};
+const projectStatusOptions = [
+  { value: "not_started", label: "Not Started" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "done", label: "Done" },
+  { value: "blocked", label: "Blocked" },
+];
 
-const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: "Low", color: "bg-green-100 text-green-800" },
-  medium: { label: "Medium", color: "bg-yellow-100 text-yellow-800" },
-  high: { label: "High", color: "bg-red-100 text-red-800" },
-  urgent: { label: "Urgent", color: "bg-red-200 text-red-900" },
-};
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,6 +52,7 @@ export default function ProjectDetailPage() {
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -66,18 +72,20 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [pRes, tRes, gRes, prRes, dRes] = await Promise.all([
+    const [pRes, tRes, gRes, prRes, dRes, aRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
       supabase.from("profiles").select("user_id, full_name"),
       supabase.from("documents").select("id, title, updated_at, content").eq("project_id", id).order("updated_at", { ascending: false }),
+      supabase.from("project_attachments").select("*").eq("project_id", id).order("created_at", { ascending: false }),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
     if (tRes.data) setTasks(tRes.data);
     if (gRes.data) setGoals(gRes.data);
     if (prRes.data) setProfiles(prRes.data);
     if (dRes.data) setLinkedDocs(dRes.data);
+    if (aRes.data) setAttachments(aRes.data);
     setLoading(false);
   }, [id]);
 
@@ -88,7 +96,7 @@ export default function ProjectDetailPage() {
 
   const updateProject = async (updates: Record<string, any>) => {
     const { error } = await supabase.from("projects").update(updates as any).eq("id", id!);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) toast.error(error.message);
     else setProject((p: any) => ({ ...p, ...updates }));
   };
 
@@ -121,7 +129,7 @@ export default function ProjectDetailPage() {
     const { error } = await supabase.from("tasks").insert({
       title, project_id: id, created_by: user?.id, assigned_to: user?.id,
     });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) toast.error(error.message);
     else fetchData();
   };
 
@@ -180,26 +188,40 @@ export default function ProjectDetailPage() {
 
           <div className="flex items-center gap-2 flex-wrap mb-6 text-sm">
             <Select value={project.status} onValueChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}>
-              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1 focus:ring-0 focus-visible:ring-0 [&>svg:last-child]:hidden">
-                <Badge className={`${statusConfig[project.status]?.color || "bg-muted"} text-[11px] pointer-events-none`}>
-                  {statusConfig[project.status]?.label || project.status}
-                </Badge>
+              <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                <StatusBadge
+                  label={PROJECT_STATUS_LABEL[project.status] ?? project.status}
+                  variant={PROJECT_STATUS_VARIANT[project.status] ?? "default"}
+                  dot
+                />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                {projectStatusOptions.map(s => (
+                  <SelectItem key={s.value} value={s.value}>
+                    <span className="flex items-center gap-2">
+                      <StatusBadge label={s.label} variant={PROJECT_STATUS_VARIANT[s.value] ?? "default"} dot />
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
             <span className="text-muted-foreground/30">·</span>
 
             <Select value={project.priority || "medium"} onValueChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
-              <SelectTrigger className="h-7 w-auto text-xs border-none shadow-none px-2 gap-1 focus:ring-0 focus-visible:ring-0 [&>svg:last-child]:hidden">
-                <Badge variant="outline" className={`${priorityConfig[project.priority]?.color || ""} text-[11px] pointer-events-none`}>
-                  {priorityConfig[project.priority]?.label || project.priority}
-                </Badge>
+              <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                <StatusBadge
+                  label={PRIORITY_LABEL[project.priority] ?? project.priority}
+                  variant={PRIORITY_VARIANT[project.priority] ?? "default"}
+                  size="xs"
+                />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(priorityConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                {priorityOptions.map(p => (
+                  <SelectItem key={p.value} value={p.value}>
+                    <StatusBadge label={p.label} variant={PRIORITY_VARIANT[p.value] ?? "default"} size="xs" />
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -362,7 +384,7 @@ export default function ProjectDetailPage() {
               </TabsTrigger>
               <TabsTrigger value="files" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <FolderOpen className="h-3.5 w-3.5" /> Files
-                {linkedDocs.length > 0 && <span className="text-[10px] text-muted-foreground">({linkedDocs.length})</span>}
+                {attachments.length > 0 && <span className="text-[10px] text-muted-foreground">({attachments.length})</span>}
               </TabsTrigger>
               <TabsTrigger value="ai" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <Sparkles className="h-3.5 w-3.5" /> AI
@@ -374,6 +396,7 @@ export default function ProjectDetailPage() {
                 project={project}
                 tasks={tasks}
                 linkedDocs={linkedDocs}
+                attachments={attachments}
                 profiles={profiles}
                 onOpenTab={setActiveTab}
                 onNotesChange={(html) => updateProject({ notes_content: html })}
@@ -393,7 +416,7 @@ export default function ProjectDetailPage() {
               <ProjectWhiteboardsTab />
             </TabsContent>
             <TabsContent value="files" className="mt-0">
-              <ProjectFilesTab linkedDocs={linkedDocs} projectId={project.id} onChanged={fetchData} />
+              <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />
             </TabsContent>
             <TabsContent value="ai" className="mt-0">
               <ProjectAiTab
