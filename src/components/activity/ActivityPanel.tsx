@@ -613,12 +613,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   if (hideHeader) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="shrink-0">{Header}</div>
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 py-2">
           <div className="pb-2">{StreamBody}</div>
         </div>
         {!hideComposer && (
-          <div className="shrink-0 border-t pt-3 mt-3 bg-background">
+          <div className="shrink-0 border-t border-border/40 pt-3 pb-2 bg-background">
             <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
           </div>
         )}
