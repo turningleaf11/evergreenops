@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useMyOrbitMembership } from "@/hooks/useMyOrbitMembership";
 import { useTrackContent } from "@/hooks/useTrackContent";
 import {
@@ -38,8 +39,18 @@ import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
 
-// Soft (translucent) variant of any color — works with hex or hsl(var(--x)).
+// Soft (translucent) variant of any color — works with hex or hsl().
 const soft = (c: string, pct: number) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+
+// Convert the workspace accent_color setting (a bare hue "175" or a full
+// "h s l" string) into a usable CSS color. Locks the member hub to the
+// company brand, independent of per-user themes / --primary.
+function accentToCss(value: string | null): string {
+  if (!value) return "hsl(175 65% 48%)"; // evergreen fallback
+  const parts = value.trim().split(/\s+/);
+  if (parts.length >= 3) return `hsl(${parts[0]} ${parts[1]}% ${parts[2]}%)`;
+  return `hsl(${parts[0] || "175"} 65% 48%)`;
+}
 
 type TabKey = "playbook" | "scripts" | "sops" | "training" | "pace";
 
@@ -209,9 +220,10 @@ export function OrbitMemberHub() {
 
   const track = member?.track ?? null;
   const { content } = useTrackContent(track ?? "dts");
-  // Match the workspace accent set in Settings (theme palette --primary),
-  // not a per-track color, so the hub reflects the chosen brand.
-  const accent = "hsl(var(--primary))";
+  const { accentColor } = useWorkspace();
+  // Lock the hub to the workspace brand color (Settings → Accent Color),
+  // independent of per-user themes — Orbit is a company-branded surface.
+  const accent = accentToCss(accentColor);
 
   useEffect(() => {
     if (!member?.department_id) return;
