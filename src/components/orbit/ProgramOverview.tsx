@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
 
-interface Doc {
+export interface Doc {
   id: string;
   title: string;
   author_name: string | null;
@@ -54,18 +54,18 @@ interface Props {
 
 const TRAINING_TAGS = new Set(["training", "playbook"]);
 
-function isTrainingDoc(d: Doc) {
+export function isTrainingDoc(d: Doc) {
   return (d.tags ?? []).some((t) => TRAINING_TAGS.has(t.toLowerCase()));
 }
 
-function docMatchesTrack(d: Doc, track: OrbitTrack | null) {
+export function docMatchesTrack(d: Doc, track: OrbitTrack | null) {
   if (!track) return true;
   return (d.tags ?? []).some((t) => t.toLowerCase() === `track:${track}`);
 }
 
 // ── Role Overview section ─────────────────────────────────────────────────────
 
-function RoleOverview({ track, content }: { track: OrbitTrack; content: TrackContent }) {
+export function RoleOverview({ track, content }: { track: OrbitTrack; content: TrackContent }) {
   const c = content;
   const accent = TRACK_ACCENT[track];
 
@@ -168,7 +168,7 @@ function RoleOverview({ track, content }: { track: OrbitTrack; content: TrackCon
 
 // ── Getting Started checklist (interactive + persisted) ─────────────────────
 
-function GettingStartedChecklist({ track, content, memberId, isOwnView }: { track: OrbitTrack; content: TrackContent; memberId: string | null; isOwnView: boolean }) {
+export function GettingStartedChecklist({ track, content, memberId, isOwnView }: { track: OrbitTrack; content: TrackContent; memberId: string | null; isOwnView: boolean }) {
   const c = content;
   const accent = TRACK_ACCENT[track];
   const [doneMap, setDoneMap] = useState<Record<string, boolean>>({});
@@ -275,7 +275,7 @@ function GettingStartedChecklist({ track, content, memberId, isOwnView }: { trac
 
 // ── Training Hub ──────────────────────────────────────────────────────────────
 
-function TrainingHub({ track, docs, openDocPreview }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void }) {
+export function TrainingHub({ track, docs, openDocPreview }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void }) {
   const accent = TRACK_ACCENT[track];
   const trackDocs = useMemo(
     () => docs.filter((d) => isTrainingDoc(d) && docMatchesTrack(d, track)),

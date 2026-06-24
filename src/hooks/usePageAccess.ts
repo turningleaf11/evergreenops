@@ -19,6 +19,7 @@ export const PAGE_KEYS = [
   "market_research",
   "content_studio",
   "ai_workshop",
+  "orbit_manage",
 ] as const;
 export type PageKey = (typeof PAGE_KEYS)[number];
 
@@ -33,6 +34,7 @@ export const PAGE_LABELS: Record<PageKey, string> = {
   market_research: "Market Research",
   content_studio: "Content Studio",
   ai_workshop: "AI Workshop",
+  orbit_manage: "Orbit Program — Manage",
 };
 
 /**

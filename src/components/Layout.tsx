@@ -20,6 +20,8 @@ import { TimeClockButton } from "@/components/TimeClockButton";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LauncherMenu } from "@/components/LauncherMenu";
 import { SidebarModeProvider } from "@/contexts/SidebarModeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { OrbitMemberHub } from "@/components/orbit/OrbitMemberHub";
 
 function LayoutInner() {
   return (
@@ -67,6 +69,14 @@ function LayoutInner() {
 }
 
 export function Layout() {
+  const { isOrbitOnly, loading, roleLoaded } = useAuth();
+
+  // Orbit-only members get their own self-contained workbook app — no cockpit
+  // sidebar, header, or AI rail. This is their entire experience.
+  if (!loading && roleLoaded && isOrbitOnly) {
+    return <OrbitMemberHub />;
+  }
+
   return (
     <SidebarModeProvider>
       <LayoutInner />

@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageGrants } from "@/hooks/usePageAccess";
 import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -61,7 +62,10 @@ export default function DepartmentPage() {
   const dept = departments.find((d) => d.id === id);
   const navigate = useNavigate();
   const { user, isAdmin, profile } = useAuth();
+  const { grants } = usePageGrants();
   const isDeptLeader = isAdmin || (!!profile?.is_leader && profile?.department_id === id);
+  // Roster management = admins, or anyone explicitly granted the orbit_manage capability.
+  const canManageOrbit = isAdmin || grants.has("orbit_manage");
 
   // Viewer role drives the role-aware first-row ordering in the new Overview.
   const viewerRole: ViewerRole = isAdmin ? "admin" : isDeptLeader ? "leader" : "member";
@@ -311,7 +315,7 @@ export default function DepartmentPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {!dept.is_program && <TabsTrigger value="work">Work</TabsTrigger>}
-          {dept.is_program && isAdmin && <TabsTrigger value="roster">Roster</TabsTrigger>}
+          {dept.is_program && canManageOrbit && <TabsTrigger value="roster">Roster</TabsTrigger>}
           <TabsTrigger value="people">People</TabsTrigger>
           {!dept.is_program && <TabsTrigger value="resources">Resources</TabsTrigger>}
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -380,7 +384,7 @@ export default function DepartmentPage() {
           </TabsContent>
         )}
 
-        {dept.is_program && isAdmin && (
+        {dept.is_program && canManageOrbit && (
           <TabsContent value="roster" className="mt-4">
             <OrbitRoster departmentId={id!} />
           </TabsContent>
