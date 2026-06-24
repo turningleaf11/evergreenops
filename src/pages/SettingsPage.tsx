@@ -29,6 +29,7 @@ import { ApiSettings } from "@/components/settings/ApiSettings";
 import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
 import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
 import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
+import { OrbitMembershipControl } from "@/components/settings/OrbitMembershipControl";
 import { PAGE_KEYS, PAGE_LABELS } from "@/hooks/usePageAccess";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -1063,6 +1064,8 @@ function UsersTab() {
                 isPrimary={!!u.is_primary}
                 isAdmin={currentRole === "admin"}
               />
+
+              {!u.is_primary && <OrbitMembershipControl targetUserId={u.user_id} />}
             </CardContent>
           </Card>
         );
