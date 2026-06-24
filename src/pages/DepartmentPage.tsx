@@ -31,6 +31,7 @@ import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { OrbitRoster } from "@/components/orbit/OrbitRoster";
 import { ProgramOverview } from "@/components/orbit/ProgramOverview";
+import { OrbitProgramOverview } from "@/components/orbit/OrbitProgramOverview";
 import { DepartmentOverviewV2, type ViewerRole } from "@/components/department/DepartmentOverviewV2";
 import { DepartmentWorkTab } from "@/components/department/DepartmentWorkTab";
 import { DepartmentPeopleTab } from "@/components/department/DepartmentPeopleTab";
@@ -314,6 +315,7 @@ export default function DepartmentPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {dept.is_program && <TabsTrigger value="trackpages">Track Pages</TabsTrigger>}
           {!dept.is_program && <TabsTrigger value="work">Work</TabsTrigger>}
           {dept.is_program && canManageOrbit && <TabsTrigger value="roster">Roster</TabsTrigger>}
           <TabsTrigger value="people">People</TabsTrigger>
@@ -337,9 +339,8 @@ export default function DepartmentPage() {
           )}
 
           {dept.is_program && (
-            <ProgramOverview
+            <OrbitProgramOverview
               departmentId={id!}
-              deptName={dept.name}
               docs={docs}
               openDocPreview={openDocPreview}
             />
@@ -371,6 +372,17 @@ export default function DepartmentPage() {
           )}
 
         </TabsContent>
+
+        {dept.is_program && (
+          <TabsContent value="trackpages" className="mt-4">
+            <ProgramOverview
+              departmentId={id!}
+              deptName={dept.name}
+              docs={docs}
+              openDocPreview={openDocPreview}
+            />
+          </TabsContent>
+        )}
 
         {!dept.is_program && (
           <TabsContent value="work" className="mt-4">
