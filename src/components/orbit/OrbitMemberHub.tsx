@@ -19,7 +19,7 @@ import {
   docMatchesTrack,
   type Doc,
 } from "./ProgramOverview";
-import { TRACK_ACCENT, TRACK_LABEL, STATUS_LABEL } from "./orbit-types";
+import { TRACK_LABEL, STATUS_LABEL } from "./orbit-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +37,9 @@ import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
+
+// Soft (translucent) variant of any color — works with hex or hsl(var(--x)).
+const soft = (c: string, pct: number) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 
 type TabKey = "playbook" | "scripts" | "sops" | "training" | "pace";
 
@@ -206,7 +209,9 @@ export function OrbitMemberHub() {
 
   const track = member?.track ?? null;
   const { content } = useTrackContent(track ?? "dts");
-  const accent = track ? TRACK_ACCENT[track] : "#0F6E56";
+  // Match the workspace accent set in Settings (theme palette --primary),
+  // not a per-track color, so the hub reflects the chosen brand.
+  const accent = "hsl(var(--primary))";
 
   useEffect(() => {
     if (!member?.department_id) return;
@@ -252,8 +257,8 @@ export function OrbitMemberHub() {
       case "playbook":
         return (
           <div className="space-y-5">
-            <RoleOverview track={track} content={content} />
-            <GettingStartedChecklist track={track} content={content} memberId={member.id} isOwnView />
+            <RoleOverview track={track} content={content} accent={accent} />
+            <GettingStartedChecklist track={track} content={content} memberId={member.id} isOwnView accent={accent} />
           </div>
         );
       case "scripts":
@@ -267,7 +272,7 @@ export function OrbitMemberHub() {
               <GraduationCap className="h-5 w-5" style={{ color: accent }} />
               <h2 className="text-lg font-bold tracking-tight">Training</h2>
             </div>
-            <TrainingHub track={track} docs={docs} openDocPreview={openDoc} />
+            <TrainingHub track={track} docs={docs} openDocPreview={openDoc} accent={accent} />
           </div>
         );
       case "pace":
@@ -292,7 +297,7 @@ export function OrbitMemberHub() {
               <button className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-ring">
                 <Avatar className="h-9 w-9">
                   {profile?.avatar_url && <AvatarImage src={profile.avatar_url} />}
-                  <AvatarFallback className="text-xs" style={{ background: `${accent}20`, color: accent }}>
+                  <AvatarFallback className="text-xs" style={{ background: soft(accent, 12), color: accent }}>
                     {initials(profile?.full_name)}
                   </AvatarFallback>
                 </Avatar>
@@ -326,7 +331,7 @@ export function OrbitMemberHub() {
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
                   on ? "font-medium" : "text-muted-foreground hover:bg-muted/50",
                 )}
-                style={on ? { background: `${accent}14`, color: accent } : undefined}
+                style={on ? { background: soft(accent, 10), color: accent } : undefined}
               >
                 <t.icon className="h-4 w-4 shrink-0" />
                 {t.label}

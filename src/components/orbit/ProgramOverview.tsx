@@ -28,6 +28,9 @@ import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
 
+// Soft (translucent) variant of any color — works with hex or hsl(var(--x)).
+const soft = (c: string, pct: number) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+
 export interface Doc {
   id: string;
   title: string;
@@ -65,19 +68,19 @@ export function docMatchesTrack(d: Doc, track: OrbitTrack | null) {
 
 // ── Role Overview section ─────────────────────────────────────────────────────
 
-export function RoleOverview({ track, content }: { track: OrbitTrack; content: TrackContent }) {
+export function RoleOverview({ track, content, accent: accentProp }: { track: OrbitTrack; content: TrackContent; accent?: string }) {
   const c = content;
-  const accent = TRACK_ACCENT[track];
+  const accent = accentProp ?? TRACK_ACCENT[track];
 
   return (
-    <Card className="overflow-hidden border-2" style={{ borderColor: `${accent}40` }}>
+    <Card className="overflow-hidden border-2" style={{ borderColor: soft(accent, 25) }}>
       <div className="h-1.5" style={{ background: accent }} />
       <CardContent className="p-6 space-y-6">
         {/* Tagline */}
         <div>
           <Badge
             className="mb-2 text-[10px] uppercase tracking-widest border-0"
-            style={{ background: `${accent}20`, color: accent }}
+            style={{ background: soft(accent, 12), color: accent }}
           >
             {TRACK_LABEL[track]} · The Role
           </Badge>
@@ -85,7 +88,7 @@ export function RoleOverview({ track, content }: { track: OrbitTrack; content: T
         </div>
 
         {/* What it is */}
-        <div className="rounded-lg p-4" style={{ background: `${accent}0d` }}>
+        <div className="rounded-lg p-4" style={{ background: soft(accent, 5) }}>
           <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: accent }}>
             What it is
           </p>
@@ -168,9 +171,9 @@ export function RoleOverview({ track, content }: { track: OrbitTrack; content: T
 
 // ── Getting Started checklist (interactive + persisted) ─────────────────────
 
-export function GettingStartedChecklist({ track, content, memberId, isOwnView }: { track: OrbitTrack; content: TrackContent; memberId: string | null; isOwnView: boolean }) {
+export function GettingStartedChecklist({ track, content, memberId, isOwnView, accent: accentProp }: { track: OrbitTrack; content: TrackContent; memberId: string | null; isOwnView: boolean; accent?: string }) {
   const c = content;
-  const accent = TRACK_ACCENT[track];
+  const accent = accentProp ?? TRACK_ACCENT[track];
   const [doneMap, setDoneMap] = useState<Record<string, boolean>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
@@ -275,8 +278,8 @@ export function GettingStartedChecklist({ track, content, memberId, isOwnView }:
 
 // ── Training Hub ──────────────────────────────────────────────────────────────
 
-export function TrainingHub({ track, docs, openDocPreview }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void }) {
-  const accent = TRACK_ACCENT[track];
+export function TrainingHub({ track, docs, openDocPreview, accent: accentProp }: { track: OrbitTrack; docs: Doc[]; openDocPreview: (id: string) => void; accent?: string }) {
+  const accent = accentProp ?? TRACK_ACCENT[track];
   const trackDocs = useMemo(
     () => docs.filter((d) => isTrainingDoc(d) && docMatchesTrack(d, track)),
     [docs, track],
