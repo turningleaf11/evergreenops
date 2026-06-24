@@ -40,14 +40,6 @@ export interface Doc {
   icon?: string | null;
 }
 
-interface ProgramStats {
-  total: number;
-  active: number;
-  on_notice: number;
-  graduated: number;
-  by_track: Record<string, number>;
-}
-
 interface Props {
   departmentId: string;
   deptName: string;
@@ -401,62 +393,6 @@ function ResourcesAndSops({ track, docs, openDocPreview }: { track: OrbitTrack; 
   );
 }
 
-// ── Admin program stats (only shown to admins) ───────────────────────────────
-
-function ProgramStatsCard({ departmentId }: { departmentId: string }) {
-  const [stats, setStats] = useState<ProgramStats | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await sb
-        .from("orbit_members")
-        .select("track, status")
-        .eq("department_id", departmentId);
-      const rows = (data ?? []) as { track: string; status: string }[];
-      const by_track: Record<string, number> = {};
-      let active = 0, on_notice = 0, graduated = 0;
-      for (const r of rows) {
-        by_track[r.track] = (by_track[r.track] ?? 0) + 1;
-        if (r.status === "active") active++;
-        if (r.status === "on_notice") on_notice++;
-        if (r.status === "graduated") graduated++;
-      }
-      setStats({ total: rows.length, active, on_notice, graduated, by_track });
-    })();
-  }, [departmentId]);
-
-  if (!stats) return null;
-
-  return (
-    <Card className="bg-card/40">
-      <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total</p>
-          <p className="text-xl font-bold text-foreground">{stats.total}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Active</p>
-          <p className="text-xl font-bold text-foreground">{stats.active}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-300">On Notice</p>
-          <p className="text-xl font-bold text-foreground">{stats.on_notice}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-300">Graduated</p>
-          <p className="text-xl font-bold text-foreground">{stats.graduated}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">By Track</p>
-          <p className="text-xs text-foreground/90 mt-1">
-            {Object.entries(stats.by_track).map(([t, n]) => `${TRACK_LABEL[t as OrbitTrack] ?? t}:${n}`).join(" · ") || "—"}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ── Page entry ────────────────────────────────────────────────────────────────
 
 export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }: Props) {
@@ -536,9 +472,6 @@ export function ProgramOverview({ departmentId, deptName, docs, openDocPreview }
           </div>
         )}
       </div>
-
-      {/* Admin stats */}
-      {isAdmin && <ProgramStatsCard departmentId={departmentId} />}
 
       {activeTrack && (
         <>
