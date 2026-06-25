@@ -205,6 +205,13 @@ export default function ExecutionPage() {
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") || "goals";
   });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") !== tab) {
+      params.set("tab", tab);
+      navigate(`/execution?${params.toString()}`, { replace: true });
+    }
+  }, [tab]);
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
