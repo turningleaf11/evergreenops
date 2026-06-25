@@ -191,6 +191,7 @@ export default function ExecutionPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const [agentsMeta, setAgentsMeta] = useState<AgentMeta[]>([]);
+  const [repos, setRepos] = useState<{ slug: string; name: string; github_repo: string }[]>([]);
   const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
   const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee">("none");
   const [showSystemTasks, setShowSystemTasks] = useState(false);
@@ -247,7 +248,7 @@ export default function ExecutionPage() {
   const tv = useViewState("tasks");
 
   const fetchAll = useCallback(async () => {
-    const [g, p, t, pr, i, at, ag] = await Promise.all([
+    const [g, p, t, pr, i, at, ag, rp] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
@@ -255,6 +256,7 @@ export default function ExecutionPage() {
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
       supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("agents").select("slug, name, emoji, avatar_url, accent_color"),
+      supabase.from("repos").select("slug, name, github_repo").eq("active", true),
     ]);
     if (g.data) setGoals(g.data as any);
     if (p.data) setProjects(p.data as any);
@@ -263,6 +265,7 @@ export default function ExecutionPage() {
     if (i.data) setIssues(i.data as any);
     if (at.data) setAgentTasks(at.data as any);
     if (ag.data) setAgentsMeta(ag.data as any);
+    if (rp.data) setRepos(rp.data as any);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -420,7 +423,28 @@ export default function ExecutionPage() {
     else { toast.success("Project created"); setCreateProjectOpen(false); fetchAll(); }
   };
 
-  const createTask = async (data: { title: string; project_id: string; goal_id: string; description: string; assigned_to: string }) => {
+  const createTask = async (data: {
+    title: string; project_id: string; goal_id: string; description: string; assigned_to: string;
+    agent_type?: string; agent_repo?: string;
+  }) => {
+    const isAgent = agentsMeta.some(a => a.slug === data.assigned_to);
+    if (isAgent) {
+      const { error } = await supabase.from("agent_tasks").insert({
+        title: data.title,
+        description: data.description || data.title,
+        assigned_to: data.assigned_to,
+        type: data.agent_type || "general",
+        repo: data.agent_repo || null,
+        // project_id intentionally omitted until the agent_tasks.project_id
+        // migration is confirmed and applied — see task tracking note.
+        status: "pending",
+        priority: "normal",
+        created_by: "human",
+      } as any);
+      if (error) toast.error(error.message);
+      else { toast.success("AI task created"); setCreateTaskOpen(false); fetchAll(); }
+      return;
+    }
     const { error } = await supabase.from("tasks").insert({
       title: data.title, project_id: data.project_id || null,
       goal_id: data.goal_id || null, description: data.description,
@@ -603,7 +627,7 @@ export default function ExecutionPage() {
                 />
                 <CreateDialog title="New Task" open={createTaskOpen} onOpenChange={setCreateTaskOpen}
                   onSubmit={createTask} type="task" goals={goals} projects={projects}
-                  departments={departments} profiles={profiles} />
+                  departments={departments} profiles={profiles} agents={agentsMeta} repos={repos} />
               </div>
             )}
             {tab === "issues" && (
@@ -1447,12 +1471,14 @@ function SubmissionsReviewTab() {
 }
 
 // Unified create dialog — de-formed style
-function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projects, departments, profiles }: {
+function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projects, departments, profiles, agents = [], repos = [] }: {
   title: string; open: boolean; onOpenChange: (o: boolean) => void;
   onSubmit: (data: any) => void; type: "goal" | "project" | "task";
   goals: Goal[]; projects: Project[];
   departments: { id: string; name: string }[];
   profiles: { user_id: string; full_name: string | null }[];
+  agents?: AgentMeta[];
+  repos?: { slug: string; name: string; github_repo: string }[];
 }) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [showDesc, setShowDesc] = useState(false);
@@ -1553,22 +1579,46 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
           )}
 
           {type === "task" && (
-            <div className="flex gap-2">
-              {projects.length > 0 && (
-                <Select value={form.project_id || ""} onValueChange={v => setForm(p => ({ ...p, project_id: v }))}>
-                  <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Project" /></SelectTrigger>
+            <>
+              <div className="flex gap-2">
+                {projects.length > 0 && (
+                  <Select value={form.project_id || ""} onValueChange={v => setForm(p => ({ ...p, project_id: v }))}>
+                    <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Project" /></SelectTrigger>
+                    <SelectContent>
+                      {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={form.assigned_to || ""} onValueChange={v => setForm(p => ({ ...p, assigned_to: v }))}>
+                  <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Assign" /></SelectTrigger>
                   <SelectContent>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                    {agents.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">AI agents</div>}
+                    {agents.map(a => <SelectItem key={a.slug} value={a.slug}>{a.name}</SelectItem>)}
+                    {profiles.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>}
+                    {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {agents.some(a => a.slug === form.assigned_to) && (
+                <div className="flex gap-2">
+                  <Select value={form.agent_type || "general"} onValueChange={v => setForm(p => ({ ...p, agent_type: v }))}>
+                    <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectContent>
+                      {["general", "research", "code", "decision", "communication"].map(t => (
+                        <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={form.agent_repo || ""} onValueChange={v => setForm(p => ({ ...p, agent_repo: v }))}>
+                    <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Repo (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {repos.map(r => <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-              <Select value={form.assigned_to || ""} onValueChange={v => setForm(p => ({ ...p, assigned_to: v }))}>
-                <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Assign" /></SelectTrigger>
-                <SelectContent>
-                  {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            </>
           )}
 
           {(type === "goal" || type === "project") && departments.length > 0 && (
