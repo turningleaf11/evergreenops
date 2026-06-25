@@ -1592,10 +1592,14 @@ function CreateDialog({ title, open, onOpenChange, onSubmit, type, goals, projec
                 <Select value={form.assigned_to || ""} onValueChange={v => setForm(p => ({ ...p, assigned_to: v }))}>
                   <SelectTrigger className="h-9 text-sm flex-1"><SelectValue placeholder="+ Assign" /></SelectTrigger>
                   <SelectContent>
-                    {agents.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">AI agents</div>}
-                    {agents.map(a => <SelectItem key={a.slug} value={a.slug}>{a.name}</SelectItem>)}
-                    {profiles.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>}
-                    {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>)}
+                    {profiles.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">People</div>}
+                    {[...profiles].sort((a, b) => (a.full_name || "Unknown").localeCompare(b.full_name || "Unknown")).map(p => (
+                      <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unknown"}</SelectItem>
+                    ))}
+                    {agents.length > 0 && <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">AI agents</div>}
+                    {[...agents].sort((a, b) => a.name.localeCompare(b.name)).map(a => (
+                      <SelectItem key={a.slug} value={a.slug}>{a.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
