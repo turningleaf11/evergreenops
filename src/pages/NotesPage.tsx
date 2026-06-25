@@ -198,6 +198,9 @@ export default function NotesPage() {
     setSelectedId(note.id);
     setTitle(note.title);
     setContent(note.content);
+    const next = new URLSearchParams(searchParams);
+    next.set("id", note.id);
+    setSearchParams(next, { replace: true });
   };
 
   const createNote = async () => {
@@ -260,7 +263,12 @@ export default function NotesPage() {
 
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id);
-    if (selectedId === id) { setSelectedId(null); setTitle(""); setContent(""); }
+    if (selectedId === id) {
+      setSelectedId(null); setTitle(""); setContent("");
+      const next = new URLSearchParams(searchParams);
+      next.delete("id");
+      setSearchParams(next, { replace: true });
+    }
     fetchNotes();
     toast({ title: "Note deleted" });
   };

@@ -9,6 +9,7 @@ import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
 import { useViewPreference } from "@/hooks/useViewPreference";
+import { useUrlState } from "@/hooks/useUrlState";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
 import DataTableView from "@/components/execution/DataTableView";
@@ -196,28 +197,17 @@ export default function ExecutionPage() {
   const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
   const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee" | "project">("none");
   const [showSystemTasks, setShowSystemTasks] = useState(false);
-  const [agentTaskPeekId, setAgentTaskPeekId] = useState<string | null>(null);
+  const [agentTaskPeekId, setAgentTaskPeekId] = useUrlState("aiTask");
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
   const [stageColors, setStageColors] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState(() => {
-    if (typeof window === "undefined") return "goals";
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tab") || "goals";
-  });
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("tab") !== tab) {
-      params.set("tab", tab);
-      navigate(`/execution?${params.toString()}`, { replace: true });
-    }
-  }, [tab]);
+  const [tab, setTab] = useUrlState("tab", "goals");
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [projectPeekId, setProjectPeekId] = useState<string | null>(null);
-  const [taskPeekId, setTaskPeekId] = useState<string | null>(null);
-  const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
+  const [projectPeekId, setProjectPeekId] = useUrlState("project");
+  const [taskPeekId, setTaskPeekId] = useUrlState("task");
+  const [peekGoalId, setPeekGoalId] = useUrlState("goal");
   // Goals filters persist across sessions in localStorage
   const [goalQuarter, setGoalQuarter] = useState<string>(() => localStorage.getItem("execution.goals.quarter") || "all");
   const [goalYear, setGoalYear] = useState<string>(() => localStorage.getItem("execution.goals.year") || "all");

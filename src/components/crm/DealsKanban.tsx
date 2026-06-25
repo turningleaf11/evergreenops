@@ -3,6 +3,7 @@ import { Loader2, Briefcase, Plus, LayoutGrid, Table as TableIcon, ArrowUpDown, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useUrlState } from "@/hooks/useUrlState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -71,7 +72,7 @@ export function DealsKanban({ search, newSignal = 0 }: { search: string; newSign
   const [sourceContacts, setSourceContacts] = useState<ContactLite[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
-  const [openDealId, setOpenDealId] = useState<string | null>(null);
+  const [openDealId, setOpenDealId] = useUrlState("dealEdit");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverStageId, setHoverStageId] = useState<string | null>(null);
   const [pendingLost, setPendingLost] = useState<{ dealId: string; stageId: string } | null>(null);

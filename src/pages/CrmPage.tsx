@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Users, Building2, Rocket, Plus, Search, Inbox, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,13 @@ import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
 import { NewCompanyDialog } from "@/components/crm/NewCompanyDialog";
 import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
+import { useUrlState } from "@/hooks/useUrlState";
 
 type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
 
 export default function CrmPage() {
   const navigate = useNavigate();
   const params = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
@@ -34,8 +34,8 @@ export default function CrmPage() {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [search, setSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [openContactId, setOpenContactId] = useState<string | null>(null);
-  const [openDealId, setOpenDealId] = useState<string | null>(null);
+  const [openContactId, setOpenContactId] = useUrlState("contact");
+  const [openDealId, setOpenDealId] = useUrlState("deal");
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   // Per-tab "request new" signal counters; tabs watch their counter and open their own dialog.
@@ -46,20 +46,6 @@ export default function CrmPage() {
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
-
-  // Open peek from URL query params (e.g. ?contact=<id> or ?deal=<id>)
-  useEffect(() => {
-    const c = searchParams.get("contact");
-    const d = searchParams.get("deal");
-    if (c) setOpenContactId(c);
-    if (d) setOpenDealId(d);
-  }, [searchParams]);
-
-  const clearPeekParam = (key: "contact" | "deal") => {
-    const next = new URLSearchParams(searchParams);
-    next.delete(key);
-    setSearchParams(next, { replace: true });
-  };
 
   const handleTabChange = (next: string) => {
     const t = next as Tab;
@@ -162,14 +148,14 @@ export default function CrmPage() {
 
       <ContactPeekSheet
         contactId={openContactId}
-        onClose={() => { setOpenContactId(null); clearPeekParam("contact"); }}
+        onClose={() => setOpenContactId(null)}
         onChanged={() => setRefreshKey((k) => k + 1)}
-        onOpenDeal={(id) => { setOpenContactId(null); clearPeekParam("contact"); setOpenDealId(id); }}
+        onOpenDeal={(id) => { setOpenContactId(null); setOpenDealId(id); }}
       />
 
       <DealPeekSheet
         dealId={openDealId}
-        onClose={() => { setOpenDealId(null); clearPeekParam("deal"); }}
+        onClose={() => setOpenDealId(null)}
         onChanged={() => setRefreshKey((k) => k + 1)}
       />
 
@@ -191,14 +177,14 @@ export default function CrmPage() {
 
       <ContactPeekSheet
         contactId={openContactId}
-        onClose={() => { setOpenContactId(null); clearPeekParam("contact"); }}
+        onClose={() => setOpenContactId(null)}
         onChanged={() => setRefreshKey((k) => k + 1)}
-        onOpenDeal={(id) => { setOpenContactId(null); clearPeekParam("contact"); setOpenDealId(id); }}
+        onOpenDeal={(id) => { setOpenContactId(null); setOpenDealId(id); }}
       />
 
       <DealPeekSheet
         dealId={openDealId}
-        onClose={() => { setOpenDealId(null); clearPeekParam("deal"); }}
+        onClose={() => setOpenDealId(null)}
         onChanged={() => setRefreshKey((k) => k + 1)}
       />
 
