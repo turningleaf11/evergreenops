@@ -15,6 +15,7 @@ import { format, parseISO, formatDistanceToNow } from "date-fns";
 type CouncilStatus = "running" | "done" | "failed" | "cancelled";
 type Priority = "low" | "normal" | "high" | "urgent";
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
+type ParticipantKind = "agent" | "human";
 
 interface CouncilParticipant {
   id: string | null;
@@ -24,6 +25,7 @@ interface CouncilParticipant {
   subtitle: string | null;
   accent_color: string | null;
   position: number;
+  kind?: ParticipantKind; // absent on old sessions created before humans-in-council; treat as "agent"
 }
 
 interface CouncilSession {
@@ -56,6 +58,12 @@ interface Agent {
   role: string | null;
   status: string;
   accent_color: string | null;
+}
+
+interface HumanProfile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
 }
 
 export type CouncilAgent = {
@@ -111,6 +119,51 @@ const orderedParticipants = (session: CouncilSession | null) =>
   [...(session?.participants ?? [])].sort((a, b) => a.position - b.position);
 
 /**
+ * Drives the council sequence forward starting at `fromPosition`: invokes
+ * jr-coder-worker for each agent position in turn (awaiting completion,
+ * matching how this already worked for all-agent councils), and stops the
+ * moment it reaches a human position — just making sure that position's
+ * agent_tasks row is "pending" so the UI can detect it's their turn and
+ * show the reply composer. Reaching the end with no human in the way marks
+ * the session done. Used both at council creation (fromPosition 0) and
+ * after a human submits their turn (fromPosition = their position + 1).
+ * Does not touch jr-coder-worker or council-advance.
+ */
+async function driveCouncilFrom(sessionId: string, participants: CouncilParticipant[], fromPosition: number) {
+  const sorted = [...participants].sort((a, b) => a.position - b.position);
+  for (const participant of sorted) {
+    if (participant.position < fromPosition) continue;
+
+    const { data: taskRow } = await supabase
+      .from("agent_tasks")
+      .select("*")
+      .eq("context->>council_session_id", sessionId)
+      .eq("context->>council_position", String(participant.position))
+      .limit(1)
+      .maybeSingle();
+    if (!taskRow) continue;
+
+    if ((participant.kind ?? "agent") === "human") {
+      if (taskRow.status !== "pending") {
+        await supabase.from("agent_tasks").update({ status: "pending" }).eq("id", taskRow.id);
+      }
+      return; // wait for the human to respond
+    }
+
+    const { error } = await supabase.functions.invoke("jr-coder-worker", {
+      body: { type: "UPDATE", record: { ...taskRow, status: "pending" }, old_record: null },
+    });
+    if (error) {
+      console.warn("[Council] worker invocation failed:", error.message);
+      await supabase.from("council_sessions").update({ status: "failed" }).eq("id", sessionId);
+      return;
+    }
+  }
+  // Walked off the end without stopping at a human — everyone's responded.
+  await supabase.from("council_sessions").update({ status: "done" }).eq("id", sessionId);
+}
+
+/**
  * Self-contained Council surface: fetches its own sessions/messages/agents,
  * manages selection, and renders the thread list + thread view + "New" dialog.
  * Drop in anywhere (Execution Hub Council tab, or the legacy AI Hub) without
@@ -118,6 +171,7 @@ const orderedParticipants = (session: CouncilSession | null) =>
  */
 export function CouncilPanel() {
   const [agents, setAgents] = useState<CouncilAgent[]>([]);
+  const [profiles, setProfiles] = useState<HumanProfile[]>([]);
   const [sessions, setSessions] = useState<CouncilSession[]>([]);
   const [messages, setMessages] = useState<CouncilMessage[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -125,8 +179,9 @@ export function CouncilPanel() {
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [agentsRes, sessionsRes, messagesRes] = await Promise.all([
+    const [agentsRes, profilesRes, sessionsRes, messagesRes] = await Promise.all([
       supabase.from("agents").select("id,name,slug,emoji,avatar_url,subtitle,role,status,accent_color").order("position"),
+      supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("council_sessions").select("*").order("created_at", { ascending: false }),
       supabase.from("council_messages").select("*").order("position", { ascending: true }).order("created_at", { ascending: true }),
     ]);
@@ -136,6 +191,7 @@ export function CouncilPanel() {
         avatar_url: a.avatar_url, status: a.status, accent_color: a.accent_color,
       })));
     }
+    if (profilesRes.data) setProfiles(profilesRes.data as HumanProfile[]);
     if (sessionsRes.data) {
       const rows = sessionsRes.data as CouncilSession[];
       setSessions(rows);
@@ -169,11 +225,13 @@ export function CouncilPanel() {
         selectedSessionId={selectedSessionId}
         onSelectSession={setSelectedSessionId}
         onCreateCouncil={() => setNewCouncilOpen(true)}
+        onRefresh={fetchAll}
       />
       <NewCouncilDialog
         open={newCouncilOpen}
         onOpenChange={setNewCouncilOpen}
         agents={agents}
+        profiles={profiles}
         onCreated={(sessionId) => { setSelectedSessionId(sessionId); fetchAll(); }}
       />
     </>
@@ -181,7 +239,7 @@ export function CouncilPanel() {
 }
 
 export const CouncilTab = ({
-  sessions, messages, agents, selectedSessionId, onSelectSession, onCreateCouncil,
+  sessions, messages, agents, selectedSessionId, onSelectSession, onCreateCouncil, onRefresh,
 }: {
   sessions: CouncilSession[];
   messages: CouncilMessage[];
@@ -189,6 +247,7 @@ export const CouncilTab = ({
   selectedSessionId: string | null;
   onSelectSession: (id: string) => void;
   onCreateCouncil: () => void;
+  onRefresh?: () => void;
 }) => {
   const selectedSession = sessions.find(s => s.id === selectedSessionId) ?? sessions[0] ?? null;
   const selectedMessages = selectedSession
@@ -214,7 +273,7 @@ export const CouncilTab = ({
             <div className="rounded-lg border border-dashed border-border/60 p-5 text-center">
               <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm font-medium">No council threads yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Ask a question and route it through multiple agents.</p>
+              <p className="text-xs text-muted-foreground mt-1">Ask a question and route it through multiple agents — or people.</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-1">
@@ -234,7 +293,7 @@ export const CouncilTab = ({
                   </div>
                   <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                     <Users className="h-3.5 w-3.5" />
-                    <span>{(session.participants ?? []).length} agents</span>
+                    <span>{(session.participants ?? []).length} participants</span>
                     <span className="ml-auto">{formatDistanceToNow(parseISO(session.created_at), { addSuffix: true })}</span>
                   </div>
                 </button>
@@ -251,7 +310,7 @@ export const CouncilTab = ({
               <div>
                 <MessageCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                 <p className="text-sm font-medium">Start a council</p>
-                <p className="text-xs text-muted-foreground mt-1">Select agents, ask one question, and watch the thread fill in order.</p>
+                <p className="text-xs text-muted-foreground mt-1">Select agents (or people), ask one question, and watch the thread fill in order.</p>
                 <Button size="sm" className="mt-4" onClick={onCreateCouncil}>
                   <Plus className="h-4 w-4 mr-2" /> New Council
                 </Button>
@@ -289,9 +348,13 @@ export const CouncilTab = ({
               </div>
 
               <div className="space-y-4 max-h-[64vh] overflow-y-auto pr-2">
-                {participants.map(participant => {
+                {participants.map((participant, idx) => {
                   const message = selectedMessages.find(m => m.position === participant.position);
                   const agent = agents.find(a => a.key === participant.key);
+                  const isHuman = (participant.kind ?? "agent") === "human";
+                  const isCurrentTurn = !message && participants
+                    .slice(0, idx)
+                    .every(p => selectedMessages.some(m => m.position === p.position));
                   return (
                     <div key={`${selectedSession.id}-${participant.key}`} className="flex items-start gap-3">
                       <div className="relative shrink-0">
@@ -300,7 +363,7 @@ export const CouncilTab = ({
                           subtitle: participant.subtitle, emoji: participant.emoji, avatar_url: null,
                           status: message ? "active" : "idle", accent_color: participant.accent_color,
                         }} size="md" />
-                        {!message && selectedSession.status === "running" && (
+                        {!message && !isHuman && selectedSession.status === "running" && (
                           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-yellow-400" />
                         )}
                       </div>
@@ -318,9 +381,16 @@ export const CouncilTab = ({
                           <div className="mt-2 rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap break-words">
                             {cleanResult(message.body)}
                           </div>
+                        ) : isHuman && isCurrentTurn && selectedSession.status === "running" ? (
+                          <HumanTurnComposer
+                            sessionId={selectedSession.id}
+                            participant={participant}
+                            participants={participants}
+                            onSubmitted={onRefresh}
+                          />
                         ) : (
                           <div className="mt-2 rounded-lg border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
-                            Waiting for this agent's turn.
+                            {isHuman ? "Waiting for their turn." : "Waiting for this agent's turn."}
                           </div>
                         )}
                       </div>
@@ -336,49 +406,126 @@ export const CouncilTab = ({
   );
 };
 
+const HumanTurnComposer = ({
+  sessionId, participant, participants, onSubmitted,
+}: {
+  sessionId: string;
+  participant: CouncilParticipant;
+  participants: CouncilParticipant[];
+  onSubmitted?: () => void;
+}) => {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+
+    const { error: msgError } = await supabase.from("council_messages").insert({
+      session_id: sessionId,
+      agent_id: null,
+      agent_name: participant.name,
+      agent_emoji: participant.emoji,
+      body: text.trim(),
+      position: participant.position,
+    });
+    if (msgError) {
+      toast({ title: "Couldn't send", description: msgError.message, variant: "destructive" });
+      setSending(false);
+      return;
+    }
+
+    const { data: taskRow } = await supabase
+      .from("agent_tasks")
+      .select("id")
+      .eq("context->>council_session_id", sessionId)
+      .eq("context->>council_position", String(participant.position))
+      .limit(1)
+      .maybeSingle();
+    if (taskRow) {
+      await supabase.from("agent_tasks").update({ status: "done" }).eq("id", taskRow.id);
+    }
+
+    onSubmitted?.();
+    void driveCouncilFrom(sessionId, participants, participant.position + 1);
+    setText("");
+    setSending(false);
+  };
+
+  return (
+    <div className="mt-2 space-y-2">
+      <Textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="Your turn — add your input…"
+        rows={3}
+        disabled={sending}
+        className="text-sm"
+        autoFocus
+      />
+      <div className="flex justify-end">
+        <Button size="sm" onClick={submit} disabled={sending || !text.trim()}>
+          {sending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+          Send
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export const NewCouncilDialog = ({
-  open, onOpenChange, agents, onCreated,
+  open, onOpenChange, agents, profiles = [], onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   agents: CouncilAgent[];
+  profiles?: HumanProfile[];
   onCreated: (sessionId: string) => void;
 }) => {
   const [question, setQuestion] = useState("");
-  const [selectedAgentKeys, setSelectedAgentKeys] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open && selectedAgentKeys.length === 0 && agents.length > 0) {
-      setSelectedAgentKeys(agents.slice(0, 3).map(a => a.key));
+    if (open && selectedKeys.length === 0 && agents.length > 0) {
+      setSelectedKeys(agents.slice(0, 3).map(a => a.key));
     }
-  }, [open, agents, selectedAgentKeys.length]);
+  }, [open, agents, selectedKeys.length]);
 
   const reset = () => {
     setQuestion("");
-    setSelectedAgentKeys(agents.slice(0, 3).map(a => a.key));
+    setSelectedKeys(agents.slice(0, 3).map(a => a.key));
   };
 
-  const toggleAgent = (key: string) => {
-    setSelectedAgentKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  const toggleKey = (key: string) => {
+    setSelectedKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
+
+  const sortedProfiles = [...profiles].sort((a, b) => (a.full_name || "Unknown").localeCompare(b.full_name || "Unknown"));
+  const sortedAgents = [...agents].sort((a, b) => a.name.localeCompare(b.name));
 
   const create = async () => {
-    const selectedAgents = selectedAgentKeys
-      .map(key => agents.find(a => a.key === key))
-      .filter(Boolean) as CouncilAgent[];
+    const selectedParticipants: CouncilParticipant[] = selectedKeys
+      .map((key, index) => {
+        const agent = agents.find(a => a.key === key);
+        if (agent) {
+          return {
+            id: agent.agent_id, key: agent.key, name: agent.name, emoji: agent.emoji,
+            subtitle: agent.subtitle, accent_color: agent.accent_color, position: index, kind: "agent" as const,
+          };
+        }
+        const profile = profiles.find(p => p.user_id === key);
+        if (profile) {
+          return {
+            id: null, key: profile.user_id, name: profile.full_name || "Unknown", emoji: null,
+            subtitle: "Team member", accent_color: null, position: index, kind: "human" as const,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as CouncilParticipant[];
 
-    if (!question.trim() || selectedAgents.length === 0) return;
-
-    const participants: CouncilParticipant[] = selectedAgents.map((agent, index) => ({
-      id: agent.agent_id,
-      key: agent.key,
-      name: agent.name,
-      emoji: agent.emoji,
-      subtitle: agent.subtitle,
-      accent_color: agent.accent_color,
-      position: index,
-    }));
+    if (!question.trim() || selectedParticipants.length === 0) return;
 
     setSaving(true);
     const { data: session, error: sessionError } = await supabase
@@ -386,7 +533,7 @@ export const NewCouncilDialog = ({
       .insert({
         question: question.trim(),
         status: "running",
-        participants,
+        participants: selectedParticipants,
       })
       .select("id")
       .single();
@@ -397,7 +544,7 @@ export const NewCouncilDialog = ({
       return;
     }
 
-    const taskRows = participants.map(participant => ({
+    const taskRows = selectedParticipants.map(participant => ({
       title: `Council: ${question.trim().slice(0, 90)}`,
       description: `Council question:\n${question.trim()}\n\nRespond as ${participant.name}. Your response will be shown in a shared council thread.`,
       assigned_to: participant.key,
@@ -408,44 +555,19 @@ export const NewCouncilDialog = ({
       context: {
         council_session_id: session.id,
         council_position: participant.position,
-        council_participant_count: participants.length,
+        council_participant_count: selectedParticipants.length,
         council_question: question.trim(),
       },
     }));
 
-    const { data: createdTasks, error: tasksError } = await supabase
-      .from("agent_tasks")
-      .insert(taskRows)
-      .select("*");
+    const { error: tasksError } = await supabase.from("agent_tasks").insert(taskRows);
 
     if (tasksError) {
       await supabase.from("council_sessions").update({ status: "failed" }).eq("id", session.id);
       toast({ title: "Council tasks failed", description: tasksError.message, variant: "destructive" });
     } else {
-      toast({ title: "Council started", description: `${participants.length} agents queued.` });
-      void (async () => {
-        const orderedTasks = [...(createdTasks ?? [])].sort((a, b) => {
-          const aPosition = Number((a.context as Record<string, unknown> | null)?.council_position ?? 0);
-          const bPosition = Number((b.context as Record<string, unknown> | null)?.council_position ?? 0);
-          return aPosition - bPosition;
-        });
-
-        for (const task of orderedTasks) {
-          const { error } = await supabase.functions.invoke("jr-coder-worker", {
-            body: {
-              type: "INSERT",
-              record: { ...task, status: "pending" },
-              old_record: null,
-            },
-          });
-
-          if (error) {
-            console.warn("[Council] worker invocation failed:", error.message);
-            await supabase.from("council_sessions").update({ status: "failed" }).eq("id", session.id);
-            break;
-          }
-        }
-      })();
+      toast({ title: "Council started", description: `${selectedParticipants.length} participants queued.` });
+      void driveCouncilFrom(session.id, selectedParticipants, 0);
       reset();
       onOpenChange(false);
       onCreated(session.id);
@@ -466,42 +588,59 @@ export const NewCouncilDialog = ({
               rows={4}
               value={question}
               onChange={e => setQuestion(e.target.value)}
-              placeholder="What should the agents weigh in on?"
+              placeholder="What should the council weigh in on?"
             />
           </div>
 
           <div className="space-y-2">
             <Label>Participants</Label>
-            <div className="rounded-lg border border-border divide-y max-h-64 overflow-y-auto">
-              {agents.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">No agents are available.</p>
-              ) : agents.map(agent => (
+            <div className="rounded-lg border border-border divide-y max-h-72 overflow-y-auto">
+              {sortedProfiles.length > 0 && <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40">People</div>}
+              {sortedProfiles.map(p => (
+                <button
+                  key={p.user_id}
+                  type="button"
+                  onClick={() => toggleKey(p.user_id)}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
+                >
+                  <Checkbox checked={selectedKeys.includes(p.user_id)} className="pointer-events-none" />
+                  <AgentAvatar agent={{ key: p.user_id, agent_id: null, name: p.full_name || "Unknown", subtitle: "Team member", emoji: null, avatar_url: p.avatar_url, status: "online", accent_color: null }} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{p.full_name || "Unknown"}</p>
+                  </div>
+                  {selectedKeys.includes(p.user_id) && (
+                    <span className="text-xs font-mono text-muted-foreground">#{selectedKeys.indexOf(p.user_id) + 1}</span>
+                  )}
+                </button>
+              ))}
+              {sortedAgents.length > 0 && <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40">AI agents</div>}
+              {sortedAgents.length === 0 && sortedProfiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4">No agents or people are available.</p>
+              ) : sortedAgents.map(agent => (
                 <button
                   key={agent.key}
                   type="button"
-                  onClick={() => toggleAgent(agent.key)}
+                  onClick={() => toggleKey(agent.key)}
                   className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
                 >
-                  <Checkbox checked={selectedAgentKeys.includes(agent.key)} className="pointer-events-none" />
+                  <Checkbox checked={selectedKeys.includes(agent.key)} className="pointer-events-none" />
                   <AgentAvatar agent={agent} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{agent.name}</p>
                     {agent.subtitle && <p className="text-xs text-muted-foreground truncate">{agent.subtitle}</p>}
                   </div>
-                  {selectedAgentKeys.includes(agent.key) && (
-                    <span className="text-xs font-mono text-muted-foreground">
-                      #{selectedAgentKeys.indexOf(agent.key) + 1}
-                    </span>
+                  {selectedKeys.includes(agent.key) && (
+                    <span className="text-xs font-mono text-muted-foreground">#{selectedKeys.indexOf(agent.key) + 1}</span>
                   )}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Agents respond in the order selected.</p>
+            <p className="text-xs text-muted-foreground">Everyone responds in the order selected — people get an inline reply box on their turn.</p>
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
-          <Button onClick={create} disabled={!question.trim() || selectedAgentKeys.length === 0 || saving}>
+          <Button onClick={create} disabled={!question.trim() || selectedKeys.length === 0 || saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             Start Council
           </Button>
