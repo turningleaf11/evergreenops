@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,7 +61,7 @@ type Task = {
 type AgentTask = {
   id: string; title: string; description: string | null; assigned_to: string;
   status: string; priority: string; created_at: string; updated_at: string;
-  is_system_task: boolean; context: Record<string, unknown> | null;
+  due_date: string | null; is_system_task: boolean; context: Record<string, unknown> | null;
 };
 type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
 
@@ -113,6 +113,7 @@ const projectStatusOptions = [
 const taskStatusOptions = [
   { value: "todo", label: "To Do" },
   { value: "in_progress", label: "In Progress" },
+  { value: "blocked", label: "Blocked" },
   { value: "done", label: "Done" },
 ];
 
@@ -133,6 +134,7 @@ const projectKanbanColsBase = [
 const taskKanbanColsBase = [
   { key: "todo", label: "To Do", color: "slate" },
   { key: "in_progress", label: "In Progress", color: "blue" },
+  { key: "blocked", label: "Blocked", color: "red" },
   { key: "done", label: "Done", color: "green" },
 ];
 
@@ -190,6 +192,7 @@ export default function ExecutionPage() {
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const [agentsMeta, setAgentsMeta] = useState<AgentMeta[]>([]);
   const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
+  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee">("none");
   const [showSystemTasks, setShowSystemTasks] = useState(false);
   const [agentTaskPeekId, setAgentTaskPeekId] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -317,6 +320,68 @@ export default function ExecutionPage() {
       (a, b) => new Date(b.task.created_at).getTime() - new Date(a.task.created_at).getTime()
     );
   }, [taskSourceFilter, visibleTasks, visibleAgentTasks, tasks, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
+
+  // Shared bucketing across human tasks + agent_tasks — used by both the
+  // board view's columns and the list/table "Group by" control, so the two
+  // task models line up the same way everywhere.
+  const statusBucket = (row: UnifiedRow): string => {
+    if (row.kind === "human") return row.task.status;
+    if (["backlog", "pending"].includes(row.task.status)) return "todo";
+    if (row.task.status === "needs_input") return "blocked";
+    if (row.task.status === "done" || row.task.status === "cancelled") return "done";
+    return "in_progress"; // doing, review, approved
+  };
+  const priorityKey = (row: UnifiedRow): string => {
+    const p = row.task.priority || "medium";
+    return p === "normal" ? "medium" : p;
+  };
+  const assigneeLabel = (row: UnifiedRow): string =>
+    row.kind === "human" ? getName(row.task.assigned_to) : (getAgentMeta(row.task.assigned_to)?.name || row.task.assigned_to);
+  const dueDateBucket = (row: UnifiedRow): { key: string; label: string; order: number } => {
+    const dueRaw = row.task.due_date;
+    if (!dueRaw) return { key: "none", label: "No Due Date", order: 99 };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(dueRaw.length <= 10 ? `${dueRaw}T00:00:00` : dueRaw);
+    const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) return { key: "overdue", label: "Overdue", order: 0 };
+    if (diff === 0) return { key: "today", label: "Today", order: 1 };
+    if (diff === 1) return { key: "tomorrow", label: "Tomorrow", order: 2 };
+    if (diff <= 7) return { key: "week", label: "This Week", order: 3 };
+    if (diff <= 30) return { key: "month", label: "This Month", order: 4 };
+    return { key: "later", label: "Later", order: 5 };
+  };
+
+  const groupedUnifiedFeed = useMemo(() => {
+    if (taskGroupBy === "none") return [{ key: "all", label: "", rows: unifiedFeed }];
+    const groups = new Map<string, { label: string; order: number; rows: UnifiedRow[] }>();
+    for (const row of unifiedFeed) {
+      let key: string, label: string, order: number;
+      if (taskGroupBy === "status") {
+        key = statusBucket(row);
+        const col = taskKanbanCols.find(c => c.key === key);
+        label = col?.label || key;
+        order = taskKanbanCols.findIndex(c => c.key === key);
+      } else if (taskGroupBy === "priority") {
+        key = priorityKey(row);
+        const opt = priorityOptions.find(p => p.value === key);
+        label = opt?.label || "No Priority";
+        order = priorityOrder[key] ?? 99;
+      } else if (taskGroupBy === "due_date") {
+        const d = dueDateBucket(row);
+        key = d.key; label = d.label; order = d.order;
+      } else {
+        label = assigneeLabel(row);
+        key = label;
+        order = 0;
+      }
+      if (!groups.has(key)) groups.set(key, { label, order, rows: [] });
+      groups.get(key)!.rows.push(row);
+    }
+    const sorted = Array.from(groups.entries()).sort((a, b) =>
+      taskGroupBy === "assignee" ? a[1].label.localeCompare(b[1].label) : a[1].order - b[1].order
+    );
+    return sorted.map(([key, g]) => ({ key, label: g.label, rows: g.rows }));
+  }, [unifiedFeed, taskGroupBy, taskKanbanCols]);
 
   const goalsByQuarter = goals.reduce<Record<string, Goal[]>>((acc, g) => {
     const key = `${g.year} ${g.quarter}`;
@@ -825,10 +890,26 @@ export default function ExecutionPage() {
                 Needs input {needsInputCount > 0 && `(${needsInputCount})`}
               </Button>
             </div>
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-              <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
-              Show system tasks ({systemHiddenCount} hidden)
-            </label>
+            <div className="flex items-center gap-3">
+              {tv.view !== "board" && (
+                <Select value={taskGroupBy} onValueChange={(v) => setTaskGroupBy(v as any)}>
+                  <SelectTrigger className="w-36 h-7 text-xs">
+                    <SelectValue placeholder="Group by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No grouping</SelectItem>
+                    <SelectItem value="status">Group: Status</SelectItem>
+                    <SelectItem value="priority">Group: Priority</SelectItem>
+                    <SelectItem value="due_date">Group: Due Date</SelectItem>
+                    <SelectItem value="assignee">Group: Assignee</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
+                Show system tasks ({systemHiddenCount} hidden)
+              </label>
+            </div>
           </div>
 
           {(() => {
@@ -880,29 +961,36 @@ export default function ExecutionPage() {
             const Row = ({ row }: { row: UnifiedRow }) => row.kind === "human" ? <HumanCard t={row.task} /> : <AgentCard t={row.task} />;
 
             if (tv.view === "list") {
+              if (unifiedFeed.length === 0) {
+                return <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>;
+              }
               return (
-                <div className="flex flex-col gap-2">
-                  {unifiedFeed.length === 0 ? (
-                    <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>
-                  ) : unifiedFeed.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                <div className="space-y-6">
+                  {groupedUnifiedFeed.map(grp => (
+                    <div key={grp.key} className="space-y-2">
+                      {taskGroupBy !== "none" && (
+                        <div className="flex items-center gap-2 px-1">
+                          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
+                          <span className="text-xs text-muted-foreground">{grp.rows.length}</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        {grp.rows.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               );
             }
 
             if (tv.view === "board") {
-              // Bucket the unified feed into the same 3 columns human tasks use.
-              // Agent tasks keep their real status visible via the badge text on
-              // the card even though they're bucketed coarsely for column layout.
-              const bucketFor = (row: UnifiedRow): string => {
-                if (row.kind === "human") return row.task.status;
-                if (["backlog", "pending"].includes(row.task.status)) return "todo";
-                if (row.task.status === "done" || row.task.status === "cancelled") return "done";
-                return "in_progress"; // doing, review, approved, needs_input
-              };
+              // Buckets agent_tasks into the same 4 columns human tasks use
+              // (statusBucket is shared with the "Group by: Status" option
+              // below, so board layout and grouped list/table line up).
               return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   {taskKanbanCols.map(col => {
-                    const colRows = unifiedFeed.filter(row => bucketFor(row) === col.key);
+                    const colRows = unifiedFeed.filter(row => statusBucket(row) === col.key);
                     return (
                       <div key={col.key} className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2" style={{ borderLeftColor: col.color }}>
@@ -955,41 +1043,52 @@ export default function ExecutionPage() {
                   <tbody className="divide-y divide-border">
                     {unifiedFeed.length === 0 ? (
                       <tr><td colSpan={4} className="text-center text-muted-foreground py-10">No tasks.</td></tr>
-                    ) : unifiedFeed.map(row => {
-                      if (row.kind === "human") {
-                        const t = row.task;
-                        return (
-                          <tr key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(t)}>
-                            <td className="px-3 py-2">{t.title}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{getName(t.assigned_to)}</td>
-                            <td className="px-3 py-2">
-                              <SharedStatusBadge
-                                label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
-                                variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
-                                dot
-                              />
+                    ) : groupedUnifiedFeed.map(grp => (
+                      <Fragment key={grp.key}>
+                        {taskGroupBy !== "none" && (
+                          <tr key={`grp-${grp.key}`} className="bg-muted/30">
+                            <td colSpan={4} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              {grp.label} <span className="font-normal text-muted-foreground/70">· {grp.rows.length}</span>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
                           </tr>
-                        );
-                      }
-                      const t = row.task;
-                      const meta = getAgentMeta(t.assigned_to);
-                      const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
-                      return (
-                        <tr key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => setAgentTaskPeekId(t.id)}>
-                          <td className="px-3 py-2 flex items-center gap-2">
-                            <Sparkles className="h-3 w-3 shrink-0" style={{ color: meta?.accent_color || "#7F77DD" }} />
-                            {t.title}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
-                          <td className="px-3 py-2">
-                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
-                        </tr>
-                      );
-                    })}
+                        )}
+                        {grp.rows.map(row => {
+                          if (row.kind === "human") {
+                            const t = row.task;
+                            return (
+                              <tr key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(t)}>
+                                <td className="px-3 py-2">{t.title}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{getName(t.assigned_to)}</td>
+                                <td className="px-3 py-2">
+                                  <SharedStatusBadge
+                                    label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
+                                    variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
+                                    dot
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
+                              </tr>
+                            );
+                          }
+                          const t = row.task;
+                          const meta = getAgentMeta(t.assigned_to);
+                          const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+                          return (
+                            <tr key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => setAgentTaskPeekId(t.id)}>
+                              <td className="px-3 py-2 flex items-center gap-2">
+                                <Sparkles className="h-3 w-3 shrink-0" style={{ color: meta?.accent_color || "#7F77DD" }} />
+                                {t.title}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
+                              <td className="px-3 py-2">
+                                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
                   </tbody>
                 </table>
               </div>
