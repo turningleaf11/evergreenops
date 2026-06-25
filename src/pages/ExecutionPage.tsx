@@ -242,7 +242,6 @@ export default function ExecutionPage() {
   // View states for projects and tasks tabs
   const pv = useViewState("projects");
   const tv = useViewState("tasks");
-  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "due_date" | "priority" | "project">("none");
 
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i, at, ag] = await Promise.all([
@@ -787,7 +786,7 @@ export default function ExecutionPage() {
           )}
         </TabsContent>
 
-        {/* Tasks tab */}
+        {/* Tasks tab — unified human + AI task feed, same filters/badges across all 3 view modes */}
         <TabsContent value="tasks" className="space-y-4">
           <ViewControls
             search={tv.search} onSearchChange={tv.setSearch}
@@ -798,221 +797,201 @@ export default function ExecutionPage() {
             filterPriority={tv.filterPriority} onFilterPriorityChange={tv.setFilterPriority}
             statusOptions={taskStatusOptions}
             priorityOptions={priorityOptions}
-          >
-            {(tv.view === "list" || tv.view === "table") && (
-              <Select value={taskGroupBy} onValueChange={(v) => setTaskGroupBy(v as any)}>
-                <SelectTrigger className="w-36 h-8 text-xs">
-                  <SelectValue placeholder="Group by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No grouping</SelectItem>
-                  <SelectItem value="status">Group: Status</SelectItem>
-                  <SelectItem value="due_date">Group: Due Date</SelectItem>
-                  <SelectItem value="priority">Group: Priority</SelectItem>
-                  <SelectItem value="project">Group: Project</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </ViewControls>
+          />
 
-          {tv.view === "list" && (
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex gap-1.5 flex-wrap">
-                {([
-                  { key: "all", label: "All" },
-                  { key: "mine", label: "My tasks" },
-                  { key: "ai", label: "AI tasks" },
-                ] as const).map(f => (
-                  <Button
-                    key={f.key}
-                    size="sm"
-                    variant={taskSourceFilter === f.key ? "default" : "outline"}
-                    className="h-7 text-xs"
-                    onClick={() => setTaskSourceFilter(f.key)}
-                  >
-                    {f.label}
-                  </Button>
-                ))}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex gap-1.5 flex-wrap">
+              {([
+                { key: "all", label: "All" },
+                { key: "mine", label: "My tasks" },
+                { key: "ai", label: "AI tasks" },
+              ] as const).map(f => (
                 <Button
+                  key={f.key}
                   size="sm"
-                  variant={taskSourceFilter === "needs_input" ? "default" : "outline"}
-                  className={`h-7 text-xs ${taskSourceFilter !== "needs_input" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
-                  onClick={() => setTaskSourceFilter("needs_input")}
+                  variant={taskSourceFilter === f.key ? "default" : "outline"}
+                  className="h-7 text-xs"
+                  onClick={() => setTaskSourceFilter(f.key)}
                 >
-                  Needs input {needsInputCount > 0 && `(${needsInputCount})`}
+                  {f.label}
                 </Button>
-              </div>
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
-                Show system tasks ({systemHiddenCount} hidden)
-              </label>
+              ))}
+              <Button
+                size="sm"
+                variant={taskSourceFilter === "needs_input" ? "default" : "outline"}
+                className={`h-7 text-xs ${taskSourceFilter !== "needs_input" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
+                onClick={() => setTaskSourceFilter("needs_input")}
+              >
+                Needs input {needsInputCount > 0 && `(${needsInputCount})`}
+              </Button>
             </div>
-          )}
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
+              Show system tasks ({systemHiddenCount} hidden)
+            </label>
+          </div>
 
           {(() => {
+            const HumanCard = ({ t }: { t: Task }) => (
+              <Card key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDrawer(t)}>
+                <CardContent className="py-3 flex items-center gap-3">
+                  <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
+                    {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{t.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{getName(t.assigned_to)}</p>
+                  </div>
+                  <SharedStatusBadge
+                    label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
+                    variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
+                    dot
+                  />
+                </CardContent>
+              </Card>
+            );
+
+            const AgentCard = ({ t }: { t: AgentTask }) => {
+              const meta = getAgentMeta(t.assigned_to);
+              const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+              return (
+                <Card key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setAgentTaskPeekId(t.id)}>
+                  <CardContent className="py-3 flex items-center gap-3">
+                    <span
+                      className="flex items-center justify-center h-7 w-7 rounded-full text-white shrink-0"
+                      style={{ background: meta?.accent_color || "#7F77DD" }}
+                    >
+                      {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{t.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {meta?.name || t.assigned_to} · AI agent{t.is_system_task ? " · system" : ""}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                  </CardContent>
+                </Card>
+              );
+            };
+
+            const Row = ({ row }: { row: UnifiedRow }) => row.kind === "human" ? <HumanCard t={row.task} /> : <AgentCard t={row.task} />;
+
             if (tv.view === "list") {
               return (
                 <div className="flex flex-col gap-2">
                   {unifiedFeed.length === 0 ? (
                     <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>
-                  ) : unifiedFeed.map(row => {
-                    if (row.kind === "human") {
-                      const t = row.task;
-                      return (
-                        <Card key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDrawer(t)}>
-                          <CardContent className="py-3 flex items-center gap-3">
-                            <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
-                              {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm truncate">{t.title}</p>
-                              <p className="text-xs text-muted-foreground truncate">{getName(t.assigned_to)}</p>
-                            </div>
-                            <SharedStatusBadge
-                              label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
-                              variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
-                              dot
-                            />
-                          </CardContent>
-                        </Card>
-                      );
-                    }
-                    const t = row.task;
-                    const meta = getAgentMeta(t.assigned_to);
-                    const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+                  ) : unifiedFeed.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                </div>
+              );
+            }
+
+            if (tv.view === "board") {
+              // Bucket the unified feed into the same 3 columns human tasks use.
+              // Agent tasks keep their real status visible via the badge text on
+              // the card even though they're bucketed coarsely for column layout.
+              const bucketFor = (row: UnifiedRow): string => {
+                if (row.kind === "human") return row.task.status;
+                if (["backlog", "pending"].includes(row.task.status)) return "todo";
+                if (row.task.status === "done" || row.task.status === "cancelled") return "done";
+                return "in_progress"; // doing, review, approved, needs_input
+              };
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {taskKanbanCols.map(col => {
+                    const colRows = unifiedFeed.filter(row => bucketFor(row) === col.key);
                     return (
-                      <Card key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setAgentTaskPeekId(t.id)}>
-                        <CardContent className="py-3 flex items-center gap-3">
-                          <span
-                            className="flex items-center justify-center h-7 w-7 rounded-full text-white shrink-0"
-                            style={{ background: meta?.accent_color || "#7F77DD" }}
-                          >
-                            {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm truncate">{t.title}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {meta?.name || t.assigned_to} · AI agent{t.is_system_task ? " · system" : ""}
-                            </p>
-                          </div>
-                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
-                            {badge.label}
-                          </span>
-                        </CardContent>
-                      </Card>
+                      <div key={col.key} className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2" style={{ borderLeftColor: col.color }}>
+                          <span className="text-sm font-semibold">{col.label}</span>
+                          <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colRows.length}</span>
+                        </div>
+                        <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
+                          {colRows.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
+                          ) : colRows.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                          {col.key !== "done" && (
+                            <button
+                              className="text-left text-xs text-muted-foreground hover:text-foreground px-3 py-1.5"
+                              onClick={() => {
+                                const title = window.prompt("Task title");
+                                if (!title?.trim() || !user) return;
+                                supabase.from("tasks").insert({
+                                  title: title.trim(),
+                                  status: col.key,
+                                  created_by: user.id,
+                                } as any).then(({ error }) => {
+                                  if (error) toast.error(error.message);
+                                  else fetchAll();
+                                });
+                              }}
+                            >
+                              + Add card
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
               );
             }
-            if (tv.view === "board") {
-              return (
-                <KanbanBoard
-                  columns={taskKanbanCols}
-                  items={visibleTasks}
-                  statusField="status"
-                  onItemClick={openTaskDrawer}
-                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-                  getName={getName}
-                  ownerField="assigned_to"
-                  type="task"
-                  profiles={profiles}
-                  onAddCard={(status) => {
-                    const title = window.prompt("Task title");
-                    if (!title?.trim() || !user) return;
-                    supabase.from("tasks").insert({
-                      title: title.trim(),
-                      status,
-                      created_by: user.id,
-                    } as any).then(({ error }) => {
-                      if (error) toast.error(error.message);
-                      else fetchAll();
-                    });
-                  }}
-                />
-              );
-            }
 
-            const renderItems = (items: Task[]) =>
-              tv.view === "table" ? (
-                <DataTableView
-                  items={items}
-                  type="task"
-                  onItemClick={openTaskDrawer}
-                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-                  onUpdate={async (id, patch) => {
-                    const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
-                    if (error) toast.error(error.message);
-                    else fetchAll();
-                  }}
-                  getName={getName}
-                  statusOptions={taskStatusOptions}
-                  profiles={profiles}
-                  projects={projects}
-                />
-              ) : (
-                <TableView
-                  items={items}
-                  type="task"
-                  onItemClick={openTaskDrawer}
-                  onStatusChange={(id, status) => updateStatus("tasks", id, status)}
-                  getName={getName}
-                  statusOptions={taskStatusOptions}
-                  projects={projects}
-                  disableGrouping
-                />
-              );
-
-            if (taskGroupBy === "none") return renderItems(visibleTasks);
-
-            const groupTask = (t: Task): { key: string; label: string; order: number } => {
-              if (taskGroupBy === "status") {
-                const opt = taskStatusOptions.find(s => s.value === t.status);
-                const order = taskStatusOptions.findIndex(s => s.value === t.status);
-                return { key: t.status || "none", label: opt?.label || "—", order: order < 0 ? 99 : order };
-              }
-              if (taskGroupBy === "priority") {
-                const key = t.priority || "none";
-                const opt = priorityOptions.find(p => p.value === key);
-                return { key, label: opt?.label || "No Priority", order: priorityOrder[key] ?? 99 };
-              }
-              if (taskGroupBy === "project") {
-                const key = t.project_id || "none";
-                const proj = projects.find(p => p.id === t.project_id);
-                return { key, label: proj?.title || "No Project", order: proj ? 0 : 99 };
-              }
-              if (!t.due_date) return { key: "none", label: "No Due Date", order: 99 };
-              const today = new Date(); today.setHours(0,0,0,0);
-              const due = new Date(t.due_date + "T00:00:00");
-              const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
-              if (diff < 0) return { key: "overdue", label: "Overdue", order: 0 };
-              if (diff === 0) return { key: "today", label: "Today", order: 1 };
-              if (diff === 1) return { key: "tomorrow", label: "Tomorrow", order: 2 };
-              if (diff <= 7) return { key: "week", label: "This Week", order: 3 };
-              if (diff <= 30) return { key: "month", label: "This Month", order: 4 };
-              return { key: "later", label: "Later", order: 5 };
-            };
-            const groups = new Map<string, { label: string; order: number; items: Task[] }>();
-            for (const t of visibleTasks) {
-              const g = groupTask(t);
-              if (!groups.has(g.key)) groups.set(g.key, { label: g.label, order: g.order, items: [] });
-              groups.get(g.key)!.items.push(t);
-            }
-            const sorted = Array.from(groups.entries()).sort((a, b) => a[1].order - b[1].order);
+            // Table view
             return (
-              <div className="space-y-6">
-                {sorted.map(([key, grp]) => (
-                  <div key={key} className="space-y-2">
-                    <div className="flex items-center gap-2 px-1">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
-                      <span className="text-xs text-muted-foreground">{grp.items.length}</span>
-                    </div>
-                    {renderItems(grp.items)}
-                  </div>
-                ))}
-                {sorted.length === 0 && (
-                  <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>
-                )}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="text-left font-medium px-3 py-2">Title</th>
+                      <th className="text-left font-medium px-3 py-2">Assignee</th>
+                      <th className="text-left font-medium px-3 py-2">Status</th>
+                      <th className="text-left font-medium px-3 py-2">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {unifiedFeed.length === 0 ? (
+                      <tr><td colSpan={4} className="text-center text-muted-foreground py-10">No tasks.</td></tr>
+                    ) : unifiedFeed.map(row => {
+                      if (row.kind === "human") {
+                        const t = row.task;
+                        return (
+                          <tr key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(t)}>
+                            <td className="px-3 py-2">{t.title}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{getName(t.assigned_to)}</td>
+                            <td className="px-3 py-2">
+                              <SharedStatusBadge
+                                label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
+                                variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
+                                dot
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        );
+                      }
+                      const t = row.task;
+                      const meta = getAgentMeta(t.assigned_to);
+                      const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+                      return (
+                        <tr key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => setAgentTaskPeekId(t.id)}>
+                          <td className="px-3 py-2 flex items-center gap-2">
+                            <Sparkles className="h-3 w-3 shrink-0" style={{ color: meta?.accent_color || "#7F77DD" }} />
+                            {t.title}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
+                          <td className="px-3 py-2">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             );
           })()}
