@@ -67,7 +67,7 @@ type AgentTask = {
 type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
 
 const AGENT_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  backlog: { label: "To do", cls: "bg-muted text-muted-foreground" },
+  backlog: { label: "Backlog", cls: "bg-muted text-muted-foreground" },
   pending: { label: "To do", cls: "bg-muted text-muted-foreground" },
   doing: { label: "In progress", cls: "bg-blue-100 text-blue-800" },
   review: { label: "Albus reviewing", cls: "bg-purple-100 text-purple-800" },
@@ -442,7 +442,7 @@ export default function ExecutionPage() {
         type: data.agent_type || "general",
         repo: data.agent_repo || null,
         project_id: data.project_id || null,
-        status: "pending",
+        status: "backlog",
         priority: "normal",
         created_by: "human",
       } as any);

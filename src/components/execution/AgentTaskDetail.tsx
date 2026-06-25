@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Loader2, Sparkles } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Loader2, Sparkles, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -21,6 +24,7 @@ type AgentTask = {
   result: string | null;
   error: string | null;
   notes: string | null;
+  context: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   is_system_task: boolean;
@@ -45,23 +49,50 @@ const cleanResult = (raw: string) =>
 
 /**
  * Detail view for an AI-assigned task in the unified Execution Hub board.
- * Mirrors the human TaskPeek pattern: click in, see the brief, change status.
- * The "Agent log" tab reuses AgentActivityDrillDown scoped to this task as
- * its own dense lane, separate from the plain details view.
+ * Title/description are editable. The feedback box is the "talking to the
+ * agent" loop: it appends to description + context.human_feedback and flips
+ * status back to pending — the one signal guaranteed to wake a worker that
+ * polls agent_tasks (confirmed for jr-coder-worker; assumed contract for
+ * other agents, whose pickup logic lives outside this repo).
  */
 export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; open: boolean; onClose: () => void }) {
   const [task, setTask] = useState<AgentTask | null>(null);
+  const [agentName, setAgentName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [feedback, setFeedback] = useState("");
 
   const fetchTask = async () => {
     const { data, error } = await supabase.from("agent_tasks").select("*").eq("id", taskId).single();
-    if (error) toast.error(error.message);
-    else setTask(data as any);
+    if (error) { toast.error(error.message); setLoading(false); return; }
+    const t = data as any;
+    setTask(t);
+    setEditTitle(t.title);
+    setEditDescription(t.description || "");
     setLoading(false);
+
+    const { data: agent } = await supabase.from("agents").select("name").eq("slug", t.assigned_to).maybeSingle();
+    setAgentName(agent?.name || null);
   };
 
   useEffect(() => { setLoading(true); fetchTask(); }, [taskId]);
+
+  const hasEdits = task && (editTitle !== task.title || editDescription !== (task.description || ""));
+
+  const saveEdits = async () => {
+    if (!task || !editTitle.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("agent_tasks")
+      .update({ title: editTitle.trim(), description: editDescription })
+      .eq("id", task.id);
+    if (error) toast.error(error.message);
+    else { setTask({ ...task, title: editTitle.trim(), description: editDescription }); toast.success("Saved"); }
+    setSaving(false);
+  };
 
   const updateStatus = async (status: Status) => {
     if (!task) return;
@@ -70,6 +101,29 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
     if (error) toast.error(error.message);
     else { setTask({ ...task, status }); toast.success("Status updated"); }
     setSaving(false);
+  };
+
+  const sendFeedback = async () => {
+    if (!task || !feedback.trim()) return;
+    setSending(true);
+    const stamp = `\n\n— Update, ${format(new Date(), "MMM d, h:mm a")}:\n${feedback.trim()}`;
+    const newDescription = (task.description || "") + stamp;
+    const existingFeedback = Array.isArray((task.context as any)?.human_feedback) ? (task.context as any).human_feedback : [];
+    const newContext = {
+      ...(task.context || {}),
+      human_feedback: [...existingFeedback, { at: new Date().toISOString(), text: feedback.trim() }],
+    };
+    const { error } = await supabase.from("agent_tasks")
+      .update({ description: newDescription, context: newContext, status: "pending" })
+      .eq("id", task.id);
+    if (error) toast.error(error.message);
+    else {
+      setTask({ ...task, description: newDescription, context: newContext, status: "pending" });
+      setEditDescription(newDescription);
+      setFeedback("");
+      toast.success(`Sent back to ${agentName || task.assigned_to}`);
+    }
+    setSending(false);
   };
 
   return (
@@ -86,7 +140,7 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
                 <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#7F77DD] text-white shrink-0">
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
-                <span className="leading-snug">{task.title}</span>
+                <span>AI task</span>
               </DialogTitle>
             </DialogHeader>
 
@@ -97,10 +151,15 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 mt-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Title</Label>
+                  <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} disabled={saving} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Assigned to</Label>
-                    <p className="text-sm">{task.assigned_to}{task.is_system_task && " · system"}</p>
+                    <p className="text-sm py-2">{agentName || task.assigned_to}{task.is_system_task && " · system"}</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Status</Label>
@@ -113,12 +172,44 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
                   </div>
                 </div>
 
-                {task.description && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Description</p>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Description</Label>
+                  <Textarea
+                    value={editDescription}
+                    onChange={e => setEditDescription(e.target.value)}
+                    rows={5}
+                    disabled={saving}
+                    className="text-sm whitespace-pre-wrap"
+                  />
+                </div>
+
+                {hasEdits && (
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={saveEdits} disabled={saving || !editTitle.trim()}>
+                      {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />} Save changes
+                    </Button>
                   </div>
                 )}
+
+                <div className={`rounded-lg border p-3 space-y-2 ${task.status === "needs_input" ? "border-red-200 bg-red-50" : "border-border bg-muted/30"}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={task.status === "needs_input" ? { color: "#991B1B" } : undefined}>
+                    {task.status === "needs_input" ? "This task needs your input" : `Feedback for ${agentName || task.assigned_to}`}
+                  </p>
+                  <Textarea
+                    value={feedback}
+                    onChange={e => setFeedback(e.target.value)}
+                    placeholder={`Add context or instructions for ${agentName || task.assigned_to}…`}
+                    rows={3}
+                    disabled={sending}
+                    className="text-sm bg-background"
+                  />
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={sendFeedback} disabled={sending || !feedback.trim()}>
+                      {sending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                      Send back to {agentName || task.assigned_to}
+                    </Button>
+                  </div>
+                </div>
 
                 {task.notes && (
                   <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
