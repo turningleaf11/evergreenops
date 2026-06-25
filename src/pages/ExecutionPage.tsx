@@ -27,8 +27,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
-  User, Repeat,
+  User, Repeat, Sparkles,
 } from "lucide-react";
+import { AgentTaskDetail } from "@/components/execution/AgentTaskDetail";
 import { toast } from "sonner";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
@@ -36,6 +37,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusBadge as SharedStatusBadge, TASK_STATUS_VARIANT, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
+import { CouncilPanel } from "@/components/execution/CouncilTab";
+import { usePageAccess } from "@/hooks/usePageAccess";
 
 type Goal = {
   id: string; title: string; description: string; quarter: string; year: number;
@@ -55,6 +58,24 @@ type Task = {
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
   tags: string[]; is_recurring?: boolean; recurrence_rule?: any; recurring_parent_id?: string | null;
 };
+type AgentTask = {
+  id: string; title: string; description: string | null; assigned_to: string;
+  status: string; priority: string; created_at: string; updated_at: string;
+  is_system_task: boolean; context: Record<string, unknown> | null;
+};
+type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
+
+const AGENT_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  backlog: { label: "To do", cls: "bg-muted text-muted-foreground" },
+  pending: { label: "To do", cls: "bg-muted text-muted-foreground" },
+  doing: { label: "In progress", cls: "bg-blue-100 text-blue-800" },
+  review: { label: "Albus reviewing", cls: "bg-purple-100 text-purple-800" },
+  approved: { label: "Albus reviewing", cls: "bg-purple-100 text-purple-800" },
+  needs_input: { label: "Needs your input", cls: "bg-red-100 text-red-800" },
+  done: { label: "Done", cls: "bg-green-100 text-green-800" },
+  cancelled: { label: "Cancelled", cls: "bg-muted text-muted-foreground" },
+};
+
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
   department_id: string | null; priority: number; status: string;
@@ -160,11 +181,17 @@ function applyFilters<T extends { title: string; status: string; priority?: stri
 
 export default function ExecutionPage() {
   const { user, isAdmin } = useAuth();
+  const { allowed: councilAllowed } = usePageAccess("ai_hub", "primary_admin");
   const { departments } = useDepartments();
   const navigate = useNavigate();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
+  const [agentsMeta, setAgentsMeta] = useState<AgentMeta[]>([]);
+  const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
+  const [showSystemTasks, setShowSystemTasks] = useState(false);
+  const [agentTaskPeekId, setAgentTaskPeekId] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
   const [stageColors, setStageColors] = useState<Record<string, string>>({});
@@ -218,18 +245,22 @@ export default function ExecutionPage() {
   const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "due_date" | "priority" | "project">("none");
 
   const fetchAll = useCallback(async () => {
-    const [g, p, t, pr, i] = await Promise.all([
+    const [g, p, t, pr, i, at, ag] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
+      supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
+      supabase.from("agents").select("slug, name, emoji, avatar_url, accent_color"),
     ]);
     if (g.data) setGoals(g.data as any);
     if (p.data) setProjects(p.data as any);
     if (t.data) setTasks(t.data as any);
     if (pr.data) setProfiles(pr.data);
     if (i.data) setIssues(i.data as any);
+    if (at.data) setAgentTasks(at.data as any);
+    if (ag.data) setAgentsMeta(ag.data as any);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -249,6 +280,44 @@ export default function ExecutionPage() {
     const base = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.id);
     return applyFilters(base, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir);
   }, [tasks, isAdmin, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
+
+  const visibleAgentTasks = useMemo(
+    () => agentTasks.filter(t => showSystemTasks || !t.is_system_task),
+    [agentTasks, showSystemTasks]
+  );
+  const systemHiddenCount = useMemo(
+    () => agentTasks.filter(t => t.is_system_task).length,
+    [agentTasks]
+  );
+  const needsInputCount = useMemo(
+    () => agentTasks.filter(t => t.status === "needs_input").length,
+    [agentTasks]
+  );
+  const getAgentMeta = (slug: string) => agentsMeta.find(a => a.slug === slug);
+
+  // Unified Tasks tab feed (list view only): human tasks + agent tasks merged
+  // into one chronological feed, per the AI Hub / Execution Hub task-board merge.
+  type UnifiedRow = { kind: "human"; task: Task } | { kind: "agent"; task: AgentTask };
+  const unifiedFeed = useMemo<UnifiedRow[]>(() => {
+    let humanRows: UnifiedRow[] = [];
+    let agentRows: UnifiedRow[] = [];
+    if (taskSourceFilter === "all") {
+      humanRows = visibleTasks.map(task => ({ kind: "human" as const, task }));
+      agentRows = visibleAgentTasks.map(task => ({ kind: "agent" as const, task }));
+    } else if (taskSourceFilter === "mine") {
+      humanRows = applyFilters(
+        tasks.filter(t => t.assigned_to === user?.id),
+        tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir
+      ).map(task => ({ kind: "human" as const, task }));
+    } else if (taskSourceFilter === "ai") {
+      agentRows = visibleAgentTasks.map(task => ({ kind: "agent" as const, task }));
+    } else if (taskSourceFilter === "needs_input") {
+      agentRows = visibleAgentTasks.filter(t => t.status === "needs_input").map(task => ({ kind: "agent" as const, task }));
+    }
+    return [...humanRows, ...agentRows].sort(
+      (a, b) => new Date(b.task.created_at).getTime() - new Date(a.task.created_at).getTime()
+    );
+  }, [taskSourceFilter, visibleTasks, visibleAgentTasks, tasks, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
 
   const goalsByQuarter = goals.reduce<Record<string, Goal[]>>((acc, g) => {
     const key = `${g.year} ${g.quarter}`;
@@ -420,6 +489,7 @@ export default function ExecutionPage() {
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="tasks">My Tasks</TabsTrigger>
             <TabsTrigger value="cadences" className="gap-1.5"><Repeat className="h-3.5 w-3.5" /> Cadences</TabsTrigger>
+            {councilAllowed && <TabsTrigger value="council">Council</TabsTrigger>}
             <TabsTrigger value="issues" className="flex items-center gap-1.5">
               Issues
               {openIssues.length > 0 && (
@@ -745,7 +815,96 @@ export default function ExecutionPage() {
             )}
           </ViewControls>
 
+          {tv.view === "list" && (
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { key: "all", label: "All" },
+                  { key: "mine", label: "My tasks" },
+                  { key: "ai", label: "AI tasks" },
+                ] as const).map(f => (
+                  <Button
+                    key={f.key}
+                    size="sm"
+                    variant={taskSourceFilter === f.key ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setTaskSourceFilter(f.key)}
+                  >
+                    {f.label}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant={taskSourceFilter === "needs_input" ? "default" : "outline"}
+                  className={`h-7 text-xs ${taskSourceFilter !== "needs_input" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
+                  onClick={() => setTaskSourceFilter("needs_input")}
+                >
+                  Needs input {needsInputCount > 0 && `(${needsInputCount})`}
+                </Button>
+              </div>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
+                Show system tasks ({systemHiddenCount} hidden)
+              </label>
+            </div>
+          )}
+
           {(() => {
+            if (tv.view === "list") {
+              return (
+                <div className="flex flex-col gap-2">
+                  {unifiedFeed.length === 0 ? (
+                    <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>
+                  ) : unifiedFeed.map(row => {
+                    if (row.kind === "human") {
+                      const t = row.task;
+                      return (
+                        <Card key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDrawer(t)}>
+                          <CardContent className="py-3 flex items-center gap-3">
+                            <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
+                              {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm truncate">{t.title}</p>
+                              <p className="text-xs text-muted-foreground truncate">{getName(t.assigned_to)}</p>
+                            </div>
+                            <SharedStatusBadge
+                              label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
+                              variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
+                              dot
+                            />
+                          </CardContent>
+                        </Card>
+                      );
+                    }
+                    const t = row.task;
+                    const meta = getAgentMeta(t.assigned_to);
+                    const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+                    return (
+                      <Card key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setAgentTaskPeekId(t.id)}>
+                        <CardContent className="py-3 flex items-center gap-3">
+                          <span
+                            className="flex items-center justify-center h-7 w-7 rounded-full text-white shrink-0"
+                            style={{ background: meta?.accent_color || "#7F77DD" }}
+                          >
+                            {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{t.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {meta?.name || t.assigned_to} · AI agent{t.is_system_task ? " · system" : ""}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            }
             if (tv.view === "board") {
               return (
                 <KanbanBoard
@@ -863,6 +1022,13 @@ export default function ExecutionPage() {
         <TabsContent value="cadences" className="space-y-4">
           <CadencesTab />
         </TabsContent>
+
+        {/* Council tab — cross-project multi-agent Q&A, admin-grant gated */}
+        {councilAllowed && (
+          <TabsContent value="council" className="space-y-4">
+            <CouncilPanel />
+          </TabsContent>
+        )}
 
         {/* Issues tab */}
         <TabsContent value="issues" className="space-y-4">
@@ -1075,6 +1241,14 @@ export default function ExecutionPage() {
           id={taskPeekId}
           open={!!taskPeekId}
           onClose={() => setTaskPeekId(null)}
+        />
+      )}
+
+      {agentTaskPeekId && (
+        <AgentTaskDetail
+          taskId={agentTaskPeekId}
+          open={!!agentTaskPeekId}
+          onClose={() => setAgentTaskPeekId(null)}
         />
       )}
 

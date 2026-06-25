@@ -52,27 +52,33 @@ function relTime(iso: string) {
   try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); } catch { return ""; }
 }
 
-export function AgentActivityDrillDown() {
+export function AgentActivityDrillDown({ taskId }: { taskId?: string } = {}) {
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [logs, setLogs] = useState<AiLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(taskId ? [taskId] : []));
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [{ data: tRows }, { data: lRows }] = await Promise.all([
-        sb.from("agent_tasks").select("*").order("updated_at", { ascending: false }).limit(50),
-        sb.from("ai_logs").select("*").order("created_at", { ascending: false }).limit(500),
-      ]);
+      let taskQuery = sb.from("agent_tasks").select("*").order("updated_at", { ascending: false });
+      let logQuery = sb.from("ai_logs").select("*").order("created_at", { ascending: false });
+      if (taskId) {
+        taskQuery = taskQuery.eq("id", taskId);
+        logQuery = logQuery.eq("task_id", taskId);
+      } else {
+        taskQuery = taskQuery.limit(50);
+        logQuery = logQuery.limit(500);
+      }
+      const [{ data: tRows }, { data: lRows }] = await Promise.all([taskQuery, logQuery]);
       if (cancelled) return;
       setTasks((tRows ?? []) as AgentTask[]);
       setLogs((lRows ?? []) as AiLog[]);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [taskId]);
 
   const logsByTask = useMemo(() => {
     const m = new Map<string, AiLog[]>();
