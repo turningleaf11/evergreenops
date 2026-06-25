@@ -61,7 +61,8 @@ type Task = {
 type AgentTask = {
   id: string; title: string; description: string | null; assigned_to: string;
   status: string; priority: string; created_at: string; updated_at: string;
-  due_date: string | null; is_system_task: boolean; context: Record<string, unknown> | null;
+  due_date: string | null; is_system_task: boolean; project_id: string | null;
+  context: Record<string, unknown> | null;
 };
 type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
 
@@ -193,7 +194,7 @@ export default function ExecutionPage() {
   const [agentsMeta, setAgentsMeta] = useState<AgentMeta[]>([]);
   const [repos, setRepos] = useState<{ slug: string; name: string; github_repo: string }[]>([]);
   const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
-  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee">("none");
+  const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee" | "project">("none");
   const [showSystemTasks, setShowSystemTasks] = useState(false);
   const [agentTaskPeekId, setAgentTaskPeekId] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -372,6 +373,11 @@ export default function ExecutionPage() {
       } else if (taskGroupBy === "due_date") {
         const d = dueDateBucket(row);
         key = d.key; label = d.label; order = d.order;
+      } else if (taskGroupBy === "project") {
+        const proj = projects.find(p => p.id === row.task.project_id);
+        key = row.task.project_id || "none";
+        label = proj?.title || "No Project";
+        order = proj ? projects.indexOf(proj) : 9999;
       } else {
         label = assigneeLabel(row);
         key = label;
@@ -435,8 +441,7 @@ export default function ExecutionPage() {
         assigned_to: data.assigned_to,
         type: data.agent_type || "general",
         repo: data.agent_repo || null,
-        // project_id intentionally omitted until the agent_tasks.project_id
-        // migration is confirmed and applied — see task tracking note.
+        project_id: data.project_id || null,
         status: "pending",
         priority: "normal",
         created_by: "human",
@@ -926,6 +931,7 @@ export default function ExecutionPage() {
                     <SelectItem value="priority">Group: Priority</SelectItem>
                     <SelectItem value="due_date">Group: Due Date</SelectItem>
                     <SelectItem value="assignee">Group: Assignee</SelectItem>
+                    <SelectItem value="project">Group: Project</SelectItem>
                   </SelectContent>
                 </Select>
               )}
