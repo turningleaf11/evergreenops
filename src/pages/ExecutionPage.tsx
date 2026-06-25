@@ -486,7 +486,7 @@ export default function ExecutionPage() {
           <TabsList>
             <TabsTrigger value="goals">Goals</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="cadences" className="gap-1.5"><Repeat className="h-3.5 w-3.5" /> Cadences</TabsTrigger>
             {councilAllowed && <TabsTrigger value="council">Council</TabsTrigger>}
             <TabsTrigger value="issues" className="flex items-center gap-1.5">
