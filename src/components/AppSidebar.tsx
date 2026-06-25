@@ -86,16 +86,20 @@ export function AppSidebar() {
     { title: "Training", url: "/training", icon: GraduationCap },
   ];
 
+  // Process Map, Meetings, Whiteboards, and Lists are still being developed --
+  // temporarily restricted to primary admin only (not the usual admin/leader
+  // baseline or per-user grants). Revert to the commented conditions below
+  // when ready to reopen them.
   const workNav = isOrbitOnly ? [] : [
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
-    ...(isAdmin || can("process_map") ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
+    ...(isPrimaryAdmin /* was: isAdmin || can("process_map") */ ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
-    ...(isLeader || can("meetings") ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
+    ...(isPrimaryAdmin /* was: isLeader || can("meetings") */ ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },
-    { title: "Whiteboards", url: "/whiteboards", icon: Layers },
-    ...(isLeader || can("lists") ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
+    ...(isPrimaryAdmin /* was: unconditional */ ? [{ title: "Whiteboards", url: "/whiteboards", icon: Layers }] : []),
+    ...(isPrimaryAdmin /* was: isLeader || can("lists") */ ? [{ title: "Lists", url: "/databases", icon: DbIcon }] : []),
   ];
 
   const reportingNav = isOrbitOnly ? [] : [

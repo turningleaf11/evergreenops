@@ -219,8 +219,8 @@ const App = () => (
                 {/* People — Directory + Org Chart visible to all; People Ops tab is admin-gated inside the page */}
                 <Route path="/people" element={<PeoplePage />} />
 
-                {/* Admin baseline + per-user grants */}
-                <Route element={<PageRoute pageKey="process_map" minRole="admin" />}>
+                {/* TEMPORARY: still being developed, gated to primary admin only. Revert to PageRoute pageKey="process_map" minRole="admin" when ready to reopen. */}
+                <Route element={<PrimaryAdminRoute />}>
                   <Route path="/process-map" element={<ProcessMapPage />} />
                 </Route>
 
@@ -249,14 +249,21 @@ const App = () => (
                   <Route path="/tasks/:id" element={<TaskDetailPage />} />
                   <Route path="/issues" element={<Navigate to="/execution" replace />} />
                 </Route>
-                <Route element={<PageRoute pageKey="lists" minRole="leader" />}>
+                {/* TEMPORARY: still being developed, gated to primary admin only. Revert to PageRoute pageKey="lists" minRole="leader" when ready to reopen. */}
+                <Route element={<PrimaryAdminRoute />}>
                   <Route path="/databases" element={<DatabasesPage />} />
                   <Route path="/databases/:dbId" element={<DatabasesPage />} />
                 </Route>
 
-                {/* Leader baseline + per-user grants */}
-                <Route element={<PageRoute pageKey="meetings" minRole="leader" />}>
+                {/* TEMPORARY: still being developed, gated to primary admin only. Revert to PageRoute pageKey="meetings" minRole="leader" when ready to reopen. */}
+                <Route element={<PrimaryAdminRoute />}>
                   <Route path="/meetings" element={<MeetingsPage />} />
+                </Route>
+
+                {/* TEMPORARY: still being developed, gated to primary admin only. Was open to all authenticated users -- revert that when ready to reopen. */}
+                <Route element={<PrimaryAdminRoute />}>
+                  <Route path="/whiteboards" element={<WhiteboardsPage />} />
+                  <Route path="/whiteboards/:id" element={<WhiteboardDetailPage />} />
                 </Route>
 
                 {/* Sync — leadership comms layer (CEO + leaders) */}
@@ -272,8 +279,6 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/training" element={<TrainingPage />} />
                 <Route path="/notes" element={<NotesPage />} />
-                <Route path="/whiteboards" element={<WhiteboardsPage />} />
-                <Route path="/whiteboards/:id" element={<WhiteboardDetailPage />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
                 <Route path="/feed" element={<CompanyFeedPage />} />
                 <Route path="/forms/list/:slug" element={<InternalFormPage />} />
