@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Target, FolderKanban, Calendar, User } from "lucide-react";
-import { StatusBadge, TASK_STATUS_VARIANT } from "@/components/shared/StatusBadge";
+import { Target, FolderKanban, User } from "lucide-react";
+import { StatusPill } from "@/components/primitives";
 
 interface KeyResult { label?: string; title?: string; target?: string | number; current?: string | number; done?: boolean; }
 
@@ -15,10 +15,6 @@ interface GoalCardProps {
   ownerName: string;
   onClick: () => void;
 }
-
-const statusLabels: Record<string, string> = {
-  on_track: "On Track", behind: "Behind", at_risk: "At Risk", done: "Done", not_done: "Not Done",
-};
 
 function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
@@ -72,11 +68,7 @@ export default function GoalCard({ goal, projects, ownerName, onClick }: GoalCar
               <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{goal.description}</p>
             )}
           </div>
-          <StatusBadge
-            label={statusLabels[goal.status] || goal.status}
-            variant={TASK_STATUS_VARIANT[goal.status] ?? "default"}
-            size="xs"
-          />
+          <StatusPill kind="goal" value={goal.status} size="sm" />
         </div>
 
         {/* Progress */}

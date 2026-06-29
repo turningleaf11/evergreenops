@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -15,11 +14,7 @@ import {
   LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  StatusBadge,
-  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
-  PRIORITY_VARIANT, PRIORITY_LABEL,
-} from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
@@ -27,20 +22,6 @@ import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ProjectChatRail from "@/components/execution/ProjectChatRail";
 import GoalPeek from "@/components/execution/GoalPeek";
-
-const projectStatusOptions = [
-  { value: "not_started", label: "Not Started" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-  { value: "blocked", label: "Blocked" },
-];
-
-const priorityOptions = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" },
-];
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -187,43 +168,19 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap mb-6 text-sm">
-            <Select value={project.status} onValueChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}>
-              <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                <StatusBadge
-                  label={PROJECT_STATUS_LABEL[project.status] ?? project.status}
-                  variant={PROJECT_STATUS_VARIANT[project.status] ?? "default"}
-                  dot
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {projectStatusOptions.map(s => (
-                  <SelectItem key={s.value} value={s.value}>
-                    <span className="flex items-center gap-2">
-                      <StatusBadge label={s.label} variant={PROJECT_STATUS_VARIANT[s.value] ?? "default"} dot />
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <StatusPill
+              kind="project"
+              value={project.status}
+              onChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}
+            />
 
             <span className="text-muted-foreground/30">·</span>
 
-            <Select value={project.priority || "medium"} onValueChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}>
-              <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                <StatusBadge
-                  label={PRIORITY_LABEL[project.priority] ?? project.priority}
-                  variant={PRIORITY_VARIANT[project.priority] ?? "default"}
-                  size="xs"
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {priorityOptions.map(p => (
-                  <SelectItem key={p.value} value={p.value}>
-                    <StatusBadge label={p.label} variant={PRIORITY_VARIANT[p.value] ?? "default"} size="xs" />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PriorityPill
+              value={project.priority || "medium"}
+              size="sm"
+              onChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}
+            />
 
             <span className="text-muted-foreground/30">·</span>
 

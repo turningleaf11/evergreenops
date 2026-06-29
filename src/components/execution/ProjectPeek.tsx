@@ -32,28 +32,9 @@ import { cn } from "@/lib/utils";
 import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  StatusBadge,
-  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
-  PRIORITY_VARIANT, PRIORITY_LABEL,
-} from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 
 const sb = supabase as any;
-
-const projectStatusOptions = [
-  { value: "not_started", label: "Not Started" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-  { value: "blocked", label: "Blocked" },
-];
-
-const priorityOptions = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" },
-];
 
 interface Props {
   projectId: string | null;
@@ -201,43 +182,11 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                   </DropdownMenu>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Select value={project.status} onValueChange={v => update({ status: v })}>
-                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                      <StatusBadge
-                        label={PROJECT_STATUS_LABEL[project.status] ?? project.status}
-                        variant={PROJECT_STATUS_VARIANT[project.status] ?? "default"}
-                        dot
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projectStatusOptions.map(s => (
-                        <SelectItem key={s.value} value={s.value}>
-                          <span className="flex items-center gap-2">
-                            <StatusBadge label={s.label} variant={PROJECT_STATUS_VARIANT[s.value] ?? "default"} dot />
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <StatusPill kind="project" value={project.status} onChange={v => update({ status: v })} />
                   {project.priority && (
                     <>
                       <span className="text-muted-foreground/40">·</span>
-                      <Select value={project.priority} onValueChange={v => update({ priority: v })}>
-                        <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                          <StatusBadge
-                            label={PRIORITY_LABEL[project.priority] ?? project.priority}
-                            variant={PRIORITY_VARIANT[project.priority] ?? "default"}
-                            size="xs"
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {priorityOptions.map(p => (
-                            <SelectItem key={p.value} value={p.value}>
-                              <StatusBadge label={p.label} variant={PRIORITY_VARIANT[p.value] ?? "default"} size="xs" />
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PriorityPill value={project.priority} size="sm" onChange={v => update({ priority: v })} />
                     </>
                   )}
                   {owner && (
@@ -319,7 +268,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                           {t.title}
                         </span>
                         {t.priority && t.priority !== "medium" && (
-                          <StatusBadge label={PRIORITY_LABEL[t.priority] ?? t.priority} variant={PRIORITY_VARIANT[t.priority] ?? "default"} size="xs" />
+                          <PriorityPill value={t.priority} size="sm" />
                         )}
                         {t.assigned_to && (
                           <span className="text-[10px] text-muted-foreground shrink-0">

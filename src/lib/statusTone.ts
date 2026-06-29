@@ -50,18 +50,31 @@ const PROJECT: Record<string, Tone> = {
   done:        tone("success", "Done"),
 };
 
+// Agent (AI) tasks share this same registry as human tasks — an agent
+// task should never look like a different product from a human one.
+// The extra values below (backlog/pending/doing/review/approved/
+// needs_input/cancelled) are stages a human task doesn't have; add more
+// here if agents grow new stages.
 const TASK: Record<string, Tone> = {
   todo:        tone("neutral", "To Do"),
+  backlog:     tone("neutral", "Backlog"),
+  pending:     tone("neutral", "To Do"),
   in_progress: tone("info",    "In Progress"),
+  doing:       tone("info",    "In Progress"),
+  review:      tone("accent",  "Reviewing"),
+  approved:    tone("accent",  "Reviewing"),
+  needs_input: tone("danger",  "Needs Input"),
   blocked:     tone("danger",  "Blocked"),
   done:        tone("success", "Done"),
+  cancelled:   tone("neutral", "Cancelled"),
 };
 
 const ISSUE: Record<string, Tone> = {
-  open:      tone("warning", "Open"),
-  in_review: tone("info",    "In Review"),
-  resolved:  tone("success", "Resolved"),
-  closed:    tone("neutral", "Closed"),
+  open:        tone("warning", "Open"),
+  identifying: tone("info",    "Identifying"),
+  discussing:  tone("accent",  "Discussing"),
+  solved:      tone("success", "Solved"),
+  dismissed:   tone("neutral", "Dismissed"),
 };
 
 const DEAL: Record<string, Tone> = {

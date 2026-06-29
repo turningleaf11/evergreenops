@@ -17,11 +17,7 @@ import LinkProjectPicker from "./LinkProjectPicker";
 import { OwnerPicker, FollowersPicker } from "@/components/crm/PeoplePickers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { appConfirm } from "@/components/AppConfirm";
-import {
-  StatusBadge,
-  GOAL_STATUS_VARIANT, GOAL_STATUS_LABEL,
-  PROJECT_STATUS_VARIANT, PROJECT_STATUS_LABEL,
-} from "@/components/shared/StatusBadge";
+import { StatusPill } from "@/components/primitives";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
@@ -34,14 +30,6 @@ interface GoalPeekProps {
   onChanged: () => void;
   onOpenProject: (projectId: string) => void;
 }
-
-const goalStatusOptions = [
-  { value: "on_track", label: "On Track" },
-  { value: "behind", label: "Behind" },
-  { value: "at_risk", label: "At Risk" },
-  { value: "done", label: "Done" },
-  { value: "not_done", label: "Not Done" },
-];
 
 export default function GoalPeek({ goalId, onClose, allProjects, getName, onChanged, onOpenProject }: GoalPeekProps) {
   const [goal, setGoal] = useState<any>(null);
@@ -190,24 +178,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                 />
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Select value={goal.status} onValueChange={v => update({ status: v })}>
-                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                      <StatusBadge
-                        label={GOAL_STATUS_LABEL[goal.status] ?? goal.status}
-                        variant={GOAL_STATUS_VARIANT[goal.status] ?? "default"}
-                        dot
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {goalStatusOptions.map(s => (
-                        <SelectItem key={s.value} value={s.value}>
-                          <span className="flex items-center gap-2">
-                            <StatusBadge label={s.label} variant={GOAL_STATUS_VARIANT[s.value] ?? "default"} dot />
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <StatusPill kind="goal" value={goal.status} onChange={v => update({ status: v })} />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -290,11 +261,7 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                         className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/30 hover:bg-muted/60 cursor-pointer group transition-colors"
                         onClick={() => onOpenProject(p.id)}
                       >
-                        <StatusBadge
-                          label={PROJECT_STATUS_LABEL[p.status] ?? p.status}
-                          variant={PROJECT_STATUS_VARIANT[p.status] ?? "default"}
-                          size="xs"
-                        />
+                        <StatusPill kind="project" value={p.status} size="sm" />
                         <span className="text-sm font-medium truncate flex-1">{p.title}</span>
                         <span className="text-[11px] text-muted-foreground">{getName(p.owner_id)}</span>
                         <button

@@ -13,9 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Search, ArrowRight, CheckCircle2, MessageSquare, Lightbulb, X, LayoutGrid, List } from "lucide-react";
-import { StatusBadge, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 import { toast } from "@/hooks/use-toast";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+
+// Issue priority is stored as 1/2/3 — map to PriorityPill's string scale.
+const ISSUE_PRIORITY_KEY: Record<number, string> = { 1: "high", 2: "medium", 3: "low" };
 
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -24,12 +27,6 @@ type Issue = {
   resolved_action_type: string; resolved_action_id: string | null;
   created_at: string; updated_at: string;
   category: string; assigned_to: string | null; tags: string[];
-};
-
-const priorityLabels: Record<number, { label: string; color: string }> = {
-  1: { label: "High", color: "bg-red-100 text-red-800" },
-  2: { label: "Medium", color: "bg-yellow-100 text-yellow-800" },
-  3: { label: "Low", color: "bg-green-100 text-green-800" },
 };
 
 const categoryLabels: Record<string, string> = {
@@ -144,11 +141,11 @@ export default function IssuesPage() {
       <CardContent className="py-3">
         <h3 className="font-medium text-sm">{issue.title}</h3>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <StatusBadge label={PRIORITY_LABEL[issue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[issue.priority] ?? "warning"} dot />
-          <StatusBadge label={categoryLabels[issue.category] || issue.category} variant="default" />
+          <PriorityPill value={ISSUE_PRIORITY_KEY[issue.priority] ?? "medium"} size="sm" />
+          <Badge variant="outline" className="text-xs">{categoryLabels[issue.category] || issue.category}</Badge>
           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
           {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
-          <StatusBadge label={issue.status} variant={issue.status === "solved" ? "success" : issue.status === "dismissed" ? "muted" : "info"} />
+          <StatusPill kind="issue" value={issue.status} size="sm" />
         </div>
       </CardContent>
     </Card>
@@ -289,7 +286,7 @@ export default function IssuesPage() {
                       <CardContent className="p-3">
                         <p className="text-sm font-medium">{issue.title}</p>
                         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                          <Badge className={`text-[10px] ${priorityLabels[issue.priority]?.color}`}>{priorityLabels[issue.priority]?.label}</Badge>
+                          <PriorityPill value={ISSUE_PRIORITY_KEY[issue.priority] ?? "medium"} size="sm" />
                           <Badge variant="outline" className="text-[10px]">{categoryLabels[issue.category] || issue.category}</Badge>
                         </div>
                         {issue.assigned_to && (
@@ -318,7 +315,7 @@ export default function IssuesPage() {
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs">{categoryLabels[selectedIssue.category] || selectedIssue.category}</Badge>
-                <Badge className={`text-xs ${priorityLabels[selectedIssue.priority]?.color}`}>{priorityLabels[selectedIssue.priority]?.label}</Badge>
+                <PriorityPill value={ISSUE_PRIORITY_KEY[selectedIssue.priority] ?? "medium"} size="sm" />
                 {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
                 <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
               </div>

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
-import { StatusBadge, AGENT_TASK_STATUS_VARIANT, AGENT_TASK_STATUS_LABEL } from "@/components/shared/StatusBadge";
+import { StatusPill } from "@/components/primitives";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 
@@ -29,8 +28,6 @@ type AgentTask = {
   updated_at: string;
   is_system_task: boolean;
 };
-
-const STATUS_OPTIONS: Status[] = ["backlog", "pending", "doing", "review", "approved", "needs_input", "done", "cancelled"];
 
 const cleanResult = (raw: string) =>
   raw.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
@@ -140,37 +137,21 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
                 </SheetHeader>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Select value={task.status} onValueChange={(v) => updateStatus(v as Status)} disabled={saving}>
-                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                      <StatusBadge
-                        label={AGENT_TASK_STATUS_LABEL[task.status] ?? task.status}
-                        variant={AGENT_TASK_STATUS_VARIANT[task.status] ?? "default"}
-                        dot
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map(s => (
-                        <SelectItem key={s} value={s}>
-                          <StatusBadge label={AGENT_TASK_STATUS_LABEL[s]} variant={AGENT_TASK_STATUS_VARIANT[s] ?? "default"} dot />
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <StatusPill kind="task" value={task.status} onChange={v => !saving && updateStatus(v as Status)} />
                 </div>
               </div>
 
               {/* Body */}
               <div className="px-6 py-5 space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 text-sm">
-                    <span
-                      className="flex items-center justify-center h-5 w-5 rounded-full text-white text-[9px] shrink-0"
-                      style={{ background: agentMeta?.accent_color || "#7F77DD" }}
-                    >
-                      {agentMeta?.emoji ?? <User className="h-2.5 w-2.5" />}
-                    </span>
-                    <span>{agentName || task.assigned_to}{task.is_system_task && " · system"}</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex items-center justify-center h-6 w-6 rounded-full ring-2 ring-background text-white text-[11px] shrink-0"
+                    style={{ background: agentMeta?.accent_color || "#7F77DD" }}
+                  >
+                    {agentMeta?.emoji ?? <User className="h-3 w-3" />}
+                  </span>
+                  <span className="text-sm font-medium">{agentName || task.assigned_to}</span>
+                  {task.is_system_task && <span className="text-xs text-muted-foreground">· system</span>}
                 </div>
 
                 <div className="space-y-1.5">

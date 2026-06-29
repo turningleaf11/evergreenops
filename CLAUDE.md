@@ -102,23 +102,27 @@ className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
 className="bg-blue-500/10 text-blue-700 dark:text-blue-400"
 ```
 
-### StatusBadge — the ONLY way to render status/priority/type chips
+### StatusPill / PriorityPill — the ONLY way to render status/priority chips
 
 ```tsx
-import { StatusBadge, TASK_STATUS_VARIANT, PRIORITY_VARIANT } from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 
-// Status chip
-<StatusBadge label="In Progress" variant={TASK_STATUS_VARIANT[status]} />
+// Read-only status chip
+<StatusPill kind="task" value={status} size="sm" />
 
-// Priority chip
-<StatusBadge label={PRIORITY_LABEL[priority]} variant={PRIORITY_VARIANT[priority]} dot />
+// Editable status dropdown (pass onChange — StatusPill renders its own DropdownMenu)
+<StatusPill kind="project" value={project.status} onChange={v => updateProject({ status: v })} />
 
-// Process node type
-<StatusBadge label="Source" variant={PROCESS_NODE_VARIANT["source"]} size="xs" />
+// Editable priority dropdown
+<PriorityPill value={task.priority} onChange={v => update({ priority: v })} />
 ```
 
+All entity kinds: "goal" | "project" | "task" | "issue" | "deal" | "lead" | "transaction" | "contact" | "thread"
+Status values per kind are registered in `src/lib/statusTone.ts` — add new statuses there, not inline.
+The TASK kind includes both human and agent task stages (todo/in_progress/blocked/done + backlog/pending/doing/review/approved/needs_input/cancelled).
+
 Never define local `statusConfig`, `priorityLabels`, or badge color maps in page components.
-Always add new variants/maps to `StatusBadge.tsx` instead.
+Never use `StatusBadge` for new code — it remains only as a legacy reference for process-map node types.
 
 ### CSS utility classes (use these, don't reinvent them)
 
@@ -223,7 +227,9 @@ This app targets Fortune-500-quality SaaS polish. Before shipping any UI:
 |---|---|
 | `src/index.css` | All CSS variables (light + dark), utility classes |
 | `tailwind.config.ts` | Token → Tailwind class mappings |
-| `src/components/shared/StatusBadge.tsx` | Shared badge component — all status/priority chips |
+| `src/components/primitives/StatusPill.tsx` | Status chip — use everywhere for entity status |
+| `src/components/primitives/PriorityPill.tsx` | Priority chip — use everywhere for priority |
+| `src/lib/statusTone.ts` | HSL tone registry backing StatusPill/PriorityPill |
 | `src/components/shared/EmptyState.tsx` | Shared empty state |
 | `src/components/RichTextEditor.tsx` | TipTap rich text with slash commands |
 | `src/components/SlashCommandMenu.tsx` | Slash command menu for RichTextEditor |

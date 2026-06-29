@@ -2,31 +2,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, User, ExternalLink, CheckSquare, Flag, Loader2 } from "lucide-react";
+import { Calendar, User, ExternalLink, CheckSquare, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ActivityPanel from "@/components/activity/ActivityPanel";
-import {
-  StatusBadge,
-  TASK_STATUS_VARIANT, PRIORITY_VARIANT, PRIORITY_LABEL,
-} from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 
 interface Props { id: string; open: boolean; onClose: () => void; }
-
-const taskStatusOptions = [
-  { value: "todo", label: "To Do" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-  { value: "blocked", label: "Blocked" },
-];
-
-const priorityOptions = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" },
-];
 
 export default function TaskPeek({ id, open, onClose }: Props) {
   const navigate = useNavigate();
@@ -93,45 +75,11 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                 </SheetHeader>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Select value={status} onValueChange={updateStatus}>
-                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                      <StatusBadge
-                        label={taskStatusOptions.find(s => s.value === status)?.label ?? status}
-                        variant={TASK_STATUS_VARIANT[status] ?? "default"}
-                        dot
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {taskStatusOptions.map(s => (
-                        <SelectItem key={s.value} value={s.value}>
-                          <span className="flex items-center gap-2">
-                            <StatusBadge label={s.label} variant={TASK_STATUS_VARIANT[s.value] ?? "default"} dot />
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
+                  <StatusPill kind="task" value={status} onChange={updateStatus} />
                   {priority && (
                     <>
                       <span className="text-muted-foreground/40">·</span>
-                      <Select value={priority} onValueChange={updatePriority}>
-                        <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
-                          <StatusBadge
-                            label={PRIORITY_LABEL[priority] ?? priority}
-                            variant={PRIORITY_VARIANT[priority] ?? "default"}
-                            size="xs"
-                            icon={<Flag className="h-3 w-3" />}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {priorityOptions.map(p => (
-                            <SelectItem key={p.value} value={p.value}>
-                              <StatusBadge label={p.label} variant={PRIORITY_VARIANT[p.value] ?? "default"} size="xs" />
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PriorityPill value={priority} size="sm" onChange={updatePriority} />
                     </>
                   )}
                 </div>

@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { StatusBadge as SharedStatusBadge, TASK_STATUS_VARIANT, AGENT_TASK_STATUS_VARIANT, AGENT_TASK_STATUS_LABEL, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -87,11 +87,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   todo: { label: "To Do", color: "bg-muted text-muted-foreground", icon: Circle },
 };
 
-const priorityLabels: Record<number, { label: string; color: string }> = {
-  1: { label: "High", color: "bg-red-100 text-red-800" },
-  2: { label: "Medium", color: "bg-yellow-100 text-yellow-800" },
-  3: { label: "Low", color: "bg-green-100 text-green-800" },
-};
+const ISSUE_PRIORITY_KEY: Record<number, string> = { 1: "high", 2: "medium", 3: "low" };
 
 const projectStatusOptions = [
   { value: "not_started", label: "Not Started" },
@@ -939,12 +935,6 @@ export default function ExecutionPage() {
               const secondary = isAgent
                 ? `${meta?.name || t.assigned_to} · AI${t.is_system_task ? " · system" : ""}`
                 : getName(t.assigned_to);
-              const label = isAgent
-                ? AGENT_TASK_STATUS_LABEL[t.status] ?? t.status
-                : taskStatusOptions.find(s => s.value === t.status)?.label || t.status;
-              const variant = isAgent
-                ? AGENT_TASK_STATUS_VARIANT[t.status] ?? "default"
-                : TASK_STATUS_VARIANT[t.status] ?? "default";
               return (
                 <Card
                   key={`${row.kind}-${t.id}`}
@@ -957,7 +947,7 @@ export default function ExecutionPage() {
                       <p className="text-sm truncate">{t.title}</p>
                       <p className="text-xs text-muted-foreground truncate">{secondary}</p>
                     </div>
-                    <SharedStatusBadge label={label} variant={variant} dot />
+                    <StatusPill kind="task" value={t.status} size="sm" />
                   </CardContent>
                 </Card>
               );
@@ -1080,11 +1070,7 @@ export default function ExecutionPage() {
                                 <td className="px-3 py-2">{t.title}</td>
                                 <td className="px-3 py-2 text-muted-foreground">{getName(t.assigned_to)}</td>
                                 <td className="px-3 py-2">
-                                  <SharedStatusBadge
-                                    label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
-                                    variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
-                                    dot
-                                  />
+                                  <StatusPill kind="task" value={t.status} size="sm" />
                                 </td>
                                 <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
                               </tr>
@@ -1100,11 +1086,7 @@ export default function ExecutionPage() {
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
                               <td className="px-3 py-2">
-                                <SharedStatusBadge
-                                  label={AGENT_TASK_STATUS_LABEL[t.status] ?? t.status}
-                                  variant={AGENT_TASK_STATUS_VARIANT[t.status] ?? "default"}
-                                  dot
-                                />
+                                <StatusPill kind="task" value={t.status} size="sm" />
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
                             </tr>
@@ -1169,7 +1151,7 @@ export default function ExecutionPage() {
                       <div>
                         <h3 className="font-medium">{issue.title}</h3>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <SharedStatusBadge label={PRIORITY_LABEL[issue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[issue.priority] ?? "warning"} dot />
+                          <PriorityPill value={ISSUE_PRIORITY_KEY[issue.priority] ?? "medium"} size="sm" />
                           <Badge variant="outline" className="text-xs capitalize">{(issue.category || "general").replace("_", " ")}</Badge>
                           <span className="text-xs text-muted-foreground">by {getName(issue.raised_by)}</span>
                           {issue.assigned_to && <span className="text-xs text-muted-foreground">→ {getName(issue.assigned_to)}</span>}
@@ -1241,7 +1223,7 @@ export default function ExecutionPage() {
               <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs capitalize">{(selectedIssue.category || "general").replace("_", " ")}</Badge>
-                <SharedStatusBadge label={PRIORITY_LABEL[selectedIssue.priority] ?? "Medium"} variant={PRIORITY_VARIANT[selectedIssue.priority] ?? "warning"} dot />
+                <PriorityPill value={ISSUE_PRIORITY_KEY[selectedIssue.priority] ?? "medium"} size="sm" />
                 {selectedIssue.assigned_to && <span className="text-xs text-muted-foreground">Assigned: {getName(selectedIssue.assigned_to)}</span>}
                 <span className="text-xs text-muted-foreground">Raised by: {getName(selectedIssue.raised_by)}</span>
               </div>
