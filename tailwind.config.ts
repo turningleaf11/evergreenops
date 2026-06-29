@@ -72,6 +72,16 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      // Tinted-shadow lift recipe for Card — locked in via autumn-design-system
+      // (foundations/elevation.md) after comparing tinted-shadow / glass /
+      // neumorphism across all four themes. Picks up the brand-violet hue so
+      // a lifted card reads as genuinely "lifted," not just dark. Additive —
+      // nothing currently uses these classes, so this is a zero-risk addition
+      // until a component opts in.
+      boxShadow: {
+        "card-lift": "0 1px 2px hsl(var(--foreground) / 0.04), 0 12px 28px -8px hsl(var(--brand-violet) / 0.22), 0 4px 10px -4px hsl(var(--primary) / 0.12)",
+        "card-lift-hover": "0 1px 2px hsl(var(--foreground) / 0.05), 0 18px 36px -8px hsl(var(--brand-violet) / 0.3), 0 6px 14px -4px hsl(var(--primary) / 0.18)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

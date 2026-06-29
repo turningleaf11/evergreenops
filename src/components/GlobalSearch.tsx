@@ -48,7 +48,24 @@ export function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // ⌘K / Ctrl+K focuses search from anywhere in the app — cmdk is installed
+  // and src/components/ui/command.tsx exists, but nothing wires a modal
+  // command palette to it. Don't build a second, competing search UI for
+  // sample/static actions when this one already does real Supabase search
+  // across 8 entity types — just make it reachable by keyboard.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
@@ -110,6 +127,7 @@ export function GlobalSearch() {
     <div ref={ref} className="relative w-full max-w-md">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -118,10 +136,14 @@ export function GlobalSearch() {
         placeholder="Search..."
         className="w-full h-8 rounded-full bg-muted/50 pl-9 pr-8 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring/30 transition-colors border-0"
       />
-      {query && (
+      {query ? (
         <button onClick={() => { setQuery(""); setOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2">
           <X className="h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground" />
         </button>
+      ) : (
+        <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60 pointer-events-none">
+          ⌘K
+        </kbd>
       )}
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1.5 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 max-h-80 overflow-y-auto">

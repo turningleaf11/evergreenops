@@ -64,7 +64,10 @@ export const DataTableRow = forwardRef<HTMLDivElement, RowProps>(function DataTa
   ref,
 ) {
   const base =
-    "group grid items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-[#F9F9F9] dark:hover:bg-muted/30 transition-colors";
+    // Theme-aware hover (bg-accent resolves per-theme via CSS vars) instead of a
+    // hardcoded #F9F9F9 — the hardcoded hex only had a `dark:` override, which
+    // doesn't fire under non-default light/dark themes (e.g. Midnight Slate, Warm Sand).
+    "group grid items-center px-5 py-3 text-sm border-b border-border/30 last:border-b-0 hover:bg-accent/40 transition-colors";
   const gridStyle: CSSProperties = { gridTemplateColumns: template, ...style };
   if (asButton) {
     return (
