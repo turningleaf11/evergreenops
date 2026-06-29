@@ -6,6 +6,7 @@
 //
 // All people pickers, card footers, and detail headers should use this.
 
+import { User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface AvatarStackPerson {
@@ -24,29 +25,21 @@ interface Props {
 }
 
 const SIZES = {
-  sm: { px: 18, text: "text-[8px]"  },
-  md: { px: 22, text: "text-[9px]"  },
-  lg: { px: 28, text: "text-[10px]" },
+  sm: { px: 18, text: "text-[8px]", icon: 10 },
+  md: { px: 22, text: "text-[9px]", icon: 12 },
+  lg: { px: 28, text: "text-[10px]", icon: 15 },
 } as const;
-
-function initials(name: string | null) {
-  return (name || "?")
-    .split(" ")
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function AvatarStack({ people, max = 4, size = "md", className }: Props) {
   if (!people || people.length === 0) return null;
-  const { px, text } = SIZES[size];
+  const { px, text, icon } = SIZES[size];
   const shown = people.slice(0, max);
   const extra = Math.max(0, people.length - max);
 
   return (
-    <div className={cn("flex -space-x-1.5 shrink-0", className)}>
+    // -space-x-1 (not -1.5) — tighter overlap reads as "compressed/squished"
+    // once people have real photos in it, especially at the sm size.
+    <div className={cn("flex -space-x-1 shrink-0", className)}>
       {shown.map((p) => {
         const title = p.full_name || "Unnamed";
         return p.avatar_url ? (
@@ -59,16 +52,16 @@ export function AvatarStack({ people, max = 4, size = "md", className }: Props) 
             style={{ width: px, height: px }}
           />
         ) : (
+          // No photo on file — a neutral silhouette, not colored initials.
+          // Initials read as "this person picked a color," which isn't true;
+          // everyone without a photo should look identical and quiet.
           <div
             key={p.user_id}
             title={title}
-            className={cn(
-              "rounded-full ring-2 ring-background bg-primary/15 text-primary font-semibold flex items-center justify-center",
-              text,
-            )}
+            className="rounded-full ring-2 ring-background bg-muted text-muted-foreground flex items-center justify-center"
             style={{ width: px, height: px }}
           >
-            {initials(p.full_name)}
+            <User style={{ width: icon, height: icon }} />
           </div>
         );
       })}
