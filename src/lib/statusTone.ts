@@ -116,6 +116,13 @@ export function resolveStatusTone(kind: EntityKind, value: string): Tone {
   };
 }
 
+export interface ToneOption extends Tone { value: string; }
+
+/** Every status value registered for a kind — backs StatusPill's edit dropdown. */
+export function listStatusOptions(kind: EntityKind): ToneOption[] {
+  return Object.entries(REGISTRY[kind]).map(([value, t]) => ({ value, ...t }));
+}
+
 // ── Priority tones (separate scale — semantic, not entity-typed) ──────────
 
 const PRIORITY: Record<string, Tone> = {
@@ -127,4 +134,9 @@ const PRIORITY: Record<string, Tone> = {
 
 export function resolvePriorityTone(value: string): Tone {
   return PRIORITY[value] ?? tone("neutral", value);
+}
+
+/** Every priority value — backs PriorityPill's edit dropdown. */
+export function listPriorityOptions(): ToneOption[] {
+  return Object.entries(PRIORITY).map(([value, t]) => ({ value, ...t }));
 }
