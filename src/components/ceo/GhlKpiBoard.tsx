@@ -6,6 +6,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { cn } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -210,13 +211,23 @@ export function GhlKpiBoard() {
         </div>
       </div>
 
-      {error && (
+      {error && !data && (
+        <ErrorState
+          size="sm"
+          card={false}
+          title="Couldn't load GHL data"
+          description={error}
+          onRetry={() => loadWithPeriod(period)}
+        />
+      )}
+
+      {error && data && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
           {error}
         </div>
       )}
 
-      {loading && !data && (
+      {loading && !data && !error && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-20 rounded-xl bg-muted/40 animate-pulse" />

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Loader2, RefreshCw, ArrowRight, TrendingUp, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { cn } from "@/lib/utils";
 
 const PERIODS = [
@@ -138,11 +139,21 @@ export function CeoKpiCard() {
         </div>
       </div>
 
-      {error && (
+      {error && !data && (
+        <ErrorState
+          size="sm"
+          card={false}
+          title="Couldn't load KPI snapshot"
+          description={error}
+          onRetry={() => load(period)}
+        />
+      )}
+
+      {error && data && (
         <p className="text-xs text-destructive">{error}</p>
       )}
 
-      {loading && !data && (
+      {loading && !data && !error && (
         <div className="grid grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="h-20 rounded-xl bg-muted/40 animate-pulse" />
