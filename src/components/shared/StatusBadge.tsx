@@ -45,6 +45,27 @@ export const TASK_STATUS_VARIANT: Record<string, BadgeVariant> = {
   completed:   "success",
 };
 
+// AI agent tasks use a superset of human task stages (review/needs-input
+// states a human task doesn't have) so the two can render through the same
+// StatusBadge component instead of agent tasks having their own bespoke
+// hard-coded color map.
+export const AGENT_TASK_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  backlog:     "muted",
+  pending:     "muted",
+  doing:       "info",
+  review:      "purple",
+  approved:    "purple",
+  needs_input: "danger",
+  done:        "success",
+  cancelled:   "muted",
+};
+
+export const AGENT_TASK_STATUS_LABEL: Record<string, string> = {
+  backlog: "Backlog", pending: "To do", doing: "In progress",
+  review: "Reviewing", approved: "Reviewing", needs_input: "Needs input",
+  done: "Done", cancelled: "Cancelled",
+};
+
 export const PRIORITY_VARIANT: Record<string, BadgeVariant> = {
   urgent: "danger",
   high:   "danger",

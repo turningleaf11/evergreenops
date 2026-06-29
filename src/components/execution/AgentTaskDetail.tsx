@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Send } from "lucide-react";
+import { Loader2, Sparkles, Send, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
+import { StatusBadge, AGENT_TASK_STATUS_VARIANT, AGENT_TASK_STATUS_LABEL } from "@/components/shared/StatusBadge";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 
@@ -30,16 +30,7 @@ type AgentTask = {
   is_system_task: boolean;
 };
 
-const STATUS_OPTIONS: { value: Status; label: string }[] = [
-  { value: "backlog", label: "Backlog" },
-  { value: "pending", label: "To do" },
-  { value: "doing", label: "In progress" },
-  { value: "review", label: "Albus reviewing" },
-  { value: "approved", label: "Albus reviewing (approved)" },
-  { value: "needs_input", label: "Needs your input" },
-  { value: "done", label: "Done" },
-  { value: "cancelled", label: "Cancelled" },
-];
+const STATUS_OPTIONS: Status[] = ["backlog", "pending", "doing", "review", "approved", "needs_input", "done", "cancelled"];
 
 const cleanResult = (raw: string) =>
   raw.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
@@ -48,16 +39,15 @@ const cleanResult = (raw: string) =>
      .trim();
 
 /**
- * Detail view for an AI-assigned task in the unified Execution Hub board.
- * Title/description are editable. The feedback box is the "talking to the
- * agent" loop: it appends to description + context.human_feedback and flips
- * status back to pending — the one signal guaranteed to wake a worker that
- * polls agent_tasks (confirmed for jr-coder-worker; assumed contract for
- * other agents, whose pickup logic lives outside this repo).
+ * Detail view for an AI-assigned task. Shares the same Sheet shell, header
+ * layout, and StatusBadge as the human TaskPeek (src/components/mention-peek/peeks/TaskPeek.tsx)
+ * so an agent task doesn't feel like a different product from a human one —
+ * the feedback box and agent log are the only agent-specific additions.
  */
 export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; open: boolean; onClose: () => void }) {
   const [task, setTask] = useState<AgentTask | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null);
+  const [agentMeta, setAgentMeta] = useState<{ emoji: string | null; accent_color: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -75,8 +65,9 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
     setEditDescription(t.description || "");
     setLoading(false);
 
-    const { data: agent } = await supabase.from("agents").select("name").eq("slug", t.assigned_to).maybeSingle();
+    const { data: agent } = await supabase.from("agents").select("name, emoji, accent_color").eq("slug", t.assigned_to).maybeSingle();
     setAgentName(agent?.name || null);
+    setAgentMeta(agent ? { emoji: agent.emoji, accent_color: agent.accent_color } : null);
   };
 
   useEffect(() => { setLoading(true); fetchTask(); }, [taskId]);
@@ -127,49 +118,64 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+    <Sheet open={open} onOpenChange={v => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-[1100px] p-0 overflow-hidden flex flex-col">
         {loading || !task ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading task…
           </div>
         ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#7F77DD] text-white shrink-0">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </span>
-                <span>AI task</span>
-              </DialogTitle>
-            </DialogHeader>
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* Left main column */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-border/40 shrink-0 space-y-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5 text-primary/70" />
+                  <span className="font-medium">AI task</span>
+                </div>
 
-            <Tabs defaultValue="details">
-              <TabsList>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="log">Agent log</TabsTrigger>
-              </TabsList>
+                <SheetHeader>
+                  <SheetTitle className="text-xl text-left">{task.title}</SheetTitle>
+                </SheetHeader>
 
-              <TabsContent value="details" className="space-y-4 mt-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={task.status} onValueChange={(v) => updateStatus(v as Status)} disabled={saving}>
+                    <SelectTrigger className="h-auto border-none shadow-none p-0 gap-1 focus:ring-0 w-auto [&>svg:last-child]:hidden">
+                      <StatusBadge
+                        label={AGENT_TASK_STATUS_LABEL[task.status] ?? task.status}
+                        variant={AGENT_TASK_STATUS_VARIANT[task.status] ?? "default"}
+                        dot
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s} value={s}>
+                          <StatusBadge label={AGENT_TASK_STATUS_LABEL[s]} variant={AGENT_TASK_STATUS_VARIANT[s] ?? "default"} dot />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span
+                      className="flex items-center justify-center h-5 w-5 rounded-full text-white text-[9px] shrink-0"
+                      style={{ background: agentMeta?.accent_color || "#7F77DD" }}
+                    >
+                      {agentMeta?.emoji ?? <User className="h-2.5 w-2.5" />}
+                    </span>
+                    <span>{agentName || task.assigned_to}{task.is_system_task && " · system"}</span>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label className="text-xs">Title</Label>
                   <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} disabled={saving} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Assigned to</Label>
-                    <p className="text-sm py-2">{agentName || task.assigned_to}{task.is_system_task && " · system"}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Status</Label>
-                    <Select value={task.status} onValueChange={(v) => updateStatus(v as Status)} disabled={saving}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -237,15 +243,21 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
                 <p className="text-xs text-muted-foreground pt-1 border-t border-border">
                   Created {format(parseISO(task.created_at), "MMM d, h:mm a")} · Updated {format(parseISO(task.updated_at), "MMM d, h:mm a")}
                 </p>
-              </TabsContent>
+              </div>
+            </div>
 
-              <TabsContent value="log" className="mt-3">
+            {/* Right rail — Agent log, mirrors the Activity/Comments rail on the human task drawer */}
+            <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
+              <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-b border-border/40">
+                Agent log
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
                 <AgentActivityDrillDown taskId={task.id} />
-              </TabsContent>
-            </Tabs>
-          </>
+              </div>
+            </aside>
+          </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

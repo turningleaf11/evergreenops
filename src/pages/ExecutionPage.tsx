@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDepartments } from "@/contexts/DepartmentsContext";
-import ProjectPeek from "@/components/execution/ProjectPeek";
 import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
 import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
@@ -35,7 +34,7 @@ import { toast } from "sonner";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { StatusBadge as SharedStatusBadge, TASK_STATUS_VARIANT, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
+import { StatusBadge as SharedStatusBadge, TASK_STATUS_VARIANT, AGENT_TASK_STATUS_VARIANT, AGENT_TASK_STATUS_LABEL, PRIORITY_VARIANT, PRIORITY_LABEL } from "@/components/shared/StatusBadge";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -66,17 +65,6 @@ type AgentTask = {
   context: Record<string, unknown> | null;
 };
 type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
-
-const AGENT_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  backlog: { label: "Backlog", cls: "bg-muted text-muted-foreground" },
-  pending: { label: "To do", cls: "bg-muted text-muted-foreground" },
-  doing: { label: "In progress", cls: "bg-blue-100 text-blue-800" },
-  review: { label: "Albus reviewing", cls: "bg-purple-100 text-purple-800" },
-  approved: { label: "Albus reviewing", cls: "bg-purple-100 text-purple-800" },
-  needs_input: { label: "Needs your input", cls: "bg-red-100 text-red-800" },
-  done: { label: "Done", cls: "bg-green-100 text-green-800" },
-  cancelled: { label: "Cancelled", cls: "bg-muted text-muted-foreground" },
-};
 
 type Issue = {
   id: string; title: string; description: string; raised_by: string | null;
@@ -197,6 +185,8 @@ export default function ExecutionPage() {
   const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
   const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee" | "project">("none");
   const [showSystemTasks, setShowSystemTasks] = useState(false);
+  const [addingTaskCol, setAddingTaskCol] = useState<string | null>(null);
+  const [addTaskTitle, setAddTaskTitle] = useState("");
   const [agentTaskPeekId, setAgentTaskPeekId] = useUrlState("aiTask");
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
@@ -205,7 +195,6 @@ export default function ExecutionPage() {
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [projectPeekId, setProjectPeekId] = useUrlState("project");
   const [taskPeekId, setTaskPeekId] = useUrlState("task");
   const [peekGoalId, setPeekGoalId] = useUrlState("goal");
   // Goals filters persist across sessions in localStorage
@@ -560,7 +549,7 @@ export default function ExecutionPage() {
   const openIssues = filteredIssues.filter(i => !["solved", "dismissed"].includes(i.status));
   const resolvedIssues = filteredIssues.filter(i => ["solved", "dismissed"].includes(i.status));
 
-  const openProjectDrawer = (p: any) => { setProjectPeekId(p.id); };
+  const openProjectDrawer = (p: any) => { navigate(`/projects/${p.id}`); };
   const openTaskDrawer = (t: any) => { setTaskPeekId(t.id); };
 
   return (
@@ -891,31 +880,19 @@ export default function ExecutionPage() {
           />
 
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-1.5 flex-wrap">
-              {([
-                { key: "all", label: "All" },
-                { key: "mine", label: "My tasks" },
-                { key: "ai", label: "AI tasks" },
-              ] as const).map(f => (
-                <Button
-                  key={f.key}
-                  size="sm"
-                  variant={taskSourceFilter === f.key ? "default" : "outline"}
-                  className="h-7 text-xs"
-                  onClick={() => setTaskSourceFilter(f.key)}
-                >
-                  {f.label}
-                </Button>
-              ))}
-              <Button
-                size="sm"
-                variant={taskSourceFilter === "needs_input" ? "default" : "outline"}
-                className={`h-7 text-xs ${taskSourceFilter !== "needs_input" ? "border-red-200 text-red-700 hover:bg-red-50" : ""}`}
-                onClick={() => setTaskSourceFilter("needs_input")}
-              >
-                Needs input {needsInputCount > 0 && `(${needsInputCount})`}
-              </Button>
-            </div>
+            <Select value={taskSourceFilter} onValueChange={(v) => setTaskSourceFilter(v as any)}>
+              <SelectTrigger className="w-40 h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tasks</SelectItem>
+                <SelectItem value="mine">My tasks</SelectItem>
+                <SelectItem value="ai">AI tasks</SelectItem>
+                <SelectItem value="needs_input">
+                  Needs input{needsInputCount > 0 && ` (${needsInputCount})`}
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-3">
               {tv.view !== "board" && (
                 <Select value={taskGroupBy} onValueChange={(v) => setTaskGroupBy(v as any)}>
@@ -940,52 +917,53 @@ export default function ExecutionPage() {
           </div>
 
           {(() => {
-            const HumanCard = ({ t }: { t: Task }) => (
-              <Card key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDrawer(t)}>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
-                    {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{t.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{getName(t.assigned_to)}</p>
-                  </div>
-                  <SharedStatusBadge
-                    label={taskStatusOptions.find(s => s.value === t.status)?.label || t.status}
-                    variant={TASK_STATUS_VARIANT[t.status] ?? "default"}
-                    dot
-                  />
-                </CardContent>
-              </Card>
-            );
-
-            const AgentCard = ({ t }: { t: AgentTask }) => {
-              const meta = getAgentMeta(t.assigned_to);
-              const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
+            // One card shape for both human and agent tasks — the avatar
+            // is the only thing that visually distinguishes "who" is on it;
+            // status badge, title, and secondary line all render identically.
+            const TaskCard = ({ row }: { row: UnifiedRow }) => {
+              const isAgent = row.kind === "agent";
+              const t = row.task as Task & AgentTask;
+              const meta = isAgent ? getAgentMeta(t.assigned_to) : undefined;
+              const avatar = isAgent ? (
+                <span
+                  className="flex items-center justify-center h-7 w-7 rounded-full text-white text-[11px] font-medium shrink-0"
+                  style={{ background: meta?.accent_color || "#7F77DD" }}
+                >
+                  {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
+                </span>
+              ) : (
+                <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
+                  {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </span>
+              );
+              const secondary = isAgent
+                ? `${meta?.name || t.assigned_to} · AI${t.is_system_task ? " · system" : ""}`
+                : getName(t.assigned_to);
+              const label = isAgent
+                ? AGENT_TASK_STATUS_LABEL[t.status] ?? t.status
+                : taskStatusOptions.find(s => s.value === t.status)?.label || t.status;
+              const variant = isAgent
+                ? AGENT_TASK_STATUS_VARIANT[t.status] ?? "default"
+                : TASK_STATUS_VARIANT[t.status] ?? "default";
               return (
-                <Card key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setAgentTaskPeekId(t.id)}>
+                <Card
+                  key={`${row.kind}-${t.id}`}
+                  className="cursor-pointer hover:bg-accent/30 transition-colors"
+                  onClick={() => isAgent ? setAgentTaskPeekId(t.id) : openTaskDrawer(t)}
+                >
                   <CardContent className="py-3 flex items-center gap-3">
-                    <span
-                      className="flex items-center justify-center h-7 w-7 rounded-full text-white shrink-0"
-                      style={{ background: meta?.accent_color || "#7F77DD" }}
-                    >
-                      {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
-                    </span>
+                    {avatar}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{t.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {meta?.name || t.assigned_to} · AI agent{t.is_system_task ? " · system" : ""}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{secondary}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>
-                      {badge.label}
-                    </span>
+                    <SharedStatusBadge label={label} variant={variant} dot />
                   </CardContent>
                 </Card>
               );
             };
 
-            const Row = ({ row }: { row: UnifiedRow }) => row.kind === "human" ? <HumanCard t={row.task} /> : <AgentCard t={row.task} />;
+            const Row = ({ row }: { row: UnifiedRow }) => <TaskCard row={row} />;
 
             if (tv.view === "list") {
               if (unifiedFeed.length === 0) {
@@ -1029,23 +1007,38 @@ export default function ExecutionPage() {
                             <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
                           ) : colRows.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
                           {col.key !== "done" && (
-                            <button
-                              className="text-left text-xs text-muted-foreground hover:text-foreground px-3 py-1.5"
-                              onClick={() => {
-                                const title = window.prompt("Task title");
-                                if (!title?.trim() || !user) return;
-                                supabase.from("tasks").insert({
-                                  title: title.trim(),
-                                  status: col.key,
-                                  created_by: user.id,
-                                } as any).then(({ error }) => {
-                                  if (error) toast.error(error.message);
-                                  else fetchAll();
-                                });
-                              }}
-                            >
-                              + Add card
-                            </button>
+                            addingTaskCol === col.key ? (
+                              <Input
+                                autoFocus
+                                value={addTaskTitle}
+                                placeholder="Task title…"
+                                className="h-8 text-xs"
+                                onChange={e => setAddTaskTitle(e.target.value)}
+                                onBlur={() => { setAddingTaskCol(null); setAddTaskTitle(""); }}
+                                onKeyDown={e => {
+                                  if (e.key === "Escape") { setAddingTaskCol(null); setAddTaskTitle(""); }
+                                  if (e.key === "Enter") {
+                                    const title = addTaskTitle.trim();
+                                    if (!title || !user) return;
+                                    supabase.from("tasks").insert({
+                                      title, status: col.key, created_by: user.id,
+                                    } as any).then(({ error }) => {
+                                      if (error) toast.error(error.message);
+                                      else fetchAll();
+                                    });
+                                    setAddingTaskCol(null);
+                                    setAddTaskTitle("");
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <button
+                                className="text-left text-xs text-muted-foreground hover:text-foreground px-3 py-1.5"
+                                onClick={() => setAddingTaskCol(col.key)}
+                              >
+                                + Add card
+                              </button>
+                            )
                           )}
                         </div>
                       </div>
@@ -1099,7 +1092,6 @@ export default function ExecutionPage() {
                           }
                           const t = row.task;
                           const meta = getAgentMeta(t.assigned_to);
-                          const badge = AGENT_STATUS_BADGE[t.status] ?? { label: t.status, cls: "bg-muted text-muted-foreground" };
                           return (
                             <tr key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => setAgentTaskPeekId(t.id)}>
                               <td className="px-3 py-2 flex items-center gap-2">
@@ -1108,7 +1100,11 @@ export default function ExecutionPage() {
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
                               <td className="px-3 py-2">
-                                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
+                                <SharedStatusBadge
+                                  label={AGENT_TASK_STATUS_LABEL[t.status] ?? t.status}
+                                  variant={AGENT_TASK_STATUS_VARIANT[t.status] ?? "default"}
+                                  dot
+                                />
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
                             </tr>
@@ -1329,17 +1325,6 @@ export default function ExecutionPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      <ProjectPeek
-        projectId={projectPeekId}
-        onClose={() => setProjectPeekId(null)}
-        onChanged={() => {
-          (async () => {
-            const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
-            if (data) setProjects(data);
-          })();
-        }}
-      />
 
       {taskPeekId && (
         <TaskPeek
