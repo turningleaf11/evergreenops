@@ -174,27 +174,6 @@ export default function CrmPage() {
         userId={user?.id ?? null}
         onCreated={() => setRefreshKey((k) => k + 1)}
       />
-
-      <ContactPeekSheet
-        contactId={openContactId}
-        onClose={() => setOpenContactId(null)}
-        onChanged={() => setRefreshKey((k) => k + 1)}
-        onOpenDeal={(id) => { setOpenContactId(null); setOpenDealId(id); }}
-      />
-
-      <DealPeekSheet
-        dealId={openDealId}
-        onClose={() => setOpenDealId(null)}
-        onChanged={() => setRefreshKey((k) => k + 1)}
-      />
-
-      <NewContactDialog
-        open={newContactOpen}
-        onOpenChange={setNewContactOpen}
-        workspaceId={workspaceId}
-        userId={user?.id ?? null}
-        onCreated={() => setRefreshKey((k) => k + 1)}
-      />
     </div>
   );
 }
