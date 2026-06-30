@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  Link2, Calendar, Users, X, Target, MessageSquare, Check, Crown,
+  Link2, Calendar, Users, X, Target, Check, Crown,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles, MoreHorizontal,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -130,9 +130,10 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Scroll container */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-6 pt-4 pb-6 max-w-[1500px] mx-auto">
+      <div className="flex flex-1 min-h-0">
+        {/* Main scrolling content */}
+        <div className="flex-1 overflow-y-auto">
+        <div className="px-6 pt-4 pb-6">
           {/* Header — title + all meta on one row */}
           <div className="mb-2 flex items-center gap-2 flex-wrap">
             <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -355,9 +356,6 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="ai" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <Sparkles className="h-3.5 w-3.5" /> AI
               </TabsTrigger>
-              <TabsTrigger value="messages" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <MessageSquare className="h-3.5 w-3.5" /> Messages
-              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-0">
@@ -396,11 +394,14 @@ export default function ProjectDetailPage() {
                 onTasksCreated={fetchData}
               />
             </TabsContent>
-            <TabsContent value="messages" className="mt-0 h-[calc(100vh-220px)]">
-              <ActivityPanel entityType="project" entityId={project.id} />
-            </TabsContent>
           </Tabs>
         </div>
+        </div>
+
+        {/* Persistent right rail — activity always visible */}
+        <aside className="w-[380px] shrink-0 border-l border-border/40 overflow-hidden flex flex-col">
+          <ActivityPanel entityType="project" entityId={project.id} />
+        </aside>
       </div>
 
       <GoalPeek

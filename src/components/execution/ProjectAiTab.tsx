@@ -9,6 +9,8 @@ import { streamChat } from "@/lib/ai-stream";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/project-chat`;
 
+const sb = supabase as any;
+
 interface ProposedTask {
   title: string;
   description?: string;
@@ -16,6 +18,7 @@ interface ProposedTask {
 }
 
 interface Message {
+  id?: string;
   role: "user" | "assistant";
   content: string;
   proposedTasks?: ProposedTask[];
@@ -45,14 +48,38 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [creatingFor, setCreatingFor] = useState<number | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Load message history from DB on mount
+  useEffect(() => {
+    if (!project?.id) return;
+    (async () => {
+      const { data } = await sb
+        .from("project_ai_messages")
+        .select("id, role, content, proposed_tasks, tasks_created")
+        .eq("project_id", project.id)
+        .order("created_at", { ascending: true });
+      if (data) {
+        setMessages(
+          (data as any[]).map((r) => ({
+            id: r.id,
+            role: r.role,
+            content: r.content,
+            proposedTasks: r.proposed_tasks ?? undefined,
+            tasksCreated: r.tasks_created ?? false,
+          }))
+        );
+      }
+      setHistoryLoaded(true);
+    })();
+  }, [project?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const buildContext = useCallback(async () => {
-    // Fetch latest few comments for grounding
     const { data: comments } = await supabase
       .from("comments")
       .select("content, created_at, author_id")
@@ -67,30 +94,32 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
       created_at: c.created_at,
     }));
 
-    return {
-      project,
-      tasks,
-      profiles,
-      notes: project.notes_content,
-      linkedDocs: linkedDocs.map((d) => ({ id: d.id, title: d.title })),
-      goalTitle,
-      recentComments,
-    };
+    return { project, tasks, profiles, notes: project.notes_content, linkedDocs: linkedDocs.map((d) => ({ id: d.id, title: d.title })), goalTitle, recentComments };
   }, [project, tasks, profiles, linkedDocs, goalTitle]);
 
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
-    const userMsg: Message = { role: "user", content: text.trim() };
+
+    // Persist user message
+    const { data: userRow } = await sb
+      .from("project_ai_messages")
+      .insert({ project_id: project.id, role: "user", content: text.trim() })
+      .select("id")
+      .single();
+
+    const userMsg: Message = { id: userRow?.id, role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
     let assistantSoFar = "";
+    let assistantProposedTasks: ProposedTask[] | undefined;
+
     const upsert = (chunk: string) => {
       assistantSoFar += chunk;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
+        if (last?.role === "assistant" && !last.id) {
           return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
         }
         return [...prev, { role: "assistant", content: assistantSoFar }];
@@ -107,25 +136,44 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
         onTextDelta: upsert,
         onToolCall: ({ name, args }) => {
           if (name === "propose_tasks" && Array.isArray(args.tasks)) {
+            assistantProposedTasks = args.tasks;
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               const proposed: ProposedTask[] = args.tasks;
               const intro: string | undefined = args.intro;
-              if (last?.role === "assistant") {
+              if (last?.role === "assistant" && !last.id) {
                 return prev.map((m, i) =>
                   i === prev.length - 1
                     ? { ...m, proposedTasks: proposed, proposedIntro: intro, content: m.content || intro || "Here are tasks I'd propose:" }
                     : m
                 );
               }
-              return [
-                ...prev,
-                { role: "assistant", content: intro || "Here are tasks I'd propose:", proposedTasks: proposed, proposedIntro: intro },
-              ];
+              return [...prev, { role: "assistant", content: intro || "Here are tasks I'd propose:", proposedTasks: proposed }];
             });
           }
         },
-        onDone: () => setLoading(false),
+        onDone: async () => {
+          // Persist final assistant message
+          const { data: aRow } = await sb
+            .from("project_ai_messages")
+            .insert({
+              project_id: project.id,
+              role: "assistant",
+              content: assistantSoFar,
+              proposed_tasks: assistantProposedTasks ?? null,
+            })
+            .select("id")
+            .single();
+          // Tag the in-flight message with its DB id so future streaming doesn't re-append
+          if (aRow?.id) {
+            setMessages((prev) => {
+              const idx = prev.findLastIndex((m) => m.role === "assistant" && !m.id);
+              if (idx === -1) return prev;
+              return prev.map((m, i) => (i === idx ? { ...m, id: aRow.id } : m));
+            });
+          }
+          setLoading(false);
+        },
       });
     } catch (e) {
       console.error("project-chat error:", e);
@@ -150,6 +198,10 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
       if (error) throw error;
       toast.success(`Added ${rows.length} task${rows.length === 1 ? "" : "s"} to this project`);
       setMessages((prev) => prev.map((m, i) => (i === msgIndex ? { ...m, tasksCreated: true } : m)));
+      // Persist tasks_created flag
+      if (msg.id) {
+        await sb.from("project_ai_messages").update({ tasks_created: true }).eq("id", msg.id);
+      }
       onTasksCreated();
     } catch (e: any) {
       toast.error(e.message || "Failed to create tasks");
@@ -168,9 +220,17 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
     );
   };
 
+  if (!historyLoaded) {
+    return (
+      <div className="flex items-center justify-center h-40 text-muted-foreground gap-2 text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading conversation…
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-280px)] min-h-[500px]">
-      {/* Quick actions */}
+      {/* Quick actions — only shown when no history */}
       {messages.length === 0 && (
         <div className="mb-6">
           <div className="text-center mb-6">
@@ -203,13 +263,13 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
+          <div key={msg.id ?? i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "assistant" && (
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <Bot className="h-3.5 w-3.5 text-primary" />
               </div>
             )}
-            <div className={`max-w-[80%] space-y-2`}>
+            <div className="max-w-[80%] space-y-2">
               <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
               }`}>
@@ -224,7 +284,6 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
                 )}
               </div>
 
-              {/* Proposed tasks panel */}
               {msg.proposedTasks && msg.proposedTasks.length > 0 && (
                 <div className="rounded-2xl border border-border/60 bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between mb-1">
@@ -241,9 +300,7 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
                           <div className="font-medium truncate">{t.title}</div>
                           {t.description && <div className="text-xs text-muted-foreground line-clamp-2">{t.description}</div>}
                         </div>
-                        {t.priority && (
-                          <Badge variant="outline" className="text-[10px] shrink-0">{t.priority}</Badge>
-                        )}
+                        {t.priority && <Badge variant="outline" className="text-[10px] shrink-0">{t.priority}</Badge>}
                         {!msg.tasksCreated && (
                           <button
                             onClick={() => removeProposedTask(i, ti)}
@@ -263,11 +320,7 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
                         disabled={creatingFor === i || msg.proposedTasks.length === 0}
                         className="h-8 gap-1.5"
                       >
-                        {creatingFor === i ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
+                        {creatingFor === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                         Add {msg.proposedTasks.length} task{msg.proposedTasks.length === 1 ? "" : "s"}
                       </Button>
                     </div>
@@ -283,7 +336,7 @@ export default function ProjectAiTab({ project, tasks, profiles, linkedDocs, goa
           </div>
         ))}
 
-        {loading && !messages.some((m, i) => m.role === "assistant" && i === messages.length - 1) && (
+        {loading && !messages.some((m, i) => m.role === "assistant" && i === messages.length - 1 && !m.id) && (
           <div className="flex gap-2.5">
             <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
