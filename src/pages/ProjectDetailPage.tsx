@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  ArrowLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
+  ChevronLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectAiTab from "@/components/execution/ProjectAiTab";
-import ProjectChatRail from "@/components/execution/ProjectChatRail";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
 
 export default function ProjectDetailPage() {
@@ -38,7 +38,6 @@ export default function ProjectDetailPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
-  const [chatOpen, setChatOpen] = useState(false);
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
 
   const tabKey = id ? `project-tab-${id}` : "project-tab";
@@ -126,25 +125,17 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/execution?tab=projects")}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Projects
-        </Button>
-        <Button
-          variant={chatOpen ? "secondary" : "ghost"}
-          size="sm"
-          onClick={() => setChatOpen(o => !o)}
-          className="gap-1.5"
-        >
-          <MessageSquare className="h-4 w-4" />
-          Comments
-        </Button>
-      </div>
-
       {/* Scroll container */}
-      <div className={`flex-1 overflow-y-auto transition-[padding] duration-200 ${chatOpen ? "xl:pr-[360px]" : ""}`}>
+      <div className="flex-1 overflow-y-auto">
         <div className="px-6 py-6 max-w-[1500px] mx-auto">
+          {/* Minor back-nav — not competing with the title for visual weight */}
+          <button
+            onClick={() => navigate("/execution?tab=projects")}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 -ml-1"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Projects
+          </button>
+
           {/* Header: title + meta */}
           <div className="mb-2 flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-muted-foreground" />
@@ -346,6 +337,9 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="ai" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
                 <Sparkles className="h-3.5 w-3.5" /> AI
               </TabsTrigger>
+              <TabsTrigger value="messages" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
+                <MessageSquare className="h-3.5 w-3.5" /> Messages
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-0">
@@ -385,11 +379,12 @@ export default function ProjectDetailPage() {
                 onTasksCreated={fetchData}
               />
             </TabsContent>
+            <TabsContent value="messages" className="mt-0">
+              <ActivityPanel entityType="project" entityId={project.id} />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
-
-      <ProjectChatRail open={chatOpen} onClose={() => setChatOpen(false)} projectId={project.id} />
 
       <GoalPeek
         goalId={peekGoalId}
