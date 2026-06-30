@@ -1,12 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
 import { Crown, FileSignature, Paperclip, Flag, Plus, Target } from "lucide-react";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { CollapsibleNotes } from "@/components/primitives";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   project: any;
@@ -18,66 +15,17 @@ interface Props {
   onOpenGoal: (goalId: string) => void;
 }
 
-interface ActivityEvent {
-  id: string;
-  actor_id: string | null;
-  action: string;
-  metadata: Record<string, any>;
-  created_at: string;
-}
-
-function describeEvent(e: ActivityEvent, actorName: string) {
-  const meta = e.metadata || {};
-  switch (e.action) {
-    case "created": return `${actorName} created this project`;
-    case "status_changed": return `${actorName} changed status to ${meta.new_status || "—"}`;
-    case "priority_changed": return `${actorName} set priority to ${meta.new_priority || "—"}`;
-    case "title_changed": return `${actorName} renamed this project`;
-    case "owner_changed": return `${actorName} updated the owner`;
-    default: return `${actorName} ${e.action.replace(/_/g, " ")}`;
-  }
-}
-
-function timeAgo(d: string) {
-  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
 export default function ProjectOverviewTab({
   project, goals = [], profiles, onNotesChange, onGoalChange, onOpenGoal,
 }: Props) {
-  const [events, setEvents] = useState<ActivityEvent[]>([]);
-
-  const fetchActivity = useCallback(async () => {
-    const { data } = await supabase
-      .from("entity_activity")
-      .select("*")
-      .eq("entity_type", "project")
-      .eq("entity_id", project.id)
-      .order("created_at", { ascending: false })
-      .limit(6);
-    setEvents((data as ActivityEvent[]) || []);
-  }, [project.id]);
-
-  useEffect(() => { fetchActivity(); }, [fetchActivity]);
-
-  const getName = (uid: string | null) =>
-    !uid ? "Someone" : profiles.find((p) => p.user_id === uid)?.full_name || "Unknown";
-
   const teamIds = [project.owner_id, ...(project.assignees || [])].filter(
     (v, i, a) => v && a.indexOf(v) === i,
   );
   const team = teamIds.map((id) => profiles.find((p) => p.user_id === id)).filter(Boolean) as any[];
-
   const connectedGoal = goals.find((g) => g.id === project.goal_id);
 
   return (
-    <div className="flex gap-8">
-      <div className="flex-1 min-w-0 space-y-7">
+    <div className="space-y-7">
         <section>
           <CollapsibleNotes
             content={project.notes_content || ""}
@@ -154,34 +102,6 @@ export default function ProjectOverviewTab({
             <Flag className="h-3.5 w-3.5" /> Add a milestone
           </div>
         </section>
-      </div>
-
-      {/* Right rail — status + activity, mirrors the Project Detail Page
-          pattern in autumn-design-system */}
-      <aside className="w-[260px] shrink-0 space-y-4">
-        <div className="rounded-lg border border-border/60 p-3">
-          <span className="text-xs font-semibold">Recent activity</span>
-        </div>
-        <div className="space-y-3">
-          {events.length === 0 && (
-            <p className="text-xs text-muted-foreground">No activity yet.</p>
-          )}
-          {events.map((ev) => {
-            const actorName = ev.actor_id ? getName(ev.actor_id) : "System";
-            return (
-              <div key={ev.id} className="flex items-start gap-2.5 text-xs">
-                <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-medium shrink-0 mt-0.5">
-                  {actorName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-foreground/90">{describeEvent(ev, actorName)}</p>
-                  <p className="text-muted-foreground mt-0.5">{timeAgo(ev.created_at)}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </aside>
     </div>
   );
 }
