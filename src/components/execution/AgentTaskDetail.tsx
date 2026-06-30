@@ -8,7 +8,7 @@ import { Loader2, Sparkles, Send, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
+import ActivityPanel from "@/components/activity/ActivityPanel";
 import { StatusPill } from "@/components/primitives";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
@@ -227,14 +227,14 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
               </div>
             </div>
 
-            {/* Right rail — Agent log, mirrors the Activity/Comments rail on the human task drawer */}
+            {/* Right rail — Comments + AI Log tabs */}
             <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
-              <div className="px-4 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0 border-b border-border/40">
-                Agent log
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
-                <AgentActivityDrillDown taskId={task.id} />
-              </div>
+              <ActivityPanel
+                entityType="agent_task"
+                entityId={task.id}
+                agentTaskId={task.id}
+                hideHeader
+              />
             </aside>
           </div>
         )}

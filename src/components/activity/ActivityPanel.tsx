@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import { AttachmentChips, type CommentAttachment } from "@/components/shared/Ric
 import { CommentReactions } from "@/components/shared/CommentReactions";
 import { cn } from "@/lib/utils";
 import { InlineEmailComposer } from "@/components/crm/InlineEmailComposer";
+import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
@@ -63,9 +65,11 @@ interface Props {
   hideComposer?: boolean;
   defaultFilter?: FilterMode;
   onReplyEmail?: (info: { threadId: string; subject: string }) => void;
+  /** When set, renders "Comments" and "AI Log" tabs — used by AgentTaskDetail. */
+  agentTaskId?: string;
 }
 
-export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail }: Props) {
+export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail, agentTaskId }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -156,8 +160,7 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     if (parentId) setReplyTo(null);
     fetchAll();
 
-    // @Albus trigger — on projects, if the comment mentions Albus, fire the
-    // project-albus-reply edge function which posts an Albus answer back.
+    // @Albus trigger — on projects, fire project-albus-reply edge function.
     const mentionsAlbus = /@\s*albus\b/i.test(payload.contentText || "");
     if (entityType === "project" && mentionsAlbus) {
       try {
@@ -168,6 +171,12 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       } catch (e: any) {
         console.warn("Albus reply failed", e);
       }
+    }
+
+    // @mention on an agent task — flip status to "pending" to wake the worker.
+    const mentionsAgent = /@\w+/.test(payload.contentText || "");
+    if (entityType === "agent_task" && mentionsAgent && agentTaskId) {
+      await supabase.from("agent_tasks").update({ status: "pending" }).eq("id", agentTaskId);
     }
 
     setSubmitting(false);
@@ -609,6 +618,49 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       })}
     </div>
   );
+
+  // Tabbed mode — used when an agentTaskId is provided (agent task drawer).
+  if (agentTaskId) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <Tabs defaultValue="comments" className="flex flex-col h-full min-h-0">
+          <TabsList className="shrink-0 w-full justify-start rounded-none border-b border-border/40 bg-transparent px-3 gap-1 h-9">
+            <TabsTrigger
+              value="comments"
+              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
+            >
+              <MessageSquare className="h-3 w-3 mr-1.5" /> Comments
+            </TabsTrigger>
+            <TabsTrigger
+              value="ai-log"
+              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
+            >
+              AI Log
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="comments" className="flex-1 min-h-0 flex flex-col mt-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+              {StreamBody}
+            </div>
+            {!hideComposer && (
+              <div className="shrink-0 border-t border-border/40 px-4 pt-3 pb-2 bg-background">
+                <ActivityComposer
+                  submitting={submitting}
+                  onSubmit={(p) => handleSubmit(p)}
+                  placeholder="Comment or @mention an agent to activate them…"
+                />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="ai-log" className="flex-1 min-h-0 overflow-y-auto mt-0 px-4 py-3">
+            <AgentActivityDrillDown taskId={agentTaskId} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
 
   if (hideHeader) {
     return (
