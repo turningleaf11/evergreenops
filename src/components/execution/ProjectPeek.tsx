@@ -23,16 +23,15 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ChevronDown, ChevronRight, ExternalLink, FolderOpen, FileText,
-  CheckSquare, Plus, Loader2, Upload, X, Users,
+  CheckSquare, Loader2, Upload, X, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { cn } from "@/lib/utils";
-import { CoverImageZone, CoverMenuItems } from "@/components/primitives";
+import { CoverImageZone, CoverMenuItems, StatusPill, PriorityPill, QuickAddPopover } from "@/components/primitives";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
-import { StatusPill, PriorityPill } from "@/components/primitives";
 
 const sb = supabase as any;
 
@@ -52,7 +51,6 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
   const [loading, setLoading] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false); // collapsed by default
   const [filesOpen, setFilesOpen] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
   const [notesSaveTimer, setNotesSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -88,10 +86,10 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
     setNotesSaveTimer(t);
   };
 
-  const addTask = async () => {
-    if (!newTaskTitle.trim() || !user || !project) return;
+  const addTask = async (title: string) => {
+    if (!title.trim() || !user || !project) return;
     const { data, error } = await sb.from("tasks").insert({
-      title: newTaskTitle.trim(),
+      title: title.trim(),
       project_id: project.id,
       status: "todo",
       priority: "medium",
@@ -100,7 +98,6 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setTasks((prev) => [...prev, data]);
-    setNewTaskTitle("");
   };
 
   const toggleTaskDone = async (taskId: string, currentStatus: string) => {
@@ -279,16 +276,7 @@ export default function ProjectPeek({ projectId, onClose, onChanged }: Props) {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-dashed border-border/40">
-                    <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <input
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-                      placeholder="Add a task…"
-                      className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/40"
-                    />
-                  </div>
+                  <QuickAddPopover triggerLabel="Add task" placeholder="Task name…" onAdd={addTask} />
                 </div>
 
                 {/* Files — collapsed */}

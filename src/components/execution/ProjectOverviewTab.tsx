@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
-import { Crown, FileSignature, Paperclip, Flag, Plus, Target, ChevronDown } from "lucide-react";
+import { Crown, FileSignature, Paperclip, Flag, Plus, Target } from "lucide-react";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import RichTextEditor from "@/components/RichTextEditor";
+import { CollapsibleNotes } from "@/components/primitives";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -50,7 +50,6 @@ function timeAgo(d: string) {
 export default function ProjectOverviewTab({
   project, goals = [], profiles, onNotesChange, onGoalChange, onOpenGoal,
 }: Props) {
-  const [notesExpanded, setNotesExpanded] = useState(false);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
 
   const fetchActivity = useCallback(async () => {
@@ -80,26 +79,11 @@ export default function ProjectOverviewTab({
     <div className="flex gap-8">
       <div className="flex-1 min-w-0 space-y-7">
         <section>
-          <div className="rounded-xl border border-border/50 bg-card/40 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h4>
-              <button
-                onClick={() => setNotesExpanded((v) => !v)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                {notesExpanded ? "Collapse" : "Expand"}
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${notesExpanded ? "rotate-180" : ""}`} />
-              </button>
-            </div>
-            <div className={`overflow-y-auto transition-[max-height] duration-200 ${notesExpanded ? "max-h-[480px]" : "max-h-[140px]"}`}>
-              <RichTextEditor
-                content={project.notes_content || ""}
-                onChange={onNotesChange}
-                placeholder="Start writing project notes, plans, context…"
-                borderless
-              />
-            </div>
-          </div>
+          <CollapsibleNotes
+            content={project.notes_content || ""}
+            onChange={onNotesChange}
+            placeholder="Start writing project notes, plans, context…"
+          />
         </section>
 
         <section>

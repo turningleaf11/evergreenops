@@ -6,18 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  Plus, X, Target, FolderKanban, FileText,
+  Plus, X, Target, FolderKanban,
   ChevronDown, ChevronRight, CircleDot, Loader2, MoreHorizontal, Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import RichTextEditor from "@/components/RichTextEditor";
 import LinkProjectPicker from "./LinkProjectPicker";
 import { OwnerPicker, FollowersPicker } from "@/components/crm/PeoplePickers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { appConfirm } from "@/components/AppConfirm";
-import { StatusPill } from "@/components/primitives";
+import { StatusPill, CollapsibleNotes } from "@/components/primitives";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 
 interface KeyResult { label?: string; title?: string; target?: string; current?: string; done?: boolean; }
@@ -280,19 +279,12 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                 </Collapsible>
 
                 {/* Strategy & Notes */}
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground/80 py-1">
-                    <FileText className="h-3.5 w-3.5" /> Strategy & Notes
-                  </div>
-                  <div className="pt-2">
-                    <RichTextEditor
-                      content={goal.alignment_notes || ""}
-                      onChange={html => update({ alignment_notes: html })}
-                      placeholder="Strategy, context, alignment notes..."
-                      borderless
-                    />
-                  </div>
-                </div>
+                <CollapsibleNotes
+                  label="Strategy & Notes"
+                  content={goal.alignment_notes || ""}
+                  onChange={html => update({ alignment_notes: html })}
+                  placeholder="Strategy, context, alignment notes..."
+                />
               </div>
             </div>
 

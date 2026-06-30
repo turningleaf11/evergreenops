@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, Loader2, Check, GripVertical } from "lucide-react";
+import { Trash2, Check, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/AppConfirm";
 import { cn } from "@/lib/utils";
+import { QuickAddPopover } from "@/components/primitives";
 
 const sb = supabase as any;
 
@@ -37,8 +38,6 @@ export function AiProjectFeatures({ projectId }: { projectId: string }) {
   const { user } = useAuth();
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTitle, setNewTitle] = useState("");
-  const [adding, setAdding] = useState(false);
   const [hideDone, setHideDone] = useState(false);
 
   const load = async () => {
@@ -56,20 +55,17 @@ export function AiProjectFeatures({ projectId }: { projectId: string }) {
 
   useEffect(() => { load(); }, [projectId]);
 
-  const addFeature = async () => {
-    if (!newTitle.trim()) return;
-    setAdding(true);
+  const addFeature = async (title: string) => {
+    if (!title.trim()) return;
     const next_order = Math.max(0, ...features.map((f) => f.sort_order)) + 10;
     const { data, error } = await sb.from("ai_project_features").insert({
       project_id: projectId,
-      title: newTitle.trim(),
+      title: title.trim(),
       created_by: user?.id ?? null,
       status: "idea",
       sort_order: next_order,
     }).select().single();
-    setAdding(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setNewTitle("");
     if (data) setFeatures((prev) => [...prev, data as Feature]);
   };
 
@@ -139,24 +135,7 @@ export function AiProjectFeatures({ projectId }: { projectId: string }) {
         </label>
       </div>
 
-      {/* Add row */}
-      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-2">
-        <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") addFeature(); }}
-          placeholder="Add a feature or idea you want built…"
-          className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/50"
-        />
-        <button
-          onClick={addFeature}
-          disabled={adding || !newTitle.trim()}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-primary text-primary-foreground disabled:opacity-40"
-        >
-          {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
-        </button>
-      </div>
+      <QuickAddPopover triggerLabel="Add feature" placeholder="Feature or idea you want built…" onAdd={addFeature} />
 
       {/* List */}
       {loading ? (

@@ -22,3 +22,6 @@ export { EntityViewTabs } from "./EntityViewTabs";
 export type { ViewType } from "./EntityViewTabs";
 
 export { CoverImageZone, CoverMenuItems } from "./CoverImageZone";
+
+export { CollapsibleNotes } from "./CollapsibleNotes";
+export { QuickAddPopover } from "./QuickAddPopover";
