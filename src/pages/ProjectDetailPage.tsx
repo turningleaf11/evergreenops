@@ -10,11 +10,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
-  ChevronLeft, Calendar, Users, X, Target, MessageSquare, Check, Crown,
+  Link2, Calendar, Users, X, Target, MessageSquare, Check, Crown,
   LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { StatusPill, PriorityPill } from "@/components/primitives";
+import { StatusPill, PriorityPill, AvatarStack } from "@/components/primitives";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
@@ -122,43 +122,53 @@ export default function ProjectDetailPage() {
   if (!project) return <div className="p-6 text-center text-muted-foreground">Project not found.</div>;
 
   const goalTitle = goals.find(g => g.id === project.goal_id)?.title;
+  const teamIds = [project.owner_id, ...(project.assignees || [])].filter(
+    (v: string | null, i: number, a: (string | null)[]) => v && a.indexOf(v) === i,
+  );
+  const team = teamIds.map((uid: string) => profiles.find(p => p.user_id === uid)).filter(Boolean) as { user_id: string; full_name: string | null }[];
 
   return (
     <div className="h-full flex flex-col">
       {/* Scroll container */}
       <div className="flex-1 overflow-y-auto">
-        <div className="px-6 py-6 max-w-[1500px] mx-auto">
-          {/* Minor back-nav — not competing with the title for visual weight */}
-          <button
-            onClick={() => navigate("/execution?tab=projects")}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 -ml-1"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" /> Projects
-          </button>
+        <div className="px-6 pt-4 pb-6 max-w-[1500px] mx-auto">
+          {/* Header: title + meta. No back-nav line — that lives in the
+              sidebar/browser back, not competing with the title here. */}
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+              {editingTitle ? (
+                <Input
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  onBlur={saveTitle}
+                  onKeyDown={e => e.key === "Enter" && saveTitle()}
+                  autoFocus
+                  className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
+                />
+              ) : (
+                <h1
+                  className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-1 truncate"
+                  onClick={() => setEditingTitle(true)}
+                >
+                  {project.title}
+                </h1>
+              )}
+            </div>
 
-          {/* Header: title + meta */}
-          <div className="mb-2 flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-muted-foreground" />
-            {editingTitle ? (
-              <Input
-                value={titleDraft}
-                onChange={e => setTitleDraft(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={e => e.key === "Enter" && saveTitle()}
-                autoFocus
-                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
-              />
-            ) : (
-              <h1
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-1"
-                onClick={() => setEditingTitle(true)}
+            <div className="flex items-center gap-2 shrink-0">
+              {team.length > 0 && <AvatarStack people={team} size="sm" max={4} />}
+              <button
+                onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}
+                title="Copy link"
+                className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
               >
-                {project.title}
-              </h1>
-            )}
+                <Link2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap mb-6 text-sm">
+          <div className="flex items-center gap-2 flex-wrap mb-5 text-sm">
             <StatusPill
               kind="project"
               value={project.status}
@@ -349,7 +359,6 @@ export default function ProjectDetailPage() {
                 goals={goals}
                 profiles={profiles}
                 onNotesChange={(html) => updateProject({ notes_content: html })}
-                onDescriptionChange={(v) => { updateProject({ description: v }); logActivity("description_changed", {}); }}
                 onGoalChange={(goalId) => { updateProject({ goal_id: goalId }); logActivity("goal_connected", { goal_id: goalId }); }}
                 onOpenGoal={(goalId) => setPeekGoalId(goalId)}
               />

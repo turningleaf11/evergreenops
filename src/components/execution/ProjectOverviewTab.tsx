@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
-import { Crown, FileSignature, Paperclip, Flag, Plus, Target } from "lucide-react";
+import { Crown, FileSignature, Paperclip, Flag, Plus, Target, ChevronDown } from "lucide-react";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -15,7 +14,6 @@ interface Props {
   goals?: { id: string; title: string }[];
   profiles: { user_id: string; full_name: string | null; avatar_url?: string | null }[];
   onNotesChange: (html: string) => void;
-  onDescriptionChange: (value: string) => void;
   onGoalChange: (goalId: string | null) => void;
   onOpenGoal: (goalId: string) => void;
 }
@@ -50,13 +48,10 @@ function timeAgo(d: string) {
 }
 
 export default function ProjectOverviewTab({
-  project, goals = [], profiles, onNotesChange, onDescriptionChange, onGoalChange, onOpenGoal,
+  project, goals = [], profiles, onNotesChange, onGoalChange, onOpenGoal,
 }: Props) {
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [descriptionDraft, setDescriptionDraft] = useState(project.description || "");
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
-
-  useEffect(() => { setDescriptionDraft(project.description || ""); }, [project.description]);
 
   const fetchActivity = useCallback(async () => {
     const { data } = await supabase
@@ -81,46 +76,29 @@ export default function ProjectOverviewTab({
 
   const connectedGoal = goals.find((g) => g.id === project.goal_id);
 
-  const saveDescription = () => {
-    if (descriptionDraft.trim() !== (project.description || "")) {
-      onDescriptionChange(descriptionDraft.trim());
-    }
-    setEditingDescription(false);
-  };
-
   return (
     <div className="flex gap-8">
       <div className="flex-1 min-w-0 space-y-7">
         <section>
-          <h3 className="text-sm font-semibold mb-2">Project description</h3>
-          {editingDescription ? (
-            <Input
-              value={descriptionDraft}
-              onChange={(e) => setDescriptionDraft(e.target.value)}
-              onBlur={saveDescription}
-              onKeyDown={(e) => e.key === "Enter" && saveDescription()}
-              autoFocus
-              className="text-sm"
-            />
-          ) : (
-            <p
-              onClick={() => setEditingDescription(true)}
-              className="text-sm text-muted-foreground leading-relaxed cursor-pointer hover:bg-accent/30 rounded px-1.5 -mx-1.5 py-0.5"
-            >
-              {project.description || "Add a description…"}
-            </p>
-          )}
-        </section>
-
-        <section>
           <div className="rounded-xl border border-border/50 bg-card/40 p-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Notes</h4>
-            <RichTextEditor
-              content={project.notes_content || ""}
-              onChange={onNotesChange}
-              placeholder="Start writing project notes, plans, context…"
-              borderless
-            />
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h4>
+              <button
+                onClick={() => setNotesExpanded((v) => !v)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {notesExpanded ? "Collapse" : "Expand"}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${notesExpanded ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+            <div className={`overflow-y-auto transition-[max-height] duration-200 ${notesExpanded ? "max-h-[480px]" : "max-h-[140px]"}`}>
+              <RichTextEditor
+                content={project.notes_content || ""}
+                onChange={onNotesChange}
+                placeholder="Start writing project notes, plans, context…"
+                borderless
+              />
+            </div>
           </div>
         </section>
 
