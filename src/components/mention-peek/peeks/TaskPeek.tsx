@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, ExternalLink, CheckSquare, Loader2 } from "lucide-react";
+import { Calendar, User, CheckSquare, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ActivityPanel from "@/components/activity/ActivityPanel";
@@ -11,7 +10,6 @@ import { StatusPill, PriorityPill } from "@/components/primitives";
 interface Props { id: string; open: boolean; onClose: () => void; }
 
 export default function TaskPeek({ id, open, onClose }: Props) {
-  const navigate = useNavigate();
   const [row, setRow] = useState<any>(null);
   const [assigneeName, setAssigneeName] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -109,16 +107,6 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-border/40">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => { onClose(); navigate(`/tasks/${id}`); }}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open full task
-                  </Button>
-                </div>
               </div>
             </div>
 

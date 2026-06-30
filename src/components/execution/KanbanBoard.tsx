@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Repeat, Plus, Palette, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { KANBAN_CLASSES, KANBAN_COLORS, resolveColor, type KanbanColorName } from "@/lib/kanban-colors";
+import { KANBAN_CLASSES, KANBAN_COLORS, resolveColor, kanbanColorToHsl, type KanbanColorName } from "@/lib/kanban-colors";
 import { EntityCard } from "@/components/primitives";
 import type { EntityKind } from "@/lib/statusTone";
 

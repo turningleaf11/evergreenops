@@ -48,20 +48,13 @@ export function getStoragePathFromUrl(url: string, bucket = FILES_BUCKET): strin
   }
 }
 
-/**
- * Open a stored file inside the in-app File Viewer (PDF/image preview, with
- * Download and Open-in-new-tab actions). Falls back to a new tab if the viewer
- * provider isn't mounted.
- */
 export async function openStoredFile(url: string, options?: { fileName?: string; bucket?: string; mimeType?: string }) {
   const detail = { url, fileName: options?.fileName, mimeType: options?.mimeType };
   const dispatched = typeof window !== "undefined"
     && window.dispatchEvent(new CustomEvent("lovable:open-file", { detail, cancelable: true }));
 
-  // If a listener (FileViewerProvider) handled it, we're done.
   if (dispatched && (window as any).__lovableFileViewerMounted) return;
 
-  // Fallback: open in a new tab.
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
