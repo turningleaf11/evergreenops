@@ -136,7 +136,13 @@ export default function ProjectDetailPage() {
         <div className="px-6 pt-4 pb-6">
           {/* Header — title + all meta on one row */}
           <div className="mb-2 flex items-center gap-2 flex-wrap">
-            <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+            <button
+              onClick={() => navigate(-1)}
+              title="Back to projects"
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors rounded p-0.5 hover:bg-accent/60"
+            >
+              <FolderOpen className="h-5 w-5" />
+            </button>
             {editingTitle ? (
               <Input
                 value={titleDraft}
