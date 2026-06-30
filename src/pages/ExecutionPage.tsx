@@ -92,8 +92,9 @@ const ISSUE_PRIORITY_KEY: Record<number, string> = { 1: "high", 2: "medium", 3: 
 const projectStatusOptions = [
   { value: "not_started", label: "Not Started" },
   { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-  { value: "blocked", label: "Blocked" },
+  { value: "at_risk",     label: "At Risk" },
+  { value: "blocked",     label: "Blocked" },
+  { value: "done",        label: "Completed" },
 ];
 
 const taskStatusOptions = [
@@ -113,8 +114,9 @@ const priorityOptions = [
 const projectKanbanColsBase = [
   { key: "not_started", label: "Not Started", color: "slate" },
   { key: "in_progress", label: "In Progress", color: "blue" },
-  { key: "blocked", label: "Blocked", color: "red" },
-  { key: "done", label: "Done", color: "green" },
+  { key: "at_risk",     label: "At Risk",     color: "amber" },
+  { key: "blocked",     label: "Blocked",     color: "red" },
+  { key: "done",        label: "Completed",   color: "green" },
 ];
 
 const taskKanbanColsBase = [

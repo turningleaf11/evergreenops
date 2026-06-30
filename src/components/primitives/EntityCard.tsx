@@ -187,22 +187,18 @@ export function EntityCard({
           )}
         </div>
 
-        {assignees && assignees.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground/70">Assignees:</span>
-            <AvatarStack people={assignees} size="md" max={4} />
-          </div>
-        )}
-
-        {(dateLabel || priority) && (
+        {(assignees && assignees.length > 0 || dateLabel) && (
           <div className="flex items-center justify-between gap-2">
-            {dateLabel ? (
+            {assignees && assignees.length > 0
+              ? <AvatarStack people={assignees} size="md" max={4} />
+              : <span />
+            }
+            {dateLabel && (
               <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <DateIcon className="h-3 w-3" />
                 {dateLabel}
               </span>
-            ) : <span />}
-            {priority && <PriorityPill value={priority} />}
+            )}
           </div>
         )}
 

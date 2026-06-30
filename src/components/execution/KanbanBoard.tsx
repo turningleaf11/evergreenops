@@ -129,25 +129,24 @@ export default function KanbanBoard({
             const colItems = items.filter(item => item[statusField] === col.key);
             const colorName = resolveColor(col.color);
             const cls = KANBAN_CLASSES[colorName];
+            const dotHsl = kanbanColorToHsl(colorName);
 
             return (
-              <div key={col.key} className={cn("flex-1 min-w-[280px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col", cls.columnBg)}>
-              {/* Sticky tinted header bar */}
-              <div className={cn(
-                "sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg group",
-                cls.headerBg
-              )}>
-                <span className={cn("text-xs font-bold uppercase tracking-wider truncate", cls.headerText)}>
+              <div key={col.key} className="flex-1 min-w-[280px] max-w-[340px] shrink-0 rounded-xl p-2 flex flex-col bg-muted/30">
+              {/* Quiet header — dot + label + count */}
+              <div className="sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 px-3 py-2 mb-2 group">
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: `hsl(${dotHsl})` }}
+                />
+                <span className="text-xs font-semibold text-foreground/80 truncate flex-1">
                   {col.label}
                 </span>
                 {onEditColumnColor && (
                   <Popover open={openPicker === col.key} onOpenChange={(o) => setOpenPicker(o ? col.key : null)}>
                     <PopoverTrigger asChild>
                       <button
-                        className={cn(
-                          "opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-background/40",
-                          cls.headerText
-                        )}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-muted-foreground hover:text-foreground"
                         title="Change color"
                       >
                         <Palette className="h-3 w-3" />
@@ -161,10 +160,7 @@ export default function KanbanBoard({
                     </PopoverContent>
                   </Popover>
                 )}
-                <span className={cn(
-                  "ml-auto text-[10px] font-semibold rounded-full px-1.5 py-0.5 bg-background/60",
-                  cls.headerText
-                )}>
+                <span className="text-xs text-muted-foreground font-medium ml-auto">
                   {colItems.length}
                 </span>
               </div>
