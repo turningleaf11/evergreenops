@@ -1,36 +1,22 @@
 import { format } from "date-fns";
-import { CheckCircle2, Circle, Clock, FileText, Users, Upload } from "lucide-react";
-import { useState, useCallback } from "react";
+import { CheckCircle2, Circle, Clock, FileText, Users } from "lucide-react";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/RichTextEditor";
-import { uploadFileWithPath } from "@/lib/file-upload";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
 
 interface Props {
   project: any;
   tasks: any[];
-  linkedDocs: any[];
+  linkedDocs?: any[];
+  attachments?: any[];
   profiles: { user_id: string; full_name: string | null; avatar_url?: string | null }[];
   onOpenTab: (tab: string) => void;
   onNotesChange: (html: string) => void;
-  onFilesChanged: () => void;
+  onFilesChanged?: () => void;
 }
-
-function initials(name: string) {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-}
-
-const isImage = (name: string) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
 
 export default function ProjectOverviewTab({
-  project, tasks, linkedDocs, profiles, onOpenTab, onNotesChange, onFilesChanged,
+  project, tasks, attachments = [], profiles, onOpenTab, onNotesChange,
 }: Props) {
-  const { user } = useAuth();
-  const [uploading, setUploading] = useState(false);
-
   const openTasks = tasks.filter((t) => t.status !== "done");
   const upcoming = [...openTasks]
     .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"))
@@ -40,41 +26,6 @@ export default function ProjectOverviewTab({
     (v, i, a) => v && a.indexOf(v) === i,
   );
   const team = teamIds.map((id) => profiles.find((p) => p.user_id === id)).filter(Boolean) as any[];
-
-  const handleFiles = useCallback(async (files: FileList | File[]) => {
-    if (!user) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const uploaded = await uploadFileWithPath(file);
-        if (!uploaded) continue;
-        const content = `<p><a href="${uploaded.publicUrl}" data-file-path="${uploaded.path}" target="_blank" rel="noopener noreferrer">${file.name}</a></p>${
-          isImage(file.name) ? `<p><img src="${uploaded.publicUrl}" alt="${file.name}" /></p>` : ""
-        }`;
-        await supabase.from("documents").insert({
-          title: file.name,
-          content,
-          project_id: project.id,
-          author_id: user.id,
-          author_name: user.user_metadata?.full_name || user.email || null,
-          visibility: "workspace",
-        });
-      }
-      onFilesChanged();
-      toast({ title: "Uploaded" });
-    } finally {
-      setUploading(false);
-    }
-  }, [user, project.id, onFilesChanged]);
-
-  const pickFiles = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.onchange = () => input.files && handleFiles(input.files);
-    input.click();
-  };
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -154,45 +105,35 @@ export default function ProjectOverviewTab({
         </button>
 
         {/* Files */}
-        <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Files ({linkedDocs.length})
-              </h3>
-            </div>
-            <Button size="sm" variant="ghost" className="h-7 px-2 gap-1" onClick={pickFiles} disabled={uploading}>
-              <Upload className="h-3.5 w-3.5" />
-              <span className="text-xs">{uploading ? "…" : "Upload"}</span>
-            </Button>
+        <button
+          onClick={() => onOpenTab("files")}
+          className="w-full text-left rounded-2xl border border-border/50 bg-card/40 p-5 hover:bg-card/70 transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Files ({attachments.length})
+            </h3>
           </div>
-          {linkedDocs.length === 0 ? (
-            <button
-              onClick={() => onOpenTab("files")}
-              className="w-full text-left text-sm text-muted-foreground hover:text-foreground"
-            >
-              No files yet — upload or open Files tab.
-            </button>
+          {attachments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No attachments yet — open Files tab to upload.
+            </p>
           ) : (
             <div className="space-y-1.5">
-              {linkedDocs.slice(0, 5).map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => onOpenTab("files")}
-                  className="block w-full text-left text-sm truncate text-foreground/80 hover:text-foreground"
-                >
-                  {d.title}
-                </button>
+              {attachments.slice(0, 5).map((a) => (
+                <p key={a.id} className="text-sm truncate text-foreground/80">
+                  {a.file_name}
+                </p>
               ))}
-              {linkedDocs.length > 5 && (
-                <button onClick={() => onOpenTab("files")} className="text-xs text-primary mt-1">
-                  View all →
-                </button>
+              {attachments.length > 5 && (
+                <p className="text-xs text-primary mt-1">
+                  +{attachments.length - 5} more →
+                </p>
               )}
             </div>
           )}
-        </div>
+        </button>
       </div>
     </div>
   );

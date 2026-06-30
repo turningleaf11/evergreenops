@@ -4506,6 +4506,53 @@ export type Database = {
           },
         ]
       }
+      project_attachments: {
+        Row: {
+          id: string
+          project_id: string
+          workspace_id: string
+          file_name: string
+          storage_path: string
+          public_url: string
+          file_size: number | null
+          mime_type: string | null
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          workspace_id: string
+          file_name: string
+          storage_path: string
+          public_url: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          workspace_id?: string
+          file_name?: string
+          storage_path?: string
+          public_url?: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_attachments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           assignees: string[]
