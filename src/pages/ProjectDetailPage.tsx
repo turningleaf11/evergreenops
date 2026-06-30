@@ -405,7 +405,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Persistent right rail — activity always visible */}
-        <aside className="w-[440px] shrink-0 border-l border-border/40 overflow-hidden flex flex-col">
+        <aside className="w-[440px] shrink-0 border-l border-border/40 overflow-hidden flex flex-col px-3">
           <ActivityPanel entityType="project" entityId={project.id} />
         </aside>
       </div>
