@@ -11,10 +11,11 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   Link2, Calendar, Users, X, Target, MessageSquare, Check, Crown,
-  LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles,
+  LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles, MoreHorizontal,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { StatusPill, PriorityPill, AvatarStack } from "@/components/primitives";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
@@ -132,43 +133,29 @@ export default function ProjectDetailPage() {
       {/* Scroll container */}
       <div className="flex-1 overflow-y-auto">
         <div className="px-6 pt-4 pb-6 max-w-[1500px] mx-auto">
-          {/* Header: title + meta. No back-nav line — that lives in the
-              sidebar/browser back, not competing with the title here. */}
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
-              {editingTitle ? (
-                <Input
-                  value={titleDraft}
-                  onChange={e => setTitleDraft(e.target.value)}
-                  onBlur={saveTitle}
-                  onKeyDown={e => e.key === "Enter" && saveTitle()}
-                  autoFocus
-                  className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
-                />
-              ) : (
-                <h1
-                  className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-1 truncate"
-                  onClick={() => setEditingTitle(true)}
-                >
-                  {project.title}
-                </h1>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {team.length > 0 && <AvatarStack people={team} size="sm" max={4} />}
-              <button
-                onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}
-                title="Copy link"
-                className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+          {/* Header — title + all meta on one row */}
+          <div className="mb-2 flex items-center gap-2 flex-wrap">
+            <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+            {editingTitle ? (
+              <Input
+                value={titleDraft}
+                onChange={e => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={e => e.key === "Enter" && saveTitle()}
+                autoFocus
+                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
+              />
+            ) : (
+              <h1
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-1 truncate"
+                onClick={() => setEditingTitle(true)}
               >
-                <Link2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
+                {project.title}
+              </h1>
+            )}
 
-          <div className="flex items-center gap-2 flex-wrap mb-5 text-sm">
+            <span className="text-muted-foreground/30 mx-0.5">·</span>
+
             <StatusPill
               kind="project"
               value={project.status}
@@ -301,17 +288,38 @@ export default function ProjectDetailPage() {
               </PopoverContent>
             </Popover>
 
-            {goalTitle && (
-              <>
-                <span className="text-muted-foreground/30">·</span>
+            {/* ⋯ more menu — right side */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
-                  onClick={() => setPeekGoalId(project.goal_id)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50 transition-colors"
+                  className="ml-auto h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+                  aria-label="More"
                 >
-                  <Target className="h-3 w-3" /> {goalTitle}
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
-              </>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}>
+                  <Link2 className="h-3.5 w-3.5 mr-2" /> Copy link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Connected goal — sub-line under title */}
+          {goalTitle && (
+            <div className="mb-2 ml-7">
+              <button
+                onClick={() => setPeekGoalId(project.goal_id)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Target className="h-3 w-3" /> {goalTitle}
+              </button>
+            </div>
+          )}
+
+          {/* Tags */}
+          <div className="flex items-center gap-2 flex-wrap mb-5 ml-7">
             {(project.tags || []).map((t: string) => (
               <Badge key={t} variant="secondary" className="text-[11px] gap-1">
                 {t}
@@ -388,7 +396,7 @@ export default function ProjectDetailPage() {
                 onTasksCreated={fetchData}
               />
             </TabsContent>
-            <TabsContent value="messages" className="mt-0">
+            <TabsContent value="messages" className="mt-0 h-[calc(100vh-220px)]">
               <ActivityPanel entityType="project" entityId={project.id} />
             </TabsContent>
           </Tabs>
