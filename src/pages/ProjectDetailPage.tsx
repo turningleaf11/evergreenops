@@ -346,12 +346,12 @@ export default function ProjectDetailPage() {
               <ProjectOverviewTab
                 project={project}
                 tasks={tasks}
-                linkedDocs={linkedDocs}
-                attachments={attachments}
+                goals={goals}
                 profiles={profiles}
-                onOpenTab={setActiveTab}
                 onNotesChange={(html) => updateProject({ notes_content: html })}
-                onFilesChanged={fetchData}
+                onDescriptionChange={(v) => { updateProject({ description: v }); logActivity("description_changed", {}); }}
+                onGoalChange={(goalId) => { updateProject({ goal_id: goalId }); logActivity("goal_connected", { goal_id: goalId }); }}
+                onOpenGoal={(goalId) => setPeekGoalId(goalId)}
               />
             </TabsContent>
             <TabsContent value="tasks" className="mt-0">
