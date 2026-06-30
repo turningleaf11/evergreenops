@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Send, User } from "lucide-react";
+import { Loader2, Sparkles, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -38,8 +38,9 @@ const cleanResult = (raw: string) =>
 /**
  * Detail view for an AI-assigned task. Shares the same Sheet shell, header
  * layout, and StatusBadge as the human TaskPeek (src/components/mention-peek/peeks/TaskPeek.tsx)
- * so an agent task doesn't feel like a different product from a human one —
- * the feedback box and agent log are the only agent-specific additions.
+ * so an agent task doesn't feel like a different product from a human one.
+ * Human feedback is sent by @mentioning the agent in the Comments tab
+ * (ActivityPanel writes it into context.human_feedback and wakes the worker).
  */
 export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; open: boolean; onClose: () => void }) {
   const [task, setTask] = useState<AgentTask | null>(null);
@@ -47,11 +48,9 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
   const [agentMeta, setAgentMeta] = useState<{ emoji: string | null; accent_color: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [sending, setSending] = useState(false);
 
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [feedback, setFeedback] = useState("");
 
   const fetchTask = async () => {
     const { data, error } = await supabase.from("agent_tasks").select("*").eq("id", taskId).single();
@@ -89,29 +88,6 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
     if (error) toast.error(error.message);
     else { setTask({ ...task, status }); toast.success("Status updated"); }
     setSaving(false);
-  };
-
-  const sendFeedback = async () => {
-    if (!task || !feedback.trim()) return;
-    setSending(true);
-    const stamp = `\n\n— Update, ${format(new Date(), "MMM d, h:mm a")}:\n${feedback.trim()}`;
-    const newDescription = (task.description || "") + stamp;
-    const existingFeedback = Array.isArray((task.context as any)?.human_feedback) ? (task.context as any).human_feedback : [];
-    const newContext = {
-      ...(task.context || {}),
-      human_feedback: [...existingFeedback, { at: new Date().toISOString(), text: feedback.trim() }],
-    };
-    const { error } = await supabase.from("agent_tasks")
-      .update({ description: newDescription, context: newContext, status: "pending" })
-      .eq("id", task.id);
-    if (error) toast.error(error.message);
-    else {
-      setTask({ ...task, description: newDescription, context: newContext, status: "pending" });
-      setEditDescription(newDescription);
-      setFeedback("");
-      toast.success(`Sent back to ${agentName || task.assigned_to}`);
-    }
-    setSending(false);
   };
 
   return (
@@ -178,25 +154,16 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
                   </div>
                 )}
 
-                <div className={`rounded-lg border p-3 space-y-2 ${task.status === "needs_input" ? "border-red-200 bg-red-50" : "border-border bg-muted/30"}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={task.status === "needs_input" ? { color: "#991B1B" } : undefined}>
-                    {task.status === "needs_input" ? "This task needs your input" : `Feedback for ${agentName || task.assigned_to}`}
-                  </p>
-                  <Textarea
-                    value={feedback}
-                    onChange={e => setFeedback(e.target.value)}
-                    placeholder={`Add context or instructions for ${agentName || task.assigned_to}…`}
-                    rows={3}
-                    disabled={sending}
-                    className="text-sm bg-background"
-                  />
-                  <div className="flex justify-end">
-                    <Button size="sm" onClick={sendFeedback} disabled={sending || !feedback.trim()}>
-                      {sending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
-                      Send back to {agentName || task.assigned_to}
-                    </Button>
+                {task.status === "needs_input" && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#991B1B" }}>
+                      This task needs your input
+                    </p>
+                    <p className="text-xs text-red-700/80 mt-1">
+                      @mention {agentName || task.assigned_to} in the comments to send context and wake them up.
+                    </p>
                   </div>
-                </div>
+                )}
 
                 {task.notes && (
                   <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">

@@ -1,11 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, CheckSquare, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Calendar, User, CheckSquare, Loader2, ChevronDown, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ActivityPanel from "@/components/activity/ActivityPanel";
+import RichTextEditor from "@/components/RichTextEditor";
 import { StatusPill, PriorityPill } from "@/components/primitives";
+
+interface Subtask { id: string; title: string; done: boolean; }
 
 interface Props { id: string; open: boolean; onClose: () => void; }
 
@@ -13,10 +19,13 @@ export default function TaskPeek({ id, open, onClose }: Props) {
   const [row, setRow] = useState<any>(null);
   const [assigneeName, setAssigneeName] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [newSubtask, setNewSubtask] = useState("");
+  const [subtasksOpen, setSubtasksOpen] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+    if (data && !Array.isArray(data.subtasks)) data.subtasks = [];
     setRow(data);
     const assigneeId = data?.assigned_to;
     if (assigneeId) {
@@ -42,6 +51,30 @@ export default function TaskPeek({ id, open, onClose }: Props) {
     const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
     if (error) toast.error(error.message);
     else setRow({ ...row, priority });
+  };
+
+  const updateTask = async (updates: Record<string, any>) => {
+    if (!row) return;
+    const { error } = await supabase.from("tasks").update(updates).eq("id", id);
+    if (error) toast.error(error.message);
+    else setRow({ ...row, ...updates });
+  };
+
+  const subtasks: Subtask[] = row?.subtasks || [];
+  const doneSubtasks = subtasks.filter((s) => s.done).length;
+
+  const addSubtask = () => {
+    if (!newSubtask.trim()) return;
+    updateTask({ subtasks: [...subtasks, { id: crypto.randomUUID(), title: newSubtask.trim(), done: false }] });
+    setNewSubtask("");
+  };
+
+  const toggleSubtask = (stId: string) => {
+    updateTask({ subtasks: subtasks.map((s) => (s.id === stId ? { ...s, done: !s.done } : s)) });
+  };
+
+  const removeSubtask = (stId: string) => {
+    updateTask({ subtasks: subtasks.filter((s) => s.id !== stId) });
   };
 
   const title = row?.title || "Untitled task";
@@ -107,6 +140,45 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                   </div>
                 )}
 
+                <div className="pt-3 border-t border-border/40">
+                  <RichTextEditor
+                    content={row.notes_content || ""}
+                    onChange={(html) => updateTask({ notes_content: html })}
+                    placeholder="Write notes, plans, context…"
+                    borderless
+                  />
+                </div>
+
+                <Collapsible open={subtasksOpen} onOpenChange={setSubtasksOpen} className="pt-1 border-t border-border/40">
+                  <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full py-2">
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${subtasksOpen ? "" : "-rotate-90"}`} />
+                    <CheckSquare className="h-3.5 w-3.5" />
+                    Subtasks {subtasks.length > 0 && <span className="text-xs font-normal">({doneSubtasks}/{subtasks.length})</span>}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1.5 pt-1">
+                    {subtasks.map((s) => (
+                      <div key={s.id} className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/30 group">
+                        <Checkbox checked={s.done} onCheckedChange={() => toggleSubtask(s.id)} />
+                        <span className={`text-sm flex-1 ${s.done ? "line-through text-muted-foreground" : ""}`}>{s.title}</span>
+                        <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity" onClick={() => removeSubtask(s.id)}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <Input
+                        value={newSubtask}
+                        onChange={(e) => setNewSubtask(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addSubtask()}
+                        placeholder="Add a subtask…"
+                        className="text-sm h-8 border-dashed"
+                      />
+                      <Button size="sm" variant="ghost" onClick={addSubtask} disabled={!newSubtask.trim()}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             </div>
 

@@ -173,10 +173,16 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       }
     }
 
-    // @mention on an agent task — flip status to "pending" to wake the worker.
+    // @mention on an agent task — record as structured feedback and wake the worker.
     const mentionsAgent = /@\w+/.test(payload.contentText || "");
     if (entityType === "agent_task" && mentionsAgent && agentTaskId) {
-      await supabase.from("agent_tasks").update({ status: "pending" }).eq("id", agentTaskId);
+      const { data: agentTask } = await supabase.from("agent_tasks").select("context").eq("id", agentTaskId).maybeSingle();
+      const existingFeedback = Array.isArray((agentTask?.context as any)?.human_feedback) ? (agentTask!.context as any).human_feedback : [];
+      const newContext = {
+        ...(agentTask?.context || {}),
+        human_feedback: [...existingFeedback, { at: new Date().toISOString(), text: payload.contentText || "" }],
+      };
+      await supabase.from("agent_tasks").update({ context: newContext, status: "pending" }).eq("id", agentTaskId);
     }
 
     setSubmitting(false);
