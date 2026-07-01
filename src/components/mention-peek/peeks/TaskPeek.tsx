@@ -14,7 +14,8 @@ import { format, startOfToday, startOfTomorrow, addDays, addMonths } from "date-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ActivityPanel from "@/components/activity/ActivityPanel";
-import { CollapsibleNotes, StatusPill, PriorityPill } from "@/components/primitives";
+import RichTextEditor from "@/components/RichTextEditor";
+import { StatusPill, PriorityPill } from "@/components/primitives";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -289,13 +290,15 @@ export default function TaskPeek({ id, open, onClose }: Props) {
               </div>
 
               <section className="mb-5">
-                <CollapsibleNotes
-                  content={row.notes_content || row.description || ""}
-                  onChange={(html) => updateTask({ notes_content: html })}
-                  placeholder="Add a description, plans, context…"
-                  label="Details"
-                  collapsedHeight={140}
-                />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Details</h3>
+                <div className="overflow-y-auto rounded-md border border-transparent hover:border-border/30 focus-within:border-border/50 transition-colors" style={{ maxHeight: 180 }}>
+                  <RichTextEditor
+                    content={row.notes_content || row.description || ""}
+                    onChange={(html) => updateTask({ notes_content: html })}
+                    placeholder="Add a description, plans, context…"
+                    borderless
+                  />
+                </div>
               </section>
 
               <section className="mb-5">
