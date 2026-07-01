@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Activity, Filter, MessageSquare, Reply, Trash2, Check, Mail, Phone, Users, NotebookPen, ExternalLink, ArrowRightCircle, ChevronDown, ChevronRight, Loader2, ArrowUpDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ActivityComposer, type ActivitySubmitPayload } from "./ActivityComposer";
@@ -67,11 +67,18 @@ interface Props {
   onReplyEmail?: (info: { threadId: string; subject: string }) => void;
   /** When set, renders "Comments" and "AI Log" tabs — used by AgentTaskDetail. */
   agentTaskId?: string;
+  /**
+   * Inline/flow mode — stream grows with content instead of filling remaining height.
+   * Shows "Comments | All activity" tab bar + sort toggle. No composer (render externally).
+   * Use this when the parent handles scrolling (single-scroll layout like task peek).
+   */
+  inline?: boolean;
 }
 
-export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail, agentTaskId }: Props) {
+export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail, agentTaskId, inline = false }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [sortAsc, setSortAsc] = useState(true);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterMode>(defaultFilter);
@@ -203,8 +210,9 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     if (filter === "comments") merged = topComments;
     else if (filter === "activity") merged = [...evs, ...crm];
     else merged = [...topComments, ...evs, ...crm];
-    return merged.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  }, [comments, events, crmActs, filter]);
+    merged.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    return sortAsc ? merged : [...merged].reverse();
+  }, [comments, events, crmActs, filter, sortAsc]);
 
   const repliesFor = (id: string) => comments.filter((c) => c.parent_id === id);
 
@@ -661,6 +669,44 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
             <AgentActivityDrillDown taskId={agentTaskId} />
           </TabsContent>
         </Tabs>
+      </div>
+    );
+  }
+
+  // Inline/flow mode — stream grows with content, parent handles scroll, composer is external.
+  if (inline) {
+    return (
+      <div>
+        <div className="flex items-center border-b border-border/40 px-3">
+          {(["comments", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "h-9 mr-5 text-xs font-medium border-b-2 -mb-px transition-colors",
+                filter === f
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f === "comments" ? "Comments" : "All activity"}
+            </button>
+          ))}
+          <button
+            onClick={() => setSortAsc((s) => !s)}
+            className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowUpDown className="h-3 w-3" />
+            {sortAsc ? "Oldest" : "Newest"}
+          </button>
+        </div>
+        <div className="px-3 py-3 space-y-4">
+          {stream.map((item) => {
+            if (item.kind === "comment") return <CommentCard key={`c-${item.comment.id}`} c={item.comment} />;
+            if (item.kind === "event") return <EventRow key={`e-${item.event.id}`} e={item.event} />;
+            return <CrmRow key={`a-${item.crm.id}`} a={item.crm} />;
+          })}
+        </div>
       </div>
     );
   }
