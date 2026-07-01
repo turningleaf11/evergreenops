@@ -614,9 +614,6 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
 
   const StreamBody = (
     <div className="space-y-4">
-      {stream.length === 0 && (
-        <p className="text-sm text-muted-foreground">No activity yet.</p>
-      )}
       {stream.map((item) => {
         if (item.kind === "comment") return <CommentCard key={`c-${item.comment.id}`} c={item.comment} />;
         if (item.kind === "event") return <EventRow key={`e-${item.event.id}`} e={item.event} />;
@@ -671,11 +668,11 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
   if (hideHeader) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 py-2">
-          <div className="pb-2">{StreamBody}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+          {StreamBody}
         </div>
         {!hideComposer && (
-          <div className="shrink-0 border-t border-border/40 pt-3 pb-2 bg-background">
+          <div className="shrink-0 border-t border-border/40 px-3 pt-3 pb-2">
             <ActivityComposer submitting={submitting} onSubmit={(p) => handleSubmit(p)} />
           </div>
         )}

@@ -289,8 +289,8 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                 </FieldRow>
               </div>
 
-              <section className="mb-5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Details</h3>
+              <section className="mb-7">
+                <h3 className="text-sm font-semibold text-foreground mb-2">Details</h3>
                 <div className="overflow-y-auto rounded-md border border-transparent hover:border-border/30 focus-within:border-border/50 transition-colors" style={{ maxHeight: 180 }}>
                   <RichTextEditor
                     content={row.notes_content || row.description || ""}
@@ -301,13 +301,18 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                 </div>
               </section>
 
-              <section className="mb-5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                  Subtasks {subtasks.length > 0 && <span className="text-muted-foreground/70 normal-case font-normal">({doneSubtasks}/{subtasks.length})</span>}
-                </h3>
+              <section className="mb-7">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    Subtasks {subtasks.length > 0 && <span className="text-muted-foreground font-normal text-xs">({doneSubtasks}/{subtasks.length})</span>}
+                  </h3>
+                  <button onClick={() => document.getElementById("new-subtask-input")?.focus()} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <div className="space-y-1">
                   {subtasks.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 py-1 px-2 -mx-2 rounded-md hover:bg-accent/30 group">
+                    <div key={s.id} className="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-md hover:bg-accent/30 group">
                       <Checkbox checked={s.done} onCheckedChange={() => toggleSubtask(s.id)} />
                       <span className={cn("text-sm flex-1", s.done && "line-through text-muted-foreground")}>{s.title}</span>
                       <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity" onClick={() => removeSubtask(s.id)}>
@@ -317,6 +322,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                   ))}
                   <div className="flex gap-2 pt-1">
                     <Input
+                      id="new-subtask-input"
                       value={newSubtask}
                       onChange={(e) => setNewSubtask(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && addSubtask()}
@@ -330,9 +336,9 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                 </div>
               </section>
 
-              <section className="mb-5">
+              <section className="mb-7">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Docs</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Docs</h3>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="text-muted-foreground hover:text-foreground transition-colors">
@@ -356,7 +362,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                               <button
                                 key={d.id}
                                 onClick={() => linkExistingDoc(d.id)}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left truncate"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 text-left"
                               >
                                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                 <span className="truncate">{d.title}</span>
@@ -368,7 +374,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                     </PopoverContent>
                   </Popover>
                 </div>
-                {linkedDocs.length > 0 ? (
+                {linkedDocs.length > 0 && (
                   <div className="space-y-1.5">
                     {linkedDocs.map((d) => (
                       <div key={d.linkId} className="flex items-center gap-2.5 border border-border/50 rounded-md px-3 py-2 group">
@@ -386,24 +392,21 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground/70">No docs linked yet.</p>
                 )}
               </section>
 
               <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                  Attachments <Plus className="h-3 w-3 text-muted-foreground/70" />
-                </h3>
-                <div className="flex flex-col items-center justify-center text-center py-6 text-xs text-muted-foreground/70 border border-dashed border-border/50 rounded-lg" title="Not built yet">
-                  <Paperclip className="h-4 w-4 mb-1.5 text-muted-foreground/50" />
-                  No attachments yet
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Attachments</h3>
+                  <button className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </section>
             </div>
 
-            {/* Activity — pinned below, takes remaining height, same composer used everywhere else */}
-            <div className="flex-1 min-h-0 border-t border-border/40 flex flex-col overflow-hidden">
+            {/* Activity — accent-tinted, pinned below, same composer used everywhere else */}
+            <div className="flex-1 min-h-0 border-t border-border/40 flex flex-col overflow-hidden bg-primary/[0.03]">
               <ActivityPanel entityType="task" entityId={id} hideHeader />
             </div>
           </>
