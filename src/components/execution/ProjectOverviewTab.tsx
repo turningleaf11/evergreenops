@@ -31,6 +31,7 @@ export default function ProjectOverviewTab({
             content={project.notes_content || ""}
             onChange={onNotesChange}
             placeholder="Start writing project notes, plans, context…"
+            label="Details"
           />
         </section>
 
