@@ -4,17 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-fns";
 import {
   Link2, Calendar, Users, X, Target, Check, Crown,
-  LayoutDashboard, CheckSquare, PenLine, FolderOpen, Sparkles, MoreHorizontal,
+  List, PenLine, FolderOpen, Sparkles, MoreHorizontal, Info, MessageSquare, Plus,
+  LayoutGrid, GanttChartSquare, CalendarDays, Table2, FileText, FormInput,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { StatusPill, PriorityPill } from "@/components/primitives";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
@@ -23,6 +23,24 @@ import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
+
+// Task views land in the body; + Add view offers the rest (persisted per-project — Phase 1b).
+const VIEWS = [
+  { id: "list",        label: "List",        icon: List },
+  { id: "whiteboards", label: "Whiteboards", icon: PenLine },
+  { id: "files",       label: "Files",       icon: FolderOpen },
+  { id: "ai",          label: "AI",          icon: Sparkles },
+];
+const VALID_VIEWS = VIEWS.map((v) => v.id);
+
+const ADD_VIEW_OPTIONS = [
+  { label: "Board",    icon: LayoutGrid },
+  { label: "Timeline", icon: GanttChartSquare },
+  { label: "Calendar", icon: CalendarDays },
+  { label: "Table",    icon: Table2 },
+  { label: "Doc",      icon: FileText },
+  { label: "Form",     icon: FormInput },
+];
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,16 +53,21 @@ export default function ProjectDetailPage() {
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [commentCount, setCommentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
 
-  const tabKey = id ? `project-tab-${id}` : "project-tab";
+  const tabKey = id ? `project-view-${id}` : "project-view";
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === "undefined") return "overview";
-    return localStorage.getItem(tabKey) || "overview";
+    if (typeof window === "undefined") return "list";
+    const stored = localStorage.getItem(tabKey);
+    if (stored && VALID_VIEWS.includes(stored)) return stored;
+    return "list"; // legacy "overview"/"tasks" → land on the work
   });
 
   useEffect(() => {
@@ -53,13 +76,14 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [pRes, tRes, gRes, prRes, dRes, aRes] = await Promise.all([
+    const [pRes, tRes, gRes, prRes, dRes, aRes, cRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
       supabase.from("profiles").select("user_id, full_name"),
       supabase.from("documents").select("id, title, updated_at, content").eq("project_id", id).order("updated_at", { ascending: false }),
       supabase.from("project_attachments").select("*").eq("project_id", id).order("created_at", { ascending: false }),
+      supabase.from("comments").select("id", { count: "exact", head: true }).eq("entity_type", "project").eq("entity_id", id),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
     if (tRes.data) setTasks(tRes.data);
@@ -67,6 +91,7 @@ export default function ProjectDetailPage() {
     if (prRes.data) setProfiles(prRes.data);
     if (dRes.data) setLinkedDocs(dRes.data);
     if (aRes.data) setAttachments(aRes.data);
+    setCommentCount(cRes.count ?? 0);
     setLoading(false);
   }, [id]);
 
@@ -119,187 +144,87 @@ export default function ProjectDetailPage() {
     fetchData();
   };
 
+  // Details and Activity are peer right-panels — one at a time.
+  const openDetails = () => { setActivityOpen(false); setDetailsOpen(true); };
+  const openActivity = () => { setDetailsOpen(false); setActivityOpen(true); };
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   if (!project) return <div className="p-6 text-center text-muted-foreground">Project not found.</div>;
 
   const goalTitle = goals.find(g => g.id === project.goal_id)?.title;
-  const teamIds = [project.owner_id, ...(project.assignees || [])].filter(
-    (v: string | null, i: number, a: (string | null)[]) => v && a.indexOf(v) === i,
-  );
-  const team = teamIds.map((uid: string) => profiles.find(p => p.user_id === uid)).filter(Boolean) as { user_id: string; full_name: string | null }[];
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-1 min-h-0">
-        {/* Main scrolling content */}
-        <div className="flex-1 overflow-y-auto">
-        <div className="px-6 pt-4 pb-6">
-          {/* Header — title + all meta on one row */}
-          <div className="mb-2 flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => navigate(-1)}
-              title="Back to projects"
-              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors rounded p-0.5 hover:bg-accent/60"
+    <div className="relative h-full flex flex-col overflow-hidden">
+      {/* ── Header = the record ─────────────────────────────────────────── */}
+      <div className="px-6 pt-4 shrink-0">
+        {/* Title row — lifecycle inline + record affordances on the right */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => navigate(-1)}
+            title="Back to projects"
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors rounded p-0.5 hover:bg-accent/60"
+          >
+            <FolderOpen className="h-5 w-5" />
+          </button>
+          {editingTitle ? (
+            <Input
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={e => e.key === "Enter" && saveTitle()}
+              autoFocus
+              className="text-xl font-bold h-auto py-0.5 px-2 border-none shadow-none focus-visible:ring-1"
+            />
+          ) : (
+            <h1
+              className="text-xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-0.5 truncate"
+              onClick={() => setEditingTitle(true)}
             >
-              <FolderOpen className="h-5 w-5" />
+              {project.title}
+            </h1>
+          )}
+
+          <span className="text-muted-foreground/30 mx-0.5">·</span>
+          <StatusPill
+            kind="project"
+            value={project.status}
+            onChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}
+          />
+          <span className="text-muted-foreground/30">·</span>
+          <PriorityPill
+            value={project.priority || "medium"}
+            size="sm"
+            onChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}
+          />
+
+          <div className="ml-auto flex items-center gap-1">
+            {/* Info → Details panel (reference; rarely opened) */}
+            <button
+              onClick={openDetails}
+              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+              title="Project details"
+              aria-label="Project details"
+            >
+              <Info className="h-4 w-4" />
             </button>
-            {editingTitle ? (
-              <Input
-                value={titleDraft}
-                onChange={e => setTitleDraft(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={e => e.key === "Enter" && saveTitle()}
-                autoFocus
-                className="text-2xl font-bold h-auto py-1 px-2 border-none shadow-none focus-visible:ring-1"
-              />
-            ) : (
-              <h1
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/30 rounded px-2 -mx-1 py-1 truncate"
-                onClick={() => setEditingTitle(true)}
-              >
-                {project.title}
-              </h1>
-            )}
-
-            <span className="text-muted-foreground/30 mx-0.5">·</span>
-
-            <StatusPill
-              kind="project"
-              value={project.status}
-              onChange={v => { updateProject({ status: v }); logActivity("status_changed", { new_status: v }); }}
-            />
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <PriorityPill
-              value={project.priority || "medium"}
-              size="sm"
-              onChange={v => { updateProject({ priority: v }); logActivity("priority_changed", { new_priority: v }); }}
-            />
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
-                  <Users className="h-3 w-3" />
-                  {(() => {
-                    const teamCount = (project.assignees || []).length + (project.owner_id ? 1 : 0);
-                    if (!project.owner_id && teamCount === 0) return "Add team";
-                    const ownerName = project.owner_id ? getName(project.owner_id).split(" ")[0] : null;
-                    return ownerName ? `${ownerName}${teamCount > 1 ? ` +${teamCount - 1}` : ""}` : `${teamCount} team`;
-                  })()}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-1" align="start">
-                <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-between">
-                  <span>Team</span>
-                  <span className="flex items-center gap-1 normal-case tracking-normal text-muted-foreground/70">
-                    <Crown className="h-3 w-3" /> = owner
-                  </span>
-                </div>
-                <div className="max-h-72 overflow-y-auto">
-                  {profiles.map((p) => {
-                    const isOwner = project.owner_id === p.user_id;
-                    const isMember = isOwner || (project.assignees || []).includes(p.user_id);
-                    return (
-                      <div
-                        key={p.user_id}
-                        className={`group flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${isMember ? "bg-accent/30" : ""}`}
-                      >
-                        <button
-                          onClick={() => {
-                            const current: string[] = project.assignees || [];
-                            if (isOwner) {
-                              updateProject({ owner_id: null });
-                              logActivity("owner_changed", { new_owner: null });
-                              return;
-                            }
-                            if (isMember) {
-                              updateProject({ assignees: current.filter((x) => x !== p.user_id) });
-                            } else {
-                              updateProject({ assignees: [...current, p.user_id] });
-                            }
-                          }}
-                          className="flex-1 min-w-0 text-left truncate"
-                        >
-                          {p.full_name || "Unknown"}
-                        </button>
-                        {isMember && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isOwner) return;
-                              const current: string[] = project.assignees || [];
-                              updateProject({
-                                owner_id: p.user_id,
-                                assignees: current.filter((x) => x !== p.user_id),
-                              });
-                              logActivity("owner_changed", { new_owner: p.user_id });
-                            }}
-                            title={isOwner ? "Owner" : "Make owner"}
-                            className={`shrink-0 rounded-md p-1 transition-colors ${
-                              isOwner
-                                ? "text-amber-500"
-                                : "text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-accent"
-                            }`}
-                          >
-                            <Crown className="h-3.5 w-3.5" fill={isOwner ? "currentColor" : "none"} />
-                          </button>
-                        )}
-                        {isMember && !isOwner && (
-                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-md hover:bg-accent/50">
-                  <Calendar className="h-3 w-3" />
-                  {project.due_date ? format(new Date(project.due_date + "T00:00:00"), "MMM d, yyyy") : "No due date"}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <div className="flex flex-col">
-                  <div className="flex flex-wrap gap-1 p-2 border-b">
-                    {[
-                      { label: "Today", date: startOfToday() },
-                      { label: "Tomorrow", date: startOfTomorrow() },
-                      { label: "Next Week", date: addDays(startOfToday(), 7) },
-                      { label: "Next Month", date: addMonths(startOfToday(), 1) },
-                    ].map(opt => (
-                      <Button key={opt.label} variant="ghost" size="sm" className="h-7 text-xs" onClick={() => updateProject({ due_date: format(opt.date, "yyyy-MM-dd") })}>
-                        {opt.label}
-                      </Button>
-                    ))}
-                    {project.due_date && (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => updateProject({ due_date: null })}>
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <CalendarComponent
-                    mode="single"
-                    selected={project.due_date ? new Date(project.due_date + "T00:00:00") : undefined}
-                    onSelect={(date) => { if (date) updateProject({ due_date: format(date, "yyyy-MM-dd") }); }}
-                    className="p-3 pointer-events-auto"
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* ⋯ more menu — right side */}
+            {/* Comment → Activity panel (living pulse; badge keeps it discoverable) */}
+            <button
+              onClick={openActivity}
+              className="relative h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+              title="Activity"
+              aria-label="Activity"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {commentCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-semibold flex items-center justify-center">
+                  {commentCount}
+                </span>
+              )}
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="ml-auto h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+                  className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
                   aria-label="More"
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -312,59 +237,205 @@ export default function ProjectDetailPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+        </div>
 
-          {/* Connected goal — sub-line under title */}
+        {/* Quick-glance meta — goal, team, date. The rest lives in the Details panel. */}
+        <div className="flex items-center gap-4 mt-2 ml-7 flex-wrap">
           {goalTitle && (
-            <div className="mb-2 ml-7">
-              <button
-                onClick={() => setPeekGoalId(project.goal_id)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Target className="h-3 w-3" /> {goalTitle}
-              </button>
-            </div>
+            <button
+              onClick={() => setPeekGoalId(project.goal_id)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Target className="h-3 w-3" /> {goalTitle}
+            </button>
           )}
 
-          {/* Tags */}
-          <div className="flex items-center gap-2 flex-wrap mb-5 ml-7">
-            {(project.tags || []).map((t: string) => (
-              <Badge key={t} variant="secondary" className="text-[11px] gap-1">
-                {t}
-                <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
-              </Badge>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <Users className="h-3 w-3" />
+                {(() => {
+                  const teamCount = (project.assignees || []).length + (project.owner_id ? 1 : 0);
+                  if (!project.owner_id && teamCount === 0) return "Add team";
+                  const ownerName = project.owner_id ? getName(project.owner_id).split(" ")[0] : null;
+                  return ownerName ? `${ownerName}${teamCount > 1 ? ` +${teamCount - 1}` : ""}` : `${teamCount} team`;
+                })()}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-1" align="start">
+              <div className="px-2 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-between">
+                <span>Team</span>
+                <span className="flex items-center gap-1 normal-case tracking-normal text-muted-foreground/70">
+                  <Crown className="h-3 w-3" /> = owner
+                </span>
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {profiles.map((p) => {
+                  const isOwner = project.owner_id === p.user_id;
+                  const isMember = isOwner || (project.assignees || []).includes(p.user_id);
+                  return (
+                    <div
+                      key={p.user_id}
+                      className={`group flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent/60 ${isMember ? "bg-accent/30" : ""}`}
+                    >
+                      <button
+                        onClick={() => {
+                          const current: string[] = project.assignees || [];
+                          if (isOwner) {
+                            updateProject({ owner_id: null });
+                            logActivity("owner_changed", { new_owner: null });
+                            return;
+                          }
+                          if (isMember) {
+                            updateProject({ assignees: current.filter((x) => x !== p.user_id) });
+                          } else {
+                            updateProject({ assignees: [...current, p.user_id] });
+                          }
+                        }}
+                        className="flex-1 min-w-0 text-left truncate"
+                      >
+                        {p.full_name || "Unknown"}
+                      </button>
+                      {isMember && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isOwner) return;
+                            const current: string[] = project.assignees || [];
+                            updateProject({
+                              owner_id: p.user_id,
+                              assignees: current.filter((x) => x !== p.user_id),
+                            });
+                            logActivity("owner_changed", { new_owner: p.user_id });
+                          }}
+                          title={isOwner ? "Owner" : "Make owner"}
+                          className={`shrink-0 rounded-md p-1 transition-colors ${
+                            isOwner
+                              ? "text-amber-500"
+                              : "text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-accent"
+                          }`}
+                        >
+                          <Crown className="h-3.5 w-3.5" fill={isOwner ? "currentColor" : "none"} />
+                        </button>
+                      )}
+                      {isMember && !isOwner && (
+                        <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <Calendar className="h-3 w-3" />
+                {project.due_date ? format(new Date(project.due_date + "T00:00:00"), "MMM d, yyyy") : "No due date"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <div className="flex flex-col">
+                <div className="flex flex-wrap gap-1 p-2 border-b">
+                  {[
+                    { label: "Today", date: startOfToday() },
+                    { label: "Tomorrow", date: startOfTomorrow() },
+                    { label: "Next Week", date: addDays(startOfToday(), 7) },
+                    { label: "Next Month", date: addMonths(startOfToday(), 1) },
+                  ].map(opt => (
+                    <Button key={opt.label} variant="ghost" size="sm" className="h-7 text-xs" onClick={() => updateProject({ due_date: format(opt.date, "yyyy-MM-dd") })}>
+                      {opt.label}
+                    </Button>
+                  ))}
+                  {project.due_date && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => updateProject({ due_date: null })}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <CalendarComponent
+                  mode="single"
+                  selected={project.due_date ? new Date(project.due_date + "T00:00:00") : undefined}
+                  onSelect={(date) => { if (date) updateProject({ due_date: format(date, "yyyy-MM-dd") }); }}
+                  className="p-3 pointer-events-auto"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {/* ── View row = the container. Task-views + addable surfaces. ─────── */}
+      <div className="flex items-center gap-1 px-6 mt-3 border-b border-border/50 shrink-0">
+        {VIEWS.map(({ id: vid, label, icon: Icon }) => (
+          <button
+            key={vid}
+            onClick={() => setActiveTab(vid)}
+            className={cn(
+              "flex items-center gap-1.5 text-sm px-2 pb-2.5 pt-1 border-b-2 transition-colors -mb-px",
+              activeTab === vid ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" /> {label}
+            {vid === "list" && tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
+            {vid === "files" && attachments.length > 0 && <span className="text-[10px] text-muted-foreground">({attachments.length})</span>}
+          </button>
+        ))}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-1 text-sm px-2 pb-2.5 pt-1 text-muted-foreground hover:text-foreground transition-colors">
+              <Plus className="h-3.5 w-3.5" /> Add view
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            {ADD_VIEW_OPTIONS.map(({ label, icon: Icon }) => (
+              <DropdownMenuItem key={label} onClick={() => toast.info("Custom views are coming soon")}>
+                <Icon className="h-3.5 w-3.5 mr-2 text-muted-foreground" /> {label}
+              </DropdownMenuItem>
             ))}
-            <Input
-              value={newTagInput}
-              onChange={e => setNewTagInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
-              placeholder="+ tag"
-              className="h-6 w-16 text-[11px] border-none shadow-none bg-transparent placeholder:text-muted-foreground/40 px-1"
-            />
-          </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6 border-b border-border/50 rounded-none bg-transparent w-full justify-start gap-2 p-0 h-auto">
-              <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <LayoutDashboard className="h-3.5 w-3.5" /> Overview
-              </TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <CheckSquare className="h-3.5 w-3.5" /> Tasks
-                {tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
-              </TabsTrigger>
-              <TabsTrigger value="whiteboards" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <PenLine className="h-3.5 w-3.5" /> Whiteboards
-              </TabsTrigger>
-              <TabsTrigger value="files" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <FolderOpen className="h-3.5 w-3.5" /> Files
-                {attachments.length > 0 && <span className="text-[10px] text-muted-foreground">({attachments.length})</span>}
-              </TabsTrigger>
-              <TabsTrigger value="ai" className="gap-1.5 data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2.5">
-                <Sparkles className="h-3.5 w-3.5" /> AI
-              </TabsTrigger>
-            </TabsList>
+      {/* ── Body = the work, full width ─────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+        {activeTab === "list" && (
+          <ProjectTasksTab
+            tasks={tasks}
+            profiles={profiles}
+            onCreate={createTask}
+            onStatusChange={updateTaskStatus}
+            onChanged={fetchData}
+          />
+        )}
+        {activeTab === "whiteboards" && <ProjectWhiteboardsTab />}
+        {activeTab === "files" && <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />}
+        {activeTab === "ai" && (
+          <ProjectAiTab
+            project={project}
+            tasks={tasks}
+            profiles={profiles}
+            linkedDocs={linkedDocs}
+            goalTitle={goalTitle}
+            onTasksCreated={fetchData}
+          />
+        )}
+      </div>
 
-            <TabsContent value="overview" className="mt-0">
+      {/* ── Details panel — record properties. Opens on the info icon. ──── */}
+      {detailsOpen && (
+        <>
+          <div className="absolute inset-0 z-20 bg-foreground/10" onClick={() => setDetailsOpen(false)} />
+          <aside className="absolute top-0 right-0 z-30 h-full w-[420px] bg-card border-l border-border/60 shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-4 h-12 border-b border-border/50 shrink-0">
+              <span className="text-sm font-semibold">Details</span>
+              <button onClick={() => setDetailsOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close details">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
               <ProjectOverviewTab
                 project={project}
                 tasks={tasks}
@@ -374,41 +445,47 @@ export default function ProjectDetailPage() {
                 onGoalChange={(goalId) => { updateProject({ goal_id: goalId }); logActivity("goal_connected", { goal_id: goalId }); }}
                 onOpenGoal={(goalId) => setPeekGoalId(goalId)}
               />
-            </TabsContent>
-            <TabsContent value="tasks" className="mt-0">
-              <ProjectTasksTab
-                tasks={tasks}
-                profiles={profiles}
-                onCreate={createTask}
-                onStatusChange={updateTaskStatus}
-                onChanged={fetchData}
-              />
-            </TabsContent>
-            <TabsContent value="whiteboards" className="mt-0">
-              <ProjectWhiteboardsTab />
-            </TabsContent>
-            <TabsContent value="files" className="mt-0">
-              <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />
-            </TabsContent>
-            <TabsContent value="ai" className="mt-0">
-              <ProjectAiTab
-                project={project}
-                tasks={tasks}
-                profiles={profiles}
-                linkedDocs={linkedDocs}
-                goalTitle={goalTitle}
-                onTasksCreated={fetchData}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-        </div>
+              {/* Tags — project metadata, lives with the rest of the record properties */}
+              <section className="mt-7">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Tags</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(project.tags || []).map((t: string) => (
+                    <span key={t} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      {t}
+                      <button onClick={() => removeTag(t)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+                    </span>
+                  ))}
+                  <Input
+                    value={newTagInput}
+                    onChange={e => setNewTagInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTag())}
+                    placeholder="+ tag"
+                    className="h-6 w-16 text-[11px] border-none shadow-none bg-transparent placeholder:text-muted-foreground/40 px-1"
+                  />
+                </div>
+              </section>
+            </div>
+          </aside>
+        </>
+      )}
 
-        {/* Persistent right rail — activity always visible */}
-        <aside className="w-[440px] shrink-0 border-l border-border/40 overflow-hidden flex flex-col px-3 pt-3">
-          <ActivityPanel entityType="project" entityId={project.id} />
-        </aside>
-      </div>
+      {/* ── Activity panel — unified comments + events. Opens on the comment icon. ── */}
+      {activityOpen && (
+        <>
+          <div className="absolute inset-0 z-20 bg-foreground/10" onClick={() => setActivityOpen(false)} />
+          <aside className="absolute top-0 right-0 z-30 h-full w-[440px] bg-card border-l border-border/60 shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-4 h-12 border-b border-border/50 shrink-0">
+              <span className="text-sm font-semibold">Activity</span>
+              <button onClick={() => setActivityOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close activity">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden px-3 pt-2">
+              <ActivityPanel entityType="project" entityId={project.id} hideHeader />
+            </div>
+          </aside>
+        </>
+      )}
 
       <GoalPeek
         goalId={peekGoalId}
