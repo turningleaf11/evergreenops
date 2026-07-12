@@ -46,7 +46,6 @@ const PROJECT: Record<string, Tone> = {
   in_progress: tone("info",    "In Progress"),
   at_risk:     tone("warning", "At Risk"),
   blocked:     tone("danger",  "Blocked"),
-  completed:   tone("success", "Completed"),
   done:        tone("success", "Done"),
 };
 
