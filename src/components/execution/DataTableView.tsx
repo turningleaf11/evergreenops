@@ -108,14 +108,14 @@ export default function DataTableView({
   };
 
   // Use 1fr on the last data column to absorb extra space; explicit widths elsewhere.
-  // Append a fixed 40px column for the row "open" affordance.
+  // The "open" affordance lives at the trailing edge of the Name cell (no extra column).
   const gridTemplate = COLUMNS.map((c, i) => {
     const w = getWidth(c.id, c.defaultWidth);
     const stored = getStoredWidth(c.id);
     const userSet = stored !== 160;
     if (i === COLUMNS.length - 1 && !userSet) return `minmax(${c.minWidth}px, 1fr)`;
     return `minmax(${c.minWidth}px, ${w}px)`;
-  }).join(" ") + " 44px";
+  }).join(" ");
 
   const startResize = useCallback((colId: string, startX: number, startWidth: number) => {
     const onMove = (e: PointerEvent) => {
@@ -162,7 +162,6 @@ export default function DataTableView({
                 />
               </div>
             ))}
-            <div />
           </div>
 
           {/* Body */}
@@ -176,8 +175,8 @@ export default function DataTableView({
                   style={{ gridTemplateColumns: gridTemplate }}
                   onClick={() => onItemClick(item)}
                 >
-                  {/* Name (inline editable) */}
-                  <div className="px-3 py-1.5 min-w-0 flex items-center gap-1.5">
+                  {/* Name (inline editable) + open affordance at the name's trailing edge */}
+                  <div className="px-3 py-2.5 min-w-0 flex items-center gap-1.5">
                     {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <InlineText
@@ -186,10 +185,17 @@ export default function DataTableView({
                         className="font-medium"
                       />
                     </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                      className="shrink-0 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                      title="Open"
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
 
                   {/* Status */}
-                  <div className="px-3 py-1.5 min-w-0">
+                  <div className="px-3 py-2.5 min-w-0">
                     <InlineSelect
                       value={item.status}
                       onChange={(v) => onStatusChange(item.id, v)}
@@ -210,7 +216,7 @@ export default function DataTableView({
                   </div>
 
                   {/* Priority */}
-                  <div className="px-3 py-1.5 min-w-0">
+                  <div className="px-3 py-2.5 min-w-0">
                     <InlineSelect
                       value={item.priority || ""}
                       onChange={(v) => onUpdate?.(item.id, { priority: v })}
@@ -243,7 +249,7 @@ export default function DataTableView({
                   </div>
 
                   {/* Assignee */}
-                  <div className="px-3 py-1.5 min-w-0">
+                  <div className="px-3 py-2.5 min-w-0">
                     <InlineAssignee
                       value={item[ownerField]}
                       profiles={profiles}
@@ -267,23 +273,13 @@ export default function DataTableView({
                   </div>
 
                   {/* Due Date */}
-                  <div className="px-3 py-1.5 min-w-0">
+                  <div className="px-3 py-2.5 min-w-0">
                     <InlineDate
                       value={item.due_date}
                       onChange={(v) => onUpdate?.(item.id, { due_date: v })}
                     />
                   </div>
 
-                  {/* Open record */}
-                  <div className="px-2 flex items-center justify-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
-                      title="Open"
-                    >
-                      <Maximize2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                 </div>
               );
             })}

@@ -11,8 +11,13 @@ import {
   Link2, Calendar, Users, X, Target, Check, Crown,
   List, PenLine, FolderOpen, Sparkles, MoreHorizontal, Info, MessageSquare, Plus,
   LayoutGrid, GanttChartSquare, CalendarDays, Table2, FileText, FormInput,
+  Copy, Archive, Trash2,
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StatusPill, PriorityPill } from "@/components/primitives";
@@ -61,6 +66,7 @@ export default function ProjectDetailPage() {
   const [peekGoalId, setPeekGoalId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const tabKey = id ? `project-view-${id}` : "project-view";
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -148,6 +154,40 @@ export default function ProjectDetailPage() {
   const openDetails = () => { setActivityOpen(false); setDetailsOpen(true); };
   const openActivity = () => { setDetailsOpen(false); setActivityOpen(true); };
 
+  const duplicateProject = async () => {
+    const { id: _id, created_at, updated_at, ...rest } = project;
+    const { data: newProj, error } = await supabase
+      .from("projects")
+      .insert({ ...rest, title: `${project.title} (copy)`, archived: false } as any)
+      .select("id")
+      .single();
+    if (error || !newProj) { toast.error(error?.message || "Couldn't duplicate project"); return; }
+    if (tasks.length) {
+      const rows = tasks.map((t) => ({
+        title: t.title, status: t.status, priority: t.priority, description: t.description,
+        assigned_to: t.assigned_to, due_date: t.due_date, subtasks: t.subtasks,
+        notes_content: t.notes_content, project_id: newProj.id, created_by: user?.id,
+      }));
+      await supabase.from("tasks").insert(rows as any);
+    }
+    toast.success("Project duplicated");
+    navigate(`/projects/${newProj.id}`);
+  };
+
+  const archiveProject = async () => {
+    const { error } = await supabase.from("projects").update({ archived: true } as any).eq("id", id!);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Project archived");
+    navigate(-1);
+  };
+
+  const deleteProject = async () => {
+    const { error } = await (supabase as any).rpc("delete_project_cascade", { p_id: id });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Project deleted");
+    navigate(-1);
+  };
+
   if (loading) return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   if (!project) return <div className="p-6 text-center text-muted-foreground">Project not found.</div>;
 
@@ -156,7 +196,7 @@ export default function ProjectDetailPage() {
   return (
     <div className="relative h-full flex flex-col overflow-hidden">
       {/* ── Header = the record ─────────────────────────────────────────── */}
-      <div className="px-6 pt-4 shrink-0">
+      <div className="px-6 pt-5 shrink-0">
         {/* Title row — lifecycle inline + record affordances on the right */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -234,13 +274,23 @@ export default function ProjectDetailPage() {
                 <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}>
                   <Link2 className="h-3.5 w-3.5 mr-2" /> Copy link
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={duplicateProject}>
+                  <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={archiveProject}>
+                  <Archive className="h-3.5 w-3.5 mr-2" /> Archive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
         {/* Quick-glance meta — goal, team, date. The rest lives in the Details panel. */}
-        <div className="flex items-center gap-4 mt-2 ml-7 flex-wrap">
+        <div className="flex items-center gap-4 mt-3 ml-7 flex-wrap">
           {goalTitle && (
             <button
               onClick={() => setPeekGoalId(project.goal_id)}
@@ -367,13 +417,13 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* ── View row = the container. Task-views + addable surfaces. ─────── */}
-      <div className="flex items-center gap-1 px-6 mt-3 border-b border-border/50 shrink-0">
+      <div className="flex items-center gap-1 px-6 mt-4 border-b border-border/50 shrink-0">
         {VIEWS.map(({ id: vid, label, icon: Icon }) => (
           <button
             key={vid}
             onClick={() => setActiveTab(vid)}
             className={cn(
-              "flex items-center gap-1.5 text-sm px-2 pb-2.5 pt-1 border-b-2 transition-colors -mb-px",
+              "flex items-center gap-1.5 text-sm px-2 pb-3 pt-1.5 border-b-2 transition-colors -mb-px",
               activeTab === vid ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
@@ -385,7 +435,7 @@ export default function ProjectDetailPage() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1 text-sm px-2 pb-2.5 pt-1 text-muted-foreground hover:text-foreground transition-colors">
+            <button className="flex items-center gap-1 text-sm px-2 pb-3 pt-1.5 text-muted-foreground hover:text-foreground transition-colors">
               <Plus className="h-3.5 w-3.5" /> Add view
             </button>
           </DropdownMenuTrigger>
@@ -495,6 +545,28 @@ export default function ProjectDetailPage() {
         onChanged={fetchData}
         onOpenProject={(pid) => { setPeekGoalId(null); navigate(`/projects/${pid}`); }}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes <span className="font-medium text-foreground">{project.title}</span>
+              {tasks.length > 0 && <> and its {tasks.length} task{tasks.length === 1 ? "" : "s"}</>}, along with
+              its comments, activity, and attachments. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteProject}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

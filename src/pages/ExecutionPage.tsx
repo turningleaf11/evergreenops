@@ -235,7 +235,7 @@ export default function ExecutionPage() {
   const fetchAll = useCallback(async () => {
     const [g, p, t, pr, i, at, ag, rp] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
-      supabase.from("projects").select("*").order("created_at", { ascending: false }),
+      supabase.from("projects").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),

@@ -112,7 +112,7 @@ export default function DepartmentPage() {
         supabase.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon"),
         supabase.from("databases_meta").select("id, title, description, icon, visibility, shared_with"),
         supabase.from("goals").select("id, title, progress, status, quarter, deadline").eq("department_id", id).eq("year", currentYear),
-        supabase.from("projects").select("id, title, status, priority, owner_id, due_date, updated_at").eq("department_id", id),
+        supabase.from("projects").select("id, title, status, priority, owner_id, due_date, updated_at").eq("department_id", id).eq("archived", false),
         supabase.from("issues").select("id, title, status, priority").eq("department_id", id).eq("status", "open").order("priority", { ascending: true }).limit(10),
         supabase.from("profiles").select("user_id, full_name, avatar_url, department_id, title, reports_to, is_leader"),
       ]);
