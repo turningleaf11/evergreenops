@@ -6,16 +6,19 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { subscribeAlbusDock, getAlbusDockOpen } from "@/lib/albus-dock";
 
-// While Albus is docked open, sheets go non-modal (no focus trap / scroll lock)
-// and shift left of the dock so the two coexist side-by-side.
 function useAlbusDockOpen() {
   return React.useSyncExternalStore(subscribeAlbusDock, getAlbusDockOpen, () => false);
 }
 
-const Sheet = ({ modal, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) => {
-  const albusOpen = useAlbusDockOpen();
-  return <SheetPrimitive.Root modal={modal ?? !albusOpen} {...props} />;
-};
+// Sheets are non-modal by default. This is what makes Albus coexistence work:
+// toggling modal↔non-modal would REMOUNT the peek (Radix renders different
+// internal components per mode) and replay its slide-in — the "re-slide" bug.
+// Non-modal also means no focus trap (so you can type in the Albus dock) and
+// the board stays interactive behind an open peek (Monday-style). The overlay
+// still dims + closes on outside click, so it reads the same when Albus is shut.
+const Sheet = ({ modal, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) => (
+  <SheetPrimitive.Root modal={modal ?? false} {...props} />
+);
 
 const SheetTrigger = SheetPrimitive.Trigger;
 
