@@ -68,9 +68,13 @@ export function AlbusFab() {
       onClick={() => companion.setOpen(true)}
       title="Albus"
       aria-label="Open Albus"
+      // data-albus-dock: a modal peek's outside-interaction handler ignores the
+      // dock family, so clicking the FAB opens Albus instead of closing the peek.
+      // pointer-events-auto: stay clickable through a modal peek's pointer-events:none.
+      data-albus-dock=""
       style={beside ? { right: Math.round(window.innerWidth - besideLeft! + GAP) } : undefined}
       className={cn(
-        "fixed bottom-6 z-[55] h-14 w-14 rounded-full bg-card border border-border/60 shadow-lg",
+        "fixed bottom-6 z-[55] h-14 w-14 rounded-full bg-card border border-border/60 shadow-lg pointer-events-auto",
         "flex items-center justify-center transition-all hover:scale-105 active:scale-95",
         !beside && "right-6",
       )}
