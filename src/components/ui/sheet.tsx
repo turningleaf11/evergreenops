@@ -4,8 +4,18 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { subscribeAlbusDock, getAlbusDockOpen } from "@/lib/albus-dock";
 
-const Sheet = SheetPrimitive.Root;
+// While Albus is docked open, sheets go non-modal (no focus trap / scroll lock)
+// and shift left of the dock so the two coexist side-by-side.
+function useAlbusDockOpen() {
+  return React.useSyncExternalStore(subscribeAlbusDock, getAlbusDockOpen, () => false);
+}
+
+const Sheet = ({ modal, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) => {
+  const albusOpen = useAlbusDockOpen();
+  return <SheetPrimitive.Root modal={modal ?? !albusOpen} {...props} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 
@@ -16,16 +26,22 @@ const SheetPortal = SheetPrimitive.Portal;
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className,
-    )}
-    {...props}
-    ref={ref}
-  />
-));
+>(({ className, ...props }, ref) => {
+  const albusOpen = useAlbusDockOpen();
+  return (
+    <SheetPrimitive.Overlay
+      className={cn(
+        // Stop the backdrop at the dock's left edge, and drop it entirely while
+        // Albus is open so the two panels read as coexisting, not stacked.
+        "fixed inset-y-0 left-0 right-[var(--albus-dock)] z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        albusOpen && "opacity-0 pointer-events-none",
+        className,
+      )}
+      {...props}
+      ref={ref}
+    />
+  );
+});
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
@@ -38,7 +54,7 @@ const sheetVariants = cva(
           "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+          "inset-y-0 right-[var(--albus-dock)] h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
       },
     },
     defaultVariants: {
@@ -55,7 +71,17 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
   ({ side = "right", className, children, ...props }, ref) => (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+        onInteractOutside={(e) => {
+          // Interacting with the Albus dock must not close a coexisting peek.
+          const t = e.target as HTMLElement | null;
+          if (t?.closest?.("[data-albus-dock]")) { e.preventDefault(); return; }
+          props.onInteractOutside?.(e);
+        }}
+      >
         {children}
         <SheetPrimitive.Close className="absolute right-4 top-4 z-20 h-8 w-8 inline-flex items-center justify-center rounded-md bg-background/80 backdrop-blur border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted ring-offset-background transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />

@@ -4,6 +4,7 @@ import { useCEOContext } from "@/lib/ceo-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { assembleStrategyContext, type AssembledStrategyContext } from "@/lib/strategy-context";
+import { setAlbusDockOpen } from "@/lib/albus-dock";
 import { toast } from "sonner";
 import type { SaveDestination } from "@/components/companion/SaveToAppDialog";
 
@@ -246,6 +247,9 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (open && isPrimaryAdmin) refreshThreads();
   }, [open, isPrimaryAdmin, refreshThreads]);
+
+  // Drive the dock store/CSS var so sheets shift left + go non-modal while open.
+  useEffect(() => { setAlbusDockOpen(open); }, [open]);
 
   const selectThread = useCallback(async (id: string) => {
     setActiveThreadId(id);

@@ -1,8 +1,9 @@
 import { useRef, useEffect, useContext, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CompanionContext } from "@/contexts/CompanionContext";
+import { ALBUS_DOCK_WIDTH } from "@/lib/albus-dock";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check } from "lucide-react";
+import { Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check, X } from "lucide-react";
 import { ChatInputShell } from "@/components/chat/ChatInputShell";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
 import { useDailyBriefing } from "@/hooks/useDailyBriefing";
@@ -82,8 +83,18 @@ export function GlobalCompanion() {
   // companion context's setOpen.
   return (
     <>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-3xl flex p-0">
+      {/* Non-modal docked panel — coexists side-by-side with an open peek
+          instead of covering it (peeks shift left + go non-modal via the
+          albus-dock store while `open`). */}
+      <div
+        data-albus-dock=""
+        aria-hidden={!open}
+        style={{ width: ALBUS_DOCK_WIDTH }}
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 flex bg-card border-l border-border shadow-xl transition-transform duration-300 ease-out",
+          open ? "translate-x-0" : "translate-x-full pointer-events-none",
+        )}
+      >
           {/* Thread sidebar */}
           <aside className="hidden sm:flex w-64 shrink-0 border-r border-border flex-col bg-muted/30">
             <div className="px-3 py-3 border-b border-border space-y-2">
@@ -195,12 +206,19 @@ export function GlobalCompanion() {
 
           {/* Main chat */}
           <div className="flex-1 flex flex-col min-w-0">
-            <SheetHeader className="px-5 py-4 border-b border-border">
-              <SheetTitle className="flex items-center gap-2 text-base">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <AlbusAvatar size="md" />
                 Albus
-              </SheetTitle>
-            </SheetHeader>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close Albus"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               {messages.length === 0 && (
@@ -298,8 +316,7 @@ export function GlobalCompanion() {
               />
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+      </div>
 
       <SaveToAppDialog
         open={saveDialog.open}

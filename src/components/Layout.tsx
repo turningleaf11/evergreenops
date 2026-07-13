@@ -34,8 +34,13 @@ function LayoutInner() {
           {/* Sidebar — full-height left column, owns its own header + footer */}
           <AppSidebar />
 
-          {/* Main column — its own header strip + scrollable outlet */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          {/* Main column — its own header strip + scrollable outlet.
+              Reserve the docked-Albus width so header + content reflow left
+              of the dock rather than being covered by it. */}
+          <div
+            className="flex-1 flex flex-col min-w-0 min-h-0 transition-[padding] duration-300"
+            style={{ paddingRight: "var(--albus-dock)" }}
+          >
             <header className="h-[56px] flex items-center border-b border-border/40 px-3 sm:px-5 shrink-0 bg-background/95 backdrop-blur-md sticky top-0 z-30">
               {/* Left: page-level breathing room. Page titles render in their
                   own content area below — header doesn't need to duplicate them. */}
