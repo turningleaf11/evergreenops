@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useReportActiveEntity } from "@/contexts/CompanionContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,9 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   }, [goalId]);
 
   useEffect(() => { if (goalId) fetchGoal(); else setGoal(null); }, [goalId, fetchGoal]);
+
+  // Tell Albus which goal you're viewing while the peek is open.
+  useReportActiveEntity(goalId && goal ? { type: "goal", id: goalId, title: goal.title } : null);
 
   const update = async (patch: Record<string, any>) => {
     if (!goalId) return;

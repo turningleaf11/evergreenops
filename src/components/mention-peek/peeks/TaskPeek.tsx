@@ -17,6 +17,7 @@ import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
 import RichTextEditor from "@/components/RichTextEditor";
 import { StatusPill, PriorityPill } from "@/components/primitives";
+import { useReportActiveEntity } from "@/contexts/CompanionContext";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -91,6 +92,9 @@ export default function TaskPeek({ id, open, onClose }: Props) {
   }, [id, loadDocs]);
 
   useEffect(() => { if (open && id) load(); }, [open, id, load]);
+
+  // Tell Albus which task you're viewing while the peek is open.
+  useReportActiveEntity(open && row ? { type: "task", id, title: row.title } : null);
 
   const updateTask = async (updates: Record<string, any>) => {
     if (!row) return;

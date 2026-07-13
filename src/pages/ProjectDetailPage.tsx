@@ -28,6 +28,7 @@ import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
+import { useReportActiveEntity } from "@/contexts/CompanionContext";
 
 // Task views land in the body; + Add view offers the rest (persisted per-project — Phase 1b).
 const VIEWS = [
@@ -102,6 +103,9 @@ export default function ProjectDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Tell Albus which project you're viewing (context-aware).
+  useReportActiveEntity(project ? { type: "project", id: project.id, title: project.title } : null);
 
   const getName = (uid: string | null) =>
     !uid ? "Unassigned" : profiles.find(p => p.user_id === uid)?.full_name || "Unknown";

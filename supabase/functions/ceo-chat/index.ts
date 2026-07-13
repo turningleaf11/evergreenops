@@ -139,6 +139,13 @@ serve(async (req) => {
 
     let systemPrompt: string;
 
+    // What the user is currently looking at — surfaced by pages/peeks so Albus
+    // can answer "this task", "this project", etc. in context.
+    const ce = ceoContext?.currentEntity;
+    const viewingLine = ce?.title
+      ? `\nCURRENTLY VIEWING: ${ce.type || "item"} "${ce.title}"${ce.id ? ` (id: ${ce.id})` : ""} — assume "this"/"here" refers to it unless the user says otherwise.`
+      : "";
+
     if (titleOnly) {
       // Lightweight prompt for title generation only
       systemPrompt = `You generate concise 4-5 word conversation titles. Respond with only the title text.`;
@@ -155,7 +162,7 @@ You are direct, honest, and strategic. You ask good questions. You push back whe
 
 When you identify a significant decision, insight, or pattern in the conversation, note it clearly so it can be saved to business memory.
 
-CURRENT PAGE: ${ceoContext?.currentPage || "unknown"}
+CURRENT PAGE: ${ceoContext?.currentPage || "unknown"}${viewingLine}
 
 Current business context:
 ${contextBlock}${snapshotBlock}${briefingInstruction}`;
@@ -163,7 +170,7 @@ ${contextBlock}${snapshotBlock}${briefingInstruction}`;
       // Legacy prompt (kept for backwards compat with any callers not yet updated)
       systemPrompt = `You are a conversational strategy companion for the CEO. Be direct, concise, and helpful.
 
-CURRENT PAGE: ${ceoContext?.currentPage || "unknown"}
+CURRENT PAGE: ${ceoContext?.currentPage || "unknown"}${viewingLine}
 - Objective: ${ceoContext?.currentObjective || "Not set"}
 - Constraints: ${(ceoContext?.currentConstraints || []).join(", ") || "None set"}
 - Top Priorities: ${(ceoContext?.topPriorities || []).map((p: any) => `${p.text} (${p.status})`).join("; ") || "None"}

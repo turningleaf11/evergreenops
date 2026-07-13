@@ -25,6 +25,13 @@ export interface ThreadSummary {
   created_at: string;
 }
 
+/** What the user is currently looking at — set by pages/peeks so Albus has context. */
+export interface ActiveEntity {
+  type: string;   // "project" | "task" | "goal" | "deal" | ...
+  id: string;
+  title: string;
+}
+
 interface CompanionContextType {
   messages: Message[];
   input: string;
@@ -32,6 +39,8 @@ interface CompanionContextType {
   loading: boolean;
   open: boolean;
   setOpen: (v: boolean) => void;
+  activeEntity: ActiveEntity | null;
+  setActiveEntity: (e: ActiveEntity | null) => void;
   send: (textOverride?: string) => Promise<void>;
   // Thread management
   threads: ThreadSummary[];
@@ -211,6 +220,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [activeEntity, setActiveEntity] = useState<ActiveEntity | null>(null);
   const { data } = useCEOContext();
   const { user, profile, isPrimaryAdmin } = useAuth();
   const location = useLocation();
@@ -315,7 +325,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         ]);
         await streamChat({
           messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
-          ceoContext: { ...data, currentPage: location.pathname },
+          ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
           strategyContext,
           liveSnapshot,
         }, upsertAssistant);
@@ -325,7 +335,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     })();
-  }, [open, location.pathname, messages.length, loading, data, activeThreadId, profile?.full_name, profile?.workspace_id, user?.email]);
+  }, [open, location.pathname, messages.length, loading, data, activeThreadId, profile?.full_name, profile?.workspace_id, user?.email, activeEntity]);
 
   const send = useCallback(async (textOverride?: string) => {
     const raw = textOverride ?? input;
@@ -399,7 +409,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
 
       await streamChat({
         messages: history,
-        ceoContext: { ...data, currentPage: location.pathname },
+        ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
         strategyContext,
       }, upsertAssistant);
 
@@ -459,7 +469,7 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, user?.email, profile?.workspace_id, profile?.full_name]);
+  }, [input, loading, messages, data, location.pathname, activeThreadId, user?.id, user?.email, profile?.workspace_id, profile?.full_name, activeEntity]);
 
   return (
     <CompanionContext.Provider
@@ -470,6 +480,8 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         loading,
         open,
         setOpen,
+        activeEntity,
+        setActiveEntity,
         send,
         threads,
         activeThreadId,
@@ -491,4 +503,19 @@ export function useCompanion() {
   const ctx = useContext(CompanionContext);
   if (!ctx) throw new Error("useCompanion must be used within CompanionProvider");
   return ctx;
+}
+
+/**
+ * Report the entity a surface is showing to Albus while it's mounted/open, so
+ * he knows what you're looking at. Clears on unmount. Safe to call with null.
+ * Usage: useReportActiveEntity(open && row ? { type: "task", id, title: row.title } : null)
+ */
+export function useReportActiveEntity(entity: ActiveEntity | null) {
+  const ctx = useContext(CompanionContext);
+  const key = entity ? `${entity.type}:${entity.id}:${entity.title}` : null;
+  useEffect(() => {
+    ctx?.setActiveEntity(entity);
+    return () => ctx?.setActiveEntity(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, key]);
 }
