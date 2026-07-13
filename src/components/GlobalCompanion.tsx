@@ -77,8 +77,8 @@ export function GlobalCompanion() {
     setEditingId(null);
   };
 
-  // The Albus launcher lives in AiToolsRail now. This component only renders
-  // the chat sheet itself — opened by the rail or anywhere else via the
+  // The Albus launcher is the bottom-right AlbusFab now. This component only
+  // renders the chat sheet itself — opened by the FAB or anywhere else via the
   // companion context's setOpen.
   return (
     <>

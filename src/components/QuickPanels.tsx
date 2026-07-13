@@ -387,6 +387,6 @@ export function AiWorkshopQuickPanel({
   );
 }
 
-// QuickPanelsDock has been replaced by AiToolsRail — the panels themselves
-// (NotesQuickPanel, AiWorkshopQuickPanel) are still exported above and mounted
-// from the rail.
+// The old right-edge AI rail is gone. NotesQuickPanel is now mounted from the
+// header's QuickNotesButton; AiWorkshopQuickPanel is no longer mounted anywhere
+// (the AI Workshop launcher was removed) but remains exported for reference.

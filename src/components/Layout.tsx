@@ -13,7 +13,8 @@ import { CompanionProvider } from "@/contexts/CompanionContext";
 import { GlobalCompanion } from "@/components/GlobalCompanion";
 import { UserOnboardingModal } from "@/components/UserOnboardingModal";
 import { GlobalCreateMenu } from "@/components/GlobalCreateMenu";
-import { AiToolsRail } from "@/components/AiToolsRail";
+import { AlbusFab } from "@/components/AlbusFab";
+import { QuickNotesButton } from "@/components/QuickNotesButton";
 import { AppConfirmProvider } from "@/components/AppConfirm";
 import { RemindersBell } from "@/components/RemindersWidget";
 import { TimeClockButton } from "@/components/TimeClockButton";
@@ -46,6 +47,7 @@ function LayoutInner() {
                 <GlobalCreateMenu />
                 <TimeClockButton />
                 <LauncherMenu />
+                <QuickNotesButton />
                 <RemindersBell />
                 <NotificationBell />
               </div>
@@ -56,10 +58,9 @@ function LayoutInner() {
             </main>
           </div>
 
-          {/* AI tools rail — far right, separate column */}
-          <AiToolsRail />
-
           <GlobalCompanion />
+          {/* Albus launcher — single bottom-right FAB (opens the drawer above) */}
+          <AlbusFab />
           <UserOnboardingModal />
           <AppConfirmProvider />
         </div>
