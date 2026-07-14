@@ -4,6 +4,7 @@
 // buyer↔deal match actually joins.
 
 export const US_STATES = [
+  "Nationwide",
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
   "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia",
   "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
@@ -12,7 +13,7 @@ export const US_STATES = [
   "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota",
   "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
   "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-  "Washington", "West Virginia", "Wisconsin", "Wyoming", "Nationwide",
+  "Washington", "West Virginia", "Wisconsin", "Wyoming",
 ] as const;
 
 // Exit strategies — used for a deal's Best Exit AND a buyer's strategies.

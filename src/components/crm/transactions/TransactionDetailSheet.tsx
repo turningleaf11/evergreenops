@@ -912,10 +912,8 @@ function DateCard({
   return (
     <div
       className={cn(
-        "rounded-xl bg-card p-5 space-y-2 border transition-shadow",
-        emphasized
-          ? "border-brand-azure/30 lg:col-span-2 p-6"
-          : "border-border/40",
+        "rounded-xl bg-card p-4 space-y-1.5 border transition-shadow",
+        emphasized ? "border-brand-azure/30 lg:col-span-2" : "border-border/40",
       )}
       style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
     >
@@ -927,18 +925,20 @@ function DateCard({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         className={cn(
-          "bg-transparent border-0 px-0 h-9 text-base font-medium",
+          "bg-transparent border-0 px-0 h-8 text-base font-medium",
           emphasized && "text-lg font-semibold",
         )}
       />
-      <div
-        className={cn(
-          "inline-block text-xs font-medium px-2 py-0.5 rounded-full border",
-          countdownClass ?? "text-muted-foreground bg-muted/40 border-border/40",
-        )}
-      >
-        {fmtCountdown(days)}
-      </div>
+      {value && (
+        <div
+          className={cn(
+            "inline-block text-xs font-medium px-2 py-0.5 rounded-full border",
+            countdownClass ?? "text-muted-foreground bg-muted/40 border-border/40",
+          )}
+        >
+          {fmtCountdown(days)}
+        </div>
+      )}
     </div>
   );
 }

@@ -27,7 +27,8 @@ const FIELD_KEYS = {
   countyMetro: "contact.county_or_metro",
   criteria: "contact.criteria",
   maxPrice: "contact.max_purchase_price",
-  propertyTypes: "contact.deal_type", // NOTE: unconfirmed buyer property-type source
+  // No structured buyer property-type field in GHL (Deal Type retired) — buyer
+  // property_types stays unmapped; the Type dimension only fires if it's set here.
 } as const;
 
 // -- Controlled vocabularies ------------------------------------------------
@@ -206,7 +207,6 @@ Deno.serve(async (req) => {
           strategies: dedupe([...splitVals(cfValue(c, "exitStrategy")), ...splitVals(cfValue(c, "strategyMulti"))].map(normStrategy)),
           markets: dedupe([...splitVals(cfValue(c, "city1")), ...splitVals(cfValue(c, "city2"))].map((s) => titleCase(s))),
           county_metro: dedupe(splitVals(cfValue(c, "countyMetro")).map((s) => titleCase(s))),
-          property_types: dedupe(splitVals(cfValue(c, "propertyTypes")).map(normPropType)),
           max_price: toNumber(cfValue(c, "maxPrice")),
           buy_box_notes: cfValue(c, "criteria"),
           updated_at: new Date().toISOString(),
