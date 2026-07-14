@@ -69,14 +69,16 @@ Deno.serve(async (req) => {
     const locationId = cfg.GHL_LOCATION_ID || Deno.env.get("GHL_LOCATION_ID");
     if (!apiKey || !locationId) return json({ error: "GHL not configured (GHL_API_KEY / GHL_LOCATION_ID)" }, 400);
 
-    // Allow an override tag in the body; otherwise use the configured buyer tag.
-    let tag = cfg.GHL_BUYER_TAG || "";
+    // Buyer tag(s): GHL_BUYER_TAG may be comma-separated to match several tags
+    // (e.g. "buyer,cash buyer,vip buyer"). A contact matches if it has ANY.
+    let tagStr = cfg.GHL_BUYER_TAG || "";
     try {
       const body = await req.json();
-      if (typeof body?.tag === "string") tag = body.tag;
+      if (typeof body?.tag === "string") tagStr = body.tag;
     } catch { /* no body */ }
-    if (!tag) {
-      return json({ error: "No buyer tag. Set app_settings.GHL_BUYER_TAG (or pass { tag } in the body)." }, 400);
+    const tags = tagStr.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    if (tags.length === 0) {
+      return json({ error: "No buyer tag. Set app_settings.GHL_BUYER_TAG (comma-separated for multiple)." }, 400);
     }
 
     const ghl = (path: string) =>
@@ -105,13 +107,14 @@ Deno.serve(async (req) => {
       return v == null || v === "" ? null : String(v);
     };
 
-    // ── Page through tagged contacts, upsert into dispo_buyers ─────────────
+    // ── Page through ALL contacts, upsert the tagged ones into dispo_buyers ──
     let synced = 0;
     let scanned = 0;
+    let total: number | null = null;
     let startAfterId = "";
     let startAfter = "";
 
-    for (let page = 0; page < 200; page++) {
+    for (let page = 0; page < 500; page++) {
       const params = new URLSearchParams({ locationId, limit: "100" });
       if (startAfterId) { params.set("startAfterId", startAfterId); params.set("startAfter", startAfter); }
 
@@ -119,13 +122,15 @@ Deno.serve(async (req) => {
       if (!res.ok) return json({ error: `GHL contacts ${res.status}`, detail: (await res.text()).slice(0, 300) }, 502);
       const body = await res.json();
       const contacts = (body.contacts as any[]) || [];
+      const meta = (body.meta as any) || {};
+      if (page === 0 && typeof meta.total === "number") total = meta.total;
       if (contacts.length === 0) break;
       scanned += contacts.length;
 
       const rows = contacts
         .filter((c) => {
-          const tags = (c.tags as string[]) || [];
-          return tags.some((t) => String(t).toLowerCase() === tag.toLowerCase());
+          const ctags = ((c.tags as string[]) || []).map((t) => String(t).toLowerCase());
+          return ctags.some((t) => tags.includes(t));
         })
         .map((c) => {
           const markets = uniq([
@@ -157,13 +162,16 @@ Deno.serve(async (req) => {
         synced += rows.length;
       }
 
-      const meta = (body.meta as any) || {};
-      if (!meta.startAfterId || contacts.length < 100) break;
-      startAfterId = String(meta.startAfterId);
-      startAfter = String(meta.startAfter ?? "");
+      // Advance the cursor. Stop only when GHL gives no next cursor or it
+      // stops moving — NOT on a short page (that could end a run early).
+      const nextId = meta.startAfterId ? String(meta.startAfterId) : "";
+      const nextAfter = meta.startAfter != null ? String(meta.startAfter) : "";
+      if (!nextId || (nextId === startAfterId && nextAfter === startAfter)) break;
+      startAfterId = nextId;
+      startAfter = nextAfter;
     }
 
-    return json({ synced, scanned, tag, resolvedFields: Object.keys(idFor) });
+    return json({ synced, scanned, total, tags, resolvedFields: Object.keys(idFor) });
   } catch (e: any) {
     console.error("ghl-sync-buyers error", e);
     return json({ error: String(e?.message ?? e) }, 500);

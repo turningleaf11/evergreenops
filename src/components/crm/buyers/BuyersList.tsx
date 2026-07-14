@@ -109,12 +109,13 @@ export function BuyersList({ search }: { search: string }) {
       toast.error(`Sync failed: ${error.message}`);
       return;
     }
-    const d = (data ?? {}) as { synced?: number; error?: string };
+    const d = (data ?? {}) as { synced?: number; scanned?: number; total?: number | null; error?: string };
     if (d.error) {
       toast.error(d.error);
       return;
     }
-    toast.success(`Synced ${d.synced ?? 0} buyer${d.synced === 1 ? "" : "s"} from GHL`);
+    const detail = d.scanned != null ? ` · scanned ${d.scanned}${d.total ? ` of ${d.total}` : ""} contacts` : "";
+    toast.success(`Synced ${d.synced ?? 0} buyer${d.synced === 1 ? "" : "s"}${detail}`);
     void load();
   }
 
