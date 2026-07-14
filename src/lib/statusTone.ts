@@ -22,7 +22,7 @@ const TONE = {
 export type EntityKind =
   | "goal" | "project" | "task" | "issue"
   | "deal" | "lead" | "transaction" | "contact"
-  | "thread";
+  | "thread" | "buyer_interest";
 
 interface Tone { hsl: string; label: string; }
 
@@ -109,10 +109,24 @@ const THREAD: Record<string, Tone> = {
   resolved: tone("success", "Resolved"),
 };
 
+// A buyer's interest in one specific deal (dispo_deal_interests.level).
+// This is the many-to-many state GHL can't model: one buyer ↔ many deals,
+// each pairing carrying its own stage from first interest through purchase.
+const BUYER_INTEREST: Record<string, Tone> = {
+  interested:        tone("info",    "Interested"),
+  requested_info:    tone("info",    "Requested Info"),
+  showing_scheduled: tone("accent",  "Showing Scheduled"),
+  offer:             tone("warning", "Offer"),
+  backup:            tone("neutral", "Backup"),
+  won:               tone("success", "Won"),
+  passed:            tone("neutral", "Passed"),
+  dead:              tone("danger",  "Dead"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
-  thread: THREAD,
+  thread: THREAD, buyer_interest: BUYER_INTEREST,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────

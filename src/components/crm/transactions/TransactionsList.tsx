@@ -185,13 +185,13 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading transactions…
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading deals…
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border/50 bg-card py-16 text-center text-sm text-muted-foreground">
           <FileText className="h-7 w-7 mx-auto mb-2 opacity-50" />
-          <p className="font-medium text-foreground mb-1">No transactions</p>
-          <p>Create a transaction or move a deal to Under Contract.</p>
+          <p className="font-medium text-foreground mb-1">No deals</p>
+          <p>Create a deal, or move one from Pipeline to Under Contract.</p>
         </div>
       ) : (
         <DataTableShell>

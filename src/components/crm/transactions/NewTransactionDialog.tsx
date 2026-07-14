@@ -118,10 +118,10 @@ export function NewTransactionDialog({
 
     setSaving(false);
     if (error) {
-      toast({ title: "Couldn't create transaction", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't create deal", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Transaction created" });
+    toast({ title: "Deal created" });
     onOpenChange(false);
     onCreated?.((data as any).id);
   };
@@ -130,7 +130,7 @@ export function NewTransactionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{prefillFromDeal ? "Create transaction from deal" : "New transaction"}</DialogTitle>
+          <DialogTitle>{prefillFromDeal ? "Create deal from pipeline" : "New deal"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -146,7 +146,7 @@ export function NewTransactionDialog({
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Transaction type</Label>
+              <Label className="text-xs">Deal type</Label>
               <Select value={type} onValueChange={(v: any) => setType(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -195,7 +195,7 @@ export function NewTransactionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={saving}>
             {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-            Create transaction
+            Create deal
           </Button>
         </DialogFooter>
       </DialogContent>

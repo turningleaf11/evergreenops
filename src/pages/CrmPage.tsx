@@ -69,7 +69,7 @@ export default function CrmPage() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder={`Search ${tab}…`}
+              placeholder={`Search ${tab === "transactions" ? "deals" : tab === "deals" ? "pipeline" : tab}…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 pl-8 w-64"
@@ -87,12 +87,12 @@ export default function CrmPage() {
           )}
           {tab === "deals" && (
             <Button size="sm" onClick={() => setNewDealSignal((n) => n + 1)}>
-              <Plus className="h-4 w-4 mr-1" /> New deal
+              <Plus className="h-4 w-4 mr-1" /> New pipeline deal
             </Button>
           )}
           {tab === "transactions" && (
             <Button size="sm" onClick={() => setNewTxSignal((n) => n + 1)}>
-              <Plus className="h-4 w-4 mr-1" /> New transaction
+              <Plus className="h-4 w-4 mr-1" /> New deal
             </Button>
           )}
           {tab === "companies" && (
@@ -112,11 +112,11 @@ export default function CrmPage() {
             <TabsTrigger value="leads" className="data-[state=active]:bg-muted gap-1.5">
               <Inbox className="h-3.5 w-3.5" /> Inbox
             </TabsTrigger>
-            <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
               <Rocket className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
-            <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
-              <FileText className="h-3.5 w-3.5" /> Transactions
+            <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
+              <FileText className="h-3.5 w-3.5" /> Pipeline
             </TabsTrigger>
             <TabsTrigger value="companies" className="data-[state=active]:bg-muted gap-1.5">
               <Building2 className="h-3.5 w-3.5" /> Companies

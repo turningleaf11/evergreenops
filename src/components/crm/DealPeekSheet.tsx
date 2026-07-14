@@ -526,7 +526,7 @@ export function DealPeekSheet({
                       onClick={() => setNewTxOpen(true)}
                       className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl"
                     >
-                      Create Transaction →
+                      Create Deal →
                     </Button>
                   )}
                   {/* (⋯) menu — cover image actions + delete. Cover is an
@@ -808,7 +808,7 @@ export function DealPeekSheet({
           }}
           defaultLane="portfolio"
           onCreated={() => {
-            toast({ title: "Transaction created", description: "View it in the Transactions tab." });
+            toast({ title: "Deal created", description: "View it in the Deals tab." });
             onChanged();
           }}
         />

@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
+import { BuyerInterestTab } from "./BuyerInterestTab";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -337,7 +338,7 @@ export function TransactionDetailSheet({
 
   const handleDelete = async () => {
     if (!tx) return;
-    if (!confirm("Delete this transaction? This cannot be undone.")) return;
+    if (!confirm("Delete this deal? This cannot be undone.")) return;
     const { error } = await supabase.from("crm_transactions").delete().eq("id", tx.id);
     if (error) {
       toast({ title: "Couldn't delete", description: error.message, variant: "destructive" });
@@ -445,7 +446,7 @@ export function TransactionDetailSheet({
                     entityType="transaction"
                     entityId={tx.id}
                     defaultEmail={null}
-                    notePlaceholder="Jot a note about this transaction…"
+                    notePlaceholder="Jot a note about this deal…"
                     onPosted={() => { void reload(); onChanged(); }}
                   />
                 </div>
@@ -455,6 +456,7 @@ export function TransactionDetailSheet({
                     <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
                       {[
                         { v: "overview", label: "Overview" },
+                        { v: "buyers", label: "Buyers" },
                         { v: "checklist", label: "Checklist" },
                         { v: "activity", label: "Activity" },
                         { v: "files", label: "Files" },
@@ -585,6 +587,11 @@ export function TransactionDetailSheet({
                         </div>
                       </div>
                     </section>
+                  </TabsContent>
+
+                  {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
+                  <TabsContent value="buyers" className="p-6 mt-0">
+                    <BuyerInterestTab transactionId={tx.id} />
                   </TabsContent>
 
                   {/* CHECKLIST */}
