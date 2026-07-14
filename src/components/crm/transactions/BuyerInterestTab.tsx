@@ -62,15 +62,35 @@ interface Row extends Interest {
 
 const DEFAULT_LEVEL = "interested";
 
-// The dispo_* tables were created directly in the database and aren't in the
-// generated Supabase types yet, so `.from("dispo_*")` types as `never`. Route
-// dispo reads/writes through this untyped handle until types.ts is regenerated;
-// the row shapes above are the contract in the meantime.
-const dispo = supabase as unknown as { from: (table: string) => any };
+// The dispo_* tables + match RPC aren't in the generated Supabase types yet, so
+// they'd type as `never`. Route dispo reads/writes + rpc through this untyped
+// handle until types.ts is regenerated; the row shapes above are the contract.
+const dispo = supabase as unknown as {
+  from: (table: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => any;
+};
 
-function buyerName(b: Buyer | null): string {
+interface Suggestion {
+  buyer_id: string;
+  score: number;
+  reasons: string[] | null;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  tier: string | null;
+  max_price: number | null;
+}
+
+function titleCase(s: string | null): string {
+  if (!s) return "";
+  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+function buyerName(
+  b: { first_name: string | null; last_name: string | null; company?: string | null; email?: string | null } | null,
+): string {
   if (!b) return "Unknown buyer";
-  const full = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
+  const full = `${titleCase(b.first_name)} ${titleCase(b.last_name)}`.trim();
   return full || b.company || b.email || "Unnamed buyer";
 }
 
@@ -79,6 +99,7 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +128,15 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
         buyer: byId.get(i.buyer_id) ?? null,
       })),
     );
+
+    // Suggested buyers from buy-box match — exclude any already on the deal.
+    const addedIds = new Set(((interestsRes.data as Interest[]) ?? []).map((i) => i.buyer_id));
+    const { data: sug } = await dispo.rpc("match_buyers_for_deal", {
+      p_transaction_id: transactionId,
+      p_min_score: 1,
+    });
+    setSuggestions(((sug as Suggestion[]) ?? []).filter((s) => !addedIds.has(s.buyer_id)).slice(0, 6));
+
     setLoading(false);
   }, [transactionId]);
 
@@ -266,10 +296,10 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 text-left">
-                <th className="px-4 py-2.5 crm-field-label font-medium">Buyer</th>
-                <th className="px-4 py-2.5 crm-field-label font-medium">Stage</th>
-                <th className="px-4 py-2.5 crm-field-label font-medium">Offer</th>
-                <th className="px-4 py-2.5 crm-field-label font-medium">Added</th>
+                <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Buyer</th>
+                <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Stage</th>
+                <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Offer</th>
+                <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Added</th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -311,6 +341,47 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Suggested buyers — buy-box matches from the global list (match_buyers_for_deal) */}
+      {!loading && suggestions.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <h4 className="crm-eyebrow">Suggested from your buyer list</h4>
+          <div className="crm-card !p-0 divide-y divide-border/40">
+            {suggestions.map((s) => (
+              <div key={s.buyer_id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium leading-tight truncate">
+                    {buyerName(s)}
+                    {s.company && (
+                      <span className="text-muted-foreground font-normal"> · {s.company}</span>
+                    )}
+                  </div>
+                  {s.reasons?.length ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {s.reasons.map((r) => (
+                        <span
+                          key={r}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-brand-azure/10 text-brand-azure font-medium"
+                        >
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 shrink-0"
+                  onClick={() => addBuyer(s.buyer_id)}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </Button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
