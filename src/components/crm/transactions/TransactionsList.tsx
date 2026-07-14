@@ -54,12 +54,17 @@ interface ContactLite {
   last_name: string | null;
 }
 
+// dispo_* tables aren't in the generated Supabase types (created directly in
+// the DB); route dispo reads through this untyped handle until types are regen'd.
+const dispo = supabase as unknown as { from: (table: string) => any };
+
 export function TransactionsList({ search, newSignal = 0 }: { search: string; newSignal?: number }) {
   const { id: workspaceId } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Tx[]>([]);
   const [contacts, setContacts] = useState<ContactLite[]>([]);
   const [progress, setProgress] = useState<Record<string, { done: number; total: number }>>({});
+  const [interest, setInterest] = useState<Record<string, { count: number; top: number | null }>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -111,6 +116,25 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
         setProgress(map);
       } else {
         setProgress({});
+      }
+
+      // Buyer interest aggregate (dispo_deal_interests) — count + top offer per deal
+      if (ids.length) {
+        const { data: ints } = await dispo
+          .from("dispo_deal_interests")
+          .select("transaction_id, offer_amount")
+          .in("transaction_id", ids);
+        const im: Record<string, { count: number; top: number | null }> = {};
+        (ints || []).forEach((x: any) => {
+          if (!im[x.transaction_id]) im[x.transaction_id] = { count: 0, top: null };
+          im[x.transaction_id].count += 1;
+          if (x.offer_amount != null && (im[x.transaction_id].top == null || x.offer_amount > im[x.transaction_id].top)) {
+            im[x.transaction_id].top = x.offer_amount;
+          }
+        });
+        setInterest(im);
+      } else {
+        setInterest({});
       }
       setLoading(false);
     })();
@@ -310,12 +334,22 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
                   />
                 </div>
 
-                {/* BUYER */}
-                <div className="text-[13px] truncate pr-2">
-                  {r.buyer_contact_id ? (
-                    buyerName(r.buyer_contact_id)
-                  ) : (
-                    <span className="italic text-muted-foreground/60">—</span>
+                {/* BUYER + INTEREST */}
+                <div className="pr-2 min-w-0">
+                  <div className="text-[13px] truncate leading-tight">
+                    {r.buyer_contact_id ? (
+                      buyerName(r.buyer_contact_id)
+                    ) : (
+                      <span className="italic text-muted-foreground/60">—</span>
+                    )}
+                  </div>
+                  {interest[r.id]?.count > 0 && (
+                    <div className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                      {interest[r.id].count} interested
+                      {interest[r.id].top != null && (
+                        <span className="text-brand-mint-deep"> · top {fmtMoney(interest[r.id].top)}</span>
+                      )}
+                    </div>
                   )}
                 </div>
 
