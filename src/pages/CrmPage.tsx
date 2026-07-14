@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Users, Building2, Rocket, Plus, Search, Inbox, FileText } from "lucide-react";
+import { Users, Building2, Rocket, Plus, Search, Inbox, FileText, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,9 +15,10 @@ import { DealPeekSheet } from "@/components/crm/DealPeekSheet";
 import { NewContactDialog } from "@/components/crm/NewContactDialog";
 import { NewCompanyDialog } from "@/components/crm/NewCompanyDialog";
 import { TransactionsList } from "@/components/crm/transactions/TransactionsList";
+import { BuyersList } from "@/components/crm/buyers/BuyersList";
 import { useUrlState } from "@/hooks/useUrlState";
 
-type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions";
+type Tab = "leads" | "contacts" | "companies" | "deals" | "transactions" | "buyers";
 
 export default function CrmPage() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function CrmPage() {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
 
-  const initialTab: Tab = (["leads", "contacts", "companies", "deals", "transactions"] as Tab[]).includes(
+  const initialTab: Tab = (["leads", "contacts", "companies", "deals", "transactions", "buyers"] as Tab[]).includes(
     params.tab as Tab,
   )
     ? (params.tab as Tab)
@@ -118,6 +119,9 @@ export default function CrmPage() {
             <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
               <FileText className="h-3.5 w-3.5" /> Pipeline
             </TabsTrigger>
+            <TabsTrigger value="buyers" className="data-[state=active]:bg-muted gap-1.5">
+              <Target className="h-3.5 w-3.5" /> Buyers
+            </TabsTrigger>
             <TabsTrigger value="companies" className="data-[state=active]:bg-muted gap-1.5">
               <Building2 className="h-3.5 w-3.5" /> Companies
             </TabsTrigger>
@@ -143,6 +147,9 @@ export default function CrmPage() {
         </TabsContent>
         <TabsContent value="transactions" className="flex-1 min-h-0 overflow-auto m-0">
           <TransactionsList search={search} newSignal={newTxSignal} />
+        </TabsContent>
+        <TabsContent value="buyers" className="flex-1 min-h-0 overflow-auto m-0">
+          <BuyersList search={search} />
         </TabsContent>
       </Tabs>
 
