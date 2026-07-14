@@ -9,7 +9,7 @@
 // manually. Phase 2 wires the GHL buyer sync + buy-box match that populate it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Users, X, Search, TrendingUp } from "lucide-react";
+import { Plus, Users, X, Search, TrendingUp, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -79,6 +79,7 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +172,38 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
     toast.success("Buyer removed from deal");
   }
 
+  // Pull the buyer list (+ buy-box) from GHL via the ghl-sync-buyers function.
+  // Global action: refreshes dispo_buyers, then reloads this deal's picker.
+  async function syncFromGhl() {
+    setSyncing(true);
+    const { data, error } = await supabase.functions.invoke("ghl-sync-buyers");
+    setSyncing(false);
+    if (error) {
+      toast.error(`Sync failed: ${error.message}`);
+      return;
+    }
+    const d = (data ?? {}) as { synced?: number; error?: string };
+    if (d.error) {
+      toast.error(d.error);
+      return;
+    }
+    toast.success(`Synced ${d.synced ?? 0} buyer${d.synced === 1 ? "" : "s"} from GHL`);
+    void load();
+  }
+
+  const syncButton = (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="gap-1.5 h-8 text-muted-foreground"
+      onClick={syncFromGhl}
+      disabled={syncing}
+    >
+      <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+      {syncing ? "Syncing…" : "Sync from GHL"}
+    </Button>
+  );
+
   const topOffer = useMemo(
     () => rows.reduce<number | null>((max, r) => {
       if (r.offer_amount == null) return max;
@@ -246,7 +279,10 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
             </span>
           )}
         </div>
-        {rows.length > 0 && addButton}
+        <div className="flex items-center gap-2">
+          {syncButton}
+          {addButton}
+        </div>
       </div>
 
       {loading ? (
@@ -256,14 +292,11 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="space-y-4">
-          <EmptyState
-            icon={Users}
-            title="No buyers tracked yet"
-            description="Add the buyers interested in this deal to track their stage and offers in one place — the view GHL can't give you."
-          />
-          <div className="flex justify-center">{addButton}</div>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No buyers tracked yet"
+          description="Sync your buyer list from GHL, then add the buyers interested in this deal to track their stage and offers in one place — the view GHL can't give you."
+        />
       ) : (
         <div className="crm-card !p-0 overflow-hidden">
           <table className="w-full text-sm">
