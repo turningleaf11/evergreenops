@@ -6,16 +6,23 @@
 // GHL sync live on this surface, not inside a deal.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Users, Mail, Phone } from "lucide-react";
+import { RefreshCw, Users, Mail, Phone, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
+import {
+  DataTableShell,
+  DataTableHeader,
+  DataTableRow,
+  DataTablePill,
+} from "@/components/ui/data-table-shell";
 import { fmtMoney } from "../transactions/utils";
 
 interface Buyer {
   id: string;
+  ghl_contact_id: string | null;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -34,12 +41,19 @@ interface Buyer {
   updated_at: string | null;
 }
 
-// dispo_* tables aren't in the generated Supabase types (created directly in
-// the DB); route dispo reads through this untyped handle until types are regen'd.
-const dispo = supabase as unknown as { from: (table: string) => any };
+// dispo_* + app_settings reads through an untyped handle (dispo_* aren't in the
+// generated Supabase types; app_settings is admin-readable per RLS).
+const db = supabase as unknown as { from: (table: string) => any };
+
+const GRID = "1.7fr 1.5fr 1.5fr 1.1fr 0.9fr 0.6fr 40px";
+
+function titleCase(s: string | null): string {
+  if (!s) return "";
+  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
 
 function buyerName(b: Buyer): string {
-  const full = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim();
+  const full = `${titleCase(b.first_name)} ${titleCase(b.last_name)}`.trim();
   return full || b.company || b.email || "Unnamed buyer";
 }
 
@@ -56,12 +70,13 @@ export function BuyersList({ search }: { search: string }) {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [ghlLocation, setGhlLocation] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await dispo
+    const { data, error } = await db
       .from("dispo_buyers")
-      .select("id, first_name, last_name, email, phone, company, source, status, tier, markets, states, strategies, property_types, min_price, max_price, buy_box_notes, updated_at")
+      .select("id, ghl_contact_id, first_name, last_name, email, phone, company, source, status, tier, markets, states, strategies, property_types, min_price, max_price, buy_box_notes, updated_at")
       .order("updated_at", { ascending: false });
     if (error) {
       toast.error(`Couldn't load buyers: ${error.message}`);
@@ -74,6 +89,16 @@ export function BuyersList({ search }: { search: string }) {
 
   useEffect(() => {
     void load();
+    // Location id (admin-readable) powers the "open in GHL" deep-link. We fetch
+    // only this key — never the API key.
+    void (async () => {
+      const { data } = await db
+        .from("app_settings")
+        .select("value")
+        .eq("key", "GHL_LOCATION_ID")
+        .maybeSingle();
+      setGhlLocation(data?.value ?? null);
+    })();
   }, [load]);
 
   async function syncFromGhl() {
@@ -93,18 +118,16 @@ export function BuyersList({ search }: { search: string }) {
     void load();
   }
 
+  const ghlUrl = (b: Buyer): string | null =>
+    ghlLocation && b.ghl_contact_id
+      ? `https://app.gohighlevel.com/v2/location/${ghlLocation}/contacts/detail/${b.ghl_contact_id}`
+      : null;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return buyers;
     return buyers.filter((b) =>
-      [
-        buyerName(b),
-        b.company,
-        b.email,
-        ...(b.markets ?? []),
-        ...(b.states ?? []),
-        ...(b.strategies ?? []),
-      ]
+      [buyerName(b), b.company, b.email, ...(b.markets ?? []), ...(b.states ?? []), ...(b.strategies ?? [])]
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q)),
     );
@@ -133,11 +156,11 @@ export function BuyersList({ search }: { search: string }) {
       </div>
 
       {loading ? (
-        <div className="crm-card space-y-2">
-          {[0, 1, 2, 3].map((i) => (
+        <DataTableShell className="p-2 space-y-2">
+          {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="h-11 rounded-md bg-muted/40 animate-pulse" />
           ))}
-        </div>
+        </DataTableShell>
       ) : filtered.length === 0 ? (
         <div className="space-y-4">
           <EmptyState
@@ -152,96 +175,101 @@ export function BuyersList({ search }: { search: string }) {
           {buyers.length === 0 && <div className="flex justify-center">{syncButton}</div>}
         </div>
       ) : (
-        <div className="crm-card !p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/50 text-left">
-                  <th className="px-4 py-2.5 crm-field-label font-medium">Buyer</th>
-                  <th className="px-4 py-2.5 crm-field-label font-medium">Contact</th>
-                  <th className="px-4 py-2.5 crm-field-label font-medium">Focus</th>
-                  <th className="px-4 py-2.5 crm-field-label font-medium">Strategy</th>
-                  <th className="px-4 py-2.5 crm-field-label font-medium text-right">Max price</th>
-                  <th className="px-4 py-2.5 crm-field-label font-medium">Tier</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-muted/30 transition-colors align-top">
-                    <td className="px-4 py-2.5">
-                      <div className="font-medium leading-tight">{buyerName(b)}</div>
-                      {b.company && (
-                        <div className="text-xs text-muted-foreground leading-tight">{b.company}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="space-y-0.5">
-                        {b.email && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate max-w-[180px]">{b.email}</span>
-                          </div>
-                        )}
-                        {b.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Phone className="h-3 w-3 shrink-0" />
-                            {b.phone}
-                          </div>
-                        )}
-                        {!b.email && !b.phone && <span className="text-muted-foreground/60">—</span>}
+        <DataTableShell>
+          <DataTableHeader template={GRID}>
+            <div>Buyer</div>
+            <div>Contact</div>
+            <div>Focus</div>
+            <div>Strategy</div>
+            <div className="text-right">Max price</div>
+            <div>Tier</div>
+            <div />
+          </DataTableHeader>
+          {filtered.map((b) => {
+            const url = ghlUrl(b);
+            return (
+              <DataTableRow key={b.id} template={GRID}>
+                {/* BUYER */}
+                <div className="min-w-0 pr-3">
+                  <div className="font-medium truncate leading-tight">{buyerName(b)}</div>
+                  {b.company && (
+                    <div className="text-xs text-muted-foreground truncate leading-tight">{b.company}</div>
+                  )}
+                </div>
+
+                {/* CONTACT */}
+                <div className="min-w-0 pr-3 space-y-0.5">
+                  {b.email ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{b.email}</span>
+                    </div>
+                  ) : null}
+                  {b.phone ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      {b.phone}
+                    </div>
+                  ) : null}
+                  {!b.email && !b.phone && <span className="text-muted-foreground/50">—</span>}
+                </div>
+
+                {/* FOCUS */}
+                <div className="min-w-0 pr-3">
+                  {b.markets?.length || b.states?.length ? (
+                    <>
+                      <div className="text-[13px] truncate leading-tight">
+                        {b.markets?.length ? b.markets.join(", ") : "—"}
                       </div>
-                    </td>
-                    <td className="px-4 py-2.5 max-w-[220px]">
-                      {(b.markets?.length || b.states?.length) ? (
-                        <>
-                          <div className="text-[13px] leading-tight truncate">
-                            {b.markets?.length ? b.markets.join(", ") : "—"}
-                          </div>
-                          {b.states?.length ? (
-                            <div className="text-[11px] text-muted-foreground leading-tight truncate">
-                              {b.states.join(", ")}
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground/60">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-[13px]">
-                      {b.strategies?.length ? (
-                        <span className="truncate">{b.strategies.join(", ")}</span>
-                      ) : (
-                        <span className="text-muted-foreground/60">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-[13px] tabular-nums whitespace-nowrap">
-                      {b.max_price == null ? (
-                        <span className="text-muted-foreground/60">—</span>
-                      ) : (
-                        fmtMoney(b.max_price)
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {b.tier ? (
-                        <span
-                          className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium"
-                          style={{
-                            backgroundColor: `hsl(${tierColor(b.tier)} / 0.13)`,
-                            color: `hsl(${tierColor(b.tier)})`,
-                          }}
-                        >
-                          {b.tier}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/60 text-xs">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      {b.states?.length ? (
+                        <div className="text-[11px] text-muted-foreground truncate leading-tight">
+                          {b.states.join(", ")}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
+                </div>
+
+                {/* STRATEGY */}
+                <div className="min-w-0 pr-3 text-[13px] truncate">
+                  {b.strategies?.length ? b.strategies.join(", ") : <span className="text-muted-foreground/50">—</span>}
+                </div>
+
+                {/* MAX PRICE */}
+                <div className="text-right text-[13px] tabular-nums whitespace-nowrap">
+                  {b.max_price == null ? <span className="text-muted-foreground/50">—</span> : fmtMoney(b.max_price)}
+                </div>
+
+                {/* TIER */}
+                <div>
+                  {b.tier ? (
+                    <DataTablePill hsl={tierColor(b.tier)}>{b.tier}</DataTablePill>
+                  ) : (
+                    <span className="text-muted-foreground/50 text-xs">—</span>
+                  )}
+                </div>
+
+                {/* OPEN IN GHL */}
+                <div className="flex justify-end">
+                  {url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in GHL"
+                      aria-label={`Open ${buyerName(b)} in GHL`}
+                      className="p-1.5 rounded-md text-muted-foreground/70 hover:text-brand-azure hover:bg-brand-azure/10 transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
+                </div>
+              </DataTableRow>
+            );
+          })}
+        </DataTableShell>
       )}
     </div>
   );
