@@ -53,6 +53,8 @@ import { ContactPicker } from "../ContactPicker";
 import { contactTypeColor, contactTypeLabel } from "../contactTypes";
 import { OwnerPicker, TransactionTeamMembersPanel } from "../PeoplePickers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { US_STATES, EXIT_STRATEGIES, PROPERTY_TYPES } from "@/lib/dealVocab";
 import {
   TX_LANE_LABEL,
   TX_LANE_COLOR,
@@ -75,7 +77,9 @@ interface Transaction {
   property_address: string;
   property_city: string | null;
   property_state: string | null;
+  property_county_metro: string | null;
   property_type: string | null;
+  best_exit: string | null;
   units: number | null;
   contract_date: string | null;
   inspection_deadline: string | null;
@@ -170,7 +174,7 @@ export function TransactionDetailSheet({
         .eq("source_id", transactionId)
         .eq("target_type", "contact"),
     ]);
-    const txRow = (t as Transaction) || null;
+    const txRow = (t as unknown as Transaction) || null;
     setTx(txRow);
     setItems((it as ChecklistItem[]) || []);
     setContactLinks((ls as { id: string; target_id: string }[]) || []);
@@ -474,6 +478,66 @@ export function TransactionDetailSheet({
 
                   {/* OVERVIEW: Key Dates + Key People + P&L */}
                   <TabsContent value="overview" className="p-6 mt-0 space-y-8">
+                    {/* Property & match criteria — canonical values that drive buyer matching */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Property</h3>
+                      <div className="crm-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">City</Label>
+                          <Input
+                            defaultValue={tx.property_city ?? ""}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v !== (tx.property_city ?? "")) saveField({ property_city: v || null });
+                            }}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">State</Label>
+                          <Select value={tx.property_state ?? ""} onValueChange={(v) => saveField({ property_state: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Select state" /></SelectTrigger>
+                            <SelectContent className="max-h-72">
+                              {US_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">County / Metro</Label>
+                          <Input
+                            defaultValue={tx.property_county_metro ?? ""}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v !== (tx.property_county_metro ?? "")) saveField({ property_county_metro: v || null });
+                            }}
+                            className="h-9"
+                            placeholder="e.g. Maricopa County"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">Property type</Label>
+                          <Select value={tx.property_type ?? ""} onValueChange={(v) => saveField({ property_type: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
+                            <SelectContent className="max-h-72">
+                              {PROPERTY_TYPES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="crm-field-label">Best exit</Label>
+                          <Select value={tx.best_exit ?? ""} onValueChange={(v) => saveField({ best_exit: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Select exit" /></SelectTrigger>
+                            <SelectContent>
+                              {EXIT_STRATEGIES.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        These drive buyer matching on the Buyers tab.
+                      </p>
+                    </section>
+
                     {/* Key Dates */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Key dates</h3>

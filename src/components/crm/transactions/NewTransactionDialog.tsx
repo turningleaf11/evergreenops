@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/hooks/use-toast";
+import { US_STATES, EXIT_STRATEGIES, PROPERTY_TYPES } from "@/lib/dealVocab";
 
 interface PrefillFromDeal {
   dealId: string;
@@ -61,6 +62,9 @@ export function NewTransactionDialog({
   const [contractDate, setContractDate] = useState("");
   const [closingDate, setClosingDate] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [bestExit, setBestExit] = useState("");
+  const [countyMetro, setCountyMetro] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -73,6 +77,9 @@ export function NewTransactionDialog({
       setClosingDate(prefillFromDeal.expected_close_date || "");
       setPurchasePrice(prefillFromDeal.asking_price?.toString() || "");
       setContractDate("");
+      setPropertyType(prefillFromDeal.property_type || "");
+      setBestExit("");
+      setCountyMetro("");
     } else {
       setLane(defaultLane);
       setType("assign");
@@ -82,6 +89,9 @@ export function NewTransactionDialog({
       setContractDate("");
       setClosingDate("");
       setPurchasePrice("");
+      setPropertyType("");
+      setBestExit("");
+      setCountyMetro("");
     }
   }, [open, prefillFromDeal, defaultLane]);
 
@@ -102,8 +112,10 @@ export function NewTransactionDialog({
         property_address: address.trim(),
         property_city: city.trim() || null,
         property_state: stateCode.trim() || null,
+        property_county_metro: countyMetro.trim() || null,
         property_zip: prefillFromDeal?.property_zip ?? null,
-        property_type: prefillFromDeal?.property_type ?? null,
+        property_type: propertyType || prefillFromDeal?.property_type || null,
+        best_exit: bestExit || null,
         units: prefillFromDeal?.units ?? null,
         unit_mix: prefillFromDeal?.unit_mix ?? null,
         asking_price: prefillFromDeal?.asking_price ?? null,
@@ -170,7 +182,38 @@ export function NewTransactionDialog({
             </div>
             <div>
               <Label className="text-xs">State</Label>
-              <Input value={stateCode} onChange={(e) => setStateCode(e.target.value)} maxLength={2} />
+              <Select value={stateCode} onValueChange={setStateCode}>
+                <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {US_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">County or Metro</Label>
+            <Input value={countyMetro} onChange={(e) => setCountyMetro(e.target.value)} placeholder="e.g. Maricopa County" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Property type</Label>
+              <Select value={propertyType} onValueChange={setPropertyType}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {PROPERTY_TYPES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Best exit</Label>
+              <Select value={bestExit} onValueChange={setBestExit}>
+                <SelectTrigger><SelectValue placeholder="Select exit" /></SelectTrigger>
+                <SelectContent>
+                  {EXIT_STRATEGIES.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
