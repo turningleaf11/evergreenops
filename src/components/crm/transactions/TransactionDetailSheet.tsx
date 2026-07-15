@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { BuyerInterestTab } from "./BuyerInterestTab";
+import { CampaignsTab } from "./CampaignsTab";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -461,6 +462,7 @@ export function TransactionDetailSheet({
                       {[
                         { v: "overview", label: "Overview" },
                         { v: "buyers", label: "Buyers" },
+                        { v: "campaigns", label: "Campaigns" },
                         { v: "checklist", label: "Checklist" },
                         { v: "activity", label: "Activity" },
                         { v: "files", label: "Files" },
@@ -656,6 +658,11 @@ export function TransactionDetailSheet({
                   {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
                   <TabsContent value="buyers" className="p-6 mt-0">
                     <BuyerInterestTab transactionId={tx.id} />
+                  </TabsContent>
+
+                  {/* CAMPAIGNS — outreach log + response tracking */}
+                  <TabsContent value="campaigns" className="p-6 mt-0">
+                    <CampaignsTab transactionId={tx.id} />
                   </TabsContent>
 
                   {/* CHECKLIST */}

@@ -9,8 +9,7 @@
 // manually. Phase 2 wires the GHL buyer sync + buy-box match that populate it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Users, X, Search, TrendingUp, Send } from "lucide-react";
-import { CampaignComposer } from "./CampaignComposer";
+import { Plus, Users, X, Search, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -100,7 +99,6 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
   const load = useCallback(async () => {
@@ -278,19 +276,7 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {rows.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 h-8"
-              onClick={() => setComposerOpen(true)}
-            >
-              <Send className="h-3.5 w-3.5" /> Message
-            </Button>
-          )}
-          {addButton}
-        </div>
+        {addButton}
       </div>
 
       {loading ? (
@@ -398,14 +384,6 @@ export function BuyerInterestTab({ transactionId }: { transactionId: string }) {
           </div>
         </div>
       )}
-
-      <CampaignComposer
-        transactionId={transactionId}
-        buyerIds={rows.map((r) => r.buyer_id)}
-        open={composerOpen}
-        onOpenChange={setComposerOpen}
-        onSent={load}
-      />
     </section>
   );
 }
