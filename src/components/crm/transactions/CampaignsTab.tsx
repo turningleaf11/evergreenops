@@ -1,12 +1,11 @@
 // CampaignsTab — the outreach log for a deal. Every send is a campaign record:
 // what went out (channel, subject, copy), to whom, with per-recipient outcomes
-// (sent / failed / skipped) and response attribution — "Mark responded" stamps
-// the recipient AND adds the buyer to the deal's interest tracker with
-// source 'campaign', so the Buyers tab reflects who raised their hand.
+// (sent / failed / skipped) and response attribution.
 //
-// v1 response tracking is manual (replies land in GHL conversations; the dispo
-// person marks them here). Auto-attribution via GHL inbound webhooks is a
-// later-phase upgrade.
+// Responses are NOT marked by hand — replies land in GHL, and a GHL
+// "customer replied" workflow webhook will stamp responded_at + add the buyer
+// to the deal's interest tracker automatically (webhook build pending). Until
+// then the Responded chip simply stays empty.
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Mail, MessageSquare, ChevronDown, ChevronRight, Megaphone, CheckCircle2 } from "lucide-react";
@@ -141,47 +140,6 @@ export function CampaignsTab({ transactionId }: { transactionId: string }) {
     setRecipientsLoading(false);
   }
 
-  // Mark a recipient as having responded: stamps the recipient row AND puts the
-  // buyer on the deal's interest tracker (source 'campaign') if not already there.
-  async function markResponded(r: Recipient, campaignId: string) {
-    const undo = !!r.responded_at;
-    const stamp = undo ? null : new Date().toISOString();
-    const { error } = await dispo
-      .from("dispo_campaign_recipients")
-      .update({ responded_at: stamp })
-      .eq("id", r.id);
-    if (error) {
-      toast.error(`Couldn't update: ${error.message}`);
-      return;
-    }
-    setRecipients((prev) => prev.map((x) => (x.id === r.id ? { ...x, responded_at: stamp } : x)));
-    setRespondedCounts((prev) => ({
-      ...prev,
-      [campaignId]: Math.max(0, (prev[campaignId] ?? 0) + (undo ? -1 : 1)),
-    }));
-
-    if (!undo) {
-      const { data: existing } = await dispo
-        .from("dispo_deal_interests")
-        .select("id")
-        .eq("transaction_id", transactionId)
-        .eq("buyer_id", r.buyer_id)
-        .maybeSingle();
-      if (!existing) {
-        const { error: iErr } = await dispo.from("dispo_deal_interests").insert({
-          transaction_id: transactionId,
-          buyer_id: r.buyer_id,
-          level: "interested",
-          source: "campaign",
-        });
-        if (!iErr) toast.success("Responded — added to this deal's buyers");
-        else toast.error(`Couldn't add to buyers: ${iErr.message}`);
-      } else {
-        toast.success("Marked responded");
-      }
-    }
-  }
-
   const newCampaignButton = (
     <Button size="sm" className="gap-1.5 h-8" onClick={() => setComposerOpen(true)}>
       <Plus className="h-3.5 w-3.5" /> New campaign
@@ -264,19 +222,11 @@ export function CampaignsTab({ transactionId }: { transactionId: string }) {
                             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded capitalize", STATUS_TONE[r.status] ?? STATUS_TONE.pending)}>
                               {r.status}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => markResponded(r, c.id)}
-                              className={cn(
-                                "flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md transition-colors shrink-0",
-                                r.responded_at
-                                  ? "text-brand-mint-deep bg-brand-mint/10 hover:bg-brand-mint/20"
-                                  : "text-muted-foreground hover:text-brand-mint-deep hover:bg-brand-mint/10",
-                              )}
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              {r.responded_at ? "Responded" : "Mark responded"}
-                            </button>
+                            {r.responded_at && (
+                              <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md text-brand-mint-deep bg-brand-mint/10 shrink-0">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Responded
+                              </span>
+                            )}
                           </li>
                         ))}
                         {recipients.length === 0 && (

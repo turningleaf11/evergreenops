@@ -24,3 +24,6 @@ verify_jwt = false
 [functions.lead-webhook-in]
 verify_jwt = false
 
+
+[functions.ghl-reply-webhook]
+verify_jwt = false

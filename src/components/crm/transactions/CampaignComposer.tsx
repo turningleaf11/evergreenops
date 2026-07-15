@@ -8,10 +8,12 @@
 //      new template). Merge fields: {{first_name}} fills per-buyer at send time;
 //      {{address}} {{city}} {{county}} {{state}} {{price}} fill from the deal.
 //
-// One mechanism regardless of audience size: the send-campaign function loops
-// GHL /conversations/messages per recipient (personal-feel sends, opt-outs
-// respected server-side). Every send is recorded as a dispo_campaigns row with
-// per-recipient outcomes — see CampaignsTab for the log + response tracking.
+// One mechanism regardless of audience size — OpsHQ decides, GHL delivers:
+// the enroll-campaign function stamps each buyer's GHL contact with the merged
+// copy and enrolls them in the "Dispo Blast" GHL workflow, which does the
+// actual sending with GHL's native infra (throttle, DND/opt-outs, replies).
+// Every send is recorded as a dispo_campaigns row with per-recipient outcomes
+// — see CampaignsTab for the log; replies auto-attribute via ghl-reply-webhook.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Send, Loader2, Mail, MessageSquare, ArrowLeft, ArrowRight, Search } from "lucide-react";
@@ -222,7 +224,7 @@ export function CampaignComposer({
     const count = selected.size;
 
     const ok = window.confirm(
-      `Send this ${channel === "email" ? "email" : "SMS"} to ${count} buyer${count === 1 ? "" : "s"}?\n\nOpted-out buyers are skipped automatically. This sends real messages via GHL.`,
+      `Send this ${channel === "email" ? "email" : "SMS"} to ${count} buyer${count === 1 ? "" : "s"}?\n\nEach buyer is enrolled in your GHL "Dispo Blast" workflow, which does the actual sending (opt-outs and DND are respected). This sends real messages.`,
     );
     if (!ok) return;
 
@@ -278,7 +280,7 @@ export function CampaignComposer({
       let guard = 0;
       while (remaining > 0 && guard < 400) {
         guard++;
-        const { data, error } = await supabase.functions.invoke("send-campaign", {
+        const { data, error } = await supabase.functions.invoke("enroll-campaign", {
           body: { campaign_id: campaign.id },
         });
         if (error) throw new Error(error.message);
@@ -290,7 +292,7 @@ export function CampaignComposer({
       }
 
       toast.success(
-        `Sent ${totalSent} ${channel === "email" ? "email" : "SMS"}${totalSent === 1 ? "" : "s"}` +
+        `Enrolled ${totalSent} buyer${totalSent === 1 ? "" : "s"} — GHL is sending the ${channel === "email" ? "emails" : "SMS"}` +
           (totalOther ? ` · ${totalOther} skipped/failed` : ""),
       );
       setSubject("");
