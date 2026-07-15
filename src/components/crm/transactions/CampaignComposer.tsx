@@ -64,8 +64,8 @@ export function CampaignComposer({
           channel,
           subject: channel === "email" ? subject.trim() : null,
           body: body.trim(),
-          status: "pending",
-          audience: "deal_buyers",
+          status: "draft",
+          audience: "interested",
           recipient_count: count,
           created_by: user?.id ?? null,
         })
