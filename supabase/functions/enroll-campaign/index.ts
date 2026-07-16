@@ -1,19 +1,20 @@
-// enroll-campaign -- Option C execution: OpsHQ decides, GHL delivers.
+// enroll-campaign -- Option C, webhook-data flavor: OpsHQ decides, GHL delivers.
 //
-// For each pending recipient of a dispo campaign: stamp the buyer's GHL contact
-// with the campaign's merged copy (Dispo Email Subject / Dispo Email Body /
-// Dispo SMS Body / Dispo Campaign ID custom fields), then enroll the contact in
-// the matching GHL workflow ("Dispo Blast -- Email" / "Dispo Blast -- SMS").
-// The workflow does the actual sending with GHL's native infra (throttling,
-// unsubscribe/DND, replies) and can run follow-up steps.
+// For each pending recipient, OpsHQ POSTs the campaign's (already personalized)
+// copy as JSON to the channel's GHL "Inbound Webhook" workflow. The workflow
+// matches the contact by email/phone and maps the payload fields straight into
+// its Send Email / Send SMS actions -- no contact custom fields, no write scope.
+// The copy is transactional, so it never touches the contact record.
 //
-// Batch contract matches send-campaign: call repeatedly with { campaign_id }
-// until remaining === 0. Opt-outs are skipped here as well (belt & suspenders --
-// GHL DND also applies at send time).
+// Payload posted per recipient:
+//   { contact_id, email, phone, first_name, subject, body, campaign_id }
+// Map in the workflow: Subject <- {{inboundWebhookRequest.subject}},
+//   Body/Message <- {{inboundWebhookRequest.body}}. Match contact on email/phone.
 //
-// Requires app_settings: GHL_API_KEY (with contacts.write scope),
-// GHL_LOCATION_ID, GHL_DISPO_EMAIL_WORKFLOW_ID, GHL_DISPO_SMS_WORKFLOW_ID.
-// Auth: JWT + admin, matching the other OpsHQ GHL functions.
+// Batch contract matches the composer loop: call with { campaign_id } until
+// remaining === 0. Opt-outs skipped here; GHL DND applies at send too.
+// Requires app_settings: GHL_DISPO_EMAIL_WEBHOOK_URL / GHL_DISPO_SMS_WEBHOOK_URL.
+// Auth: JWT + admin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -22,16 +23,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BATCH = 50;
-
-// GHL custom fields the blast workflows read. Resolved by fieldKey, with a
-// name fallback in case GHL generated a different key when created manually.
-const MERGE_FIELDS = {
-  emailSubject: { key: "contact.dispo_email_subject", name: "Dispo Email Subject" },
-  emailBody: { key: "contact.dispo_email_body", name: "Dispo Email Body" },
-  smsBody: { key: "contact.dispo_sms_body", name: "Dispo SMS Body" },
-  campaignId: { key: "contact.dispo_campaign_id", name: "Dispo Campaign ID" },
-} as const;
+const BATCH = 75;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -41,7 +33,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Auth: signed-in admin only
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -57,57 +48,19 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: settings } = await admin
-      .from("app_settings").select("key, value")
-      .in("key", ["GHL_API_KEY", "GHL_LOCATION_ID", "GHL_DISPO_EMAIL_WORKFLOW_ID", "GHL_DISPO_SMS_WORKFLOW_ID"]);
+      .from("app_settings").select("key, value").in("key", ["GHL_DISPO_EMAIL_WEBHOOK_URL", "GHL_DISPO_SMS_WEBHOOK_URL"]);
     const cfg: Record<string, string> = {};
     (settings ?? []).forEach((s: any) => { cfg[s.key] = s.value; });
-    const apiKey = cfg.GHL_API_KEY || Deno.env.get("GHL_API_KEY");
-    const locationId = cfg.GHL_LOCATION_ID || Deno.env.get("GHL_LOCATION_ID");
-    if (!apiKey || !locationId) return json({ error: "GHL not configured (GHL_API_KEY / GHL_LOCATION_ID)" }, 400);
 
     const { data: campaign, error: cErr } = await admin
       .from("dispo_campaigns").select("*").eq("id", campaign_id).single();
     if (cErr || !campaign) return json({ error: "Campaign not found" }, 404);
 
     const channel = String(campaign.channel || "email").toLowerCase();
-    const workflowId = channel === "sms" ? cfg.GHL_DISPO_SMS_WORKFLOW_ID : cfg.GHL_DISPO_EMAIL_WORKFLOW_ID;
-    if (!workflowId) {
+    const webhookUrl = channel === "sms" ? cfg.GHL_DISPO_SMS_WEBHOOK_URL : cfg.GHL_DISPO_EMAIL_WEBHOOK_URL;
+    if (!webhookUrl) {
       return json({
-        error: `No ${channel} blast workflow configured. Build the "Dispo Blast -- ${channel === "sms" ? "SMS" : "Email"}" workflow in GHL and save its ID as app_settings.${channel === "sms" ? "GHL_DISPO_SMS_WORKFLOW_ID" : "GHL_DISPO_EMAIL_WORKFLOW_ID"}.`,
-      }, 400);
-    }
-
-    const ghl = (path: string, init: RequestInit = {}) =>
-      fetch(`https://services.leadconnectorhq.com${path}`, {
-        ...init,
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Version: "2021-07-28",
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(init.headers || {}),
-        },
-      });
-
-    // Resolve merge-field IDs once (by fieldKey, falling back to display name).
-    const cfRes = await ghl(`/locations/${encodeURIComponent(locationId)}/customFields`);
-    if (!cfRes.ok) return json({ error: `GHL customFields ${cfRes.status}`, detail: (await cfRes.text()).slice(0, 300) }, 502);
-    const cfData = await cfRes.json();
-    const allFields = (cfData.customFields || cfData.fields || []) as any[];
-    const idFor: Record<string, string> = {};
-    for (const [alias, f] of Object.entries(MERGE_FIELDS)) {
-      const hit = allFields.find(
-        (x) =>
-          (x.fieldKey || "").toLowerCase() === f.key.toLowerCase() ||
-          (x.name || "").trim().toLowerCase() === f.name.toLowerCase(),
-      );
-      if (hit?.id) idFor[alias] = hit.id;
-    }
-    const needed = channel === "sms" ? ["smsBody", "campaignId"] : ["emailSubject", "emailBody", "campaignId"];
-    const missing = needed.filter((k) => !idFor[k]);
-    if (missing.length) {
-      return json({
-        error: `Missing GHL custom fields: ${missing.map((k) => MERGE_FIELDS[k as keyof typeof MERGE_FIELDS].name).join(", ")}. Create them in GHL (Settings -> Custom Fields) exactly as named in the dispo workflow spec.`,
+        error: `No ${channel} blast webhook configured. In GHL add an "Inbound Webhook" trigger to your Dispo Blast ${channel === "sms" ? "SMS" : "Email"} workflow, then save its URL as app_settings.${channel === "sms" ? "GHL_DISPO_SMS_WEBHOOK_URL" : "GHL_DISPO_EMAIL_WEBHOOK_URL"}.`,
       }, 400);
     }
 
@@ -142,42 +95,33 @@ Deno.serve(async (req) => {
         }).eq("id", r.id);
 
       try {
-        if (!buyer || !buyer.ghl_contact_id) { await mark("skipped", "No GHL contact"); continue; }
+        if (!buyer) { await mark("skipped", "Buyer missing"); continue; }
         if (channel === "email" && (!buyer.email || !buyer.email_opt_in)) { await mark("skipped", "No email / opted out"); continue; }
         if (channel === "sms" && (!buyer.phone || !buyer.sms_opt_in)) { await mark("skipped", "No phone / opted out"); continue; }
 
         const firstName = (buyer.first_name as string)?.trim() || "there";
         const personalize = (t: string) => (t || "").replace(/\{\{\s*first_name\s*\}\}/gi, firstName);
 
-        const customFields =
-          channel === "sms"
-            ? [
-                { id: idFor.smsBody, field_value: personalize(campaign.body) },
-                { id: idFor.campaignId, field_value: campaign_id },
-              ]
-            : [
-                { id: idFor.emailSubject, field_value: personalize(campaign.subject || "New deal") },
-                { id: idFor.emailBody, field_value: personalize(campaign.body).replace(/\n/g, "<br/>") },
-                { id: idFor.campaignId, field_value: campaign_id },
-              ];
+        const payload = {
+          contact_id: buyer.ghl_contact_id ?? null,
+          email: buyer.email ?? null,
+          phone: buyer.phone ?? null,
+          first_name: firstName,
+          subject: channel === "email" ? personalize(campaign.subject || "New deal") : null,
+          body: personalize(campaign.body),
+          campaign_id,
+        };
 
-        // 1) Stamp the merged copy onto the contact
-        const upRes = await ghl(`/contacts/${buyer.ghl_contact_id}`, {
-          method: "PUT",
-          body: JSON.stringify({ customFields }),
-        });
-        if (!upRes.ok) throw new Error(`GHL contact update ${upRes.status}: ${(await upRes.text()).slice(0, 200)}`);
-
-        // 2) Enroll in the blast workflow -- GHL takes it from here
-        const wfRes = await ghl(`/contacts/${buyer.ghl_contact_id}/workflow/${workflowId}`, {
+        const res = await fetch(webhookUrl, {
           method: "POST",
-          body: JSON.stringify({}),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
-        if (!wfRes.ok) throw new Error(`GHL workflow enroll ${wfRes.status}: ${(await wfRes.text()).slice(0, 200)}`);
+        if (!res.ok) throw new Error(`Webhook ${res.status}: ${(await res.text()).slice(0, 160)}`);
 
         await mark("sent");
         sent++;
-        await new Promise((res) => setTimeout(res, 150)); // 2 calls/recipient; stay under burst limits
+        await new Promise((res) => setTimeout(res, 100));
       } catch (e) {
         failed++;
         await mark("failed", e instanceof Error ? e.message : "Unknown error");
