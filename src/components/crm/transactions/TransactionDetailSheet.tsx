@@ -55,7 +55,8 @@ import { contactTypeColor, contactTypeLabel } from "../contactTypes";
 import { OwnerPicker, TransactionTeamMembersPanel } from "../PeoplePickers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { US_STATES, EXIT_STRATEGIES, PROPERTY_TYPES } from "@/lib/dealVocab";
+import { StatusPill } from "@/components/primitives";
+import { US_STATES, EXIT_STRATEGIES, PROPERTY_TYPES, STAGE_BY_VALUE, statusForStage } from "@/lib/dealVocab";
 import {
   TX_LANE_LABEL,
   TX_LANE_COLOR,
@@ -75,6 +76,8 @@ interface Transaction {
   lane: string;
   transaction_type: string;
   status: string;
+  stage: string;
+  next_action: string | null;
   property_address: string;
   property_city: string | null;
   property_state: string | null;
@@ -246,6 +249,10 @@ export function TransactionDetailSheet({
     setTx({ ...tx, ...patch });
     onChanged();
   };
+
+  // Advancing the stage also syncs the coarse status so existing status-driven
+  // UI (P&L "actual net", closed styling) keeps working.
+  const saveStage = (stage: string) => saveField({ stage, status: statusForStage(stage) });
 
   // Contact search
   useEffect(() => {
@@ -480,6 +487,32 @@ export function TransactionDetailSheet({
 
                   {/* OVERVIEW: Key Dates + Key People + P&L */}
                   <TabsContent value="overview" className="p-6 mt-0 space-y-8">
+                    {/* Stage & next action — the deal's lifecycle + the next move */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Stage &amp; next action</h3>
+                      <div className="crm-card flex flex-wrap items-center gap-x-8 gap-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="crm-field-label">Stage</Label>
+                          <div><StatusPill kind="deal_stage" value={tx.stage || "prep"} onChange={saveStage} /></div>
+                        </div>
+                        <div className="space-y-1 flex-1 min-w-[220px]">
+                          <Label className="crm-field-label">Next action</Label>
+                          <Input
+                            key={`na-${tx.stage}-${tx.next_action ?? ""}`}
+                            defaultValue={tx.next_action ?? STAGE_BY_VALUE[tx.stage]?.nextAction ?? ""}
+                            placeholder={STAGE_BY_VALUE[tx.stage]?.nextAction || "What's the next move?"}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              const derived = STAGE_BY_VALUE[tx.stage]?.nextAction ?? "";
+                              const next = v === derived ? null : v || null;
+                              if (next !== (tx.next_action ?? null)) saveField({ next_action: next });
+                            }}
+                            className="h-9"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
                     {/* Property & match criteria — canonical values that drive buyer matching */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Property</h3>

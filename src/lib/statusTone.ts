@@ -22,7 +22,7 @@ const TONE = {
 export type EntityKind =
   | "goal" | "project" | "task" | "issue"
   | "deal" | "lead" | "transaction" | "contact"
-  | "thread" | "buyer_interest";
+  | "thread" | "buyer_interest" | "deal_stage";
 
 interface Tone { hsl: string; label: string; }
 
@@ -123,10 +123,28 @@ const BUYER_INTEREST: Record<string, Tone> = {
   dead:              tone("danger",  "Dead"),
 };
 
+// The deal lifecycle stage (dispo -> handoff -> TC -> terminal). Kept in sync
+// with DEAL_STAGES in src/lib/dealVocab.ts — add stages in both places.
+const DEAL_STAGE: Record<string, Tone> = {
+  prep:              tone("neutral", "Prep"),
+  ready:             tone("info",    "Ready"),
+  marketing_live:    tone("info",    "Marketing Live"),
+  marketing_paused:  tone("warning", "Marketing Paused"),
+  buyer_qualifying:  tone("accent",  "Buyer Found / Qualifying"),
+  buyer_selected:    tone("accent",  "Buyer Selected"),
+  send_assignment:   tone("accent",  "Send Assignment"),
+  pending_signature: tone("warning", "Pending Signature"),
+  pending_emd:       tone("danger",  "Pending EMD"),
+  title_dd:          tone("warning", "Title / Due Diligence"),
+  clear_to_close:    tone("info",    "Clear to Close"),
+  closed_won:        tone("success", "Closed – Won"),
+  lost_dead:         tone("danger",  "Lost / Dead"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
-  thread: THREAD, buyer_interest: BUYER_INTEREST,
+  thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
