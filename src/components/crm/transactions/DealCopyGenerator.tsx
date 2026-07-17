@@ -21,11 +21,18 @@ const dispo = supabase as unknown as { from: (table: string) => any };
 interface Copy {
   description_en?: string;
   description_es?: string;
-  email_subject_en?: string;
-  email_body_en?: string;
-  email_subject_es?: string;
-  email_body_es?: string;
+  email_subject?: string;
+  email_body?: string;
   generated_at?: string;
+}
+
+// The listing carries English + Spanish in one description field (matches the
+// public site's format), so "Use as details" applies the combined text.
+function combinedDescription(c: Copy): string {
+  const en = (c.description_en ?? "").trim();
+  const es = (c.description_es ?? "").trim();
+  if (en && es) return `${en}\n\n———\n\n${es}`;
+  return en || es;
 }
 
 export function DealCopyGenerator({
@@ -58,7 +65,7 @@ export function DealCopyGenerator({
       if (saved && Object.keys(saved).length) {
         setCopy(saved);
         setGeneratedAt(saved.generated_at ?? null);
-        setSpanish(!!(saved.description_es || saved.email_body_es));
+        setSpanish(!!saved.description_es);
       }
     })();
     return () => { active = false; };
@@ -102,7 +109,7 @@ export function DealCopyGenerator({
           </span>
         )}
         <div className="flex items-center gap-2 ml-auto">
-          <Label className="text-xs text-muted-foreground">Include Spanish</Label>
+          <Label className="text-xs text-muted-foreground">Spanish in listing</Label>
           <Switch checked={spanish} onCheckedChange={setSpanish} />
         </div>
         <Button size="sm" onClick={generate} disabled={loading} className="bg-brand-azure hover:bg-brand-azure/90 text-white">
@@ -119,24 +126,17 @@ export function DealCopyGenerator({
 
       {copy && (
         <div className="space-y-4">
-          <CopyBlock label="Listing description" text={copy.description_en} onUse={onUseAsDetails} />
-          {spanish && (
-            <CopyBlock label="Listing description (Spanish)" text={copy.description_es} onUse={onUseAsDetails} />
-          )}
+          <CopyBlock
+            label={copy.description_es ? "Listing description (EN + ES)" : "Listing description"}
+            text={combinedDescription(copy)}
+            onUse={onUseAsDetails}
+          />
           <EmailBlock
             label="Buyer email"
-            subject={copy.email_subject_en}
-            body={copy.email_body_en}
+            subject={copy.email_subject}
+            body={copy.email_body}
             onUseInCampaign={onUseInCampaign}
           />
-          {spanish && (
-            <EmailBlock
-              label="Buyer email (Spanish)"
-              subject={copy.email_subject_es}
-              body={copy.email_body_es}
-              onUseInCampaign={onUseInCampaign}
-            />
-          )}
         </div>
       )}
     </section>

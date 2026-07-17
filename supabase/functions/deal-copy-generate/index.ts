@@ -3,8 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 // deal-copy-generate -- drafts the deal's marketing copy (listing description +
 // buyer-blast email) from everything on the deal record: facts, financing custom
-// fields, the investor highlight/details, price and location. Optionally bilingual
-// (EN + ES). Respects address privacy -- never leaks a private street address.
+// fields, the investor highlight/details, price and location. The listing
+// description can be bilingual (EN + ES); the email is always English with a
+// {{first_name}} merge tag. Respects address privacy -- never leaks a private
+// street address.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,15 +109,13 @@ serve(async (req) => {
     const shape: Record<string, string> = {};
     if (wantDescription) {
       shape.description_en = "string -- a compelling listing description, 2-4 short paragraphs, plain text";
-      if (spanish) shape.description_es = "string -- the Spanish version of the description";
+      if (spanish) shape.description_es = "string -- a natural Spanish translation of the description (same content, not literal)";
     }
     if (wantEmail) {
-      shape.email_subject_en = "string -- punchy subject line for a buyers-list blast";
-      shape.email_body_en = "string -- the email body, plain text, personal and direct, with a clear call to action to reply for details/access";
-      if (spanish) {
-        shape.email_subject_es = "string -- Spanish subject line";
-        shape.email_body_es = "string -- Spanish email body";
-      }
+      // Email is always English and personalized via a merge tag filled at send.
+      shape.email_subject = "string -- punchy subject line for a buyers-list blast";
+      shape.email_body =
+        "string -- the email body, plain text, personal and direct. Open the greeting with the literal placeholder {{first_name}} exactly as written (e.g. 'Hey {{first_name}},') -- do NOT replace it with a name; it is filled per buyer at send time. End with a clear call to action to reply for details/access.";
     }
 
     const system =
@@ -123,8 +123,9 @@ serve(async (req) => {
       "Write in a grounded, personal, direct voice -- like a real dispo manager emailing their buyer list, not a glossy MLS agent. No hype, no purple prose, no emojis unless they'd genuinely fit. " +
       "Be specific to the numbers and facts given; never invent facts, comps, or an address. If the address is marked private, refer to the area (city/county) only. " +
       (spanish
-        ? "Provide both English and a natural Spanish translation (neutral Latin-American Spanish, appropriate for a Florida investor audience) -- translate the meaning, don't do it literally. "
+        ? "For the listing description ONLY, also provide a natural Spanish translation (neutral Latin-American Spanish, appropriate for a Florida investor audience) -- translate the meaning, don't do it literally. The email stays English. "
         : "") +
+      "Preserve any {{merge_tag}} placeholders exactly as given -- never fill or translate them. " +
       "Return ONLY a valid JSON object -- no markdown fences, no commentary.";
 
     const user =
