@@ -38,6 +38,7 @@ import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab } from "./CampaignsTab";
+import { PrepTab } from "./PrepTab";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -468,6 +469,7 @@ export function TransactionDetailSheet({
                     <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
                       {[
                         { v: "overview", label: "Overview" },
+                        { v: "prep", label: "Prep" },
                         { v: "buyers", label: "Buyers" },
                         { v: "campaigns", label: "Campaigns" },
                         { v: "checklist", label: "Checklist" },
@@ -686,6 +688,11 @@ export function TransactionDetailSheet({
                         </div>
                       </div>
                     </section>
+                  </TabsContent>
+
+                  {/* PREP — photos, facts, numbers, highlight (dispo_deal_details) */}
+                  <TabsContent value="prep" className="p-6 mt-0">
+                    <PrepTab transactionId={tx.id} />
                   </TabsContent>
 
                   {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
