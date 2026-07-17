@@ -1,7 +1,7 @@
-// PrepTab — get a deal launch-ready. Photos, property facts, numbers, and the
-// investor highlight all live here (dispo_deal_details). This is the data the
-// branded/AI campaign email later pulls from, and it drives readiness: when the
-// essentials are in, the deal is ready to move Prep -> Ready and launch.
+// MarketingAssets — the deal's marketing work product: listing identity
+// (public title + address privacy), photos, and the investor pitch copy.
+// Top of the Marketing funnel: assets -> launch checklist -> campaigns.
+// Property FACTS (beds/baths/ARV…) live on Summary; this is what we publish.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, Star, X, Loader2, CheckCircle2, Circle } from "lucide-react";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 const PHOTO_BUCKET = "dispo-property-photos";
@@ -18,43 +19,37 @@ const PHOTO_BUCKET = "dispo-property-photos";
 interface Details {
   transaction_id: string;
   photos: string[] | null;
-  beds: number | null;
-  baths: number | null;
-  sqft: number | null;
-  year_built: number | null;
-  arv: number | null;
-  repair_estimate: number | null;
   investor_highlight: string | null;
   investment_details: string | null;
 }
 
 interface DealLite {
+  marketing_title: string | null;
+  address_private: boolean;
   property_address: string | null;
+  property_city: string | null;
+  property_state: string | null;
   asking_price: number | null;
   purchase_price: number | null;
 }
 
 const emptyDetails = (id: string): Details => ({
-  transaction_id: id, photos: [], beds: null, baths: null, sqft: null,
-  year_built: null, arv: null, repair_estimate: null, investor_highlight: null, investment_details: null,
+  transaction_id: id, photos: [], investor_highlight: null, investment_details: null,
 });
 
-export function PrepTab({ transactionId }: { transactionId: string }) {
+export function MarketingAssets({ transactionId }: { transactionId: string }) {
   const [d, setD] = useState<Details | null>(null);
   const [deal, setDeal] = useState<DealLite | null>(null);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     const [detRes, dealRes] = await Promise.all([
-      dispo.from("dispo_deal_details").select("*").eq("transaction_id", transactionId).maybeSingle(),
-      dispo.from("crm_transactions").select("property_address, asking_price, purchase_price").eq("id", transactionId).maybeSingle(),
+      dispo.from("dispo_deal_details").select("transaction_id, photos, investor_highlight, investment_details").eq("transaction_id", transactionId).maybeSingle(),
+      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price").eq("id", transactionId).maybeSingle(),
     ]);
     setD((detRes.data as Details) ?? emptyDetails(transactionId));
     setDeal((dealRes.data as DealLite) ?? null);
-    setLoading(false);
   }, [transactionId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -65,10 +60,14 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
     const { error } = await dispo
       .from("dispo_deal_details")
       .upsert({ transaction_id: transactionId, ...patch, updated_at: new Date().toISOString() }, { onConflict: "transaction_id" });
-    if (error) {
-      toast.error(`Couldn't save: ${error.message}`);
-      void load();
-    }
+    if (error) { toast.error(`Couldn't save: ${error.message}`); void load(); }
+  }
+
+  // Listing identity lives on the deal record itself.
+  async function saveDeal(patch: Partial<DealLite>) {
+    setDeal((prev) => (prev ? { ...prev, ...patch } : prev));
+    const { error } = await dispo.from("crm_transactions").update(patch).eq("id", transactionId);
+    if (error) { toast.error(`Couldn't save: ${error.message}`); void load(); }
   }
 
   async function onFiles(files: File[]) {
@@ -106,7 +105,7 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
     void dispo.from("dispo_deal_details").update({ photo_url: url }).eq("transaction_id", transactionId);
   }
 
-  if (loading || !d) {
+  if (!d) {
     return (
       <div className="space-y-3 max-w-3xl">
         {[0, 1, 2].map((i) => <div key={i} className="h-20 rounded-lg bg-muted/40 animate-pulse" />)}
@@ -119,30 +118,10 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
   const ready = [
     { label: "Photo added", ok: photos.length > 0 },
     { label: "Price set", ok: price != null },
-    { label: "Beds & baths", ok: d.beds != null && d.baths != null },
+    { label: "Marketing title", ok: !!deal?.marketing_title?.trim() },
     { label: "Highlight written", ok: !!d.investor_highlight?.trim() },
   ];
   const readyCount = ready.filter((r) => r.ok).length;
-
-  // number field: commits on blur, stores null when cleared
-  const num = (label: string, key: keyof Details, opts?: { step?: string; prefix?: string }) => (
-    <div className="space-y-1">
-      <Label className="crm-field-label">{label}</Label>
-      <div className="relative">
-        {opts?.prefix && <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{opts.prefix}</span>}
-        <Input
-          type="number"
-          step={opts?.step}
-          defaultValue={(d[key] as number | null) ?? ""}
-          onBlur={(e) => {
-            const v = e.target.value.trim() === "" ? null : Number(e.target.value);
-            if (v !== (d[key] as number | null)) void save({ [key]: v } as Partial<Details>);
-          }}
-          className={cn("h-9 tabular-nums", opts?.prefix && "pl-6")}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <section className="space-y-8 max-w-3xl">
@@ -157,6 +136,38 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
         ))}
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">{readyCount} of {ready.length}</span>
       </div>
+
+      {/* Listing identity — the deal's public name + address privacy */}
+      <section className="space-y-3">
+        <h3 className="crm-eyebrow">Listing identity</h3>
+        <div className="crm-card space-y-4">
+          <div className="space-y-1">
+            <Label className="crm-field-label">Marketing title</Label>
+            <Input
+              defaultValue={deal?.marketing_title ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value.trim() || null;
+                if (v !== (deal?.marketing_title ?? null)) void saveDeal({ marketing_title: v });
+              }}
+              placeholder='The deal&apos;s public name — e.g. "Low Entry SubTo Home"'
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">Keep address private</div>
+              <p className="text-[11px] text-muted-foreground">
+                Public marketing shows {deal?.address_private
+                  ? `"${[deal?.property_city, deal?.property_state].filter(Boolean).join(", ") || "city, state"}" only`
+                  : "the full street address"}.
+              </p>
+            </div>
+            <Switch
+              checked={!!deal?.address_private}
+              onCheckedChange={(c) => void saveDeal({ address_private: c })}
+            />
+          </div>
+        </div>
+      </section>
 
       {/* Photos */}
       <section className="space-y-3">
@@ -203,33 +214,7 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
         <p className="text-[11px] text-muted-foreground">The hero photo leads the marketing email and listing. Hover a photo to set hero or remove.</p>
       </section>
 
-      {/* Property facts */}
-      <section className="space-y-3">
-        <h3 className="crm-eyebrow">Property facts</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {num("Beds", "beds")}
-          {num("Baths", "baths", { step: "0.5" })}
-          {num("Sq ft", "sqft")}
-          {num("Year built", "year_built")}
-        </div>
-      </section>
-
-      {/* Numbers */}
-      <section className="space-y-3">
-        <h3 className="crm-eyebrow">Numbers</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {num("ARV", "arv", { prefix: "$" })}
-          {num("Repair estimate", "repair_estimate", { prefix: "$" })}
-          <div className="space-y-1">
-            <Label className="crm-field-label">Marketing price</Label>
-            <div className="h-9 flex items-center text-sm tabular-nums">
-              {price != null ? `$${price.toLocaleString()}` : <span className="text-muted-foreground italic">set on Overview</span>}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Highlight + details */}
+      {/* Highlight + details — the pitch copy the emails/listing pull from */}
       <section className="space-y-3">
         <h3 className="crm-eyebrow">Investor highlight</h3>
         <Input
@@ -249,4 +234,4 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
   );
 }
 
-export default PrepTab;
+export default MarketingAssets;

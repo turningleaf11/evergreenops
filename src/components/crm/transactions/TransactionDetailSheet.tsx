@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
   Check,
-  CheckCircle2,
   Trash2,
   Mail,
   Phone,
@@ -37,8 +36,10 @@ import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab } from "./CampaignsTab";
-import { PrepTab } from "./PrepTab";
+import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
+import { DealFactsSection } from "./DealFactsSection";
+import { CustomFieldsRenderer, useCustomFields } from "@/components/crm/CustomFieldsRenderer";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -106,6 +107,9 @@ interface Transaction {
   owner_id: string | null;
   primary_contact_id: string | null;
   disposition_strategy: string | null;
+  marketing_title: string | null;
+  address_private: boolean;
+  custom_fields: Record<string, unknown> | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -252,8 +256,15 @@ export function TransactionDetailSheet({
   };
 
   // Advancing the stage also syncs the coarse status so existing status-driven
-  // UI (P&L "actual net", closed styling) keeps working.
-  const saveStage = (stage: string) => saveField({ stage, status: statusForStage(stage) });
+  // UI (P&L "actual net", closed styling) keeps working. Landing on Closed–Won
+  // pops the actual-net dialog — the stage pill IS the close action now.
+  const saveStage = async (stage: string) => {
+    await saveField({ stage, status: statusForStage(stage) });
+    if (stage === "closed_won") {
+      setActualNetInput(tx?.estimated_net?.toString() || "");
+      setCloseOpen(true);
+    }
+  };
 
   // Contact search
   useEffect(() => {
@@ -361,9 +372,10 @@ export function TransactionDetailSheet({
     onClose();
   };
 
+  // Stage is already Closed–Won when this dialog opens; it just records the net.
   const markClosed = async () => {
     const net = actualNetInput ? Number(actualNetInput) : null;
-    await saveField({ status: "closed", actual_net: net });
+    await saveField({ actual_net: net });
     setCloseOpen(false);
     setActualNetInput("");
   };
@@ -410,25 +422,35 @@ export function TransactionDetailSheet({
               leading={<Home className="h-5 w-5 text-primary" />}
               onClose={onClose}
               actions={
-                <>
-                  {tx.status !== "closed" && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setActualNetInput(tx.estimated_net?.toString() || "");
-                        setCloseOpen(true);
-                      }}
-                      className="bg-brand-azure hover:bg-brand-azure/90 text-white rounded-xl h-9 px-4"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark as Closed
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                </Button>
               }
             />
+
+            {/* Stage bar — always visible, from every tab. The stage pill is the
+                single lifecycle control (Closed–Won pops the actual-net dialog). */}
+            <div className="px-6 py-3 bg-background border-b border-border/50 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="crm-field-label">Stage</span>
+                <StatusPill kind="deal_stage" value={tx.stage || "prep"} onChange={saveStage} />
+              </div>
+              <div className="flex items-center gap-2.5 flex-1 min-w-[260px]">
+                <span className="crm-field-label whitespace-nowrap">Next action</span>
+                <Input
+                  key={`na-${tx.stage}-${tx.next_action ?? ""}`}
+                  defaultValue={tx.next_action ?? STAGE_BY_VALUE[tx.stage]?.nextAction ?? ""}
+                  placeholder={STAGE_BY_VALUE[tx.stage]?.nextAction || "What's the next move?"}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const derived = STAGE_BY_VALUE[tx.stage]?.nextAction ?? "";
+                    const next = v === derived ? null : v || null;
+                    if (next !== (tx.next_action ?? null)) saveField({ next_action: next });
+                  }}
+                  className="h-8 flex-1"
+                />
+              </div>
+            </div>
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
               {/* MAIN: composer + tabs */}
@@ -450,7 +472,6 @@ export function TransactionDetailSheet({
                     <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
                       {[
                         { v: "summary", label: "Summary" },
-                        { v: "prep", label: "Prep" },
                         { v: "marketing", label: "Marketing" },
                         { v: "buyers", label: "Buyers" },
                         { v: "closing", label: "Closing" },
@@ -467,34 +488,8 @@ export function TransactionDetailSheet({
                     </TabsList>
                   </div>
 
-                  {/* SUMMARY — the cockpit: stage, next move, and vital signs */}
+                  {/* SUMMARY — the deal record: vitals, property + deal details, readiness */}
                   <TabsContent value="summary" className="p-6 mt-0 space-y-8">
-                    {/* Stage & next action — the deal's lifecycle + the next move */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">Stage &amp; next action</h3>
-                      <div className="crm-card flex flex-wrap items-center gap-x-8 gap-y-4">
-                        <div className="space-y-1.5">
-                          <Label className="crm-field-label">Stage</Label>
-                          <div><StatusPill kind="deal_stage" value={tx.stage || "prep"} onChange={saveStage} /></div>
-                        </div>
-                        <div className="space-y-1 flex-1 min-w-[220px]">
-                          <Label className="crm-field-label">Next action</Label>
-                          <Input
-                            key={`na-${tx.stage}-${tx.next_action ?? ""}`}
-                            defaultValue={tx.next_action ?? STAGE_BY_VALUE[tx.stage]?.nextAction ?? ""}
-                            placeholder={STAGE_BY_VALUE[tx.stage]?.nextAction || "What's the next move?"}
-                            onBlur={(e) => {
-                              const v = e.target.value.trim();
-                              const derived = STAGE_BY_VALUE[tx.stage]?.nextAction ?? "";
-                              const next = v === derived ? null : v || null;
-                              if (next !== (tx.next_action ?? null)) saveField({ next_action: next });
-                            }}
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-                    </section>
-
                     {/* Vitals — the numbers that matter, read-only glance (edit in phases) */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Vitals</h3>
@@ -523,36 +518,8 @@ export function TransactionDetailSheet({
                       </div>
                     </section>
 
-                    {/* Closing readiness — TC checklist progress + EM status at a glance */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">Closing readiness</h3>
-                      <div className="crm-card space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Closing checklist</span>
-                          <span className="tabular-nums">{progress} of {total}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full bg-brand-mint transition-all" style={{ width: `${progressPct}%` }} />
-                        </div>
-                        <div className="flex items-center gap-2 pt-1">
-                          <span className="text-sm text-muted-foreground">Earnest money</span>
-                          <span className={cn(
-                            "inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border",
-                            tx.earnest_money_received
-                              ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
-                              : "bg-muted text-muted-foreground border-border",
-                          )}>
-                            {tx.earnest_money_received ? "Received" : "Not received"}
-                          </span>
-                        </div>
-                      </div>
-                    </section>
-                  </TabsContent>
-
-                  {/* PREP — property/match criteria + photos, facts, numbers, highlight */}
-                  <TabsContent value="prep" className="p-6 mt-0 space-y-8">
                     {/* Property & match criteria — canonical values that drive buyer matching */}
-                    <section className="space-y-3 max-w-3xl">
+                    <section className="space-y-3">
                       <h3 className="crm-eyebrow">Property</h3>
                       <div className="crm-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
@@ -611,13 +578,46 @@ export function TransactionDetailSheet({
                       </p>
                     </section>
 
-                    <PrepTab transactionId={tx.id} />
+                    {/* Property facts — beds/baths/ARV/repairs (dispo_deal_details) */}
+                    <DealFactsSection transactionId={tx.id} />
+
+                    {/* Deal details — workspace-defined custom fields (financing etc.) */}
+                    <TransactionCustomFields
+                      values={(tx.custom_fields as Record<string, unknown>) ?? {}}
+                      onSave={(v) => saveField({ custom_fields: v as any })}
+                    />
+
+                    {/* Closing readiness — TC checklist progress + EM status at a glance */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Closing readiness</h3>
+                      <div className="crm-card space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Closing checklist</span>
+                          <span className="tabular-nums">{progress} of {total}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-brand-mint transition-all" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="text-sm text-muted-foreground">Earnest money</span>
+                          <span className={cn(
+                            "inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border",
+                            tx.earnest_money_received
+                              ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
+                              : "bg-muted text-muted-foreground border-border",
+                          )}>
+                            {tx.earnest_money_received ? "Received" : "Not received"}
+                          </span>
+                        </div>
+                      </div>
+                    </section>
                   </TabsContent>
 
-                  {/* MARKETING — outreach campaigns + the get-it-out-there checklist */}
+                  {/* MARKETING — the funnel: assets -> launch channels -> outreach */}
                   <TabsContent value="marketing" className="p-6 mt-0 space-y-10">
-                    <CampaignsTab transactionId={tx.id} />
+                    <MarketingAssets transactionId={tx.id} />
                     <MarketingChecklist transactionId={tx.id} />
+                    <CampaignsTab transactionId={tx.id} />
                   </TabsContent>
 
                   {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
@@ -1190,5 +1190,39 @@ function MoneyField({
         className="h-9 text-sm tabular-nums"
       />
     </div>
+  );
+}
+
+// Workspace-defined custom fields on the deal record (crm_transactions.custom_fields).
+// Seeded with financing fields (SubTo/creative numbers); managed in Settings → CRM.
+function TransactionCustomFields({
+  values,
+  onSave,
+}: {
+  values: Record<string, unknown>;
+  onSave: (v: Record<string, unknown>) => void;
+}) {
+  const { fields } = useCustomFields("deal");
+  const [draft, setDraft] = useState<Record<string, unknown>>(values);
+  useEffect(() => setDraft(values), [values]);
+  if (fields.length === 0) return null;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(values);
+  return (
+    <section className="space-y-3">
+      <h3 className="crm-eyebrow">Deal details</h3>
+      <div className="crm-card max-w-xl">
+        <div className="[&>div]:grid [&>div]:grid-cols-1 [&>div]:sm:grid-cols-2 [&>div]:gap-3 [&>div]:space-y-0">
+          <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} />
+        </div>
+        {dirty && (
+          <div className="flex justify-end pt-3">
+            <Button size="sm" onClick={() => onSave(draft)}>Save</Button>
+          </div>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Add or edit these fields in Settings → CRM → Custom fields (Deal).
+      </p>
+    </section>
   );
 }
