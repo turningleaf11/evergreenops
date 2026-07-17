@@ -4,7 +4,7 @@
 // Property FACTS (beds/baths/ARV…) live on Summary; this is what we publish.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Star, X, Loader2, CheckCircle2, Circle } from "lucide-react";
+import { ImagePlus, Star, X, Loader2, CheckCircle2, Circle, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,19 @@ interface DealLite {
   property_state: string | null;
   asking_price: number | null;
   purchase_price: number | null;
+  published: boolean;
+  published_at: string | null;
+  slug: string | null;
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 const emptyDetails = (id: string): Details => ({
@@ -53,7 +66,7 @@ export function MarketingAssets({
   const load = useCallback(async () => {
     const [detRes, dealRes] = await Promise.all([
       dispo.from("dispo_deal_details").select("transaction_id, photos, investor_highlight, investment_details").eq("transaction_id", transactionId).maybeSingle(),
-      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price").eq("id", transactionId).maybeSingle(),
+      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price, published, published_at, slug").eq("id", transactionId).maybeSingle(),
     ]);
     setD((detRes.data as Details) ?? emptyDetails(transactionId));
     setDeal((dealRes.data as DealLite) ?? null);
@@ -75,6 +88,25 @@ export function MarketingAssets({
     setDeal((prev) => (prev ? { ...prev, ...patch } : prev));
     const { error } = await dispo.from("crm_transactions").update(patch).eq("id", transactionId);
     if (error) { toast.error(`Couldn't save: ${error.message}`); void load(); }
+  }
+
+  // Pick a URL slug that isn't taken by another deal.
+  async function uniqueSlug(base: string): Promise<string> {
+    const { data } = await dispo.from("crm_transactions").select("id, slug").ilike("slug", `${base}%`);
+    const taken = new Set(((data as { id: string; slug: string }[]) ?? []).filter((r) => r.id !== transactionId && r.slug).map((r) => r.slug));
+    let slug = base;
+    let n = 2;
+    while (taken.has(slug)) slug = `${base}-${n++}`;
+    return slug;
+  }
+
+  async function togglePublish(next: boolean) {
+    if (!next) { await saveDeal({ published: false }); toast.success("Removed from site"); return; }
+    const title = deal?.marketing_title?.trim();
+    if (!title) { toast.error("Add a marketing title first — it becomes the listing's web address."); return; }
+    const slug = deal?.slug || (await uniqueSlug(slugify(title)));
+    await saveDeal({ published: true, published_at: new Date().toISOString(), slug });
+    toast.success("Published to site");
   }
 
   async function onFiles(files: File[]) {
@@ -171,6 +203,28 @@ export function MarketingAssets({
             <Switch
               checked={!!deal?.address_private}
               onCheckedChange={(c) => void saveDeal({ address_private: c })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-4">
+            <div className="min-w-0">
+              <div className="text-sm font-medium flex items-center gap-2">
+                Publish to site
+                {deal?.published && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-brand-mint/15 text-brand-mint-deep">
+                    <Globe className="h-2.5 w-2.5" /> Live
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {deal?.published && deal?.slug
+                  ? <>Listed at <span className="font-mono">/properties/{deal.slug}</span></>
+                  : "Show this deal on the public inventory site."}
+              </p>
+            </div>
+            <Switch
+              checked={!!deal?.published}
+              onCheckedChange={(c) => void togglePublish(c)}
             />
           </div>
         </div>
