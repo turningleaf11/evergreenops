@@ -71,12 +71,11 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
     }
   }
 
-  async function onFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function onFiles(files: File[]) {
+    if (files.length === 0) return;
     setUploading(true);
-    const { data: { user } } = await supabase.auth.getUser();
     const urls: string[] = [];
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       if (!file.type.startsWith("image/")) continue;
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${transactionId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -168,7 +167,7 @@ export function PrepTab({ transactionId }: { transactionId: string }) {
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }}
+          onChange={(e) => { const list = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; void onFiles(list); }}
         />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {photos.map((url, i) => (
