@@ -27,7 +27,6 @@ import {
   EntitySheetHeader,
   EntityIdentityBlock,
   EntitySidebarSection,
-  StageProgressBar,
   PrimaryContactCard,
 } from "../_shell";
 import { EntityComposer } from "../EntityComposer";
@@ -39,6 +38,7 @@ import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab } from "./CampaignsTab";
 import { PrepTab } from "./PrepTab";
+import { MarketingChecklist } from "./MarketingChecklist";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -374,16 +374,6 @@ export function TransactionDetailSheet({
   const total = items.length;
   const progressPct = total ? (progress / total) * 100 : 0;
 
-  // Stage progression for transaction lifecycle
-  const stages = useMemo(
-    () => [
-      { id: "active", label: "Active" },
-      { id: "closed", label: "Closed", isWon: true },
-      { id: "cancelled", label: "Cancelled", isLost: true },
-    ],
-    [],
-  );
-
   const primaryContact = useMemo(
     () => linkedContacts.find((c) => c.id === tx?.primary_contact_id) || null,
     [linkedContacts, tx?.primary_contact_id],
@@ -440,15 +430,6 @@ export function TransactionDetailSheet({
               }
             />
 
-            {/* Full-width stage progression bar */}
-            <div className="px-6 pt-4 pb-4 bg-background border-b border-border/50">
-              <StageProgressBar
-                stages={stages}
-                currentId={tx.status}
-                onChange={(id) => saveField({ status: id })}
-              />
-            </div>
-
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_320px] min-h-0 overflow-hidden">
               {/* MAIN: composer + tabs */}
               <div className="overflow-auto bg-[#F8F8F8] dark:bg-muted/10">
@@ -464,17 +445,16 @@ export function TransactionDetailSheet({
                   />
                 </div>
 
-                <Tabs defaultValue="overview" className="w-full">
+                <Tabs defaultValue="summary" className="w-full">
                   <div className="px-6 pt-3 border-b border-border/40 sticky top-0 bg-background z-10">
                     <TabsList className="bg-transparent p-0 h-11 gap-1 rounded-none">
                       {[
-                        { v: "overview", label: "Overview" },
+                        { v: "summary", label: "Summary" },
                         { v: "prep", label: "Prep" },
+                        { v: "marketing", label: "Marketing" },
                         { v: "buyers", label: "Buyers" },
-                        { v: "campaigns", label: "Campaigns" },
-                        { v: "checklist", label: "Checklist" },
+                        { v: "closing", label: "Closing" },
                         { v: "activity", label: "Activity" },
-                        { v: "files", label: "Files" },
                       ].map((t) => (
                         <TabsTrigger
                           key={t.v}
@@ -487,8 +467,8 @@ export function TransactionDetailSheet({
                     </TabsList>
                   </div>
 
-                  {/* OVERVIEW: Key Dates + Key People + P&L */}
-                  <TabsContent value="overview" className="p-6 mt-0 space-y-8">
+                  {/* SUMMARY — the cockpit: stage, next move, and vital signs */}
+                  <TabsContent value="summary" className="p-6 mt-0 space-y-8">
                     {/* Stage & next action — the deal's lifecycle + the next move */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Stage &amp; next action</h3>
@@ -515,8 +495,64 @@ export function TransactionDetailSheet({
                       </div>
                     </section>
 
-                    {/* Property & match criteria — canonical values that drive buyer matching */}
+                    {/* Vitals — the numbers that matter, read-only glance (edit in phases) */}
                     <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Vitals</h3>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="crm-card space-y-1.5">
+                          <div className="crm-field-label">Closing</div>
+                          <div className="text-lg font-semibold tabular-nums">{tx.closing_date ?? "—"}</div>
+                          {tx.closing_date && (
+                            <div className={cn("inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border", closingCountdownClass(closingDays))}>
+                              {fmtCountdown(closingDays)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="crm-card space-y-1.5">
+                          <div className="crm-field-label">Purchase price</div>
+                          <div className="text-lg font-semibold tabular-nums">{fmtMoney(tx.purchase_price)}</div>
+                        </div>
+                        <div className="crm-card space-y-1.5">
+                          <div className="crm-field-label">Assignment fee</div>
+                          <div className="text-lg font-semibold tabular-nums">{fmtMoney(tx.assignment_fee)}</div>
+                        </div>
+                        <div className="crm-card space-y-1.5">
+                          <div className="crm-field-label">Est. net</div>
+                          <div className="text-lg font-semibold tabular-nums text-brand-mint-deep">{fmtMoney(tx.estimated_net)}</div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Closing readiness — TC checklist progress + EM status at a glance */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Closing readiness</h3>
+                      <div className="crm-card space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Closing checklist</span>
+                          <span className="tabular-nums">{progress} of {total}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-brand-mint transition-all" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="text-sm text-muted-foreground">Earnest money</span>
+                          <span className={cn(
+                            "inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border",
+                            tx.earnest_money_received
+                              ? "bg-brand-mint/15 text-brand-mint-deep border-brand-mint/30"
+                              : "bg-muted text-muted-foreground border-border",
+                          )}>
+                            {tx.earnest_money_received ? "Received" : "Not received"}
+                          </span>
+                        </div>
+                      </div>
+                    </section>
+                  </TabsContent>
+
+                  {/* PREP — property/match criteria + photos, facts, numbers, highlight */}
+                  <TabsContent value="prep" className="p-6 mt-0 space-y-8">
+                    {/* Property & match criteria — canonical values that drive buyer matching */}
+                    <section className="space-y-3 max-w-3xl">
                       <h3 className="crm-eyebrow">Property</h3>
                       <div className="crm-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
@@ -575,6 +611,22 @@ export function TransactionDetailSheet({
                       </p>
                     </section>
 
+                    <PrepTab transactionId={tx.id} />
+                  </TabsContent>
+
+                  {/* MARKETING — outreach campaigns + the get-it-out-there checklist */}
+                  <TabsContent value="marketing" className="p-6 mt-0 space-y-10">
+                    <CampaignsTab transactionId={tx.id} />
+                    <MarketingChecklist transactionId={tx.id} />
+                  </TabsContent>
+
+                  {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
+                  <TabsContent value="buyers" className="p-6 mt-0">
+                    <BuyerInterestTab transactionId={tx.id} />
+                  </TabsContent>
+
+                  {/* CLOSING — dates, people, P&L, and the TC closing checklist */}
+                  <TabsContent value="closing" className="p-6 mt-0 space-y-8">
                     {/* Key Dates */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Key dates</h3>
@@ -688,25 +740,8 @@ export function TransactionDetailSheet({
                         </div>
                       </div>
                     </section>
-                  </TabsContent>
 
-                  {/* PREP — photos, facts, numbers, highlight (dispo_deal_details) */}
-                  <TabsContent value="prep" className="p-6 mt-0">
-                    <PrepTab transactionId={tx.id} />
-                  </TabsContent>
-
-                  {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
-                  <TabsContent value="buyers" className="p-6 mt-0">
-                    <BuyerInterestTab transactionId={tx.id} />
-                  </TabsContent>
-
-                  {/* CAMPAIGNS — outreach log + response tracking */}
-                  <TabsContent value="campaigns" className="p-6 mt-0">
-                    <CampaignsTab transactionId={tx.id} />
-                  </TabsContent>
-
-                  {/* CHECKLIST */}
-                  <TabsContent value="checklist" className="p-6 mt-0">
+                    {/* Closing checklist */}
                     <section className="space-y-4 max-w-3xl">
                       <div className="flex items-center justify-between">
                         <h3 className="crm-eyebrow">Closing checklist</h3>
@@ -742,13 +777,6 @@ export function TransactionDetailSheet({
                   <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
                       <ContactActivityTab entityType="transaction" entityId={tx.id} />
-                    </div>
-                  </TabsContent>
-
-                  {/* FILES */}
-                  <TabsContent value="files" className="p-6 mt-0">
-                    <div className="crm-card text-sm text-muted-foreground italic">
-                      No files attached yet.
                     </div>
                   </TabsContent>
                 </Tabs>

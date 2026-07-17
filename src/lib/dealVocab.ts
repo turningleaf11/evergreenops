@@ -68,3 +68,20 @@ export function statusForStage(stage: string): "active" | "closed" | "cancelled"
   if (stage === "lost_dead") return "cancelled";
   return "active";
 }
+
+// The marketing checklist (grouped, editable per deal). Seeded from this default
+// the first time a deal's Marketing phase is opened.
+export interface MarketingItem { label: string; done: boolean }
+export interface MarketingGroup { cat: string; items: MarketingItem[] }
+
+export const DEFAULT_MARKETING_CHECKLIST: MarketingGroup[] = [
+  { cat: "Direct", items: ["Email", "SMS", "Investorbase"].map((label) => ({ label, done: false })) },
+  { cat: "Post online", items: [
+    "Facebook (personal)", "FB Groups", "SubTo FB", "Creative Finance FB Group",
+    "LinkedIn", "Craigslist", "Connected Investors", "Facebook Marketplace",
+  ].map((label) => ({ label, done: false })) },
+  { cat: "3rd party outreach", items: [
+    "Dispo Associates (JV)", "Local Realtor", "Keyglee rep",
+  ].map((label) => ({ label, done: false })) },
+  { cat: "Hedge funds", items: ["Opendoor", "SFR3"].map((label) => ({ label, done: false })) },
+];
