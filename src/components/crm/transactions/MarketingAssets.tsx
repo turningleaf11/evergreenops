@@ -38,7 +38,13 @@ const emptyDetails = (id: string): Details => ({
   transaction_id: id, photos: [], investor_highlight: null, investment_details: null,
 });
 
-export function MarketingAssets({ transactionId }: { transactionId: string }) {
+export function MarketingAssets({
+  transactionId,
+  onUseInCampaign,
+}: {
+  transactionId: string;
+  onUseInCampaign?: (subject: string, body: string) => void;
+}) {
   const [d, setD] = useState<Details | null>(null);
   const [deal, setDeal] = useState<DealLite | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -238,6 +244,7 @@ export function MarketingAssets({ transactionId }: { transactionId: string }) {
         transactionId={transactionId}
         propertyState={deal?.property_state ?? null}
         onUseAsDetails={(text) => { void save({ investment_details: text }); toast.success("Saved to Details"); }}
+        onUseInCampaign={onUseInCampaign}
       />
     </section>
   );

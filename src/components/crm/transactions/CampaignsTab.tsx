@@ -66,7 +66,17 @@ const STATUS_TONE: Record<string, string> = {
   pending: "text-brand-tangerine bg-brand-tangerine/10",
 };
 
-export function CampaignsTab({ transactionId }: { transactionId: string }) {
+export interface CampaignDraft { subject: string; body: string }
+
+export function CampaignsTab({
+  transactionId,
+  draft,
+  onDraftConsumed,
+}: {
+  transactionId: string;
+  draft?: CampaignDraft | null;
+  onDraftConsumed?: () => void;
+}) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [respondedCounts, setRespondedCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -112,6 +122,11 @@ export function CampaignsTab({ transactionId }: { transactionId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // An email pushed over from the AI copy generator opens the composer prefilled.
+  useEffect(() => {
+    if (draft) setComposerOpen(true);
+  }, [draft]);
 
   async function toggleExpand(id: string) {
     if (expandedId === id) {
@@ -245,7 +260,11 @@ export function CampaignsTab({ transactionId }: { transactionId: string }) {
       <CampaignComposer
         transactionId={transactionId}
         open={composerOpen}
-        onOpenChange={setComposerOpen}
+        onOpenChange={(v) => {
+          setComposerOpen(v);
+          if (!v && draft) onDraftConsumed?.();
+        }}
+        initialDraft={draft ?? null}
         onSent={load}
       />
     </section>

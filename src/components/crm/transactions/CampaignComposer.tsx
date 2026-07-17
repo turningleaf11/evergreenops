@@ -108,11 +108,13 @@ export function CampaignComposer({
   open,
   onOpenChange,
   onSent,
+  initialDraft,
 }: {
   transactionId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSent?: () => void;
+  initialDraft?: { subject: string; body: string } | null;
 }) {
   const { user } = useAuth();
 
@@ -170,7 +172,16 @@ export function CampaignComposer({
     if (open) {
       setStep("audience");
       void load();
+      // An AI-generated email arrives fully written — prefill it as an email
+      // send. The person still picks the audience first, then reviews the copy.
+      if (initialDraft) {
+        setChannel("email");
+        setTemplateId("");
+        setSubject(initialDraft.subject ?? "");
+        setBody(initialDraft.body ?? "");
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, load]);
 
   const filtered = useMemo(() => {

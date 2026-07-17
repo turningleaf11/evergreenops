@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ContactActivityTab } from "@/components/crm/ContactActivityTab";
 import { BuyerInterestTab } from "./BuyerInterestTab";
-import { CampaignsTab } from "./CampaignsTab";
+import { CampaignsTab, type CampaignDraft } from "./CampaignsTab";
 import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
 import { DealFactsSection } from "./DealFactsSection";
@@ -166,6 +166,8 @@ export function TransactionDetailSheet({
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<ContactDetail[]>([]);
+  // An AI-generated email handed from Marketing → Assets to the campaign composer.
+  const [campaignDraft, setCampaignDraft] = useState<CampaignDraft | null>(null);
 
   const reload = async () => {
     if (!transactionId) return;
@@ -615,9 +617,16 @@ export function TransactionDetailSheet({
 
                   {/* MARKETING — the funnel: assets -> launch channels -> outreach */}
                   <TabsContent value="marketing" className="p-6 mt-0 space-y-10">
-                    <MarketingAssets transactionId={tx.id} />
+                    <MarketingAssets
+                      transactionId={tx.id}
+                      onUseInCampaign={(subject, body) => setCampaignDraft({ subject, body })}
+                    />
                     <MarketingChecklist transactionId={tx.id} />
-                    <CampaignsTab transactionId={tx.id} />
+                    <CampaignsTab
+                      transactionId={tx.id}
+                      draft={campaignDraft}
+                      onDraftConsumed={() => setCampaignDraft(null)}
+                    />
                   </TabsContent>
 
                   {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
