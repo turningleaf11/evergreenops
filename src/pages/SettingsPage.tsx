@@ -24,6 +24,7 @@ import {
 import { HolidaysSection } from "@/components/settings/HolidaysSection";
 import { SyncTagsSettings } from "@/components/sync/SyncTagsSettings";
 import { CrmCustomFieldsSettings } from "@/components/settings/CrmCustomFieldsSettings";
+import { SiteBrandingSettings } from "@/components/settings/SiteBrandingSettings";
 import LeadIntakeSettings from "@/components/settings/LeadIntakeSettings";
 import { ApiSettings } from "@/components/settings/ApiSettings";
 import { IntegrationCredentials } from "@/components/settings/IntegrationCredentials";
@@ -150,6 +151,12 @@ export default function SettingsPage() {
       items: [
         { value: "crm_fields", icon: Briefcase, label: "Custom Fields" },
         { value: "lead_intake", icon: Briefcase, label: "Lead Intake" },
+      ],
+    },
+    {
+      label: "Public Site",
+      items: [
+        { value: "site_branding", icon: Palette, label: "Branding" },
       ],
     },
     {
@@ -542,6 +549,10 @@ export default function SettingsPage() {
 
         <TabsContent value="home_widgets" className="mt-4">
           <HomeWidgetDefaultsTab />
+        </TabsContent>
+
+        <TabsContent value="site_branding" className="mt-4">
+          <SiteBrandingSettings />
         </TabsContent>
 
         <TabsContent value="crm_fields" className="mt-4">

@@ -80,7 +80,7 @@ interface Transaction {
   status: string;
   stage: string;
   next_action: string | null;
-  property_address: string;
+  property_address: string | null;
   property_city: string | null;
   property_state: string | null;
   property_county_metro: string | null;
@@ -524,6 +524,21 @@ export function TransactionDetailSheet({
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Property</h3>
                       <div className="crm-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                          <Label className="crm-field-label">Street address</Label>
+                          <Input
+                            defaultValue={tx.property_address ?? ""}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v !== (tx.property_address ?? "")) saveField({ property_address: v || null });
+                            }}
+                            className="h-9"
+                            placeholder="123 Main St"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Used for the listing map. Hidden publicly when “Keep address private” is on (Marketing → Assets).
+                          </p>
+                        </div>
                         <div className="space-y-1">
                           <Label className="crm-field-label">City</Label>
                           <Input
