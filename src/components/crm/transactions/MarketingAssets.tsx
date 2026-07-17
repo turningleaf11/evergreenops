@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { DealCopyGenerator } from "./DealCopyGenerator";
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 const PHOTO_BUCKET = "dispo-property-photos";
@@ -224,12 +225,20 @@ export function MarketingAssets({ transactionId }: { transactionId: string }) {
         />
         <Label className="crm-field-label pt-2">Details / notes</Label>
         <Textarea
+          key={`details-${d.investment_details ?? ""}`}
           rows={4}
           defaultValue={d.investment_details ?? ""}
           onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investment_details ?? null)) void save({ investment_details: v }); }}
           placeholder="Comps, rent estimate, condition notes — anything the buyer (and the AI email draft) should know."
         />
       </section>
+
+      {/* AI copy — drafts description + buyer email from everything above */}
+      <DealCopyGenerator
+        transactionId={transactionId}
+        propertyState={deal?.property_state ?? null}
+        onUseAsDetails={(text) => { void save({ investment_details: text }); toast.success("Saved to Details"); }}
+      />
     </section>
   );
 }
