@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DealCopyGenerator } from "./DealCopyGenerator";
+import { DispoManagerField } from "./DispoManagerField";
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 const PHOTO_BUCKET = "dispo-property-photos";
@@ -22,6 +23,7 @@ interface Details {
   photos: string[] | null;
   investor_highlight: string | null;
   investment_details: string | null;
+  comps: string | null;
 }
 
 interface DealLite {
@@ -35,6 +37,7 @@ interface DealLite {
   published: boolean;
   published_at: string | null;
   slug: string | null;
+  dispo_manager_id: string | null;
 }
 
 function slugify(s: string): string {
@@ -48,7 +51,7 @@ function slugify(s: string): string {
 }
 
 const emptyDetails = (id: string): Details => ({
-  transaction_id: id, photos: [], investor_highlight: null, investment_details: null,
+  transaction_id: id, photos: [], investor_highlight: null, investment_details: null, comps: null,
 });
 
 export function MarketingAssets({
@@ -65,8 +68,8 @@ export function MarketingAssets({
 
   const load = useCallback(async () => {
     const [detRes, dealRes] = await Promise.all([
-      dispo.from("dispo_deal_details").select("transaction_id, photos, investor_highlight, investment_details").eq("transaction_id", transactionId).maybeSingle(),
-      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price, published, published_at, slug").eq("id", transactionId).maybeSingle(),
+      dispo.from("dispo_deal_details").select("transaction_id, photos, investor_highlight, investment_details, comps").eq("transaction_id", transactionId).maybeSingle(),
+      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price, published, published_at, slug, dispo_manager_id").eq("id", transactionId).maybeSingle(),
     ]);
     setD((detRes.data as Details) ?? emptyDetails(transactionId));
     setDeal((dealRes.data as DealLite) ?? null);
@@ -227,6 +230,14 @@ export function MarketingAssets({
               onCheckedChange={(c) => void togglePublish(c)}
             />
           </div>
+
+          <div className="border-t border-border/40 pt-4">
+            <Label className="crm-field-label mb-2 block">Listing contact</Label>
+            <DispoManagerField
+              value={deal?.dispo_manager_id ?? null}
+              onChange={(id) => void saveDeal({ dispo_manager_id: id })}
+            />
+          </div>
         </div>
       </section>
 
@@ -289,7 +300,18 @@ export function MarketingAssets({
           rows={4}
           defaultValue={d.investment_details ?? ""}
           onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investment_details ?? null)) void save({ investment_details: v }); }}
-          placeholder="Comps, rent estimate, condition notes — anything the buyer (and the AI email draft) should know."
+          placeholder="Rent estimate, condition notes — anything the buyer (and the AI email draft) should know."
+        />
+      </section>
+
+      {/* Comps — shown publicly on the listing */}
+      <section className="space-y-3">
+        <h3 className="crm-eyebrow">Comps</h3>
+        <Textarea
+          rows={4}
+          defaultValue={d.comps ?? ""}
+          onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.comps ?? null)) void save({ comps: v }); }}
+          placeholder="Comparable sales / neighborhood context — this appears on the public listing."
         />
       </section>
 
