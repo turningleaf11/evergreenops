@@ -40,6 +40,7 @@ import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
 import { DealDocuments } from "./DealDocuments";
 import { DealDeadlines } from "./DealDeadlines";
+import { DealGhlOpportunity } from "./DealGhlOpportunity";
 import { DealFactsSection } from "./DealFactsSection";
 import { CustomFieldsRenderer, useCustomFields } from "@/components/crm/CustomFieldsRenderer";
 import { Badge } from "@/components/ui/badge";
@@ -271,6 +272,13 @@ export function TransactionDetailSheet({
     if (stage === "closed_won") {
       setActualNetInput(tx?.estimated_net?.toString() || "");
       setCloseOpen(true);
+      // Sync the close to GHL (find + update the linked opportunity → Closed-Won).
+      const { data } = await supabase.functions.invoke("ghl-opportunity", {
+        body: { action: "close", transactionId: tx!.id },
+      });
+      const res = (data ?? {}) as { ok?: boolean; error?: string };
+      if (res.ok) toast({ title: "Synced to GHL", description: "Opportunity moved to Closed – Won." });
+      else if (res.error === "no_link") toast({ title: "Link the GHL opportunity", description: "Closing tab → GHL opportunity → Link, then Sync now." });
     }
   };
 
@@ -668,6 +676,13 @@ export function TransactionDetailSheet({
                       assignment_signed_at={tx.assignment_signed_at}
                       buyer_emd_received_at={tx.buyer_emd_received_at}
                       onSave={(patch) => saveField(patch)}
+                    />
+
+                    {/* GHL opportunity — link + close writeback */}
+                    <DealGhlOpportunity
+                      transactionId={tx.id}
+                      defaultQuery={tx.property_address || tx.marketing_title || tx.property_city || ""}
+                      isClosed={tx.stage === "closed_won" || tx.status === "closed"}
                     />
 
                     {/* Key Dates */}

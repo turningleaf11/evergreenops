@@ -26,8 +26,10 @@ See memory `evergreen-tc-close-process`.
       (deduped by deal/deadline/bucket).
 - [~] **Assignment tracking** — signed date + buyer-EMD received captured (drives
       the clock). Full package-sent tracking still open.
-- [ ] **Close → GHL writeback** — on Closed-Won, push outcome to the GHL
-      opportunity so KPI dashboards update. (Next.)
+- [x] **Close → GHL writeback** — link a deal to its existing GHL opportunity
+      (search + pick, never create); on Closed-Won, ghl-opportunity finds + updates
+      it to Closed-Won. Routing: assign/double_close → Dispo - Active Deals,
+      buy_hold → Portfolio. Pipeline/stage IDs in app_settings + memory.
 
 ## Done (recent)
 - Unified inbox + activity feed v1: `events` backbone, `/activity` (Inbox = needs
