@@ -47,7 +47,6 @@ const APPLY_MAP: { key: string; label: string; field: string; kind: "date" | "mo
   { key: "fully_executed_date", label: "Fully executed", field: "fully_executed_date", kind: "date" },
   { key: "emd_due_date", label: "EMD due (contract)", field: "emd_due_date", kind: "date" },
   { key: "emd_amount", label: "EMD amount", field: "earnest_money_required", kind: "money" },
-  { key: "inspection_end_date", label: "Inspection end", field: "inspection_deadline", kind: "date" },
   { key: "due_diligence_end_date", label: "Due diligence end", field: "due_diligence_end", kind: "date" },
   { key: "closing_date", label: "Closing date", field: "closing_date", kind: "date" },
   { key: "purchase_price", label: "Purchase price", field: "purchase_price", kind: "money" },

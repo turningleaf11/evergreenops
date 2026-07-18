@@ -672,11 +672,6 @@ export function TransactionDetailSheet({
                           onChange={(v) => saveField({ emd_due_date: v })}
                         />
                         <DateCard
-                          label="Inspection Deadline"
-                          value={tx.inspection_deadline}
-                          onChange={(v) => saveField({ inspection_deadline: v })}
-                        />
-                        <DateCard
                           label="Due Diligence End"
                           value={tx.due_diligence_end}
                           onChange={(v) => saveField({ due_diligence_end: v })}

@@ -54,13 +54,14 @@ Deno.serve(async (req) => {
 
     const prompt =
       "You are reading a US real-estate document (likely a purchase agreement or assignment). " +
-      "Extract these fields. Use null for anything not clearly present -- never guess. " +
+      "Extract these fields. Use null only when truly absent -- but if a date is expressed relative to " +
+      "another (e.g. 'earnest money due within 3 days of acceptance', 'inspection period ends 10 days after " +
+      "the effective date'), COMPUTE the actual calendar date from the execution/effective date. " +
       "Dates as YYYY-MM-DD. Amounts as plain numbers (no $ or commas). Return ONLY a JSON object with exactly these keys:\n" +
-      '  "fully_executed_date"  (date all parties signed)\n' +
-      '  "emd_due_date"         (when earnest money is due per the contract)\n' +
-      '  "emd_amount"           (earnest money amount)\n' +
-      '  "inspection_end_date"  (end of inspection period)\n' +
-      '  "due_diligence_end_date"\n' +
+      '  "fully_executed_date"     (date all parties signed / effective date)\n' +
+      '  "emd_due_date"            (when earnest money is due; compute if expressed as N days after execution)\n' +
+      '  "emd_amount"              (earnest money amount)\n' +
+      '  "due_diligence_end_date"  (end of the inspection / due-diligence period -- the contract may call it "inspection period"; treat that as the due-diligence end. Compute the date if expressed as N days.)\n' +
       '  "closing_date"\n' +
       '  "purchase_price"\n' +
       '  "seller_name"\n' +

@@ -28,7 +28,13 @@ const GROUPS: { title: string; items: { key: string; label: string; hint?: strin
     { key: "muted", label: "Muted text", hint: "Secondary text" },
     { key: "line", label: "Borders", hint: "Hairlines" },
     { key: "accent", label: "Accent", hint: "Links, hero accent, tags" },
-    { key: "signal", label: "Signal", hint: "Sparing highlight" },
+    { key: "signal", label: "Signal", hint: '"New" badges, header CTA' },
+  ] },
+  { title: "Sections & tints", items: [
+    { key: "soft", label: "Soft section", hint: "How-it-works background" },
+    { key: "tint", label: "Early-access banner", hint: "Lime-cream strip" },
+    { key: "elevated", label: "Elevated dark", hint: "Inputs on dark panels" },
+    { key: "finance", label: "Finance accent", hint: "Creative-finance tag" },
   ] },
   { title: "Headings", items: [
     { key: "heading", label: "Headings", hint: "Section + hero" },
@@ -59,12 +65,14 @@ const GROUPS: { title: string; items: { key: string; label: string; hint?: strin
 ];
 
 const DEFAULTS: Record<string, string> = {
-  page: "#F2F3EF", card: "#FFFFFF", ink: "#0B0F0D", muted: "#6B746F", line: "#E3E5E0",
-  accent: "#1C9E6F", signal: "#C9FF4A", heading: "#0B0F0D", subhead: "#0B0F0D",
+  page: "#F2F3EF", card: "#FFFFFF", ink: "#0B0B0C", muted: "#6B746F", line: "#E3E5E0",
+  accent: "#1C9E6F", signal: "#C9FF4A",
+  tint: "#DEF99D", soft: "#C4D8D2", elevated: "#141517", finance: "#9ACABA",
+  heading: "#0B0B0C", subhead: "#0B0B0C",
   btn: "#1C9E6F", btn_text: "#F2F3EF", btn_hover: "#178A5F",
-  panel: "#0B0F0D", panel_text: "#F2F3EF", panel_accent: "#C9FF4A",
-  inquiry: "#EAF3EF", inquiry_heading: "#0B0F0D",
-  footer: "#0B0F0D", footer_heading: "#C4D8D2", footer_text: "#9BA5A0",
+  panel: "#0B0B0C", panel_text: "#F2F3EF", panel_accent: "#C9FF4A",
+  inquiry: "#EAF3EF", inquiry_heading: "#0B0B0C",
+  footer: "#0B0B0C", footer_heading: "#C4D8D2", footer_text: "#9BA5A0",
   disclaimer: "#8A928D",
 };
 
