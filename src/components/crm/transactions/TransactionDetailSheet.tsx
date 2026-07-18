@@ -39,6 +39,7 @@ import { CampaignsTab, type CampaignDraft } from "./CampaignsTab";
 import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
 import { DealDocuments } from "./DealDocuments";
+import { DealDeadlines } from "./DealDeadlines";
 import { DealFactsSection } from "./DealFactsSection";
 import { CustomFieldsRenderer, useCustomFields } from "@/components/crm/CustomFieldsRenderer";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +95,8 @@ interface Transaction {
   inspection_deadline: string | null;
   due_diligence_end: string | null;
   closing_date: string | null;
+  assignment_signed_at: string | null;
+  buyer_emd_received_at: string | null;
   purchase_price: number | null;
   assignment_fee: number | null;
   earnest_money_required: number | null;
@@ -656,6 +659,16 @@ export function TransactionDetailSheet({
                   <TabsContent value="closing" className="p-6 mt-0 space-y-8">
                     {/* Documents — upload the paper; AI pulls the dates */}
                     <DealDocuments transactionId={tx.id} onApplied={reload} />
+
+                    {/* Deadlines — live countdowns + the buyer-EMD clock */}
+                    <DealDeadlines
+                      emd_due_date={tx.emd_due_date}
+                      due_diligence_end={tx.due_diligence_end}
+                      closing_date={tx.closing_date}
+                      assignment_signed_at={tx.assignment_signed_at}
+                      buyer_emd_received_at={tx.buyer_emd_received_at}
+                      onSave={(patch) => saveField(patch)}
+                    />
 
                     {/* Key Dates */}
                     <section className="space-y-3">
