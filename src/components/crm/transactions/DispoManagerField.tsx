@@ -136,14 +136,17 @@ function ManagerDialog({
                   )}
                 >
                   <Avatar m={m} />
-                  <button type="button" className="flex-1 min-w-0 text-left" onClick={() => { onAssign(m.id); onOpenChange(false); }}>
+                  <button type="button" className="flex-1 min-w-0 text-left space-y-0.5" onClick={() => { onAssign(m.id); onOpenChange(false); }}>
                     <div className="text-sm font-medium truncate">{m.name}</div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {[m.title, m.email, m.phone].filter(Boolean).join(" · ") || "—"}
-                    </div>
+                    {m.title && <div className="text-xs text-muted-foreground truncate">{m.title}</div>}
+                    {(m.email || m.phone) && (
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {[m.email, m.phone].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </button>
                   {active && <Check className="h-4 w-4 text-brand-azure shrink-0" />}
-                  <button type="button" onClick={() => setEditing(m)} className="text-muted-foreground hover:text-foreground p-1" title="Edit">
+                  <button type="button" onClick={() => setEditing(m)} className="text-muted-foreground hover:text-foreground p-1 shrink-0" title="Edit">
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                 </div>
