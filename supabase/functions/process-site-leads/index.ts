@@ -147,6 +147,29 @@ Deno.serve(async (req) => {
           .from("dispo_site_leads")
           .update({ processed: true, processed_at: new Date().toISOString(), error: null })
           .eq("id", lead.id);
+
+        // Ping the feed/inbox.
+        const who = [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email || "Someone";
+        if (lead.kind === "inquiry") {
+          await admin.from("events").insert({
+            type: "site_inquiry",
+            severity: "info",
+            title: lead.offer_price != null
+              ? `${who} offered $${Number(lead.offer_price).toLocaleString()} on ${dealTitle ?? "a listing"}`
+              : `${who} inquired on ${dealTitle ?? "a listing"}`,
+            body: lead.message ?? null,
+            source: "site", entity_type: "deal", entity_id: txId, entity_label: dealTitle,
+            actor: who, needs_action: true, metadata: { lead_id: lead.id, offer: lead.offer_price },
+          });
+        } else {
+          await admin.from("events").insert({
+            type: "buyers_list_signup",
+            severity: "info",
+            title: `${who} joined the buyers list`,
+            source: "site", entity_type: "buyer", entity_id: buyer?.id ?? null, entity_label: who,
+            actor: who, needs_action: false, metadata: { lead_id: lead.id, buy_box: lead.buy_box },
+          });
+        }
         processed++;
       } catch (e: any) {
         failed++;
@@ -154,6 +177,12 @@ Deno.serve(async (req) => {
           .from("dispo_site_leads")
           .update({ attempts: (lead.attempts ?? 0) + 1, error: String(e?.message ?? e).slice(0, 500) })
           .eq("id", lead.id);
+        await admin.from("events").insert({
+          type: "lead_error", severity: "error", source: "site", needs_action: true,
+          title: "Website lead failed to process",
+          body: String(e?.message ?? e).slice(0, 300),
+          metadata: { lead_id: lead.id },
+        }).then(() => {}, () => {});
         console.error("process-site-leads lead", lead.id, e);
       }
     }

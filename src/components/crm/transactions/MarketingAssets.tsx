@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DealCopyGenerator } from "./DealCopyGenerator";
 import { DispoManagerField } from "./DispoManagerField";
+import { logEvent } from "@/lib/events";
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 const PHOTO_BUCKET = "dispo-property-photos";
@@ -110,6 +111,16 @@ export function MarketingAssets({
     const slug = deal?.slug || (await uniqueSlug(slugify(title)));
     await saveDeal({ published: true, published_at: new Date().toISOString(), slug });
     toast.success("Published to site");
+    void logEvent({
+      type: "deal_published",
+      severity: "success",
+      title: `${title} published to the site`,
+      source: "opshq",
+      entityType: "deal",
+      entityId: transactionId,
+      entityLabel: title,
+      metadata: { slug },
+    });
   }
 
   async function onFiles(files: File[]) {

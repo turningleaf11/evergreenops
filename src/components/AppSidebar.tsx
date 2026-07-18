@@ -14,12 +14,14 @@
 // Collapse is a WIDTH CHANGE (240px ↔ ~56px icons-only), not a slide.
 // No pin button; no floating cluster at the bottom of the viewport.
 
+import { useState, useEffect } from "react";
 import {
   Home, FileText, Database as DbIcon, Users,
   Settings, Building2, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
-  HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown,
+  HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown, Activity,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
 import { useGmailAccess } from "@/hooks/useGmailAccess";
 import { usePageGrants } from "@/hooks/usePageAccess";
@@ -64,6 +66,24 @@ export function AppSidebar() {
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
   const { hasAccess: gmailAccess } = useGmailAccess();
 
+  // Unresolved needs-action count for the Activity nav badge (live).
+  const [inboxCount, setInboxCount] = useState(0);
+  useEffect(() => {
+    let active = true;
+    const fetchCount = async () => {
+      const { count } = await (supabase as any)
+        .from("events").select("id", { count: "exact", head: true })
+        .eq("needs_action", true).is("resolved_at", null);
+      if (active) setInboxCount(count ?? 0);
+    };
+    void fetchCount();
+    const ch = supabase.channel("events-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, fetchCount)
+      .subscribe();
+    const t = setInterval(fetchCount, 60000);
+    return () => { active = false; clearInterval(t); void supabase.removeChannel(ch); };
+  }, []);
+
   // Admins see all departments; users see only their assigned dept.
   // Orbit-only members only see their own Orbit Program dept.
   const departments = isAdmin
@@ -94,6 +114,7 @@ export function AppSidebar() {
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
     ...(isPrimaryAdmin /* was: isAdmin || can("process_map") */ ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
+    { title: "Activity", url: "/activity", icon: Activity, badge: inboxCount },
     ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
     ...(isPrimaryAdmin /* was: isLeader || can("meetings") */ ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
@@ -118,12 +139,19 @@ export function AppSidebar() {
   ] : [];
 
   // Single nav-item renderer — tooltip wraps automatically when collapsed.
-  const NavItem = ({ item }: { item: { title: string; url: string; icon: any } }) => {
+  const NavItem = ({ item }: { item: { title: string; url: string; icon: any; badge?: number } }) => {
+    const badge = item.badge && item.badge > 0 ? (item.badge > 99 ? "99+" : String(item.badge)) : null;
     const link = (
       <SidebarMenuButton asChild>
         <NavLink to={item.url} end={item.url === "/"} className="hover:text-foreground rounded-lg transition-colors" activeClassName="text-primary font-medium bg-sidebar-accent">
-          <item.icon className="h-4 w-4" />
-          {!collapsed && <span>{item.title}</span>}
+          <span className="relative">
+            <item.icon className="h-4 w-4" />
+            {badge && collapsed && <span className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-brand-coral" />}
+          </span>
+          {!collapsed && <span className="flex-1">{item.title}</span>}
+          {!collapsed && badge && (
+            <span className="ml-auto rounded-full bg-brand-coral text-white text-[10px] font-semibold px-1.5 min-w-[18px] text-center">{badge}</span>
+          )}
         </NavLink>
       </SidebarMenuButton>
     );

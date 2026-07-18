@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { US_STATES } from "@/lib/dealVocab";
+import { logEvent } from "@/lib/events";
 import { fmtMoney } from "./utils";
 
 const dispo = supabase as unknown as {
@@ -306,6 +307,18 @@ export function CampaignComposer({
         `Enrolled ${totalSent} buyer${totalSent === 1 ? "" : "s"} — GHL is sending the ${channel === "email" ? "emails" : "SMS"}` +
           (totalOther ? ` · ${totalOther} skipped/failed` : ""),
       );
+      void logEvent({
+        type: "campaign_sent",
+        severity: "info",
+        title: `${channel === "email" ? "Email" : "SMS"} campaign sent to ${totalSent} buyer${totalSent === 1 ? "" : "s"}`,
+        body: [tx?.property_address, tx?.property_city].filter(Boolean).join(", ") || undefined,
+        source: "opshq",
+        entityType: "deal",
+        entityId: transactionId,
+        entityLabel: tx?.property_address ?? tx?.property_city ?? null,
+        actor: user?.email ?? null,
+        metadata: { channel, sent: totalSent, skipped: totalOther },
+      });
       setSubject("");
       setBody("");
       setTemplateId("");

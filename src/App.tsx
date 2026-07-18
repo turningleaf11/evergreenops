@@ -36,6 +36,7 @@ import ProcessMapPage from "./pages/ProcessMapPage";
 import FormsPage from "./pages/FormsPage";
 import CompanyFeedPage from "./pages/CompanyFeedPage";
 import InboxPage from "./pages/InboxPage";
+import ActivityPage from "./pages/ActivityPage";
 import SyncPage from "./pages/SyncPage";
 import WhiteboardsPage from "./pages/WhiteboardsPage";
 import WhiteboardDetailPage from "./pages/WhiteboardDetailPage";
@@ -281,6 +282,7 @@ const App = () => (
                 <Route path="/notes" element={<NotesPage />} />
                 <Route path="/vision" element={<Navigate to="/ceo" replace />} />
                 <Route path="/feed" element={<CompanyFeedPage />} />
+                <Route path="/activity" element={<ActivityPage />} />
                 <Route path="/forms/list/:slug" element={<InternalFormPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
                 <Route path="/scorecard" element={<ScorecardPage />} />

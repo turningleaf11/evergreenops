@@ -5,20 +5,18 @@ inventory site (`evergreen-dispo-site`). Newest ideas at the top of each section
 
 ## Backlog
 
-### Unified inbox + activity feed ("RSS")  — larger conversation, not started
-A central place in OpsHQ to see (1) things that need action and (2) things that
-just happened. Proposed shape: **one event backbone**, two views.
-
-- Single `events` table: `type, severity, entity, actor, payload, needs_action,
-  read_at, resolved_at`.
-- **Feed** view: everything chronologically, filterable by severity/type.
-- **Inbox** view: filter where `needs_action = true and resolved_at is null`.
-- Emit a small, deliberate set of events first, then expand (curation is the
-  point). Candidate first events: site-lead processing errors, 24h EMD deadline,
-  campaign sent, website inquiry/offer received, GHL sync ran.
-- **Decide first:** exact initial event types; Inbox per-user vs. team-wide.
+### Unified inbox + activity feed — extensions
+v1 shipped (events backbone + /activity Inbox/Feed). Next:
+- **24h EMD-deadline pings** — needs a scheduled/cron check to emit.
+- **Per-user assignment/routing** — v1 is team-wide; add ownership + "assigned to me".
+- **Deep-link Activity rows** to the specific deal (currently routes to /crm/deals).
+- **Fold the Gmail inbox** (/inbox) into one unified inbox eventually.
 
 ## Done (recent)
+- Unified inbox + activity feed v1: `events` backbone, `/activity` (Inbox = needs
+  action, Feed = all), live nav badge + realtime, emitters (site inquiry, buyers
+  signup, lead error, campaign sent, deal published), public `event-ingest`
+  webhook for Zapier zap failures.
 - Publish-to-site toggle + `public_listings` read API.
 - Public inventory site (grid, detail, gallery, financing, comps, map, manager card).
 - AI marketing copy (listing description EN/ES + buyer email with {{first_name}}).
