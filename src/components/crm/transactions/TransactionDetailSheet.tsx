@@ -38,6 +38,7 @@ import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab, type CampaignDraft } from "./CampaignsTab";
 import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
+import { DealDocuments } from "./DealDocuments";
 import { DealFactsSection } from "./DealFactsSection";
 import { CustomFieldsRenderer, useCustomFields } from "@/components/crm/CustomFieldsRenderer";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,8 @@ interface Transaction {
   best_exit: string | null;
   units: number | null;
   contract_date: string | null;
+  fully_executed_date: string | null;
+  emd_due_date: string | null;
   inspection_deadline: string | null;
   due_diligence_end: string | null;
   closing_date: string | null;
@@ -649,16 +652,24 @@ export function TransactionDetailSheet({
                     <BuyerInterestTab transactionId={tx.id} />
                   </TabsContent>
 
-                  {/* CLOSING — dates, people, P&L, and the TC closing checklist */}
+                  {/* CLOSING — documents, dates, people, P&L, and the TC checklist */}
                   <TabsContent value="closing" className="p-6 mt-0 space-y-8">
+                    {/* Documents — upload the paper; AI pulls the dates */}
+                    <DealDocuments transactionId={tx.id} onApplied={reload} />
+
                     {/* Key Dates */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Key dates</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <DateCard
-                          label="Contract Date"
-                          value={tx.contract_date}
-                          onChange={(v) => saveField({ contract_date: v })}
+                          label="Fully Executed"
+                          value={tx.fully_executed_date}
+                          onChange={(v) => saveField({ fully_executed_date: v })}
+                        />
+                        <DateCard
+                          label="EMD Due (contract)"
+                          value={tx.emd_due_date}
+                          onChange={(v) => saveField({ emd_due_date: v })}
                         />
                         <DateCard
                           label="Inspection Deadline"
