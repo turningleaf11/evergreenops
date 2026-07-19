@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Loader2,
   Check,
@@ -38,6 +38,8 @@ import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab, type CampaignDraft } from "./CampaignsTab";
 import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
+import { LaunchStep } from "./LaunchStep";
+import { PublishStep } from "./PublishStep";
 import { DealDocuments } from "./DealDocuments";
 import { DealDeadlines } from "./DealDeadlines";
 import { DealGhlOpportunity } from "./DealGhlOpportunity";
@@ -116,6 +118,10 @@ interface Transaction {
   disposition_strategy: string | null;
   marketing_title: string | null;
   address_private: boolean;
+  published: boolean;
+  published_at: string | null;
+  slug: string | null;
+  dispo_manager_id: string | null;
   custom_fields: Record<string, unknown> | null;
   created_by: string | null;
   created_at: string;
@@ -175,6 +181,12 @@ export function TransactionDetailSheet({
   const [searchResults, setSearchResults] = useState<ContactDetail[]>([]);
   // An AI-generated email handed from Marketing → Assets to the campaign composer.
   const [campaignDraft, setCampaignDraft] = useState<CampaignDraft | null>(null);
+  // Live status for the Marketing launch-sequence step headers.
+  const [assetsReady, setAssetsReady] = useState<[number, number] | null>(null);
+  const [checklistDone, setChecklistDone] = useState<[number, number] | null>(null);
+  const [campaignCount, setCampaignCount] = useState<number | null>(null);
+  const onAssetsStatus = useCallback((ready: number, total: number) => setAssetsReady([ready, total]), []);
+  const onChecklistProgress = useCallback((done: number, total: number) => setChecklistDone([done, total]), []);
 
   const reload = async () => {
     if (!transactionId) return;
@@ -644,18 +656,90 @@ export function TransactionDetailSheet({
                     </section>
                   </TabsContent>
 
-                  {/* MARKETING — the funnel: assets -> launch channels -> outreach */}
-                  <TabsContent value="marketing" className="p-6 mt-0 space-y-10">
-                    <MarketingAssets
-                      transactionId={tx.id}
-                      onUseInCampaign={(subject, body) => setCampaignDraft({ subject, body })}
-                    />
-                    <MarketingChecklist transactionId={tx.id} />
-                    <CampaignsTab
-                      transactionId={tx.id}
-                      draft={campaignDraft}
-                      onDraftConsumed={() => setCampaignDraft(null)}
-                    />
+                  {/* MARKETING — a numbered launch sequence: build → publish → channels → campaigns */}
+                  <TabsContent value="marketing" className="p-6 mt-0">
+                    <div className="max-w-3xl space-y-3">
+                      <LaunchStep
+                        n={1}
+                        title="Build the listing"
+                        subtitle="Title, photos, pitch copy, AI drafts"
+                        defaultOpen
+                        status={
+                          assetsReady
+                            ? {
+                                label: `${assetsReady[0]} of ${assetsReady[1]} ready`,
+                                tone: assetsReady[0] === assetsReady[1] ? "done" : assetsReady[0] > 0 ? "progress" : "todo",
+                              }
+                            : undefined
+                        }
+                      >
+                        <MarketingAssets
+                          transactionId={tx.id}
+                          onUseInCampaign={(subject, body) => setCampaignDraft({ subject, body })}
+                          onStatus={onAssetsStatus}
+                        />
+                      </LaunchStep>
+
+                      <LaunchStep
+                        n={2}
+                        title="Publish to site"
+                        subtitle="List it publicly and pick the listing contact"
+                        status={
+                          tx.published
+                            ? { label: tx.slug ? `Live · /${tx.slug}` : "Live", tone: "done" }
+                            : { label: "Not published", tone: "todo" }
+                        }
+                      >
+                        <PublishStep
+                          transactionId={tx.id}
+                          marketingTitle={tx.marketing_title}
+                          published={tx.published}
+                          slug={tx.slug}
+                          dispoManagerId={tx.dispo_manager_id}
+                          onSave={(patch) => saveField(patch as Partial<Transaction>)}
+                        />
+                      </LaunchStep>
+
+                      <LaunchStep
+                        n={3}
+                        title="Work the channels"
+                        subtitle="Email, SMS, groups, 3rd parties, hedge funds"
+                        status={
+                          checklistDone
+                            ? {
+                                label: `${checklistDone[0]} of ${checklistDone[1]}`,
+                                tone: checklistDone[1] > 0 && checklistDone[0] === checklistDone[1] ? "done" : checklistDone[0] > 0 ? "progress" : "todo",
+                              }
+                            : undefined
+                        }
+                      >
+                        <MarketingChecklist
+                          transactionId={tx.id}
+                          embedded
+                          onProgress={onChecklistProgress}
+                        />
+                      </LaunchStep>
+
+                      <LaunchStep
+                        n={4}
+                        title="Send campaigns"
+                        subtitle="Blast matched buyers through GHL"
+                        status={
+                          campaignCount == null
+                            ? undefined
+                            : campaignCount > 0
+                              ? { label: `${campaignCount} sent`, tone: "done" }
+                              : { label: "None yet", tone: "todo" }
+                        }
+                      >
+                        <CampaignsTab
+                          transactionId={tx.id}
+                          draft={campaignDraft}
+                          onDraftConsumed={() => setCampaignDraft(null)}
+                          onCount={setCampaignCount}
+                        />
+                      </LaunchStep>
+                    </div>
                   </TabsContent>
 
                   {/* BUYERS — buyer↔deal interest (dispo_deal_interests) */}
@@ -1269,7 +1353,9 @@ function TransactionCustomFields({
     <section className="space-y-3">
       <h3 className="crm-eyebrow">Deal details</h3>
       <div className="crm-card max-w-xl">
-        <div className="[&>div]:grid [&>div]:grid-cols-1 [&>div]:sm:grid-cols-2 [&>div]:gap-3 [&>div]:space-y-0">
+        {/* Lay the renderer's fields out as a 2-col grid, and give each field the
+            standard label→input gap (the renderer's default variant has none). */}
+        <div className="[&>div]:grid [&>div]:grid-cols-1 [&>div]:sm:grid-cols-2 [&>div]:gap-4 [&>div]:space-y-0 [&>div>div]:space-y-1.5">
           <CustomFieldsRenderer fields={fields} values={draft} onChange={setDraft} />
         </div>
         {dirty && (

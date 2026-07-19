@@ -1,10 +1,10 @@
-// MarketingAssets — the deal's marketing work product: listing identity
-// (public title + address privacy), photos, and the investor pitch copy.
-// Top of the Marketing funnel: assets -> launch checklist -> campaigns.
-// Property FACTS (beds/baths/ARV…) live on Summary; this is what we publish.
+// MarketingAssets — step 1 of the Marketing launch sequence: the listing's raw
+// material. Identity (public title + address privacy), photos, pitch copy,
+// comps, and AI copy generation. Publishing lives in PublishStep; channels and
+// campaigns are later steps. Property FACTS (beds/baths/ARV…) live on Summary.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Star, X, Loader2, CheckCircle2, Circle, Globe } from "lucide-react";
+import { ImagePlus, Star, X, Loader2, CheckCircle2, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -13,8 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DealCopyGenerator } from "./DealCopyGenerator";
-import { DispoManagerField } from "./DispoManagerField";
-import { logEvent } from "@/lib/events";
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 const PHOTO_BUCKET = "dispo-property-photos";
@@ -30,25 +28,10 @@ interface Details {
 interface DealLite {
   marketing_title: string | null;
   address_private: boolean;
-  property_address: string | null;
   property_city: string | null;
   property_state: string | null;
   asking_price: number | null;
   purchase_price: number | null;
-  published: boolean;
-  published_at: string | null;
-  slug: string | null;
-  dispo_manager_id: string | null;
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 const emptyDetails = (id: string): Details => ({
@@ -58,9 +41,11 @@ const emptyDetails = (id: string): Details => ({
 export function MarketingAssets({
   transactionId,
   onUseInCampaign,
+  onStatus,
 }: {
   transactionId: string;
   onUseInCampaign?: (subject: string, body: string) => void;
+  onStatus?: (ready: number, total: number) => void;
 }) {
   const [d, setD] = useState<Details | null>(null);
   const [deal, setDeal] = useState<DealLite | null>(null);
@@ -70,7 +55,7 @@ export function MarketingAssets({
   const load = useCallback(async () => {
     const [detRes, dealRes] = await Promise.all([
       dispo.from("dispo_deal_details").select("transaction_id, photos, investor_highlight, investment_details, comps").eq("transaction_id", transactionId).maybeSingle(),
-      dispo.from("crm_transactions").select("marketing_title, address_private, property_address, property_city, property_state, asking_price, purchase_price, published, published_at, slug, dispo_manager_id").eq("id", transactionId).maybeSingle(),
+      dispo.from("crm_transactions").select("marketing_title, address_private, property_city, property_state, asking_price, purchase_price").eq("id", transactionId).maybeSingle(),
     ]);
     setD((detRes.data as Details) ?? emptyDetails(transactionId));
     setDeal((dealRes.data as DealLite) ?? null);
@@ -92,35 +77,6 @@ export function MarketingAssets({
     setDeal((prev) => (prev ? { ...prev, ...patch } : prev));
     const { error } = await dispo.from("crm_transactions").update(patch).eq("id", transactionId);
     if (error) { toast.error(`Couldn't save: ${error.message}`); void load(); }
-  }
-
-  // Pick a URL slug that isn't taken by another deal.
-  async function uniqueSlug(base: string): Promise<string> {
-    const { data } = await dispo.from("crm_transactions").select("id, slug").ilike("slug", `${base}%`);
-    const taken = new Set(((data as { id: string; slug: string }[]) ?? []).filter((r) => r.id !== transactionId && r.slug).map((r) => r.slug));
-    let slug = base;
-    let n = 2;
-    while (taken.has(slug)) slug = `${base}-${n++}`;
-    return slug;
-  }
-
-  async function togglePublish(next: boolean) {
-    if (!next) { await saveDeal({ published: false }); toast.success("Removed from site"); return; }
-    const title = deal?.marketing_title?.trim();
-    if (!title) { toast.error("Add a marketing title first — it becomes the listing's web address."); return; }
-    const slug = deal?.slug || (await uniqueSlug(slugify(title)));
-    await saveDeal({ published: true, published_at: new Date().toISOString(), slug });
-    toast.success("Published to site");
-    void logEvent({
-      type: "deal_published",
-      severity: "success",
-      title: `${title} published to the site`,
-      source: "opshq",
-      entityType: "deal",
-      entityId: transactionId,
-      entityLabel: title,
-      metadata: { slug },
-    });
   }
 
   async function onFiles(files: File[]) {
@@ -158,29 +114,34 @@ export function MarketingAssets({
     void dispo.from("dispo_deal_details").update({ photo_url: url }).eq("transaction_id", transactionId);
   }
 
-  if (!d) {
-    return (
-      <div className="space-y-3 max-w-3xl">
-        {[0, 1, 2].map((i) => <div key={i} className="h-20 rounded-lg bg-muted/40 animate-pulse" />)}
-      </div>
-    );
-  }
-
-  const photos = d.photos ?? [];
+  const photos = d?.photos ?? [];
   const price = deal?.asking_price ?? deal?.purchase_price ?? null;
   const ready = [
     { label: "Photo added", ok: photos.length > 0 },
     { label: "Price set", ok: price != null },
     { label: "Marketing title", ok: !!deal?.marketing_title?.trim() },
-    { label: "Highlight written", ok: !!d.investor_highlight?.trim() },
+    { label: "Highlight written", ok: !!(d?.investor_highlight ?? "").trim() },
   ];
   const readyCount = ready.filter((r) => r.ok).length;
 
+  // Report readiness up to the launch-sequence step header.
+  useEffect(() => {
+    if (d) onStatus?.(readyCount, ready.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d ? readyCount : -1]);
+
+  if (!d) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => <div key={i} className="h-20 rounded-lg bg-muted/40 animate-pulse" />)}
+      </div>
+    );
+  }
+
   return (
-    <section className="space-y-8 max-w-3xl">
-      {/* Readiness */}
-      <div className="crm-card flex flex-wrap items-center gap-x-5 gap-y-2">
-        <span className="crm-eyebrow">Launch readiness</span>
+    <div className="crm-section-stack max-w-2xl">
+      {/* Readiness strip */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-muted/40 border border-border/30 px-4 py-3">
         {ready.map((r) => (
           <span key={r.label} className={cn("inline-flex items-center gap-1.5 text-xs", r.ok ? "text-brand-mint-deep" : "text-muted-foreground")}>
             {r.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
@@ -190,70 +151,39 @@ export function MarketingAssets({
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">{readyCount} of {ready.length}</span>
       </div>
 
-      {/* Listing identity — the deal's public name + address privacy */}
-      <section className="space-y-3">
+      {/* Listing identity */}
+      <section className="crm-field-stack">
         <h3 className="crm-eyebrow">Listing identity</h3>
-        <div className="crm-card space-y-4">
-          <div className="space-y-1">
-            <Label className="crm-field-label">Marketing title</Label>
-            <Input
-              defaultValue={deal?.marketing_title ?? ""}
-              onBlur={(e) => {
-                const v = e.target.value.trim() || null;
-                if (v !== (deal?.marketing_title ?? null)) void saveDeal({ marketing_title: v });
-              }}
-              placeholder='The deal&apos;s public name — e.g. "Low Entry SubTo Home"'
-            />
+        <div className="space-y-1.5">
+          <Label className="crm-field-label">Marketing title</Label>
+          <Input
+            defaultValue={deal?.marketing_title ?? ""}
+            onBlur={(e) => {
+              const v = e.target.value.trim() || null;
+              if (v !== (deal?.marketing_title ?? null)) void saveDeal({ marketing_title: v });
+            }}
+            className="h-9"
+            placeholder='The deal&apos;s public name — e.g. "Low Entry SubTo Home"'
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium">Keep address private</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Public marketing shows {deal?.address_private
+                ? `"${[deal?.property_city, deal?.property_state].filter(Boolean).join(", ") || "city, state"}" only`
+                : "the full street address"}.
+            </p>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium">Keep address private</div>
-              <p className="text-[11px] text-muted-foreground">
-                Public marketing shows {deal?.address_private
-                  ? `"${[deal?.property_city, deal?.property_state].filter(Boolean).join(", ") || "city, state"}" only`
-                  : "the full street address"}.
-              </p>
-            </div>
-            <Switch
-              checked={!!deal?.address_private}
-              onCheckedChange={(c) => void saveDeal({ address_private: c })}
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-4">
-            <div className="min-w-0">
-              <div className="text-sm font-medium flex items-center gap-2">
-                Publish to site
-                {deal?.published && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-brand-mint/15 text-brand-mint-deep">
-                    <Globe className="h-2.5 w-2.5" /> Live
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {deal?.published && deal?.slug
-                  ? <>Listed at <span className="font-mono">/properties/{deal.slug}</span></>
-                  : "Show this deal on the public inventory site."}
-              </p>
-            </div>
-            <Switch
-              checked={!!deal?.published}
-              onCheckedChange={(c) => void togglePublish(c)}
-            />
-          </div>
-
-          <div className="border-t border-border/40 pt-4">
-            <Label className="crm-field-label mb-2 block">Listing contact</Label>
-            <DispoManagerField
-              value={deal?.dispo_manager_id ?? null}
-              onChange={(id) => void saveDeal({ dispo_manager_id: id })}
-            />
-          </div>
+          <Switch
+            checked={!!deal?.address_private}
+            onCheckedChange={(c) => void saveDeal({ address_private: c })}
+          />
         </div>
       </section>
 
       {/* Photos */}
-      <section className="space-y-3">
+      <section className="crm-field-stack">
         <h3 className="crm-eyebrow">Photos</h3>
         <input
           ref={fileRef}
@@ -263,7 +193,7 @@ export function MarketingAssets({
           className="hidden"
           onChange={(e) => { const list = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; void onFiles(list); }}
         />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {photos.map((url, i) => (
             <div key={url} className="group relative aspect-[4/3] rounded-lg overflow-hidden border border-border/50 bg-muted">
               <img src={url} alt="" className="h-full w-full object-cover" />
@@ -297,33 +227,37 @@ export function MarketingAssets({
         <p className="text-[11px] text-muted-foreground">The hero photo leads the marketing email and listing. Hover a photo to set hero or remove.</p>
       </section>
 
-      {/* Highlight + details — the pitch copy the emails/listing pull from */}
-      <section className="space-y-3">
-        <h3 className="crm-eyebrow">Investor highlight</h3>
-        <Input
-          defaultValue={d.investor_highlight ?? ""}
-          onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investor_highlight ?? null)) void save({ investor_highlight: v }); }}
-          placeholder="One punchy line — the pitch hook (e.g. Cosmetic rehab, strong resale street, priced to move)"
-        />
-        <Label className="crm-field-label pt-2">Details / notes</Label>
-        <Textarea
-          key={`details-${d.investment_details ?? ""}`}
-          rows={4}
-          defaultValue={d.investment_details ?? ""}
-          onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investment_details ?? null)) void save({ investment_details: v }); }}
-          placeholder="Rent estimate, condition notes — anything the buyer (and the AI email draft) should know."
-        />
-      </section>
-
-      {/* Comps — shown publicly on the listing */}
-      <section className="space-y-3">
-        <h3 className="crm-eyebrow">Comps</h3>
-        <Textarea
-          rows={4}
-          defaultValue={d.comps ?? ""}
-          onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.comps ?? null)) void save({ comps: v }); }}
-          placeholder="Comparable sales / neighborhood context — this appears on the public listing."
-        />
+      {/* Pitch copy */}
+      <section className="crm-field-stack">
+        <h3 className="crm-eyebrow">Pitch copy</h3>
+        <div className="space-y-1.5">
+          <Label className="crm-field-label">Investor highlight</Label>
+          <Input
+            defaultValue={d.investor_highlight ?? ""}
+            onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investor_highlight ?? null)) void save({ investor_highlight: v }); }}
+            className="h-9"
+            placeholder="One punchy line — the pitch hook (e.g. Cosmetic rehab, strong resale street, priced to move)"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="crm-field-label">Details / notes</Label>
+          <Textarea
+            key={`details-${d.investment_details ?? ""}`}
+            rows={4}
+            defaultValue={d.investment_details ?? ""}
+            onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.investment_details ?? null)) void save({ investment_details: v }); }}
+            placeholder="Rent estimate, condition notes — anything the buyer (and the AI email draft) should know."
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="crm-field-label">Comps &amp; neighborhood</Label>
+          <Textarea
+            rows={4}
+            defaultValue={d.comps ?? ""}
+            onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (d.comps ?? null)) void save({ comps: v }); }}
+            placeholder="Comparable sales / neighborhood context — this appears on the public listing."
+          />
+        </div>
       </section>
 
       {/* AI copy — drafts description + buyer email from everything above */}
@@ -333,7 +267,7 @@ export function MarketingAssets({
         onUseAsDetails={(text) => { void save({ investment_details: text }); toast.success("Saved to Details"); }}
         onUseInCampaign={onUseInCampaign}
       />
-    </section>
+    </div>
   );
 }
 

@@ -72,10 +72,12 @@ export function CampaignsTab({
   transactionId,
   draft,
   onDraftConsumed,
+  onCount,
 }: {
   transactionId: string;
   draft?: CampaignDraft | null;
   onDraftConsumed?: () => void;
+  onCount?: (n: number) => void;
 }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [respondedCounts, setRespondedCounts] = useState<Record<string, number>>({});
@@ -100,6 +102,7 @@ export function CampaignsTab({
     }
     const rows = (data as Campaign[]) ?? [];
     setCampaigns(rows);
+    onCount?.(rows.length);
 
     // Responded rollup across this deal's campaigns.
     if (rows.length) {

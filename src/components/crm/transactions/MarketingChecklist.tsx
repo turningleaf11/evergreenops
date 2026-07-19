@@ -13,7 +13,16 @@ import { DEFAULT_MARKETING_CHECKLIST, type MarketingGroup } from "@/lib/dealVoca
 
 const dispo = supabase as unknown as { from: (table: string) => any };
 
-export function MarketingChecklist({ transactionId }: { transactionId: string }) {
+export function MarketingChecklist({
+  transactionId,
+  embedded = false,
+  onProgress,
+}: {
+  transactionId: string;
+  /** Inside the launch sequence the step header owns the title + count. */
+  embedded?: boolean;
+  onProgress?: (done: number, total: number) => void;
+}) {
   const [groups, setGroups] = useState<MarketingGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<string | null>(null); // category being added-to
@@ -51,6 +60,12 @@ export function MarketingChecklist({ transactionId }: { transactionId: string })
   }, [groups]);
   const pct = total ? (done / total) * 100 : 0;
 
+  // Report progress up to the launch-sequence step header.
+  useEffect(() => {
+    if (!loading) onProgress?.(done, total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, done, total]);
+
   function toggle(gi: number, ii: number) {
     const next = groups.map((g, gx) =>
       gx !== gi ? g : { ...g, items: g.items.map((it, ix) => (ix === ii ? { ...it, done: !it.done } : it)) },
@@ -86,10 +101,12 @@ export function MarketingChecklist({ transactionId }: { transactionId: string })
 
   return (
     <section className="space-y-3 max-w-2xl">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="crm-eyebrow">Marketing checklist</h3>
-        <span className="text-xs text-muted-foreground tabular-nums">{done} of {total}</span>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="crm-eyebrow">Marketing checklist</h3>
+          <span className="text-xs text-muted-foreground tabular-nums">{done} of {total}</span>
+        </div>
+      )}
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div className="h-full bg-brand-azure transition-all" style={{ width: `${pct}%` }} />
       </div>
@@ -98,7 +115,7 @@ export function MarketingChecklist({ transactionId }: { transactionId: string })
         {groups.map((g, gi) => (
           <div key={gi} className="group/cat">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{g.cat}</span>
+              <span className="crm-eyebrow">{g.cat}</span>
               <button
                 type="button"
                 onClick={() => removeGroup(gi)}
