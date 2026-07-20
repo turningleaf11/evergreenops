@@ -115,7 +115,7 @@ export function AppSidebar() {
     ...(isPrimaryAdmin /* was: isAdmin || can("process_map") */ ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
     { title: "Activity", url: "/activity", icon: Activity, badge: inboxCount },
-    ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/deals", icon: Rocket }] : []),
+    ...(isAdmin || can("crm") ? [{ title: "Deals", url: "/crm/transactions", icon: Rocket }] : []),
     ...(isPrimaryAdmin /* was: isLeader || can("meetings") */ ? [{ title: "Meetings", url: "/meetings", icon: Video }] : []),
     { title: "Wiki", url: "/docs", icon: FileText },
     { title: "My Notes", url: "/notes", icon: StickyNote },

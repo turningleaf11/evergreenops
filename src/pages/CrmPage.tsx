@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Users, Building2, Rocket, Plus, Search, Inbox, FileText, Target } from "lucide-react";
+import { Users, Building2, Rocket, Plus, Search, Inbox, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -116,9 +116,8 @@ export default function CrmPage() {
             <TabsTrigger value="transactions" className="data-[state=active]:bg-muted gap-1.5">
               <Rocket className="h-3.5 w-3.5" /> Deals
             </TabsTrigger>
-            <TabsTrigger value="deals" className="data-[state=active]:bg-muted gap-1.5">
-              <FileText className="h-3.5 w-3.5" /> Pipeline
-            </TabsTrigger>
+            {/* "Pipeline" (legacy `deals` table) retired from the nav — the route
+                still resolves so old links work, it's just not shown. */}
             <TabsTrigger value="buyers" className="data-[state=active]:bg-muted gap-1.5">
               <Target className="h-3.5 w-3.5" /> Buyers
             </TabsTrigger>

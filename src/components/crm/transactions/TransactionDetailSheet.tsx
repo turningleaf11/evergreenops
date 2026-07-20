@@ -3,6 +3,7 @@ import {
   Loader2,
   Check,
   Trash2,
+  MoreHorizontal,
   Mail,
   Phone,
   ExternalLink,
@@ -21,6 +22,9 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   EntitySheetShell,
   EntitySheetHeader,
@@ -450,9 +454,21 @@ export function TransactionDetailSheet({
               leading={<Home className="h-5 w-5 text-primary" />}
               onClose={onClose}
               actions={
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {canManage && (
+                      <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete deal</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               }
             />
 
