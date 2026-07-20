@@ -42,7 +42,7 @@ import { BuyerInterestTab } from "./BuyerInterestTab";
 import { CampaignsTab, type CampaignDraft } from "./CampaignsTab";
 import { MarketingAssets } from "./MarketingAssets";
 import { MarketingChecklist } from "./MarketingChecklist";
-import { LaunchStep } from "./LaunchStep";
+import { LaunchStep, type StepTone } from "./LaunchStep";
 import { PublishStep } from "./PublishStep";
 import { DealDocuments } from "./DealDocuments";
 import { DealDeadlines } from "./DealDeadlines";
@@ -189,6 +189,8 @@ export function TransactionDetailSheet({
   const [assetsReady, setAssetsReady] = useState<[number, number] | null>(null);
   const [checklistDone, setChecklistDone] = useState<[number, number] | null>(null);
   const [campaignCount, setCampaignCount] = useState<number | null>(null);
+  const [docsCount, setDocsCount] = useState<number | null>(null);
+  const [deadlineStatus, setDeadlineStatus] = useState<{ label: string; tone: StepTone } | null>(null);
   const onAssetsStatus = useCallback((ready: number, total: number) => setAssetsReady([ready, total]), []);
   const onChecklistProgress = useCallback((done: number, total: number) => setChecklistDone([done, total]), []);
 
@@ -763,81 +765,144 @@ export function TransactionDetailSheet({
                     <BuyerInterestTab transactionId={tx.id} />
                   </TabsContent>
 
-                  {/* CLOSING — documents, dates, people, P&L, and the TC checklist */}
-                  <TabsContent value="closing" className="p-6 mt-0 space-y-8">
-                    {/* Documents — upload the paper; AI pulls the dates */}
-                    <DealDocuments transactionId={tx.id} onApplied={reload} />
+                  {/* CLOSING — the path to close as a numbered sequence */}
+                  <TabsContent value="closing" className="p-6 mt-0">
+                    <div className="max-w-3xl space-y-3">
+                      {/* 1. Contract & documents */}
+                      <LaunchStep
+                        n={1}
+                        title="Contract & documents"
+                        subtitle="Upload the contract; AI pulls the dates"
+                        defaultOpen
+                        status={
+                          docsCount == null
+                            ? undefined
+                            : docsCount > 0
+                              ? { label: `${docsCount} file${docsCount === 1 ? "" : "s"}`, tone: "done" }
+                              : { label: "Add the contract", tone: "todo" }
+                        }
+                      >
+                        <DealDocuments transactionId={tx.id} onApplied={reload} onCount={setDocsCount} />
+                      </LaunchStep>
 
-                    {/* Deadlines — live countdowns + the buyer-EMD clock */}
-                    <DealDeadlines
-                      emd_due_date={tx.emd_due_date}
-                      due_diligence_end={tx.due_diligence_end}
-                      closing_date={tx.closing_date}
-                      assignment_signed_at={tx.assignment_signed_at}
-                      buyer_emd_received_at={tx.buyer_emd_received_at}
-                      onSave={(patch) => saveField(patch)}
-                    />
-
-                    {/* GHL opportunity — link + close writeback */}
-                    <DealGhlOpportunity
-                      transactionId={tx.id}
-                      defaultQuery={tx.property_address || tx.marketing_title || tx.property_city || ""}
-                      isClosed={tx.stage === "closed_won" || tx.status === "closed"}
-                    />
-
-                    {/* Key Dates */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">Key dates</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <DateCard
-                          label="Fully Executed"
-                          value={tx.fully_executed_date}
-                          onChange={(v) => saveField({ fully_executed_date: v })}
-                        />
-                        <DateCard
-                          label="EMD Due (contract)"
-                          value={tx.emd_due_date}
-                          onChange={(v) => saveField({ emd_due_date: v })}
-                        />
-                        <DateCard
-                          label="Due Diligence End"
-                          value={tx.due_diligence_end}
-                          onChange={(v) => saveField({ due_diligence_end: v })}
-                        />
-                        <DateCard
-                          label="Closing Date"
-                          value={tx.closing_date}
-                          onChange={(v) => saveField({ closing_date: v })}
-                          emphasized
-                          countdownClass={closingCountdownClass(closingDays)}
-                        />
-                      </div>
-                    </section>
-
-                    {/* Key People */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">Key people</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
-                          const id = tx[roleKey];
-                          const contact = people.find((p) => p.id === id);
-                          return (
-                            <PersonCard
-                              key={roleKey}
-                              roleKey={roleKey}
-                              label={ROLE_LABELS[roleKey]}
-                              contact={contact || null}
-                              onPick={(newId) => saveField({ [roleKey]: newId } as any)}
+                      {/* 2. Dates & deadlines — contract dates (with countdowns) + the EMD clock */}
+                      <LaunchStep
+                        n={2}
+                        title="Dates & deadlines"
+                        subtitle="Contract dates, countdowns, and the EMD clock"
+                        status={deadlineStatus ?? undefined}
+                      >
+                        <div className="space-y-5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <DateCard
+                              label="Fully Executed"
+                              value={tx.fully_executed_date}
+                              onChange={(v) => saveField({ fully_executed_date: v })}
                             />
-                          );
-                        })}
-                      </div>
-                    </section>
+                            <DateCard
+                              label="EMD Due (contract)"
+                              value={tx.emd_due_date}
+                              onChange={(v) => saveField({ emd_due_date: v })}
+                            />
+                            <DateCard
+                              label="Due Diligence End"
+                              value={tx.due_diligence_end}
+                              onChange={(v) => saveField({ due_diligence_end: v })}
+                            />
+                            <DateCard
+                              label="Closing Date"
+                              value={tx.closing_date}
+                              onChange={(v) => saveField({ closing_date: v })}
+                              emphasized
+                              countdownClass={closingCountdownClass(closingDays)}
+                            />
+                          </div>
+                          <DealDeadlines
+                            emd_due_date={tx.emd_due_date}
+                            due_diligence_end={tx.due_diligence_end}
+                            closing_date={tx.closing_date}
+                            assignment_signed_at={tx.assignment_signed_at}
+                            buyer_emd_received_at={tx.buyer_emd_received_at}
+                            onSave={(patch) => saveField(patch)}
+                            onStatus={setDeadlineStatus}
+                          />
+                        </div>
+                      </LaunchStep>
 
-                    {/* P&L */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">P&amp;L summary</h3>
-                      <div className="crm-card grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {/* 3. People */}
+                      <LaunchStep
+                        n={3}
+                        title="People"
+                        subtitle="Buyer, title, attorney, lender"
+                        status={(() => {
+                          const keys = Object.keys(ROLE_LABELS) as RoleKey[];
+                          const assigned = keys.filter((k) => tx[k]).length;
+                          return { label: `${assigned} of ${keys.length}`, tone: assigned === keys.length ? "done" : assigned > 0 ? "progress" : "todo" };
+                        })()}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
+                            const id = tx[roleKey];
+                            const contact = people.find((p) => p.id === id);
+                            return (
+                              <PersonCard
+                                key={roleKey}
+                                roleKey={roleKey}
+                                label={ROLE_LABELS[roleKey]}
+                                contact={contact || null}
+                                onPick={(newId) => saveField({ [roleKey]: newId } as any)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </LaunchStep>
+
+                      {/* 4. Closing tasks */}
+                      <LaunchStep
+                        n={4}
+                        title="Closing tasks"
+                        subtitle="The transaction checklist"
+                        status={
+                          total > 0
+                            ? { label: `${progress} of ${total}`, tone: progress === total ? "done" : progress > 0 ? "progress" : "todo" }
+                            : undefined
+                        }
+                      >
+                        <div className="space-y-3">
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-brand-mint transition-all" style={{ width: `${progressPct}%` }} />
+                          </div>
+                          <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
+                            {items.map((item) => (
+                              <ChecklistRow
+                                key={item.id}
+                                item={item}
+                                onToggle={() => toggleItem(item)}
+                                onSetDue={(v) => setItemDueDate(item.id, v)}
+                              />
+                            ))}
+                            {items.length === 0 && (
+                              <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">No checklist items.</li>
+                            )}
+                          </ul>
+                        </div>
+                      </LaunchStep>
+
+                      {/* 5. Close-out — the numbers + GHL sync */}
+                      <LaunchStep
+                        n={5}
+                        title="Close-out"
+                        subtitle="The numbers and GHL sync"
+                        status={
+                          tx.actual_net != null
+                            ? { label: "Recorded", tone: "done" }
+                            : { label: "Pending close", tone: "todo" }
+                        }
+                      >
+                        <div className="space-y-6">
+                          <section className="space-y-3">
+                            <h3 className="crm-eyebrow">The numbers</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <MoneyField
                           label="Purchase price"
                           value={tx.purchase_price}
@@ -896,39 +961,18 @@ export function TransactionDetailSheet({
                             </div>
                           )}
                         </div>
-                      </div>
-                    </section>
+                            </div>
+                          </section>
 
-                    {/* Closing checklist */}
-                    <section className="space-y-4 max-w-3xl">
-                      <div className="flex items-center justify-between">
-                        <h3 className="crm-eyebrow">Closing checklist</h3>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {progress} of {total} complete
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-brand-mint transition-all"
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                      <ul className="space-y-1 crm-card !p-2 divide-y divide-border/40">
-                        {items.map((item) => (
-                          <ChecklistRow
-                            key={item.id}
-                            item={item}
-                            onToggle={() => toggleItem(item)}
-                            onSetDue={(v) => setItemDueDate(item.id, v)}
+                          {/* GHL opportunity — link + close writeback */}
+                          <DealGhlOpportunity
+                            transactionId={tx.id}
+                            defaultQuery={tx.property_address || tx.marketing_title || tx.property_city || ""}
+                            isClosed={tx.stage === "closed_won" || tx.status === "closed"}
                           />
-                        ))}
-                        {items.length === 0 && (
-                          <li className="px-3 py-6 text-center text-xs text-muted-foreground italic">
-                            No checklist items.
-                          </li>
-                        )}
-                      </ul>
-                    </section>
+                        </div>
+                      </LaunchStep>
+                    </div>
                   </TabsContent>
 
                   {/* ACTIVITY */}

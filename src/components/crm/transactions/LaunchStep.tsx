@@ -7,12 +7,14 @@ import { useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type StepTone = "done" | "progress" | "todo";
+export type StepTone = "done" | "progress" | "todo" | "warn" | "danger";
 
 const CHIP_TONE: Record<StepTone, string> = {
   done: "bg-brand-mint/15 text-brand-mint-deep",
   progress: "bg-brand-azure/10 text-brand-azure",
   todo: "bg-muted text-muted-foreground",
+  warn: "bg-brand-tangerine/15 text-brand-tangerine",
+  danger: "bg-brand-coral/15 text-brand-coral",
 };
 
 export function LaunchStep({

@@ -56,7 +56,7 @@ const APPLY_MAP: { key: string; label: string; field: string; kind: "date" | "mo
 const fmtSize = (n: number | null) => (n == null ? "" : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
 const fmtVal = (kind: string, v: unknown) => (kind === "money" && v != null ? `$${Number(v).toLocaleString()}` : String(v));
 
-export function DealDocuments({ transactionId, onApplied }: { transactionId: string; onApplied?: () => void }) {
+export function DealDocuments({ transactionId, onApplied, onCount }: { transactionId: string; onApplied?: () => void; onCount?: (n: number) => void }) {
   const { user } = useAuth();
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -67,8 +67,10 @@ export function DealDocuments({ transactionId, onApplied }: { transactionId: str
 
   const load = useCallback(async () => {
     const { data } = await dispo.from("deal_documents").select("*").eq("transaction_id", transactionId).order("created_at", { ascending: false });
-    setDocs((data as DocRow[]) ?? []);
-  }, [transactionId]);
+    const rows = (data as DocRow[]) ?? [];
+    setDocs(rows);
+    onCount?.(rows.length);
+  }, [transactionId, onCount]);
   useEffect(() => { void load(); }, [load]);
 
   async function onFile(file: File) {
