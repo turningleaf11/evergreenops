@@ -485,6 +485,25 @@ export function TransactionDetailSheet({
                 <span className="crm-field-label">Stage</span>
                 <StatusPill kind="deal_stage" value={tx.stage || "prep"} onChange={saveStage} />
               </div>
+              <div className="flex items-center gap-2.5">
+                <span className="crm-field-label">Exit</span>
+                <Select
+                  value={tx.disposition_strategy ?? ""}
+                  onValueChange={(v) => saveField({ disposition_strategy: v || null } as any)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-auto gap-1.5 rounded-full border-dashed px-3 text-xs"
+                    title="How we're exiting — sets the GHL close routing (Assign/Double Close → Dispo, Buy & Hold → Portfolio)"
+                  >
+                    <SelectValue placeholder="Set exit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="assign">Assign</SelectItem>
+                    <SelectItem value="double_close">Double Close</SelectItem>
+                    <SelectItem value="buy_hold">Buy &amp; Hold (portfolio)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center gap-2.5 flex-1 min-w-[260px]">
                 <span className="crm-field-label whitespace-nowrap">Next action</span>
                 <Input
@@ -565,28 +584,6 @@ export function TransactionDetailSheet({
                           <div className="crm-field-label">Est. net</div>
                           <div className="text-lg font-semibold tabular-nums text-brand-mint-deep">{fmtMoney(tx.estimated_net)}</div>
                         </div>
-                      </div>
-                    </section>
-
-                    {/* Disposition — how we're exiting (drives the GHL close routing) */}
-                    <section className="space-y-3">
-                      <h3 className="crm-eyebrow">Disposition</h3>
-                      <div className="max-w-xs space-y-1.5">
-                        <Select
-                          value={tx.disposition_strategy ?? ""}
-                          onValueChange={(v) => saveField({ disposition_strategy: v || null } as any)}
-                        >
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Choose a strategy" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="assign">Assign</SelectItem>
-                            <SelectItem value="double_close">Double Close</SelectItem>
-                            <SelectItem value="buy_hold">Buy &amp; Hold (portfolio)</SelectItem>
-                            <SelectItem value="pass">Pass</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-[11px] text-muted-foreground">
-                          Sets the close routing to GHL — Assign/Double Close → Dispo, Buy &amp; Hold → Portfolio.
-                        </p>
                       </div>
                     </section>
 
