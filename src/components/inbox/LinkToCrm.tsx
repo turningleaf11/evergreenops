@@ -25,7 +25,7 @@ interface ExistingLink {
 }
 
 interface SearchResult {
-  entity_type: "contact" | "deal" | "company";
+  entity_type: "contact" | "transaction" | "company";
   entity_id: string;
   display_name: string;
   secondary: string | null;
@@ -41,6 +41,7 @@ interface Props {
 
 const TYPE_LABEL: Record<string, string> = {
   contact: "Contact",
+  transaction: "Deal",
   deal: "Deal",
   company: "Company",
 };
@@ -97,18 +98,21 @@ export function LinkToCrm({
     ]);
     const linkRows = (links as ExistingLink[]) || [];
     setExisting(linkRows);
-    setSuggestions(((sugg as Suggestion[]) || []).filter(Boolean));
+    // Suggestions come from crm_suggest_links_for_emails, which still returns the
+    // legacy `deals` table. Deal linking now targets crm_transactions, so only
+    // surface contact suggestions here; deals are found via search below.
+    setSuggestions(((sugg as Suggestion[]) || []).filter((s) => s && s.entity_type === "contact"));
 
     // Resolve display names for linked records
     const contactIds = linkRows.filter((l) => l.entity_type === "contact").map((l) => l.entity_id);
-    const dealIds = linkRows.filter((l) => l.entity_type === "deal").map((l) => l.entity_id);
+    const dealIds = linkRows.filter((l) => l.entity_type === "transaction").map((l) => l.entity_id);
     const companyIds = linkRows.filter((l) => l.entity_type === "company").map((l) => l.entity_id);
     const [contactsRes, dealsRes, companiesRes] = await Promise.all([
       contactIds.length
         ? supabase.from("contacts").select("id,first_name,last_name,email").in("id", contactIds)
         : Promise.resolve({ data: [] as any[] } as any),
       dealIds.length
-        ? supabase.from("deals").select("id,title").in("id", dealIds)
+        ? supabase.from("crm_transactions").select("id,property_address").in("id", dealIds)
         : Promise.resolve({ data: [] as any[] } as any),
       companyIds.length
         ? supabase.from("companies").select("id,name").in("id", companyIds)
@@ -118,7 +122,7 @@ export function LinkToCrm({
     (contactsRes.data || []).forEach((c: any) => {
       map[`contact:${c.id}`] = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.email || "Contact";
     });
-    (dealsRes.data || []).forEach((d: any) => { map[`deal:${d.id}`] = d.title || "Deal"; });
+    (dealsRes.data || []).forEach((d: any) => { map[`transaction:${d.id}`] = d.property_address || "Deal"; });
     (companiesRes.data || []).forEach((c: any) => { map[`company:${c.id}`] = c.name || "Company"; });
     setNames(map);
     setLoading(false);
@@ -144,7 +148,11 @@ export function LinkToCrm({
           .select("id,first_name,last_name,email,title")
           .or(`first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
           .limit(5),
-        supabase.from("deals").select("id,title,status").ilike("title", q).limit(5),
+        supabase
+          .from("crm_transactions")
+          .select("id,property_address,property_city,property_state,stage")
+          .or(`property_address.ilike.${q},property_city.ilike.${q}`)
+          .limit(5),
         supabase.from("companies").select("id,name,industry").ilike("name", q).limit(5),
       ]);
       if (cancelled) return;
@@ -158,7 +166,12 @@ export function LinkToCrm({
         }),
       );
       (deals.data || []).forEach((d: any) =>
-        out.push({ entity_type: "deal", entity_id: d.id, display_name: d.title, secondary: d.status }),
+        out.push({
+          entity_type: "transaction",
+          entity_id: d.id,
+          display_name: d.property_address || "Untitled deal",
+          secondary: [d.property_city, d.property_state].filter(Boolean).join(", ") || d.stage || null,
+        }),
       );
       (companies.data || []).forEach((c: any) =>
         out.push({ entity_type: "company", entity_id: c.id, display_name: c.name, secondary: c.industry }),
@@ -182,12 +195,32 @@ export function LinkToCrm({
       snippet: snippet.slice(0, 1000),
       linked_by: user.id,
     });
-    setBusyId(null);
     if (error) {
+      setBusyId(null);
       toast.error("Couldn't link", { description: error.message });
       return;
     }
-    toast.success(`Linked to ${TYPE_LABEL[entity_type] || entity_type}`);
+    // Materialize this thread's messages onto the record's timeline so the whole
+    // conversation shows on the deal/contact. Contacts and deals only.
+    if (entity_type === "transaction" || entity_type === "contact") {
+      const { data: syncData, error: syncErr } = await supabase.functions.invoke("email-sync-thread", {
+        body: { thread_id: threadId, entity_type, entity_id },
+      });
+      setBusyId(null);
+      if (syncErr) {
+        toast.warning(`Linked to ${TYPE_LABEL[entity_type] || entity_type}, but couldn't pull the emails`, {
+          description: syncErr.message,
+        });
+      } else {
+        const n = (syncData as any)?.inserted ?? 0;
+        toast.success(`Linked to ${TYPE_LABEL[entity_type] || entity_type}`, {
+          description: n > 0 ? `${n} message${n === 1 ? "" : "s"} added to the timeline` : "Conversation is on the timeline",
+        });
+      }
+    } else {
+      setBusyId(null);
+      toast.success(`Linked to ${TYPE_LABEL[entity_type] || entity_type}`);
+    }
     setSearch("");
     void refresh();
   };
@@ -233,12 +266,12 @@ export function LinkToCrm({
             {existing.map((l) => {
               const key = `${l.entity_type}:${l.entity_id}`;
               const displayName = names[key] || `${l.entity_id.slice(0, 8)}…`;
-              const canOpen = l.entity_type === "contact" || l.entity_type === "deal";
+              const canOpen = l.entity_type === "contact" || l.entity_type === "transaction";
               const openHref =
                 l.entity_type === "contact"
                   ? `/crm/contacts?contact=${l.entity_id}`
-                  : l.entity_type === "deal"
-                    ? `/crm/deals?deal=${l.entity_id}`
+                  : l.entity_type === "transaction"
+                    ? `/crm/transactions?deal=${l.entity_id}`
                     : null;
               return (
                 <div
