@@ -47,6 +47,7 @@ import { PublishStep } from "./PublishStep";
 import { DealDocuments } from "./DealDocuments";
 import { DealDeadlines } from "./DealDeadlines";
 import { DealGhlOpportunity } from "./DealGhlOpportunity";
+import { BuyerPicker } from "./BuyerPicker";
 import { DealFactsSection } from "./DealFactsSection";
 import { CustomFieldsRenderer, useCustomFields } from "@/components/crm/CustomFieldsRenderer";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +113,7 @@ interface Transaction {
   estimated_net: number | null;
   actual_net: number | null;
   buyer_contact_id: string | null;
+  buyer_id: string | null;
   title_contact_id: string | null;
   attorney_contact_id: string | null;
   lender_contact_id: string | null;
@@ -153,8 +155,9 @@ interface ContactDetail {
   created_at?: string | null;
 }
 
+// The buyer is picked from the buyers list (dispo_buyers, buyer_id) via
+// BuyerPicker; these three are contacts.
 const ROLE_LABELS = {
-  buyer_contact_id: "Buyer",
   title_contact_id: "Title Agent",
   attorney_contact_id: "Attorney",
   lender_contact_id: "Lender",
@@ -858,11 +861,16 @@ export function TransactionDetailSheet({
                         subtitle="Buyer, title, attorney, lender"
                         status={(() => {
                           const keys = Object.keys(ROLE_LABELS) as RoleKey[];
-                          const assigned = keys.filter((k) => tx[k]).length;
-                          return { label: `${assigned} of ${keys.length}`, tone: assigned === keys.length ? "done" : assigned > 0 ? "progress" : "todo" };
+                          const assigned = keys.filter((k) => tx[k]).length + (tx.buyer_id ? 1 : 0);
+                          const totalRoles = keys.length + 1;
+                          return { label: `${assigned} of ${totalRoles}`, tone: assigned === totalRoles ? "done" : assigned > 0 ? "progress" : "todo" };
                         })()}
                       >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <BuyerPicker
+                            value={tx.buyer_id}
+                            onChange={(id) => saveField({ buyer_id: id } as any)}
+                          />
                           {(Object.keys(ROLE_LABELS) as RoleKey[]).map((roleKey) => {
                             const id = tx[roleKey];
                             const contact = people.find((p) => p.id === id);
@@ -872,7 +880,7 @@ export function TransactionDetailSheet({
                                 roleKey={roleKey}
                                 label={ROLE_LABELS[roleKey]}
                                 contact={contact || null}
-                                onPick={(newId) => saveField({ [roleKey]: newId } as any)}
+                                onPick={async (newId) => { await saveField({ [roleKey]: newId } as any); await reload(); }}
                               />
                             );
                           })}
@@ -1103,19 +1111,9 @@ export function TransactionDetailSheet({
                     ))}
                   </EntitySidebarSection>
 
-                  <EntitySidebarSection title="Source">
-                    <ContactPicker
-                      value={tx.source_contact_id}
-                      onChange={(id) => saveField({ source_contact_id: id })}
-                      placeholder="Who sent this?"
-                    />
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Created">
-                    <div className="text-sm text-muted-foreground">
-                      {format(new Date(tx.created_at), "MMM d, yyyy")}
-                    </div>
-                  </EntitySidebarSection>
+                  <div className="pt-2 text-[11px] text-muted-foreground/70">
+                    Created {format(new Date(tx.created_at), "MMM d, yyyy")}
+                  </div>
                 </div>
               </aside>
             </div>
@@ -1197,7 +1195,6 @@ function DateCard({
 }
 
 const ROLE_ICONS: Record<RoleKey, any> = {
-  buyer_contact_id: User,
   title_contact_id: FileText,
   attorney_contact_id: Scale,
   lender_contact_id: Banknote,

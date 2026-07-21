@@ -343,22 +343,22 @@ export function InlineEmailComposer({
             </DropdownMenu>
           </div>
         )}
-        <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-          <span className="text-xs text-muted-foreground w-12 shrink-0">To</span>
+        <div className="flex items-center gap-3 border-b border-border/40 pb-2">
+          <span className="text-xs text-muted-foreground w-14 shrink-0">To</span>
           <input
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder="recipient@example.com"
-            className="flex-1 bg-transparent text-sm border-0 outline-none py-1"
+            className="flex-1 min-w-0 bg-transparent text-sm border-0 outline-none py-1"
           />
         </div>
-        <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-          <span className="text-xs text-muted-foreground w-12 shrink-0">Subject</span>
+        <div className="flex items-center gap-3 border-b border-border/40 pb-2">
+          <span className="text-xs text-muted-foreground w-14 shrink-0">Subject</span>
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Subject"
-            className="flex-1 bg-transparent text-sm font-medium border-0 outline-none py-1"
+            placeholder="Add a subject"
+            className="flex-1 min-w-0 bg-transparent text-sm font-medium border-0 outline-none py-1"
           />
         </div>
       </div>
