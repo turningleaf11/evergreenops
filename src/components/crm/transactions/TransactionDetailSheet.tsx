@@ -194,6 +194,7 @@ export function TransactionDetailSheet({
   const [campaignCount, setCampaignCount] = useState<number | null>(null);
   const [docsCount, setDocsCount] = useState<number | null>(null);
   const [deadlineStatus, setDeadlineStatus] = useState<{ label: string; tone: StepTone } | null>(null);
+  const [activityRefresh, setActivityRefresh] = useState(0);
   const onAssetsStatus = useCallback((ready: number, total: number) => setAssetsReady([ready, total]), []);
   const onChecklistProgress = useCallback((done: number, total: number) => setChecklistDone([done, total]), []);
 
@@ -512,7 +513,7 @@ export function TransactionDetailSheet({
                     entityId={tx.id}
                     defaultEmail={null}
                     notePlaceholder="Jot a note about this deal…"
-                    onPosted={() => { void reload(); onChanged(); }}
+                    onPosted={() => setActivityRefresh((k) => k + 1)}
                   />
                 </div>
 
@@ -1008,7 +1009,7 @@ export function TransactionDetailSheet({
                   {/* ACTIVITY */}
                   <TabsContent value="activity" className="p-6 mt-0 overflow-hidden">
                     <div className="h-full flex flex-col max-w-3xl">
-                      <ContactActivityTab entityType="transaction" entityId={tx.id} />
+                      <ContactActivityTab entityType="transaction" entityId={tx.id} refreshSignal={activityRefresh} />
                     </div>
                   </TabsContent>
                 </Tabs>

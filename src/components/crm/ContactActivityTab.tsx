@@ -325,11 +325,13 @@ export function ContactActivityTab({
   entityType = "contact",
   entityId,
   contactEmail,
+  refreshSignal,
 }: {
   contact?: Contact;
   entityType?: "contact" | "deal" | "lead" | "transaction" | string;
   entityId?: string;
   contactEmail?: string | null;
+  refreshSignal?: number;
 }) {
   const resolvedEntityType = entityType;
   const resolvedEntityId = entityId ?? contact?.id ?? "";
@@ -433,7 +435,10 @@ export function ContactActivityTab({
 
   useEffect(() => {
     void fetchAll();
-  }, [fetchAll]);
+    // refreshSignal lets the parent force an immediate refetch (e.g. right after
+    // posting a note) so the entry appears at once instead of waiting on realtime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchAll, refreshSignal]);
 
   // Realtime — keep fetchAll in a ref so the channel isn't re-created on every render
   const fetchAllRef = useRef(fetchAll);
