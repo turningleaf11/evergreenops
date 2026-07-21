@@ -3,6 +3,7 @@
 // Same rows, different columns. The lens defaults from the user's title.
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -69,7 +70,20 @@ export function TransactionsList({ search, newSignal = 0 }: { search: string; ne
   const [interest, setInterest] = useState<Record<string, { count: number; top: number | null }>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The open deal is kept in the URL (?deal=) so a page refresh reopens it
+  // instead of dropping back to the table.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [openId, setOpenId] = useState<string | null>(() => searchParams.get("deal"));
+
+  useEffect(() => {
+    const cur = searchParams.get("deal");
+    if (openId === cur) return;
+    const next = new URLSearchParams(searchParams);
+    if (openId) next.set("deal", openId);
+    else next.delete("deal");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   const [lens, setLens] = useState<Lens>("all");
   const [lensInit, setLensInit] = useState(false);
