@@ -265,12 +265,41 @@ export function TransactionDetailSheet({
       setLoading(true);
       await reload();
       if (active) setLoading(false);
+      // Pull any new messages on threads already linked to this deal (e.g. a
+      // reply that arrived after the thread was first linked), then refresh the
+      // timeline so they show up. Best-effort; failures are silent.
+      void syncLinkedThreads(transactionId);
     })();
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactionId]);
+
+  const syncLinkedThreads = async (txId: string) => {
+    try {
+      const dispo = supabase as unknown as { from: (t: string) => any };
+      const { data: links } = await dispo
+        .from("email_links")
+        .select("gmail_thread_id")
+        .eq("entity_type", "transaction")
+        .eq("entity_id", txId);
+      const threadIds = Array.from(
+        new Set(((links as { gmail_thread_id: string }[]) || []).map((l) => l.gmail_thread_id).filter(Boolean)),
+      );
+      if (threadIds.length === 0) return;
+      let added = 0;
+      for (const threadId of threadIds) {
+        const { data } = await supabase.functions.invoke("email-sync-thread", {
+          body: { thread_id: threadId, entity_type: "transaction", entity_id: txId },
+        });
+        added += (data as any)?.inserted ?? 0;
+      }
+      if (added > 0) setActivityRefresh((k) => k + 1);
+    } catch {
+      /* best-effort */
+    }
+  };
 
   const saveField = async (patch: Partial<Transaction>) => {
     if (!tx) return;

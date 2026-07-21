@@ -25,12 +25,33 @@ Deno.serve(async (req) => {
       headers,
       bodyHtml: extractBody(m.payload, 'text/html'),
       bodyText: extractBody(m.payload, 'text/plain'),
+      attachments: extractAttachments(m.payload),
       internalDate: m.internalDate,
     };
   });
 
   return json({ id: data.id, messages });
 });
+
+// Collect real attachments (parts that carry a filename + attachmentId).
+// Inline images referenced by cid: are skipped here.
+function extractAttachments(payload: any, out: any[] = []): any[] {
+  if (!payload) return out;
+  const filename = payload.filename;
+  const attachmentId = payload.body?.attachmentId;
+  if (filename && attachmentId) {
+    out.push({
+      filename,
+      mimeType: payload.mimeType ?? 'application/octet-stream',
+      size: payload.body?.size ?? null,
+      attachmentId,
+    });
+  }
+  if (Array.isArray(payload.parts)) {
+    for (const p of payload.parts) extractAttachments(p, out);
+  }
+  return out;
+}
 
 function extractBody(payload: any, mimeType: string): string {
   if (!payload) return '';
