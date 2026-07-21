@@ -492,7 +492,7 @@ export function TransactionDetailSheet({
                   onValueChange={(v) => saveField({ disposition_strategy: v || null } as any)}
                 >
                   <SelectTrigger
-                    className="h-7 w-auto gap-1.5 rounded-full border-dashed px-3 text-xs"
+                    className="h-auto w-auto gap-1.5 rounded px-2.5 py-1.5 text-[11px]"
                     title="How we're exiting — sets the GHL close routing (Assign/Double Close → Dispo, Buy & Hold → Portfolio)"
                   >
                     <SelectValue placeholder="Set exit" />
