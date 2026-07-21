@@ -96,7 +96,8 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="border-b border-border/30 p-3 flex items-center gap-2">
-        <h2 className="text-sm font-semibold flex-1 truncate">{subject}</h2>
+        <h2 className="text-sm font-semibold flex-1 min-w-0 truncate">{subject}</h2>
+        <div className="flex items-center gap-1 shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Mark unread" onClick={() => modify("unread")}>
           <MailOpen className="h-3.5 w-3.5" />
         </Button>
@@ -131,6 +132,7 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-3.5 w-3.5" />
         </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-auto divide-y divide-border/30">
         {messages.map((m) => (
