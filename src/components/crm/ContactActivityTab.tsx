@@ -35,6 +35,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { triggerFileInput, uploadFile } from "@/lib/file-upload";
 import { InlineEmailComposer } from "./InlineEmailComposer";
+import { EmailHtmlFrame } from "@/components/email/EmailHtmlFrame";
 import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
 
 interface Contact {
@@ -748,10 +749,9 @@ function TimelineRow({
         )}
         {act.body && (
           kind === "email" ? (
-            <div
-              className="prose prose-sm max-w-none text-sm text-foreground/90 mt-0.5 [&_p]:my-1 [&_p:empty]:hidden"
-              dangerouslySetInnerHTML={{ __html: act.body }}
-            />
+            <div className="mt-1 rounded-md border border-border/40 bg-background/60 px-2 py-1">
+              <EmailHtmlFrame html={act.body} />
+            </div>
           ) : (
             <p className="whitespace-pre-wrap text-sm text-foreground/90 mt-0.5">{act.body}</p>
           )
