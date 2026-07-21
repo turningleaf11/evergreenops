@@ -747,7 +747,14 @@ function TimelineRow({
           <div className="text-sm font-medium mt-1 truncate">{act.subject}</div>
         )}
         {act.body && (
-          <p className="whitespace-pre-wrap text-sm text-foreground/90 mt-0.5">{act.body}</p>
+          kind === "email" ? (
+            <div
+              className="prose prose-sm max-w-none text-sm text-foreground/90 mt-0.5 [&_p]:my-1 [&_p:empty]:hidden"
+              dangerouslySetInnerHTML={{ __html: act.body }}
+            />
+          ) : (
+            <p className="whitespace-pre-wrap text-sm text-foreground/90 mt-0.5">{act.body}</p>
+          )
         )}
 
         <div className="mt-1.5 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">

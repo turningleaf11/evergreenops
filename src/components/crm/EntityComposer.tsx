@@ -168,7 +168,20 @@ export function EntityComposer({
             defaultTo={defaultEmail || ""}
             defaultSubject=""
             onClose={() => setTab("note")}
-            onSent={() => {
+            onSent={async (r) => {
+              // Log the sent email onto this entity's timeline so it's tracked.
+              if (user) {
+                await supabase.from("crm_activities").insert({
+                  workspace_id: workspaceId,
+                  entity_type: entityType,
+                  entity_id: entityId,
+                  type: "email",
+                  subject: r.subject ? `Sent: ${r.subject}` : "Sent email",
+                  body: r.body ?? "",
+                  actor_id: user.id,
+                  metadata: { direction: "outbound", to: r.to, gmail_thread_id: r.threadId, gmail_message_id: r.id } as any,
+                });
+              }
               setTab("note");
               onPosted?.();
             }}

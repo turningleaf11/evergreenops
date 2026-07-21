@@ -94,7 +94,7 @@ export function InlineEmailComposer({
   threadId?: string;
   inReplyTo?: string;
   onClose: () => void;
-  onSent?: (result: { threadId?: string; id?: string }) => void;
+  onSent?: (result: { threadId?: string; id?: string; to?: string; subject?: string; body?: string }) => void;
 }) {
   const { user } = useAuth();
   const { id: workspaceId } = useWorkspace();
@@ -202,7 +202,7 @@ export function InlineEmailComposer({
       return;
     }
     toast.success("Sent");
-    onSent?.({ threadId: (data as any)?.threadId, id: (data as any)?.id });
+    onSent?.({ threadId: (data as any)?.threadId, id: (data as any)?.id, to, subject, body: buildHtml() });
     onClose();
   };
 
