@@ -1016,7 +1016,7 @@ export function TransactionDetailSheet({
               </div>
 
               {/* RIGHT RAIL — identity-first sidebar */}
-              <aside className="border-l border-border/40 overflow-auto bg-background">
+              <aside className="border-l border-border/40 overflow-auto bg-background flex flex-col">
                 <div className="p-5 space-y-5">
                   <EntityIdentityBlock
                     title={tx.property_address || "Untitled property"}
@@ -1111,10 +1111,10 @@ export function TransactionDetailSheet({
                       </div>
                     ))}
                   </EntitySidebarSection>
+                </div>
 
-                  <div className="pt-2 text-[11px] text-muted-foreground/70">
-                    Created {format(new Date(tx.created_at), "MMM d, yyyy")}
-                  </div>
+                <div className="mt-auto p-5 pt-3 text-[11px] text-muted-foreground/70">
+                  Created {format(new Date(tx.created_at), "MMM d, yyyy")}
                 </div>
               </aside>
             </div>

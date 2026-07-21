@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Reply, Archive, Trash2, Star, MailOpen, Sparkles } from "lucide-react";
@@ -142,13 +142,7 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
               <div className="text-[10px] text-muted-foreground">{m.headers.date}</div>
             </div>
             {m.bodyHtml ? (
-              <div
-                className="prose prose-sm max-w-none dark:prose-invert text-sm email-body"
-                // Strip embedded <style> / <link> blocks — Gmail messages frequently
-                // include site-wide CSS that leaks into our app (e.g. underlining
-                // every <a> in the sidebar).
-                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(m.bodyHtml) }}
-              />
+              <EmailHtmlFrame html={m.bodyHtml} />
             ) : (
               <pre className="text-sm whitespace-pre-wrap font-sans">{m.bodyText || m.snippet}</pre>
             )}
@@ -160,8 +154,10 @@ export function ThreadDetail({ threadId, onClose, onReply, onMutated }: Props) {
 }
 
 function sanitizeEmailHtml(html: string): string {
+  // The message renders inside a sandboxed iframe (see EmailHtmlFrame), so the
+  // email's own <style> can stay — it's isolated and no longer leaks into the
+  // app. We only strip things that could execute or break out.
   let out = html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<link[^>]*>/gi, "")
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     // Strip <base> tags which can break relative link resolution
@@ -178,4 +174,50 @@ function sanitizeEmailHtml(html: string): string {
   });
 
   return out;
+}
+
+/**
+ * Renders an email's HTML in a sandboxed iframe so it looks like it does in
+ * Gmail — the message's own CSS is preserved but fully isolated from the app
+ * (no style leaks). Scripts are blocked; links open in a new tab. The frame
+ * auto-sizes to its content height.
+ */
+function EmailHtmlFrame({ html }: { html: string }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(120);
+
+  const srcDoc = useMemo(() => {
+    const dark = document.documentElement.classList.contains("dark");
+    return `<!doctype html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <base target="_blank">
+      <style>
+        html,body{margin:0;padding:0;}
+        body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+          font-size:14px;line-height:1.5;color:${dark ? "#e5e7eb" : "#1f2937"};
+          background:transparent;word-break:break-word;overflow-wrap:anywhere;padding:2px;}
+        img{max-width:100%;height:auto;}
+        a{color:${dark ? "#93c5fd" : "#2563eb"};}
+        table{max-width:100%;}
+      </style></head><body>${sanitizeEmailHtml(html)}</body></html>`;
+  }, [html]);
+
+  const resize = () => {
+    const doc = frameRef.current?.contentDocument;
+    if (doc?.body) setHeight(doc.body.scrollHeight + 8);
+  };
+
+  return (
+    <iframe
+      ref={frameRef}
+      title="Email message"
+      srcDoc={srcDoc}
+      // allow-same-origin lets us measure content height; without allow-scripts
+      // the email's own JS still cannot run. allow-popups keeps links clickable.
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      onLoad={resize}
+      className="w-full border-0 bg-transparent"
+      style={{ height }}
+    />
+  );
 }
