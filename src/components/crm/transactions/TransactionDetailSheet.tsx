@@ -564,6 +564,28 @@ export function TransactionDetailSheet({
                       </div>
                     </section>
 
+                    {/* Disposition — how we're exiting (drives the GHL close routing) */}
+                    <section className="space-y-3">
+                      <h3 className="crm-eyebrow">Disposition</h3>
+                      <div className="max-w-xs space-y-1.5">
+                        <Select
+                          value={tx.disposition_strategy ?? ""}
+                          onValueChange={(v) => saveField({ disposition_strategy: v || null } as any)}
+                        >
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Choose a strategy" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="assign">Assign</SelectItem>
+                            <SelectItem value="double_close">Double Close</SelectItem>
+                            <SelectItem value="buy_hold">Buy &amp; Hold (portfolio)</SelectItem>
+                            <SelectItem value="pass">Pass</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">
+                          Sets the close routing to GHL — Assign/Double Close → Dispo, Buy &amp; Hold → Portfolio.
+                        </p>
+                      </div>
+                    </section>
+
                     {/* Property & match criteria — canonical values that drive buyer matching */}
                     <section className="space-y-3">
                       <h3 className="crm-eyebrow">Property</h3>
@@ -1087,52 +1109,6 @@ export function TransactionDetailSheet({
                       onChange={(id) => saveField({ source_contact_id: id })}
                       placeholder="Who sent this?"
                     />
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Disposition strategy">
-                    <select
-                      value={tx.disposition_strategy ?? ""}
-                      onChange={(e) => saveField({ disposition_strategy: e.target.value || null } as any)}
-                      className="w-full text-sm h-9 rounded-md border border-input bg-background px-2"
-                    >
-                      <option value="">Choose a strategy</option>
-                      <option value="buy_hold">Buy &amp; Hold</option>
-                      <option value="assign">Assign</option>
-                      <option value="double_close">Double Close</option>
-                      <option value="pass">Pass</option>
-                    </select>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Closing">
-                    <div className="text-sm">
-                      {tx.closing_date ? (
-                        <>
-                          <div className="font-medium">{tx.closing_date}</div>
-                          <div
-                            className={cn(
-                              "inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border mt-1",
-                              closingCountdownClass(closingDays),
-                            )}
-                          >
-                            {fmtCountdown(closingDays)}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground italic">Not scheduled</span>
-                      )}
-                    </div>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Purchase price">
-                    <div className="text-sm font-semibold tabular-nums">
-                      {fmtMoney(tx.purchase_price)}
-                    </div>
-                  </EntitySidebarSection>
-
-                  <EntitySidebarSection title="Estimated net">
-                    <div className="text-sm tabular-nums text-brand-mint-deep">
-                      {fmtMoney(tx.estimated_net)}
-                    </div>
                   </EntitySidebarSection>
 
                   <EntitySidebarSection title="Created">
