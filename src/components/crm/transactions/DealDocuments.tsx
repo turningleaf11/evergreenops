@@ -104,7 +104,17 @@ export function DealDocuments({ transactionId, onApplied, onCount }: { transacti
     setExtractingId(d.id);
     const { data, error } = await supabase.functions.invoke("extract-deal-doc", { body: { document_id: d.id } });
     setExtractingId(null);
-    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "Couldn't read the document"); return; }
+    if (error || (data as any)?.error) {
+      // On a non-2xx, supabase-js hides the JSON body in error.context — read it
+      // so the user sees the real reason (e.g. an encrypted PDF) not a generic 500.
+      let msg = (data as any)?.error || error?.message || "Couldn't read the document";
+      const ctx = (error as any)?.context;
+      if (ctx && typeof ctx.json === "function") {
+        try { const body = await ctx.json(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
+      }
+      toast.error(msg);
+      return;
+    }
     await load();
     setReview({ ...d, extracted: (data as any).extracted, extraction_status: "done" });
   }

@@ -85,7 +85,18 @@ Deno.serve(async (req) => {
       const t = await r.text();
       console.error("Anthropic error", r.status, t);
       await admin.from("deal_documents").update({ extraction_status: "error" }).eq("id", document_id);
-      return json({ error: `AI error ${r.status}` }, 500);
+      // Surface the real reason. The most common one for a small PDF that fails
+      // fast is an encrypted/secured or scanned-badly PDF that Claude can't open.
+      let detail = "";
+      try { detail = JSON.parse(t)?.error?.message ?? ""; } catch { detail = t.slice(0, 300); }
+      const low = detail.toLowerCase();
+      const friendly =
+        low.includes("encrypt") || low.includes("password") || low.includes("could not process") || low.includes("unable to process")
+          ? "This PDF looks encrypted or password-protected, so it can't be read. Re-save or print it to a plain PDF and re-upload."
+          : low.includes("page")
+            ? "This PDF has too many pages for the reader. Upload just the pages with the dates/terms."
+            : `The reader rejected this document: ${detail || `HTTP ${r.status}`}`;
+      return json({ error: friendly, detail, status: r.status }, 422);
     }
     const data = await r.json();
     const parsed = parseJson(data?.content?.[0]?.text || "{}");
