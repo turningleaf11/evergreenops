@@ -36,7 +36,9 @@ export default function CrmPage() {
   const [search, setSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [openContactId, setOpenContactId] = useUrlState("contact");
-  const [openDealId, setOpenDealId] = useUrlState("deal");
+  // Legacy pipeline-deal peek (retired Pipeline tab). Kept on its own param so it
+  // doesn't collide with ?deal=, which the Deals tab (crm_transactions) owns.
+  const [openDealId, setOpenDealId] = useUrlState("pipelineDeal");
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   // Per-tab "request new" signal counters; tabs watch their counter and open their own dialog.

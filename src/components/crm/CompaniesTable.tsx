@@ -3,6 +3,7 @@ import { Loader2, Building2, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CompanyPeekSheet } from "./CompanyPeekSheet";
+import { useUrlState } from "@/hooks/useUrlState";
 import {
   DataTableShell,
   DataTableHeader,
@@ -25,7 +26,7 @@ const TEMPLATE = "2.4fr 1.4fr 1.4fr 2fr";
 export function CompaniesTable({ search, refreshKey = 0 }: { search: string; refreshKey?: number }) {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useUrlState("company");
 
   const reload = async () => {
     setLoading(true);

@@ -24,6 +24,7 @@ import { NewLeadDialog } from "./NewLeadDialog";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
 import { FollowUpPicker } from "./FollowUpPicker";
 import { LeadPeekSheet } from "./LeadPeekSheet";
+import { useUrlState } from "@/hooks/useUrlState";
 
 interface Lead {
   id: string;
@@ -72,6 +73,8 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
   const [newOpen, setNewOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
   const [openLead, setOpenLead] = useState<Lead | null>(null);
+  // Keep the open lead in the URL (?lead=) so a refresh reopens it.
+  const [leadParam, setLeadParam] = useUrlState("lead");
   
   const [showArchived, setShowArchived] = useState(false);
 
@@ -112,6 +115,19 @@ export function LeadsList({ search, newSignal = 0 }: { search: string; newSignal
   useEffect(() => {
     if (newSignal > 0) setNewOpen(true);
   }, [newSignal]);
+
+  // Mirror the open lead to the URL, and reopen it from the URL after load.
+  useEffect(() => {
+    setLeadParam(openLead?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLead?.id]);
+  useEffect(() => {
+    if (leadParam && !openLead) {
+      const found = leads.find((l) => l.id === leadParam);
+      if (found) setOpenLead(found);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadParam, leads]);
 
   const updateLead = async (id: string, patch: Partial<Lead>) => {
     setLeads((arr) => arr.map((l) => (l.id === id ? { ...l, ...patch } : l)));
