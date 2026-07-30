@@ -10,7 +10,7 @@ import { format, addDays, addMonths, startOfTomorrow, startOfToday } from "date-
 import {
   Link2, Calendar, Users, X, Target, Check, Crown,
   List, PenLine, FolderOpen, Sparkles, MoreHorizontal, Info, MessageSquare, Plus,
-  LayoutGrid, GanttChartSquare, CalendarDays, Table2, FileText, FormInput,
+  LayoutGrid, GanttChartSquare, CalendarDays,
   Copy, Archive, Trash2,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -28,25 +28,26 @@ import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
+import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
+import { ProjectBoardView, ProjectCalendarView, ProjectTimelineView, type ProjectViewType } from "@/components/execution/ProjectTaskViews";
 import { useReportActiveEntity } from "@/contexts/CompanionContext";
 
-// Task views land in the body; + Add view offers the rest (persisted per-project — Phase 1b).
-const VIEWS = [
-  { id: "list",        label: "List",        icon: List },
+// List is the built-in first view; Whiteboards/Files/AI are built-in surfaces.
+// Board/Calendar/Timeline are user-added, persisted per-project in project_views.
+const EXTRA_VIEWS = [
   { id: "whiteboards", label: "Whiteboards", icon: PenLine },
   { id: "files",       label: "Files",       icon: FolderOpen },
   { id: "ai",          label: "AI",          icon: Sparkles },
 ];
-const VALID_VIEWS = VIEWS.map((v) => v.id);
 
-const ADD_VIEW_OPTIONS = [
-  { label: "Board",    icon: LayoutGrid },
-  { label: "Timeline", icon: GanttChartSquare },
-  { label: "Calendar", icon: CalendarDays },
-  { label: "Table",    icon: Table2 },
-  { label: "Doc",      icon: FileText },
-  { label: "Form",     icon: FormInput },
+const ADD_VIEW_OPTIONS: { type: ProjectViewType; label: string; icon: any }[] = [
+  { type: "board",    label: "Board",    icon: LayoutGrid },
+  { type: "calendar", label: "Calendar", icon: CalendarDays },
+  { type: "timeline", label: "Timeline", icon: GanttChartSquare },
 ];
+const VIEW_TYPE_ICON: Record<string, any> = {
+  board: LayoutGrid, calendar: CalendarDays, timeline: GanttChartSquare,
+};
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -68,13 +69,16 @@ export default function ProjectDetailPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [views, setViews] = useState<any[]>([]);
+  const [peekTaskId, setPeekTaskId] = useState<string | null>(null);
 
   const tabKey = id ? `project-view-${id}` : "project-view";
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === "undefined") return "list";
     const stored = localStorage.getItem(tabKey);
-    if (stored && VALID_VIEWS.includes(stored)) return stored;
-    return "list"; // legacy "overview"/"tasks" → land on the work
+    // Allow built-ins and saved-view ids; legacy "overview"/"tasks" → list.
+    if (stored && stored !== "overview" && stored !== "tasks") return stored;
+    return "list";
   });
 
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [pRes, tRes, gRes, prRes, dRes, aRes, cRes] = await Promise.all([
+    const [pRes, tRes, gRes, prRes, dRes, aRes, cRes, vRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
@@ -91,6 +95,7 @@ export default function ProjectDetailPage() {
       supabase.from("documents").select("id, title, updated_at, content").eq("project_id", id).order("updated_at", { ascending: false }),
       supabase.from("project_attachments").select("*").eq("project_id", id).order("created_at", { ascending: false }),
       supabase.from("comments").select("id", { count: "exact", head: true }).eq("entity_type", "project").eq("entity_id", id),
+      (supabase as any).from("project_views").select("*").eq("project_id", id).order("position"),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
     if (tRes.data) setTasks(tRes.data);
@@ -99,6 +104,7 @@ export default function ProjectDetailPage() {
     if (dRes.data) setLinkedDocs(dRes.data);
     if (aRes.data) setAttachments(aRes.data);
     setCommentCount(cRes.count ?? 0);
+    if (vRes.data) setViews(vRes.data);
     setLoading(false);
   }, [id]);
 
@@ -154,6 +160,24 @@ export default function ProjectDetailPage() {
     fetchData();
   };
 
+  const addView = async (type: ProjectViewType, label: string) => {
+    const { data, error } = await (supabase as any)
+      .from("project_views")
+      .insert({ project_id: id, type, name: label, position: views.length, created_by: user?.id })
+      .select("*")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setViews((prev) => [...prev, data]);
+    setActiveTab(data.id);
+  };
+
+  const removeView = async (viewId: string) => {
+    const { error } = await (supabase as any).from("project_views").delete().eq("id", viewId);
+    if (error) { toast.error(error.message); return; }
+    setViews((prev) => prev.filter((v) => v.id !== viewId));
+    if (activeTab === viewId) setActiveTab("list");
+  };
+
   // Details and Activity are peer right-panels — one at a time.
   const openDetails = () => { setActivityOpen(false); setDetailsOpen(true); };
   const openActivity = () => { setDetailsOpen(false); setActivityOpen(true); };
@@ -196,6 +220,13 @@ export default function ProjectDetailPage() {
   if (!project) return <div className="p-6 text-center text-muted-foreground">Project not found.</div>;
 
   const goalTitle = goals.find(g => g.id === project.goal_id)?.title;
+  const activeView = views.find((v) => v.id === activeTab);
+
+  const tabClass = (active: boolean) =>
+    cn(
+      "flex items-center gap-1.5 text-sm px-2 pb-3 pt-1.5 border-b-2 transition-colors -mb-px whitespace-nowrap",
+      active ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
+    );
 
   return (
     <div className="relative h-full flex flex-col overflow-hidden">
@@ -420,32 +451,51 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* ── View row = the container. Task-views + addable surfaces. ─────── */}
-      <div className="flex items-center gap-1 px-6 mt-4 border-b border-border/50 shrink-0">
-        {VIEWS.map(({ id: vid, label, icon: Icon }) => (
-          <button
-            key={vid}
-            onClick={() => setActiveTab(vid)}
-            className={cn(
-              "flex items-center gap-1.5 text-sm px-2 pb-3 pt-1.5 border-b-2 transition-colors -mb-px",
-              activeTab === vid ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
+      {/* ── View row = the container. List + saved views + built-in surfaces. ── */}
+      <div className="flex items-center gap-1 px-6 mt-4 border-b border-border/50 shrink-0 overflow-x-auto">
+        {/* List — built-in */}
+        <button onClick={() => setActiveTab("list")} className={tabClass(activeTab === "list")}>
+          <List className="h-3.5 w-3.5" /> List
+          {tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
+        </button>
+
+        {/* Saved views — user-added, removable */}
+        {views.map((v) => {
+          const Icon = VIEW_TYPE_ICON[v.type] || LayoutGrid;
+          return (
+            <div key={v.id} className="group/vt flex items-center -mb-px">
+              <button onClick={() => setActiveTab(v.id)} className={tabClass(activeTab === v.id)}>
+                <Icon className="h-3.5 w-3.5" /> {v.name}
+              </button>
+              <button
+                onClick={() => removeView(v.id)}
+                title="Remove view"
+                className="opacity-0 group-hover/vt:opacity-100 transition-opacity text-muted-foreground/60 hover:text-destructive -ml-1 mr-1 p-0.5 rounded"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Built-in surfaces */}
+        {EXTRA_VIEWS.map(({ id: vid, label, icon: Icon }) => (
+          <button key={vid} onClick={() => setActiveTab(vid)} className={tabClass(activeTab === vid)}>
             <Icon className="h-3.5 w-3.5" /> {label}
-            {vid === "list" && tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
             {vid === "files" && attachments.length > 0 && <span className="text-[10px] text-muted-foreground">({attachments.length})</span>}
           </button>
         ))}
 
+        {/* + Add view — creates a persisted view */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1 text-sm px-2 pb-3 pt-1.5 text-muted-foreground hover:text-foreground transition-colors">
+            <button className="flex items-center gap-1 text-sm px-2 pb-3 pt-1.5 text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
               <Plus className="h-3.5 w-3.5" /> Add view
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
-            {ADD_VIEW_OPTIONS.map(({ label, icon: Icon }) => (
-              <DropdownMenuItem key={label} onClick={() => toast.info("Custom views are coming soon")}>
+            {ADD_VIEW_OPTIONS.map(({ type, label, icon: Icon }) => (
+              <DropdownMenuItem key={type} onClick={() => addView(type, label)}>
                 <Icon className="h-3.5 w-3.5 mr-2 text-muted-foreground" /> {label}
               </DropdownMenuItem>
             ))}
@@ -463,6 +513,15 @@ export default function ProjectDetailPage() {
             onStatusChange={updateTaskStatus}
             onChanged={fetchData}
           />
+        )}
+        {activeView?.type === "board" && (
+          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} />
+        )}
+        {activeView?.type === "calendar" && (
+          <ProjectCalendarView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />
+        )}
+        {activeView?.type === "timeline" && (
+          <ProjectTimelineView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />
         )}
         {activeTab === "whiteboards" && <ProjectWhiteboardsTab />}
         {activeTab === "files" && <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />}
@@ -549,6 +608,11 @@ export default function ProjectDetailPage() {
         onChanged={fetchData}
         onOpenProject={(pid) => { setPeekGoalId(null); navigate(`/projects/${pid}`); }}
       />
+
+      {/* Task peek for the Board/Calendar/Timeline views (List has its own) */}
+      {peekTaskId && (
+        <TaskPeek id={peekTaskId} open={!!peekTaskId} onClose={() => { setPeekTaskId(null); fetchData(); }} />
+      )}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
