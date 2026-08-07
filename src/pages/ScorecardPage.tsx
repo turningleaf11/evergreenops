@@ -198,9 +198,6 @@ function FunnelRow({
       {/* Name */}
       <div className="min-w-0 pr-2">
         <p className="text-[13px] font-medium text-foreground/85 truncate leading-snug">{metric.name}</p>
-        {metric.description && (
-          <p className="text-[10px] text-muted-foreground/40 leading-tight mt-0.5">{metric.description}</p>
-        )}
       </div>
 
       {/* Progress bar (only when target > 0) */}
