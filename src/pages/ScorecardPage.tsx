@@ -111,6 +111,16 @@ function formatWeek(iso: string): string {
   });
 }
 
+// Pairs Sourcing metrics by the entity their ghl_field_key refers to, so
+// "New Realtors" (realtor:stage:Qualified) and "Deals Sent — Realtors"
+// (dealsent:realtor) land in the same column.
+function sourcingEntity(m: Metric): string | null {
+  const key = (m.ghl_field_key || "").toLowerCase();
+  if (key.startsWith("dealsent:")) return key.slice("dealsent:".length);
+  const colonIdx = key.indexOf(":");
+  return colonIdx > 0 ? key.slice(0, colonIdx) : null;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Department colour palette
 // ──────────────────────────────────────────────────────────────────────────────
@@ -366,6 +376,31 @@ function PipelineFunnelSection({
   // instead of the full row layout.
   const isCountOnly = withTarget.length === 0;
 
+  // Sourcing specifically pairs "New X" with "Deals Sent — X" in one column
+  // (Realtors / Brokers / Wholesalers) instead of the generic wrapping strip.
+  // Anything that doesn't match a known entity falls back below, unmatched
+  // rather than silently dropped, in case a future Sourcing metric doesn't
+  // fit the New-X/Deals-Sent-X pairing.
+  const sourcingColumns = useMemo(() => {
+    if (name !== "Sourcing") return null;
+    const ENTITY_ORDER = ["realtor", "broker", "wholesaler"];
+    const byEntity = new Map<string, Metric[]>();
+    const unmatched: Metric[] = [];
+    for (const m of items) {
+      const ent = sourcingEntity(m);
+      if (ent && ENTITY_ORDER.includes(ent)) {
+        if (!byEntity.has(ent)) byEntity.set(ent, []);
+        byEntity.get(ent)!.push(m);
+      } else {
+        unmatched.push(m);
+      }
+    }
+    return {
+      columns: ENTITY_ORDER.filter((e) => byEntity.has(e)).map((e) => byEntity.get(e)!),
+      unmatched,
+    };
+  }, [name, items]);
+
   return (
     <div className={cn("rounded-xl border overflow-hidden", style.borderClass)} style={{ background: style.dimBg }}>
       {/* Section header */}
@@ -395,11 +430,32 @@ function PipelineFunnelSection({
       </div>
 
       {isCountOnly ? (
-        <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap">
-          {items.map((m) => (
-            <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
-          ))}
-        </div>
+        sourcingColumns ? (
+          <>
+            <div className="grid grid-cols-3 divide-x divide-border/[0.06]">
+              {sourcingColumns.columns.map((col, i) => (
+                <div key={i} className="divide-y divide-border/[0.06]">
+                  {col.map((m) => (
+                    <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            {sourcingColumns.unmatched.length > 0 && (
+              <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap border-t border-border/[0.06]">
+                {sourcingColumns.unmatched.map((m) => (
+                  <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap">
+            {items.map((m) => (
+              <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
+            ))}
+          </div>
+        )
       ) : (
         <>
           {/* Column labels */}
@@ -536,43 +592,42 @@ export default function ScorecardPage() {
     setEntries(await loadEntries(metrics));
   };
 
-  // ── Grouping (for Pipeline Health tab) ────────────────────────────────────
+  // ── Grouping (for Deal Flow tab) ───────────────────────────────────────────
   // Sub-groups by `group_label` when a metric has one (Sourcing/Portfolio/SFR),
   // so metrics sharing one department (e.g. all of Acq) still split into
   // separate sections instead of collapsing into one undifferentiated pile.
-  // Metrics without a group_label (legacy/pre-pivot) group by department as before.
+  // Metrics without a group_label (legacy/pre-pivot) group by department.
+  //
+  // Rank is assigned directly from what each group *is* (group_label, or
+  // department name for the fallback case) rather than by pattern-matching
+  // the display name after the fact — the old fragment-matcher this replaced
+  // ranked by testing whether the display name *contained* a substring like
+  // "seller", which would have wrongly sorted the renamed "Seller Outreach"
+  // legacy section (see below) to the very top instead of the bottom.
   const grouped = useMemo(() => {
-    const groups = new Map<string, { key: string; name: string; deptId: string | null; items: Metric[] }>();
+    const groups = new Map<string, { key: string; name: string; deptId: string | null; rank: number; items: Metric[] }>();
     for (const m of metrics) {
       const deptKey = m.department_id || "__company__";
       const key = m.group_label ? `${deptKey}::${m.group_label}` : deptKey;
       if (!groups.has(key)) {
         const dept = departments.find((d) => d.id === m.department_id);
-        const name = m.group_label
-          ? m.group_label === "Sourcing" ? "Sourcing"
-          : m.group_label === "Portfolio" ? "Portfolio Deals"
-          : m.group_label === "SFR" ? "SFR Deals"
-          : m.group_label
-          : dept?.name || "Company-Wide";
-        groups.set(key, { key, name, deptId: m.department_id, items: [] });
+        let name: string;
+        let rank: number;
+        if (m.group_label === "Sourcing") { name = "Sourcing"; rank = 1; }
+        else if (m.group_label === "Portfolio") { name = "Portfolio Deals"; rank = 2; }
+        else if (m.group_label === "SFR") { name = "SFR Deals"; rank = 3; }
+        else if (m.group_label) { name = m.group_label; rank = 4; }
+        else if (dept?.name === "Dispo") { name = "Dispo"; rank = 4; }
+        else if (dept?.name === "Acq") { name = "Seller Outreach"; rank = 5; }
+        else { name = dept?.name || "Company-Wide"; rank = 99; }
+        groups.set(key, { key, name, deptId: m.department_id, rank, items: [] });
       }
       groups.get(key)!.items.push(m);
     }
-    const SECTION_PRIORITY: [string, number][] = [
-      ["dts", 1], ["seller", 1], ["dta", 2], ["agent", 2],
-      ["listing", 3], ["hawk", 3], ["main", 4], ["sourcing", 3.5],
-      ["dispo", 5], ["portfolio", 6], ["sfr", 6.5],
-    ];
-    const sectionRank = (name: string) => {
-      const n = name.toLowerCase();
-      for (const [key, rank] of SECTION_PRIORITY) { if (n.includes(key)) return rank; }
-      return 99;
-    };
     return Array.from(groups.values()).sort((a, b) => {
       if (!a.deptId && b.deptId) return 1;
       if (a.deptId && !b.deptId) return -1;
-      const ra = sectionRank(a.name), rb = sectionRank(b.name);
-      if (ra !== rb) return ra - rb;
+      if (a.rank !== b.rank) return a.rank - b.rank;
       return a.name.localeCompare(b.name);
     });
   }, [metrics, departments]);
