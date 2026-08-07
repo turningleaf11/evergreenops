@@ -33,7 +33,6 @@ import {
   Check,
   X,
   Zap,
-  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -139,98 +138,6 @@ function getDeptStyle(name: string): DeptStyle {
     return { color: "#8b5cf6", textClass: "text-violet-400", borderClass: "border-violet-500/20", dimBg: "rgba(139,92,246,0.04)" };
   return { color: "#64748b", textClass: "text-slate-400", borderClass: "border-border/40", dimBg: "rgba(100,116,139,0.03)" };
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Business Funnel — layer classification
-// ──────────────────────────────────────────────────────────────────────────────
-type FunnelLayer = "activities" | "engagement" | "pipeline" | "outcome";
-
-function getFunnelLayer(m: Metric): FunnelLayer | null {
-  // Grouped metrics (Sourcing/Portfolio/SFR) render in DealFlowView instead —
-  // without this guard, keys that also match a legacy pattern below (e.g.
-  // dispo:won_count matching "outcome") would render twice on this tab.
-  if (m.group_label) return null;
-
-  const key = (m.ghl_field_key || "").toLowerCase();
-  const name = m.name.toLowerCase().trim();
-
-  // Activities — inputs we control
-  if (
-    key === "calls:total_week" || key === "calls:total_week:team" || key === "calls:total_week:cara" ||
-    key === "calls:connection_rate_week:team" || key === "calls:connection_rate_week:cara" ||
-    name === "calls made" || name === "calls made — team" || name === "calls made — cara" ||
-    name === "connection rate — team" || name === "connection rate — cara"
-  ) return "activities";
-  if (key === "seller:new_week") return "activities";
-
-  // Engagement — seller top-of-funnel signal (no targets)
-  if (key === "seller:stage:in outreach" || name.includes("in active outreach")) return "engagement";
-  if (key === "seller:stage:replied" || name === "leads replied") return "engagement";
-  if (
-    key.startsWith("seller:stage:engaged") ||
-    key.startsWith("seller:stage:warm") ||
-    name.includes("warm / engaged") ||
-    name.includes("warm/engaged") ||
-    name.includes("engaged leads")
-  ) return "engagement";
-
-  // Pipeline — deal stages
-  if (name === "appointments set") return "pipeline"; // DTS bridge to deals
-  if (name === "in underwriting") return "pipeline";
-  if (name === "offer sent") return "pipeline";
-  if (name === "offers under negotiation" || name.includes("under negotiation")) return "pipeline";
-  if (name === "under contract") return "pipeline";
-  if (key === "dispo:active" || name === "active deals in escrow") return "pipeline";
-
-  // Outcome — won deals
-  if (key === "main:won_week" || name === "contracts signed") return "outcome";
-  if (name === "deals closed") return "outcome"; // company-wide total only (not "portfolio deals closed")
-  if (
-    key === "dispo:won_count" || key === "dispo:win_rate" || key === "dispo:revenue" ||
-    name === "deals closed — won" || name === "win rate" || name === "total revenue closed"
-  ) return "outcome";
-
-  return null;
-}
-
-const FUNNEL_LAYER_META: Record<FunnelLayer, {
-  label: string;
-  sublabel: string;
-  color: string;
-  bg: string;
-  borderClass: string;
-}> = {
-  activities: {
-    label: "Activities",
-    sublabel: "What we control this week",
-    color: "#6366f1",
-    bg: "rgba(99,102,241,0.05)",
-    borderClass: "border-indigo-500/25",
-  },
-  engagement: {
-    label: "Engagement",
-    sublabel: "Seller response from outreach",
-    color: "#8b5cf6",
-    bg: "rgba(139,92,246,0.03)",
-    borderClass: "border-violet-500/15",
-  },
-  pipeline: {
-    label: "Deal Pipeline",
-    sublabel: "Active opportunities",
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.04)",
-    borderClass: "border-blue-500/20",
-  },
-  outcome: {
-    label: "Outcome",
-    sublabel: "Deals won",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.05)",
-    borderClass: "border-emerald-500/25",
-  },
-};
-
-const FUNNEL_LAYER_ORDER: FunnelLayer[] = ["activities", "engagement", "pipeline", "outcome"];
 
 // ──────────────────────────────────────────────────────────────────────────────
 // FunnelRow — individual metric with optional progress bar
@@ -423,254 +330,7 @@ function CountCard({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ConversionArrow — separator between funnel layers
-// ──────────────────────────────────────────────────────────────────────────────
-function ConversionArrow({ label, rate }: { label: string; rate: string | null }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 px-8">
-      <div className="flex-1 h-px bg-border/15" />
-      <div className="flex flex-col items-center gap-0.5 min-w-[80px]">
-        <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground/25 font-semibold">{label}</span>
-        {rate && <span className="text-xs font-bold text-muted-foreground/45 tabular-nums">{rate}</span>}
-        <span className="text-sm text-muted-foreground/15 leading-tight">↓</span>
-      </div>
-      <div className="flex-1 h-px bg-border/15" />
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// BusinessFunnelView — full acquisition funnel
-// ──────────────────────────────────────────────────────────────────────────────
-function BusinessFunnelView({
-  metrics,
-  entries,
-  currentWeek,
-  onSave,
-}: {
-  metrics: Metric[];
-  entries: Entry[];
-  currentWeek: string;
-  onSave: (metricId: string, val: string) => Promise<void>;
-}) {
-  const byLayer = useMemo(() => {
-    const out: Record<FunnelLayer, Metric[]> = {
-      activities: [], engagement: [], pipeline: [], outcome: [],
-    };
-    for (const m of metrics) {
-      const layer = getFunnelLayer(m);
-      if (layer) out[layer].push(m);
-    }
-    // Activities: New Leads Loaded always first, then other activity metrics
-    out.activities.sort((a, b) => {
-      const aFirst = a.ghl_field_key === "seller:new_week" ? -1 : 0;
-      const bFirst = b.ghl_field_key === "seller:new_week" ? -1 : 0;
-      if (aFirst !== bFirst) return aFirst - bFirst;
-      return a.sort_order - b.sort_order;
-    });
-    return out;
-  }, [metrics]);
-
-  const entryFor = (metricId: string) =>
-    entries.find((e) => e.metric_id === metricId && e.week_start_date === currentWeek);
-
-  // Conversion rate helpers
-  const getVal = useCallback((layer: FunnelLayer, fragment: string): number | null => {
-    const m = byLayer[layer].find(
-      (m) =>
-        m.name.toLowerCase().includes(fragment.toLowerCase()) ||
-        (m.ghl_field_key || "").toLowerCase().includes(fragment.toLowerCase()),
-    );
-    if (!m) return null;
-    return entryFor(m.id)?.actual_value ?? null;
-  }, [byLayer, entries, currentWeek]); // eslint-disable-line
-
-  const pctRate = (n: number | null, d: number | null): string | null => {
-    if (!n || !d || d === 0) return null;
-    return `${Math.round((n / d) * 100)}%`;
-  };
-
-  const newLeads = getVal("activities", "new leads");
-  const leadsReplied = getVal("engagement", "replied");
-  const warmEngaged = getVal("engagement", "warm");
-  const apptsSet = getVal("pipeline", "appointments set");
-  const contractsSigned = getVal("outcome", "contracts signed");
-
-  const conversionLabels: Record<string, { label: string; rate: string | null }> = {
-    "activities→engagement": { label: "reply rate", rate: pctRate(leadsReplied, newLeads) },
-    "engagement→pipeline":   { label: "appt rate",  rate: pctRate(apptsSet, warmEngaged) },
-    "pipeline→outcome":      { label: "close rate",  rate: pctRate(contractsSigned, apptsSet) },
-  };
-
-  const visibleLayers = FUNNEL_LAYER_ORDER.filter((l) => byLayer[l].length > 0);
-
-  if (visibleLayers.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-        No funnel metrics configured yet.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-0">
-      {visibleLayers.map((layer, i) => {
-        const meta = FUNNEL_LAYER_META[layer];
-        const items = byLayer[layer];
-        const prevLayer = i > 0 ? visibleLayers[i - 1] : null;
-        const conv = prevLayer
-          ? conversionLabels[`${prevLayer}→${layer}`] ?? { label: "", rate: null }
-          : null;
-        const isEngagement = layer === "engagement";
-
-        return (
-          <div key={layer}>
-            {/* Conversion arrow between layers */}
-            {prevLayer && conv && (
-              <ConversionArrow label={conv.label} rate={conv.rate} />
-            )}
-
-            {/* Layer card */}
-            <div
-              className={cn("rounded-xl border overflow-hidden", meta.borderClass)}
-              style={{ background: meta.bg }}
-            >
-              {/* Layer header */}
-              <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: `1px solid ${meta.color}18` }}
-              >
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
-                  {meta.label}
-                </span>
-                <span className="text-[10px] text-muted-foreground/35 font-medium">{meta.sublabel}</span>
-              </div>
-
-              {/* Engagement: horizontal count cards */}
-              {isEngagement ? (
-                <div className="flex items-stretch divide-x divide-border/[0.06]">
-                  {items.map((m) => (
-                    <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
-                  ))}
-                </div>
-              ) : (
-                <>
-                  {/* Column labels */}
-                  <div
-                    className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5"
-                    style={{ borderBottom: `1px solid ${meta.color}0d` }}
-                  >
-                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Metric</span>
-                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Progress</span>
-                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Actual / Target</span>
-                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Status</span>
-                  </div>
-                  {items.map((m) => (
-                    <FunnelRow
-                      key={m.id}
-                      metric={m}
-                      entry={entryFor(m.id)}
-                      accentColor={meta.color}
-                      onSave={onSave}
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// DealFlowView — Sourcing / Portfolio / SFR tracks (Business Funnel tab)
-// ──────────────────────────────────────────────────────────────────────────────
-// Additive, not a replacement: renders only metrics carrying a `group_label`.
-// Metrics without one (legacy/pre-pivot) are untouched and keep rendering via
-// BusinessFunnelView's getFunnelLayer() classifier exactly as before. Portfolio
-// and SFR get their own tracks rather than being blended into shared layers —
-// that split is deliberate (see reference_ghl_api.md), not incidental.
-const GROUP_META: Record<string, { label: string; color: string; bg: string; borderClass: string }> = {
-  Sourcing: { label: "Sourcing", color: "#eab308", bg: "rgba(234,179,8,0.05)", borderClass: "border-yellow-500/25" },
-  Portfolio: { label: "Portfolio Deals", color: "#14b8a6", bg: "rgba(20,184,166,0.04)", borderClass: "border-teal-500/20" },
-  SFR: { label: "SFR Deals", color: "#ec4899", bg: "rgba(236,72,153,0.04)", borderClass: "border-pink-500/20" },
-};
-const GROUP_ORDER = ["Sourcing", "Portfolio", "SFR"];
-
-function DealFlowView({
-  metrics,
-  entries,
-  currentWeek,
-  onSave,
-}: {
-  metrics: Metric[];
-  entries: Entry[];
-  currentWeek: string;
-  onSave: (metricId: string, val: string) => Promise<void>;
-}) {
-  const entryFor = (metricId: string) =>
-    entries.find((e) => e.metric_id === metricId && e.week_start_date === currentWeek);
-
-  const byGroup = useMemo(() => {
-    const out: Record<string, Metric[]> = { Sourcing: [], Portfolio: [], SFR: [] };
-    for (const m of metrics) {
-      if (m.group_label && out[m.group_label]) out[m.group_label].push(m);
-    }
-    for (const key of GROUP_ORDER) out[key].sort((a, b) => a.sort_order - b.sort_order);
-    return out;
-  }, [metrics]);
-
-  const visibleGroups = GROUP_ORDER.filter((g) => byGroup[g].length > 0);
-  if (visibleGroups.length === 0) return null;
-
-  return (
-    <div className="space-y-3 mb-3">
-      {visibleGroups.map((groupKey) => {
-        const meta = GROUP_META[groupKey];
-        const items = byGroup[groupKey];
-        const isSourcing = groupKey === "Sourcing";
-
-        return (
-          <div key={groupKey} className={cn("rounded-xl border overflow-hidden", meta.borderClass)} style={{ background: meta.bg }}>
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${meta.color}18` }}>
-              <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
-                {meta.label}
-              </span>
-            </div>
-
-            {isSourcing ? (
-              <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap">
-                {items.map((m) => (
-                  <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
-                ))}
-              </div>
-            ) : (
-              <>
-                <div
-                  className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5"
-                  style={{ borderBottom: `1px solid ${meta.color}0d` }}
-                >
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Metric</span>
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Progress</span>
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Actual / Target</span>
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Status</span>
-                </div>
-                {items.map((m) => (
-                  <FunnelRow key={m.id} metric={m} entry={entryFor(m.id)} accentColor={meta.color} onSave={onSave} />
-                ))}
-              </>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// PipelineFunnelSection — one per department (Pipeline Health tab)
+// PipelineFunnelSection — one per group/department (Deal Flow tab)
 // ──────────────────────────────────────────────────────────────────────────────
 function PipelineFunnelSection({
   name,
@@ -701,6 +361,11 @@ function PipelineFunnelSection({
   const hasGhl = items.some((m) => m.data_source === "ghl");
   const allPending = withData.length === 0 && hasGhl;
 
+  // Sections where nobody has a target yet (e.g. Sourcing counts) don't need
+  // progress-bar/status columns — render as a compact horizontal count strip
+  // instead of the full row layout.
+  const isCountOnly = withTarget.length === 0;
+
   return (
     <div className={cn("rounded-xl border overflow-hidden", style.borderClass)} style={{ background: style.dimBg }}>
       {/* Section header */}
@@ -729,18 +394,28 @@ function PipelineFunnelSection({
         </div>
       </div>
 
-      {/* Column labels */}
-      <div className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5" style={{ borderBottom: `1px solid ${style.color}0d` }}>
-        <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Metric</span>
-        <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Progress</span>
-        <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Actual / Target</span>
-        <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Status</span>
-      </div>
+      {isCountOnly ? (
+        <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap">
+          {items.map((m) => (
+            <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Column labels */}
+          <div className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5" style={{ borderBottom: `1px solid ${style.color}0d` }}>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Metric</span>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Progress</span>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Actual / Target</span>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Status</span>
+          </div>
 
-      {/* Metric rows */}
-      {items.map((m) => (
-        <FunnelRow key={m.id} metric={m} entry={entryFor(m.id)} accentColor={style.color} onSave={onSave} />
-      ))}
+          {/* Metric rows */}
+          {items.map((m) => (
+            <FunnelRow key={m.id} metric={m} entry={entryFor(m.id)} accentColor={style.color} onSave={onSave} />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -1014,15 +689,11 @@ export default function ScorecardPage() {
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <Tabs defaultValue="funnel" className="space-y-4">
+      <Tabs defaultValue="pipeline" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="funnel" className="gap-1.5">
-            <GitBranch className="h-3.5 w-3.5" />
-            Business Funnel
-          </TabsTrigger>
-          <TabsTrigger value="health" className="gap-1.5">
+          <TabsTrigger value="pipeline" className="gap-1.5">
             <Target className="h-3.5 w-3.5" />
-            Pipeline Health
+            Deal Flow
           </TabsTrigger>
           <TabsTrigger value="trends" className="gap-1.5">
             <BarChart3 className="h-3.5 w-3.5" />
@@ -1030,32 +701,8 @@ export default function ScorecardPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Business Funnel ──────────────────────────────────────────── */}
-        <TabsContent value="funnel" className="space-y-0 mt-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-20 text-muted-foreground/40">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />Loading scorecard…
-            </div>
-          ) : (
-            <>
-              <DealFlowView
-                metrics={metrics}
-                entries={entries}
-                currentWeek={currentWeek}
-                onSave={saveEntry}
-              />
-              <BusinessFunnelView
-                metrics={metrics}
-                entries={entries}
-                currentWeek={currentWeek}
-                onSave={saveEntry}
-              />
-            </>
-          )}
-        </TabsContent>
-
-        {/* ── Pipeline Health ──────────────────────────────────────────── */}
-        <TabsContent value="health" className="space-y-3 mt-0">
+        {/* ── Deal Flow ─────────────────────────────────────────────────── */}
+        <TabsContent value="pipeline" className="space-y-3 mt-0">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-muted-foreground/40">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />Loading scorecard…
