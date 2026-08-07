@@ -1,5 +1,5 @@
 /**
- * scorecard-ghl-sync v37
+ * scorecard-ghl-sync v38
  *
  * GHL API v2021-07-28:
  *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
@@ -19,8 +19,11 @@
  *
  * Calls channel breakdown (needs a GHL contact lookup per distinct caller —
  * see fetchContactChannel/mapWithConcurrency):
- *   calls:total_week:realtor|broker|wholesaler|seller
- *   calls:connection_rate_week:realtor|broker|wholesaler|seller
+ *   calls:total_week:realtor|broker|wholesaler|seller       - raw count
+ *   calls:connected_week:realtor|broker|wholesaler|seller   - raw connected
+ *     count, NOT a rate (unlike calls:connection_rate_week:team/cara above —
+ *     Autumn wants channel-level "Connected" tracked as a headcount target,
+ *     e.g. "connect with 20 brokers this week", confirmed 2026-08-07).
  *   Realtor/Broker/Wholesaler classified by contact tag; Seller by GHL's
  *   native `type === "seller_lead"` field (not a tag, not a custom field).
  *
@@ -482,7 +485,12 @@ Deno.serve(async (req) => {
         k === "calls:total_week" || k === "calls:total_week:team" || k === "calls:total_week:cara" ||
         k === "calls:connection_rate_week:team" || k === "calls:connection_rate_week:cara"
       ) return true;
-      return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`);
+      // Channel breakdown uses raw connected-call counts (calls:connected_week:X),
+      // not a rate — distinct from the team/cara connection_rate_week keys above.
+      // "Connection Rate — Total" stays a %; "Connected — Realtor/Broker/
+      // Wholesaler/Seller" are headcounts (unit "#" in scorecard_metrics),
+      // per Autumn 2026-08-07.
+      return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connected_week:${ch}`);
     };
 
     const callsMetrics = needed.filter((m: any) => isCallsKey(m.ghl_field_key));
@@ -543,7 +551,7 @@ Deno.serve(async (req) => {
       // Supabase count above.
       const needsChannelBreakdown = callsMetrics.some((m: any) => {
         const k = (m.ghl_field_key as string).trim().toLowerCase();
-        return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`);
+        return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connected_week:${ch}`);
       });
 
       const channelTotals: Record<string, number> = { realtor: 0, broker: 0, wholesaler: 0, seller: 0 };
@@ -561,7 +569,7 @@ Deno.serve(async (req) => {
           channelBreakdownFailed = true;
           for (const m of callsMetrics) {
             const k = (m.ghl_field_key as string).trim().toLowerCase();
-            if (CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`)) {
+            if (CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connected_week:${ch}`)) {
               errors.push({ metric_id: m.id, error: `orbit_call_events error: ${weekEventsErr.message}` });
             }
           }
@@ -593,7 +601,7 @@ Deno.serve(async (req) => {
         let value: number;
 
         const channelMatch = CALLS_CHANNELS.find((ch) => key === `calls:total_week:${ch}`);
-        const connChannelMatch = CALLS_CHANNELS.find((ch) => key === `calls:connection_rate_week:${ch}`);
+        const connChannelMatch = CALLS_CHANNELS.find((ch) => key === `calls:connected_week:${ch}`);
 
         if (key === "calls:total_week:team") value = teamTotal;
         else if (key === "calls:total_week:cara") value = caraTotal;
@@ -605,9 +613,7 @@ Deno.serve(async (req) => {
           value = channelTotals[channelMatch] ?? 0;
         } else if (connChannelMatch) {
           if (channelBreakdownFailed) continue; // error already recorded above
-          const total = channelTotals[connChannelMatch] ?? 0;
-          const conn = channelConn[connChannelMatch] ?? 0;
-          value = total > 0 ? Math.round((conn / total) * 100 * 10) / 10 : 0;
+          value = channelConn[connChannelMatch] ?? 0; // raw count, not a rate — see isCallsKey comment
         } else continue;
 
         const isTeamOrCaraKey = key === "calls:total_week:team" || key === "calls:total_week:cara" ||
