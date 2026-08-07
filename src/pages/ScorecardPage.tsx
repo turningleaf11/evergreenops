@@ -140,6 +140,8 @@ function getDeptStyle(name: string): DeptStyle {
     return { color: "#10b981", textClass: "text-emerald-400", borderClass: "border-emerald-500/20", dimBg: "rgba(16,185,129,0.04)" };
   if (n.includes("portfolio"))
     return { color: "#14b8a6", textClass: "text-teal-400", borderClass: "border-teal-500/20", dimBg: "rgba(20,184,166,0.04)" };
+  if (n.includes("outreach"))
+    return { color: "#f97316", textClass: "text-orange-400", borderClass: "border-orange-500/20", dimBg: "rgba(249,115,22,0.04)" };
   if (n.includes("sourcing"))
     return { color: "#eab308", textClass: "text-yellow-400", borderClass: "border-yellow-500/20", dimBg: "rgba(234,179,8,0.04)" };
   if (n.includes("sfr"))
@@ -613,7 +615,8 @@ export default function ScorecardPage() {
         const dept = departments.find((d) => d.id === m.department_id);
         let name: string;
         let rank: number;
-        if (m.group_label === "Sourcing") { name = "Sourcing"; rank = 1; }
+        if (m.group_label === "Outreach") { name = "Outreach"; rank = 0.5; }
+        else if (m.group_label === "Sourcing") { name = "Sourcing"; rank = 1; }
         else if (m.group_label === "Portfolio") { name = "Portfolio Deals"; rank = 2; }
         else if (m.group_label === "SFR") { name = "SFR Deals"; rank = 3; }
         else if (m.group_label) { name = m.group_label; rank = 4; }

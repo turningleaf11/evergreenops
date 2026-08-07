@@ -1,5 +1,5 @@
 /**
- * scorecard-ghl-sync v36
+ * scorecard-ghl-sync v37
  *
  * GHL API v2021-07-28:
  *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
@@ -10,12 +10,19 @@
  *   - Large pipelines (≥2900 opps, e.g. Seller Outreach 17k): fall back to
  *     pipeline_stage_id filter + meta.total.
  *
- * Calls metrics (orbit_call_events, no GHL API needed):
+ * Calls metrics (orbit_call_events, no GHL API needed for team/cara/total):
  *   calls:total_week          - all users (legacy key, still supported)
- *   calls:total_week:team     - human reps only (excludes Cara)
+ *   calls:total_week:team     - human reps only (excludes Cara) — displayed as "Total"
  *   calls:total_week:cara     - Cara VA only
  *   calls:connection_rate_week:team  - connection % for human reps this week
  *   calls:connection_rate_week:cara  - connection % for Cara this week
+ *
+ * Calls channel breakdown (needs a GHL contact lookup per distinct caller —
+ * see fetchContactChannel/mapWithConcurrency):
+ *   calls:total_week:realtor|broker|wholesaler|seller
+ *   calls:connection_rate_week:realtor|broker|wholesaler|seller
+ *   Realtor/Broker/Wholesaler classified by contact tag; Seller by GHL's
+ *   native `type === "seller_lead"` field (not a tag, not a custom field).
  *
  * Dispo pipeline metrics (Dispo Active Deals, hardcoded pipeline ID):
  *   dispo:active     - open deal count (all non-won, non-lost)
@@ -191,6 +198,53 @@ async function fetchStageCount(
     page++;
   }
   return count;
+}
+
+/**
+ * Runs `fn` over `items` with at most `limit` in flight at once — used for
+ * per-contact GHL lookups (calls channel classification), where volume is
+ * high enough (~150-250/week) that fully sequential would be slow, but
+ * unbounded Promise.all risks hammering GHL's rate limit.
+ */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
+/**
+ * Classifies a contact into a calls-tracking channel. Realtor/Broker/
+ * Wholesaler use the `tags` array (same mechanism as `dealsent:`). Sellers
+ * use GHL's native `type` field ("seller_lead") — NOT a tag and NOT a custom
+ * field; verified live 2026-08-07 that no location custom field is named
+ * "Contact Type" and that seller-outreach contacts consistently have
+ * `type: "seller_lead"` (10/10 sampled). Checked in this order; first match
+ * wins; returns null if the contact matches none (still counts toward the
+ * Total, just not toward a channel).
+ */
+async function fetchContactChannel(apiKey: string, contactId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Version: "2021-07-28", Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const tags: string[] = (data.contact?.tags ?? []).map((t: string) => t.toLowerCase());
+    if (tags.includes("realtor")) return "realtor";
+    if (tags.includes("broker")) return "broker";
+    if (tags.includes("wholesaler")) return "wholesaler";
+    if (data.contact?.type === "seller_lead") return "seller";
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Pipeline alias resolution ─────────────────────────────────────────────────
@@ -420,13 +474,15 @@ Deno.serve(async (req) => {
 
     // ── 1. CALLS METRICS (orbit_call_events — no GHL API) ────────────────────
 
+    const CALLS_CHANNELS = ["realtor", "broker", "wholesaler", "seller"];
+
     const isCallsKey = (key: string) => {
       const k = key.trim().toLowerCase();
-      return k === "calls:total_week" ||
-        k === "calls:total_week:team" ||
-        k === "calls:total_week:cara" ||
-        k === "calls:connection_rate_week:team" ||
-        k === "calls:connection_rate_week:cara";
+      if (
+        k === "calls:total_week" || k === "calls:total_week:team" || k === "calls:total_week:cara" ||
+        k === "calls:connection_rate_week:team" || k === "calls:connection_rate_week:cara"
+      ) return true;
+      return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`);
     };
 
     const callsMetrics = needed.filter((m: any) => isCallsKey(m.ghl_field_key));
@@ -481,21 +537,87 @@ Deno.serve(async (req) => {
 
       console.log(`calls team=${teamTotal} cara=${caraTotal} teamConn=${teamConn}(${teamConnRate}%) caraConn=${caraConn}(${caraConnRate}%)`);
 
+      // Channel breakdown (Realtor/Broker/Wholesaler/Seller) — only computed
+      // when actually requested, since it needs one GHL contact lookup per
+      // distinct caller this week (see fetchContactChannel), unlike the plain
+      // Supabase count above.
+      const needsChannelBreakdown = callsMetrics.some((m: any) => {
+        const k = (m.ghl_field_key as string).trim().toLowerCase();
+        return CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`);
+      });
+
+      const channelTotals: Record<string, number> = { realtor: 0, broker: 0, wholesaler: 0, seller: 0 };
+      const channelConn: Record<string, number> = { realtor: 0, broker: 0, wholesaler: 0, seller: 0 };
+      let channelBreakdownFailed = false;
+
+      if (needsChannelBreakdown) {
+        const { data: weekEvents, error: weekEventsErr } = await adminClient
+          .from("orbit_call_events")
+          .select("contact_id, duration_seconds")
+          .gte("occurred_at", weekStartIso)
+          .lt("occurred_at", nextWeekIso);
+
+        if (weekEventsErr) {
+          channelBreakdownFailed = true;
+          for (const m of callsMetrics) {
+            const k = (m.ghl_field_key as string).trim().toLowerCase();
+            if (CALLS_CHANNELS.some((ch) => k === `calls:total_week:${ch}` || k === `calls:connection_rate_week:${ch}`)) {
+              errors.push({ metric_id: m.id, error: `orbit_call_events error: ${weekEventsErr.message}` });
+            }
+          }
+        } else {
+          const events = (weekEvents ?? []).filter((e: any) => !!e.contact_id);
+          const contactIds = [...new Set(events.map((e: any) => e.contact_id as string))];
+          console.log(`Channel breakdown: ${events.length} call events, ${contactIds.length} distinct contacts to classify`);
+
+          const classified = await mapWithConcurrency(contactIds, 8, async (id: string) => ({
+            id,
+            channel: await fetchContactChannel(ghlApiKey, id),
+          }));
+          const channelByContact = new Map<string, string | null>(classified.map((c) => [c.id, c.channel]));
+
+          for (const e of events) {
+            const channel = channelByContact.get(e.contact_id as string);
+            if (!channel) continue;
+            channelTotals[channel] = (channelTotals[channel] ?? 0) + 1;
+            if ((e.duration_seconds ?? 0) >= CONNECTION_DURATION_THRESHOLD) {
+              channelConn[channel] = (channelConn[channel] ?? 0) + 1;
+            }
+          }
+          console.log(`Channel totals: ${JSON.stringify(channelTotals)}, connected: ${JSON.stringify(channelConn)}`);
+        }
+      }
+
       for (const m of callsMetrics) {
         const key = (m.ghl_field_key as string).trim().toLowerCase();
         let value: number;
+
+        const channelMatch = CALLS_CHANNELS.find((ch) => key === `calls:total_week:${ch}`);
+        const connChannelMatch = CALLS_CHANNELS.find((ch) => key === `calls:connection_rate_week:${ch}`);
 
         if (key === "calls:total_week:team") value = teamTotal;
         else if (key === "calls:total_week:cara") value = caraTotal;
         else if (key === "calls:total_week") value = legacyTotal;
         else if (key === "calls:connection_rate_week:team") value = teamConnRate;
         else if (key === "calls:connection_rate_week:cara") value = caraConnRate;
-        else continue;
+        else if (channelMatch) {
+          if (channelBreakdownFailed) continue; // error already recorded above
+          value = channelTotals[channelMatch] ?? 0;
+        } else if (connChannelMatch) {
+          if (channelBreakdownFailed) continue; // error already recorded above
+          const total = channelTotals[connChannelMatch] ?? 0;
+          const conn = channelConn[connChannelMatch] ?? 0;
+          value = total > 0 ? Math.round((conn / total) * 100 * 10) / 10 : 0;
+        } else continue;
 
-        const errQuery = teamTotalRes.error || caraTotalRes.error || teamConnRes.error || caraConnRes.error;
-        if (errQuery) {
-          errors.push({ metric_id: m.id, error: `orbit_call_events error: ${errQuery.message}` });
-          continue;
+        const isTeamOrCaraKey = key === "calls:total_week:team" || key === "calls:total_week:cara" ||
+          key === "calls:total_week" || key === "calls:connection_rate_week:team" || key === "calls:connection_rate_week:cara";
+        if (isTeamOrCaraKey) {
+          const errQuery = teamTotalRes.error || caraTotalRes.error || teamConnRes.error || caraConnRes.error;
+          if (errQuery) {
+            errors.push({ metric_id: m.id, error: `orbit_call_events error: ${errQuery.message}` });
+            continue;
+          }
         }
 
         const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
