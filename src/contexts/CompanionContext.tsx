@@ -5,8 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { assembleStrategyContext, type AssembledStrategyContext } from "@/lib/strategy-context";
 import { setAlbusDockOpen } from "@/lib/albus-dock";
+import { streamChat } from "@/lib/ai-stream";
 import { toast } from "sonner";
 import type { SaveDestination } from "@/components/companion/SaveToAppDialog";
+
+export interface ProposedTask {
+  title: string;
+  description?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+}
 
 export interface Message {
   /** ai_strategy_messages row id (null while streaming, set after persistence) */
@@ -15,6 +22,10 @@ export interface Message {
   content: string;
   saved_to_type?: SaveDestination | null;
   saved_to_id?: string | null;
+  /** propose_tasks tool call — only fires when the active entity is a project. */
+  proposedTasks?: ProposedTask[];
+  proposedIntro?: string;
+  tasksCreated?: boolean;
 }
 
 export interface ThreadSummary {
@@ -54,6 +65,11 @@ interface CompanionContextType {
   refreshThreads: () => Promise<void>;
   /** Mark a message as saved (updates local state) */
   markMessageSaved: (messageId: string, dest: SaveDestination, savedId: string) => void;
+  /** Create the tasks a propose_tasks tool call proposed on a given message, scoped to the active project. */
+  createProposedTasks: (messageIndex: number) => Promise<void>;
+  /** Drop one proposed task from a message's list before it's created. */
+  removeProposedTask: (messageIndex: number, taskIndex: number) => void;
+  creatingTasksFor: number | null;
 }
 
 export const CompanionContext = createContext<CompanionContextType | null>(null);
@@ -80,72 +96,6 @@ async function fetchLiveSnapshot() {
     openIssues: issuesRes.data || [],
     recentActivity: activityRes.data || [],
   };
-}
-
-/** Stream from ceo-chat edge function and forward each delta to onDelta */
-async function streamChat(body: any, onDelta: (chunk: string) => void) {
-  const resp = await fetch(CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const errorData = await resp.json().catch(() => ({ error: "Request failed" }));
-    if (resp.status === 429) toast.error("Rate limit exceeded. Please wait a moment and try again.");
-    else if (resp.status === 402) toast.error("AI credits exhausted. Add funds in Settings → Workspace → Usage.");
-    throw new Error(errorData.error || "Failed to get response");
-  }
-  if (!resp.body) throw new Error("No response body");
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let textBuffer = "";
-  let streamDone = false;
-
-  while (!streamDone) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    textBuffer += decoder.decode(value, { stream: true });
-
-    let newlineIndex: number;
-    while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-      let line = textBuffer.slice(0, newlineIndex);
-      textBuffer = textBuffer.slice(newlineIndex + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (line.startsWith(":") || line.trim() === "") continue;
-      if (!line.startsWith("data: ")) continue;
-      const jsonStr = line.slice(6).trim();
-      if (jsonStr === "[DONE]") { streamDone = true; break; }
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (content) onDelta(content);
-      } catch {
-        textBuffer = line + "\n" + textBuffer;
-        break;
-      }
-    }
-  }
-
-  if (textBuffer.trim()) {
-    for (let raw of textBuffer.split("\n")) {
-      if (!raw) continue;
-      if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-      if (raw.startsWith(":") || raw.trim() === "") continue;
-      if (!raw.startsWith("data: ")) continue;
-      const jsonStr = raw.slice(6).trim();
-      if (jsonStr === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (content) onDelta(content);
-      } catch { /* ignore */ }
-    }
-  }
 }
 
 /** Generate a 4-5 word title from the first user message via the AI gateway (non-streaming). */
@@ -254,9 +204,9 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
   const selectThread = useCallback(async (id: string) => {
     setActiveThreadId(id);
     greetingSent.current = true;
-    const { data: rows } = await supabase
+    const { data: rows } = await (supabase as any)
       .from("ai_strategy_messages")
-      .select("id,role,content,saved_to_type,saved_to_id")
+      .select("id,role,content,saved_to_type,saved_to_id,proposed_tasks,tasks_created")
       .eq("thread_id", id)
       .order("created_at", { ascending: true });
     setMessages(
@@ -266,6 +216,8 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         content: r.content,
         saved_to_type: r.saved_to_type ?? null,
         saved_to_id: r.saved_to_id ?? null,
+        proposedTasks: r.proposed_tasks ?? undefined,
+        tasksCreated: r.tasks_created ?? false,
       })),
     );
   }, []);
@@ -295,6 +247,46 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
   const markMessageSaved = useCallback((messageId: string, dest: SaveDestination, savedId: string) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, saved_to_type: dest, saved_to_id: savedId } : m)),
+    );
+  }, []);
+
+  const [creatingTasksFor, setCreatingTasksFor] = useState<number | null>(null);
+
+  // Create the tasks a propose_tasks tool call proposed, scoped to whichever
+  // project is active (this only fires when currentEntity.type === "project").
+  const createProposedTasks = useCallback(async (messageIndex: number) => {
+    const msg = messages[messageIndex];
+    if (!msg?.proposedTasks?.length || !activeEntity || activeEntity.type !== "project" || !user?.id) return;
+    setCreatingTasksFor(messageIndex);
+    try {
+      const rows = msg.proposedTasks.map((t) => ({
+        title: t.title,
+        description: t.description || null,
+        priority: t.priority || "medium",
+        project_id: activeEntity.id,
+        created_by: user.id,
+      }));
+      const { error } = await supabase.from("tasks").insert(rows as any);
+      if (error) throw error;
+      toast.success(`Added ${rows.length} task${rows.length === 1 ? "" : "s"} to ${activeEntity.title}`);
+      setMessages((prev) => prev.map((m, i) => (i === messageIndex ? { ...m, tasksCreated: true } : m)));
+      if (msg.id) await (supabase as any).from("ai_strategy_messages").update({ tasks_created: true }).eq("id", msg.id);
+      // Let the project page (if open) know to refetch its task list.
+      window.dispatchEvent(new CustomEvent("albus-tasks-created", { detail: { projectId: activeEntity.id } }));
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create tasks");
+    } finally {
+      setCreatingTasksFor(null);
+    }
+  }, [messages, activeEntity, user?.id]);
+
+  const removeProposedTask = useCallback((messageIndex: number, taskIndex: number) => {
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === messageIndex && m.proposedTasks
+          ? { ...m, proposedTasks: m.proposedTasks.filter((_, ti) => ti !== taskIndex) }
+          : m,
+      ),
     );
   }, []);
 
@@ -328,11 +320,15 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
           }),
         ]);
         await streamChat({
-          messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
-          ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
-          strategyContext,
-          liveSnapshot,
-        }, upsertAssistant);
+          url: CHAT_URL,
+          body: {
+            messages: [{ role: "user", content: "[MORNING_BRIEFING]" }],
+            ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
+            strategyContext,
+            liveSnapshot,
+          },
+          onTextDelta: upsertAssistant,
+        });
       } catch (e) {
         console.error("Briefing error:", e);
         setMessages([{ id: null, role: "assistant", content: "Good morning. I had trouble loading your briefing — ask me anything to get started." }]);
@@ -400,11 +396,12 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       const history = [...messages, userMsg].slice(-10).map((m) => ({ role: m.role, content: m.content }));
 
       let assistantSoFar = "";
+      let assistantProposedTasks: ProposedTask[] | undefined;
       const upsertAssistant = (chunk: string) => {
         assistantSoFar += chunk;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
-          if (last?.role === "assistant") {
+          if (last?.role === "assistant" && !last.id) {
             return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
           }
           return [...prev, { id: null, role: "assistant", content: assistantSoFar }];
@@ -412,18 +409,39 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
       };
 
       await streamChat({
-        messages: history,
-        ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
-        strategyContext,
-      }, upsertAssistant);
+        url: CHAT_URL,
+        body: {
+          messages: history,
+          ceoContext: { ...data, currentPage: location.pathname, currentEntity: activeEntity },
+          strategyContext,
+        },
+        onTextDelta: upsertAssistant,
+        onToolCall: ({ name, args }) => {
+          if (name !== "propose_tasks" || !Array.isArray(args?.tasks)) return;
+          assistantProposedTasks = args.tasks;
+          const intro: string | undefined = args.intro;
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && !last.id) {
+              return prev.map((m, i) =>
+                i === prev.length - 1
+                  ? { ...m, proposedTasks: args.tasks, proposedIntro: intro, content: m.content || intro || "Here are tasks I'd propose:" }
+                  : m,
+              );
+            }
+            return [...prev, { id: null, role: "assistant", content: intro || "Here are tasks I'd propose:", proposedTasks: args.tasks }];
+          });
+        },
+      });
 
-      if (assistantSoFar.trim()) {
-        const { data: insertedAssistant } = await supabase
+      if (assistantSoFar.trim() || assistantProposedTasks) {
+        const { data: insertedAssistant } = await (supabase as any)
           .from("ai_strategy_messages")
           .insert({
             thread_id: threadId,
             role: "assistant",
-            content: assistantSoFar,
+            content: assistantSoFar || "Here are tasks I'd propose:",
+            proposed_tasks: assistantProposedTasks ?? null,
           })
           .select("id")
           .single();
@@ -496,6 +514,9 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
         archiveThread,
         refreshThreads,
         markMessageSaved,
+        createProposedTasks,
+        removeProposedTask,
+        creatingTasksFor,
       }}
     >
       {children}

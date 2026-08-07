@@ -25,19 +25,19 @@ import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
 import ProjectTasksTab from "@/components/execution/ProjectTasksTab";
 import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab";
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
-import ProjectAiTab from "@/components/execution/ProjectAiTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
 import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
 import { ProjectBoardView, ProjectCalendarView, ProjectTimelineView, type ProjectViewType } from "@/components/execution/ProjectTaskViews";
-import { useReportActiveEntity } from "@/contexts/CompanionContext";
+import { useReportActiveEntity, useCompanion } from "@/contexts/CompanionContext";
 
-// List is the built-in first view; Whiteboards/Files/AI are built-in surfaces.
+// List is the built-in first view; Whiteboards/Files are built-in surfaces.
 // Board/Calendar/Timeline are user-added, persisted per-project in project_views.
+// AI lives in Albus now (the FAB) — open it while viewing this project for the
+// same propose-tasks capability the old per-project AI tab had.
 const EXTRA_VIEWS = [
   { id: "whiteboards", label: "Whiteboards", icon: PenLine },
   { id: "files",       label: "Files",       icon: FolderOpen },
-  { id: "ai",          label: "AI",          icon: Sparkles },
 ];
 
 const ADD_VIEW_OPTIONS: { type: ProjectViewType; label: string; icon: any }[] = [
@@ -112,6 +112,19 @@ export default function ProjectDetailPage() {
 
   // Tell Albus which project you're viewing (context-aware).
   useReportActiveEntity(project ? { type: "project", id: project.id, title: project.title } : null);
+  const companion = useCompanion();
+
+  // When Albus adds tasks he proposed for this project (the old per-project AI
+  // tab's capability, folded into the companion), refetch so the List/Board/
+  // Calendar/Timeline views pick them up.
+  useEffect(() => {
+    const onTasksCreated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { projectId?: string } | undefined;
+      if (detail?.projectId === id) fetchData();
+    };
+    window.addEventListener("albus-tasks-created", onTasksCreated);
+    return () => window.removeEventListener("albus-tasks-created", onTasksCreated);
+  }, [id, fetchData]);
 
   const getName = (uid: string | null) =>
     !uid ? "Unassigned" : profiles.find(p => p.user_id === uid)?.full_name || "Unknown";
@@ -273,6 +286,17 @@ export default function ProjectDetailPage() {
           />
 
           <div className="ml-auto flex items-center gap-1">
+            {/* Ask Albus — the old per-project AI tab folded into the companion.
+                Opens the docked Albus, already scoped to this project via
+                useReportActiveEntity above (propose_tasks works from here). */}
+            <button
+              onClick={() => companion.setOpen(true)}
+              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+              title="Ask Albus about this project"
+              aria-label="Ask Albus about this project"
+            >
+              <Sparkles className="h-4 w-4" />
+            </button>
             {/* Info → Details panel (reference; rarely opened) */}
             <button
               onClick={openDetails}
@@ -525,16 +549,6 @@ export default function ProjectDetailPage() {
         )}
         {activeTab === "whiteboards" && <ProjectWhiteboardsTab />}
         {activeTab === "files" && <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />}
-        {activeTab === "ai" && (
-          <ProjectAiTab
-            project={project}
-            tasks={tasks}
-            profiles={profiles}
-            linkedDocs={linkedDocs}
-            goalTitle={goalTitle}
-            onTasksCreated={fetchData}
-          />
-        )}
       </div>
 
       {/* ── Details panel — record properties. Opens on the info icon. ──── */}

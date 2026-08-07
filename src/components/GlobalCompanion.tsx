@@ -3,12 +3,17 @@ import { CompanionContext } from "@/contexts/CompanionContext";
 import { ALBUS_DOCK_WIDTH } from "@/lib/albus-dock";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare, Bookmark, Check, X } from "lucide-react";
+import {
+  Bot, User, Loader2, Plus, Search, MoreHorizontal, Archive, Pencil, MessageSquare,
+  Bookmark, Check, X, ListChecks,
+} from "lucide-react";
 import { ChatInputShell } from "@/components/chat/ChatInputShell";
 import { AlbusAvatar } from "@/components/AlbusAvatar";
 import { useDailyBriefing } from "@/hooks/useDailyBriefing";
 import ReactMarkdown from "react-markdown";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { SaveToAppDialog, SAVE_DEST_LABELS, type SaveDestination } from "@/components/companion/SaveToAppDialog";
 
@@ -47,6 +52,10 @@ export function GlobalCompanion() {
   const renameThread = companionCtx?.renameThread ?? (async () => {});
   const archiveThread = companionCtx?.archiveThread ?? (async () => {});
   const markMessageSaved = companionCtx?.markMessageSaved ?? (() => {});
+  const activeEntity = companionCtx?.activeEntity ?? null;
+  const createProposedTasks = companionCtx?.createProposedTasks ?? (async () => {});
+  const removeProposedTask = companionCtx?.removeProposedTask ?? (() => {});
+  const creatingTasksFor = companionCtx?.creatingTasksFor ?? null;
 
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -282,6 +291,57 @@ export function GlobalCompanion() {
                               <Bookmark className="h-2.5 w-2.5" />
                               {savedLabel ? "Save again →" : "Save →"}
                             </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* propose_tasks — the capability folded in from the old per-project AI tab.
+                          Only fires when Albus was opened while viewing a project. */}
+                      {isAssistant && msg.proposedTasks && msg.proposedTasks.length > 0 && (
+                        <div className="w-full rounded-xl border border-border bg-background p-3 space-y-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                              <ListChecks className="h-3.5 w-3.5" />
+                              Proposed tasks ({msg.proposedTasks.length})
+                              {activeEntity?.type === "project" && <span className="normal-case font-normal">for {activeEntity.title}</span>}
+                            </div>
+                            {msg.tasksCreated && <Badge variant="secondary" className="gap-1 text-[10px]"><Check className="h-3 w-3" /> Added</Badge>}
+                          </div>
+                          <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
+                            {msg.proposedTasks.map((t, ti) => (
+                              <div key={ti} className="flex items-start gap-2 text-sm rounded-lg px-2.5 py-1.5 hover:bg-accent/40 group">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">{t.title}</div>
+                                  {t.description && <div className="text-xs text-muted-foreground line-clamp-2">{t.description}</div>}
+                                </div>
+                                {t.priority && <Badge variant="outline" className="text-[10px] shrink-0">{t.priority}</Badge>}
+                                {!msg.tasksCreated && (
+                                  <button
+                                    onClick={() => removeProposedTask(i, ti)}
+                                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {!msg.tasksCreated && (
+                            activeEntity?.type === "project" ? (
+                              <div className="flex items-center justify-end gap-2 pt-1">
+                                <Button
+                                  size="sm"
+                                  onClick={() => createProposedTasks(i)}
+                                  disabled={creatingTasksFor === i || msg.proposedTasks.length === 0}
+                                  className="h-8 gap-1.5"
+                                >
+                                  {creatingTasksFor === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                                  Add {msg.proposedTasks.length} task{msg.proposedTasks.length === 1 ? "" : "s"}
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground/70 pt-1">Open a project to add these tasks to it.</p>
+                            )
                           )}
                         </div>
                       )}

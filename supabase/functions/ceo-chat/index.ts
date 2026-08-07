@@ -98,6 +98,41 @@ function formatStrategyContext(ctx: any): string {
   return parts.join("\n\n");
 }
 
+// propose_tasks — the one project-scoped capability folded in from the old
+// per-project AI tab. Only offered to the model when CURRENTLY VIEWING is a
+// project, so it never fires in a general strategy conversation.
+const PROPOSE_TASKS_TOOL = {
+  type: "function",
+  function: {
+    name: "propose_tasks",
+    description:
+      "Propose a list of tasks the user can review and add to the project they're currently viewing. Use when the user asks to generate, break down, plan, or extract tasks for this project.",
+    parameters: {
+      type: "object",
+      properties: {
+        intro: { type: "string", description: "1-2 sentences introducing the proposed tasks." },
+        tasks: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              description: { type: "string" },
+              priority: { type: "string", enum: ["low", "medium", "high", "urgent"] },
+            },
+            required: ["title"],
+            additionalProperties: false,
+          },
+          minItems: 1,
+          maxItems: 25,
+        },
+      },
+      required: ["tasks"],
+      additionalProperties: false,
+    },
+  },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -142,8 +177,11 @@ serve(async (req) => {
     // What the user is currently looking at — surfaced by pages/peeks so Albus
     // can answer "this task", "this project", etc. in context.
     const ce = ceoContext?.currentEntity;
+    const isProjectContext = ce?.type === "project" && !!ce?.title;
     const viewingLine = ce?.title
-      ? `\nCURRENTLY VIEWING: ${ce.type || "item"} "${ce.title}"${ce.id ? ` (id: ${ce.id})` : ""} — assume "this"/"here" refers to it unless the user says otherwise.`
+      ? `\nCURRENTLY VIEWING: ${ce.type || "item"} "${ce.title}"${ce.id ? ` (id: ${ce.id})` : ""} — assume "this"/"here" refers to it unless the user says otherwise.${
+          isProjectContext ? ` If asked to generate, break down, or plan tasks for this project, call the propose_tasks tool with a clean list instead of just describing them in text.` : ""
+        }`
       : "";
 
     if (titleOnly) {
@@ -191,6 +229,7 @@ CURRENT PAGE: ${ceoContext?.currentPage || "unknown"}${viewingLine}
         model: OPENAI_MODEL,
         messages: aiMessages,
         stream: true,
+        ...(isProjectContext && !titleOnly ? { tools: [PROPOSE_TASKS_TOOL] } : {}),
       }),
     });
 
