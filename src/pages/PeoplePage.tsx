@@ -52,6 +52,22 @@ export default function PeoplePage() {
 
   useEffect(() => { fetchProfiles(); }, [fetchProfiles]);
 
+  // Deep link from elsewhere (e.g. PersonPeek's "Open full profile") — /people?u=<id>
+  // opens that person's full detail sheet once the directory has loaded.
+  useEffect(() => {
+    const uid = searchParams.get("u");
+    if (!uid || profiles.length === 0) return;
+    const match = profiles.find((p) => p.user_id === uid);
+    if (match) {
+      setSelectedPerson(match);
+      setDetailOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("u");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles]);
+
   // Orbit-only members see only their cohort (same dept) + admins.
   // Everyone else sees the full directory subject to filters.
   const visible = isOrbitOnly && profile?.department_id
