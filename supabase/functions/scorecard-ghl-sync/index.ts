@@ -1,5 +1,5 @@
 /**
- * scorecard-ghl-sync v32
+ * scorecard-ghl-sync v36
  *
  * GHL API v2021-07-28:
  *   GET /opportunities/search?location_id=...&pipeline_id=...&page=N&limit=100
@@ -22,6 +22,11 @@
  *   dispo:won_count  - all-time closed-won count
  *   dispo:win_rate   - won ÷ (won + lost) × 100
  *   dispo:revenue    - sum of monetaryValue for all won deals
+ *
+ * Deal-sent metrics (contact-tag join, Portfolio + SFR pipelines, this week only):
+ *   dealsent:realtor     - new opps this week whose contact is tagged "realtor"
+ *   dealsent:broker      - new opps this week whose contact is tagged "broker"
+ *   dealsent:wholesaler  - new opps this week whose contact is tagged "wholesaler"
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -190,12 +195,20 @@ async function fetchStageCount(
 
 // ── Pipeline alias resolution ─────────────────────────────────────────────────
 
+// Pipeline names were renamed 2026-08-06 (portfolio pivot). "main" and "listing"
+// keys are kept for backward compat with any pre-existing scorecard_metrics rows;
+// their search terms were updated to match the new names. "sfr" is the new
+// preferred key for the same pipeline going forward. "broker" and "wholesaler"
+// are new. See reference_ghl_api.md memory for the full rename map.
 const PIPELINE_ALIASES: Record<string, string[]> = {
-  seller:    ["seller outreach", "seller"],
-  realtor:   ["realtor outreach", "realtor", "offerrocket", "offer rocket", "agent outreach"],
-  listing:   ["listinghawk", "listing hawk"],
-  main:      ["main pipeline", "main wholesale", "acquisitions", "wholesale pipeline", "wholesale", "main"],
-  portfolio: ["portfolio", "deal inbox", "deals"],
+  seller:     ["seller outreach", "seller"],
+  realtor:    ["realtor outreach", "realtor", "offerrocket", "offer rocket", "agent outreach"],
+  listing:    ["listinghawk", "listing hawk", "on market deals", "on market"],
+  main:       ["sfr deals", "sfr pipeline", "sfr", "main pipeline", "main wholesale", "wholesale pipeline", "wholesale", "main"],
+  sfr:        ["sfr deals", "sfr pipeline", "sfr"],
+  portfolio:  ["portfolio deals", "portfolio", "deal inbox", "deals"],
+  broker:     ["broker outreach", "broker discovery", "multi-broker", "broker"],
+  wholesaler: ["wholesaler outreach", "wholesaler discovery", "wholesaler"],
 };
 
 function resolvePipeline(alias: string, pipelines: any[]): any | null {
@@ -542,7 +555,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!ghlNeeded.length) {
+    const isDealSentKey = (key: string) => key.trim().toLowerCase().startsWith("dealsent:");
+    const dealSentMetrics = ghlNeeded.filter((m: any) => isDealSentKey(m.ghl_field_key));
+    const remainingGhlNeeded = ghlNeeded.filter((m: any) => !isDealSentKey(m.ghl_field_key));
+
+    if (!dealSentMetrics.length && !remainingGhlNeeded.length) {
       return json({ synced, skipped: metrics.length - needed.length, errors });
     }
 
@@ -556,10 +573,90 @@ Deno.serve(async (req) => {
       return json({ synced, error: `Pipeline fetch failed: ${e.message}`, errors });
     }
 
-    const stageMetrics = ghlNeeded.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
-    const batchMetrics = ghlNeeded.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
-
     const oppsByPipelineId = new Map<string, any[]>();
+
+    // ── 3a. DEAL-SENT METRICS (contact-tag join) ──────────────────────────────
+    //
+    // "Deals sent" isn't a pipeline stage — it's "did this source send us a
+    // deal this week," measured by: a new opportunity created in Acq -
+    // Portfolio Deals or Acq - SFR Deals this week whose GHL contact carries
+    // the matching tag. Exact lowercase tag strings ("realtor" / "broker" /
+    // "wholesaler") confirmed live via /contacts/search 2026-08-07. Scoped to
+    // this week's new opps only (not all-time) because checking each opp's
+    // contact tags costs one GHL API call per opp — weekly volume is small,
+    // all-time would not be.
+    if (dealSentMetrics.length > 0) {
+      try {
+        const dealSentPipelines = [resolvePipeline("portfolio", pipelines), resolvePipeline("sfr", pipelines)]
+          .filter((p): p is any => !!p);
+
+        if (!dealSentPipelines.length) {
+          for (const m of dealSentMetrics) {
+            errors.push({ metric_id: m.id, error: "Could not resolve Portfolio or SFR pipeline for dealsent join" });
+          }
+        } else {
+          const newOppsThisWeek: any[] = [];
+          for (const p of dealSentPipelines) {
+            let opps = oppsByPipelineId.get(p.id);
+            if (!opps) {
+              opps = await fetchPipelineOpps(ghlApiKey, locationId, p.id);
+              oppsByPipelineId.set(p.id, opps);
+            }
+            newOppsThisWeek.push(...opps.filter((o: any) => !!o.createdAt && new Date(o.createdAt) >= weekStart));
+          }
+
+          // Dedup contactIds so a contact with multiple new opps this week only costs 1 lookup
+          const contactIds = [...new Set(newOppsThisWeek.map((o: any) => o.contactId).filter(Boolean))];
+          const tagsByContactId = new Map<string, string[]>();
+
+          for (const contactId of contactIds) {
+            try {
+              const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
+                headers: { Authorization: `Bearer ${ghlApiKey}`, Version: "2021-07-28", Accept: "application/json" },
+              });
+              if (res.ok) {
+                const data = await res.json();
+                tagsByContactId.set(contactId, (data.contact?.tags ?? []).map((t: string) => t.toLowerCase()));
+              }
+            } catch { /* one contact lookup failing just undercounts, not fatal */ }
+          }
+
+          const countForTag = (tag: string) =>
+            newOppsThisWeek.filter((o: any) => (tagsByContactId.get(o.contactId) ?? []).includes(tag)).length;
+
+          console.log(`Deal-sent join: ${newOppsThisWeek.length} new opps this week across ${dealSentPipelines.map((p: any) => p.name).join(", ")}, ${contactIds.length} unique contacts checked`);
+
+          for (const m of dealSentMetrics) {
+            const key = (m.ghl_field_key as string).trim().toLowerCase();
+            const tag = key.slice("dealsent:".length);
+            const value = countForTag(tag);
+
+            const { error: insErr } = await adminClient.from("scorecard_entries").upsert(
+              { metric_id: m.id, week_start_date: week, actual_value: value, entered_by: null, note: "Auto-synced from GHL (contact tag join)" },
+              { onConflict: "metric_id,week_start_date" },
+            );
+            if (insErr) errors.push({ metric_id: m.id, error: insErr.message });
+            else synced++;
+          }
+        }
+      } catch (e: any) {
+        for (const m of dealSentMetrics) {
+          errors.push({ metric_id: m.id, error: `Deal-sent join failed: ${e.message}` });
+        }
+      }
+    }
+
+    if (!remainingGhlNeeded.length) {
+      return json({
+        synced,
+        skipped: metrics.length - needed.length,
+        errors,
+        pipelinesFound: pipelines.map((p: any) => p.name),
+      });
+    }
+
+    const stageMetrics = remainingGhlNeeded.filter((m: any) => (m.ghl_field_key as string).includes(":stage:"));
+    const batchMetrics = remainingGhlNeeded.filter((m: any) => !(m.ghl_field_key as string).includes(":stage:"));
 
     if (batchMetrics.length > 0) {
       const needsAllPipelines = batchMetrics.some((m: any) => !(m.ghl_field_key as string).includes(":"));
@@ -650,11 +747,19 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Terminal-outcome stages (won/closed/lost/dead/disqualified/rejected/failed)
+        // hold opportunities whose `status` is no longer "open" — filtering to
+        // open-only would always report 0 for these. Count by stage membership
+        // alone for terminal stages; keep the open-only filter for active/mid-
+        // funnel stages, since some opps retain a stale pipelineStageId after
+        // being won/lost elsewhere and open-filtering avoids over-counting those.
+        const isTerminalStage = /\b(won|closed|lost|dead|disqualified|rejected|failed)\b/i.test(stageName);
+
         if (fetchedOpps && fetchedOpps.length < 3000) {
           value = fetchedOpps.filter((o: any) =>
-            o.pipelineStageId === stage.id && (o.status ?? "open") === "open"
+            o.pipelineStageId === stage.id && (isTerminalStage || (o.status ?? "open") === "open")
           ).length;
-          console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps, open only): ${value}`);
+          console.log(`Stage "${stageName}" in "${pipeline.name}" (batch ${fetchedOpps.length} opps, terminal=${isTerminalStage}): ${value}`);
         } else {
           value = await fetchStageCount(ghlApiKey, locationId, pipeline.id, stage.id);
           console.log(`Stage "${stageName}" in "${pipeline.name}" (fetchStageCount large): ${value}`);

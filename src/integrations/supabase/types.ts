@@ -4819,6 +4819,7 @@ export type Database = {
           department_id: string | null
           description: string | null
           ghl_field_key: string | null
+          group_label: string | null
           id: string
           is_active: boolean
           name: string
@@ -4835,6 +4836,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           ghl_field_key?: string | null
+          group_label?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -4851,6 +4853,7 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           ghl_field_key?: string | null
+          group_label?: string | null
           id?: string
           is_active?: boolean
           name?: string

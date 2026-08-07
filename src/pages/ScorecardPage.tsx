@@ -56,6 +56,7 @@ interface Metric {
   ghl_field_key: string | null;
   is_active: boolean;
   sort_order: number;
+  group_label: string | null;
 }
 interface Entry {
   id: string;
@@ -130,6 +131,10 @@ function getDeptStyle(name: string): DeptStyle {
     return { color: "#10b981", textClass: "text-emerald-400", borderClass: "border-emerald-500/20", dimBg: "rgba(16,185,129,0.04)" };
   if (n.includes("portfolio"))
     return { color: "#14b8a6", textClass: "text-teal-400", borderClass: "border-teal-500/20", dimBg: "rgba(20,184,166,0.04)" };
+  if (n.includes("sourcing"))
+    return { color: "#eab308", textClass: "text-yellow-400", borderClass: "border-yellow-500/20", dimBg: "rgba(234,179,8,0.04)" };
+  if (n.includes("sfr"))
+    return { color: "#ec4899", textClass: "text-pink-400", borderClass: "border-pink-500/20", dimBg: "rgba(236,72,153,0.04)" };
   if (n.includes("ops") || n.includes("orbit"))
     return { color: "#8b5cf6", textClass: "text-violet-400", borderClass: "border-violet-500/20", dimBg: "rgba(139,92,246,0.04)" };
   return { color: "#64748b", textClass: "text-slate-400", borderClass: "border-border/40", dimBg: "rgba(100,116,139,0.03)" };
@@ -141,6 +146,11 @@ function getDeptStyle(name: string): DeptStyle {
 type FunnelLayer = "activities" | "engagement" | "pipeline" | "outcome";
 
 function getFunnelLayer(m: Metric): FunnelLayer | null {
+  // Grouped metrics (Sourcing/Portfolio/SFR) render in DealFlowView instead —
+  // without this guard, keys that also match a legacy pattern below (e.g.
+  // dispo:won_count matching "outcome") would render twice on this tab.
+  if (m.group_label) return null;
+
   const key = (m.ghl_field_key || "").toLowerCase();
   const name = m.name.toLowerCase().trim();
 
@@ -575,6 +585,91 @@ function BusinessFunnelView({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// DealFlowView — Sourcing / Portfolio / SFR tracks (Business Funnel tab)
+// ──────────────────────────────────────────────────────────────────────────────
+// Additive, not a replacement: renders only metrics carrying a `group_label`.
+// Metrics without one (legacy/pre-pivot) are untouched and keep rendering via
+// BusinessFunnelView's getFunnelLayer() classifier exactly as before. Portfolio
+// and SFR get their own tracks rather than being blended into shared layers —
+// that split is deliberate (see reference_ghl_api.md), not incidental.
+const GROUP_META: Record<string, { label: string; color: string; bg: string; borderClass: string }> = {
+  Sourcing: { label: "Sourcing", color: "#eab308", bg: "rgba(234,179,8,0.05)", borderClass: "border-yellow-500/25" },
+  Portfolio: { label: "Portfolio Deals", color: "#14b8a6", bg: "rgba(20,184,166,0.04)", borderClass: "border-teal-500/20" },
+  SFR: { label: "SFR Deals", color: "#ec4899", bg: "rgba(236,72,153,0.04)", borderClass: "border-pink-500/20" },
+};
+const GROUP_ORDER = ["Sourcing", "Portfolio", "SFR"];
+
+function DealFlowView({
+  metrics,
+  entries,
+  currentWeek,
+  onSave,
+}: {
+  metrics: Metric[];
+  entries: Entry[];
+  currentWeek: string;
+  onSave: (metricId: string, val: string) => Promise<void>;
+}) {
+  const entryFor = (metricId: string) =>
+    entries.find((e) => e.metric_id === metricId && e.week_start_date === currentWeek);
+
+  const byGroup = useMemo(() => {
+    const out: Record<string, Metric[]> = { Sourcing: [], Portfolio: [], SFR: [] };
+    for (const m of metrics) {
+      if (m.group_label && out[m.group_label]) out[m.group_label].push(m);
+    }
+    for (const key of GROUP_ORDER) out[key].sort((a, b) => a.sort_order - b.sort_order);
+    return out;
+  }, [metrics]);
+
+  const visibleGroups = GROUP_ORDER.filter((g) => byGroup[g].length > 0);
+  if (visibleGroups.length === 0) return null;
+
+  return (
+    <div className="space-y-3 mb-3">
+      {visibleGroups.map((groupKey) => {
+        const meta = GROUP_META[groupKey];
+        const items = byGroup[groupKey];
+        const isSourcing = groupKey === "Sourcing";
+
+        return (
+          <div key={groupKey} className={cn("rounded-xl border overflow-hidden", meta.borderClass)} style={{ background: meta.bg }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${meta.color}18` }}>
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
+                {meta.label}
+              </span>
+            </div>
+
+            {isSourcing ? (
+              <div className="flex items-stretch divide-x divide-border/[0.06] flex-wrap">
+                {items.map((m) => (
+                  <CountCard key={m.id} metric={m} entry={entryFor(m.id)} onSave={onSave} />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div
+                  className="grid grid-cols-[240px_1fr_160px_80px] gap-3 px-4 py-1.5"
+                  style={{ borderBottom: `1px solid ${meta.color}0d` }}
+                >
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Metric</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold">Progress</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Actual / Target</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/25 font-semibold text-right">Status</span>
+                </div>
+                {items.map((m) => (
+                  <FunnelRow key={m.id} metric={m} entry={entryFor(m.id)} accentColor={meta.color} onSave={onSave} />
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // PipelineFunnelSection — one per department (Pipeline Health tab)
 // ──────────────────────────────────────────────────────────────────────────────
 function PipelineFunnelSection({
@@ -767,19 +862,31 @@ export default function ScorecardPage() {
   };
 
   // ── Grouping (for Pipeline Health tab) ────────────────────────────────────
+  // Sub-groups by `group_label` when a metric has one (Sourcing/Portfolio/SFR),
+  // so metrics sharing one department (e.g. all of Acq) still split into
+  // separate sections instead of collapsing into one undifferentiated pile.
+  // Metrics without a group_label (legacy/pre-pivot) group by department as before.
   const grouped = useMemo(() => {
-    const groups = new Map<string, { name: string; deptId: string | null; items: Metric[] }>();
+    const groups = new Map<string, { key: string; name: string; deptId: string | null; items: Metric[] }>();
     for (const m of metrics) {
-      const key = m.department_id || "__company__";
+      const deptKey = m.department_id || "__company__";
+      const key = m.group_label ? `${deptKey}::${m.group_label}` : deptKey;
       if (!groups.has(key)) {
         const dept = departments.find((d) => d.id === m.department_id);
-        groups.set(key, { name: dept?.name || "Company-Wide", deptId: m.department_id, items: [] });
+        const name = m.group_label
+          ? m.group_label === "Sourcing" ? "Sourcing"
+          : m.group_label === "Portfolio" ? "Portfolio Deals"
+          : m.group_label === "SFR" ? "SFR Deals"
+          : m.group_label
+          : dept?.name || "Company-Wide";
+        groups.set(key, { key, name, deptId: m.department_id, items: [] });
       }
       groups.get(key)!.items.push(m);
     }
     const SECTION_PRIORITY: [string, number][] = [
       ["dts", 1], ["seller", 1], ["dta", 2], ["agent", 2],
-      ["listing", 3], ["hawk", 3], ["main", 4], ["dispo", 5], ["portfolio", 6],
+      ["listing", 3], ["hawk", 3], ["main", 4], ["sourcing", 3.5],
+      ["dispo", 5], ["portfolio", 6], ["sfr", 6.5],
     ];
     const sectionRank = (name: string) => {
       const n = name.toLowerCase();
@@ -930,12 +1037,20 @@ export default function ScorecardPage() {
               <Loader2 className="h-5 w-5 animate-spin mr-2" />Loading scorecard…
             </div>
           ) : (
-            <BusinessFunnelView
-              metrics={metrics}
-              entries={entries}
-              currentWeek={currentWeek}
-              onSave={saveEntry}
-            />
+            <>
+              <DealFlowView
+                metrics={metrics}
+                entries={entries}
+                currentWeek={currentWeek}
+                onSave={saveEntry}
+              />
+              <BusinessFunnelView
+                metrics={metrics}
+                entries={entries}
+                currentWeek={currentWeek}
+                onSave={saveEntry}
+              />
+            </>
           )}
         </TabsContent>
 
@@ -952,7 +1067,7 @@ export default function ScorecardPage() {
           ) : (
             grouped.map((group) => (
               <PipelineFunnelSection
-                key={group.deptId || "__company__"}
+                key={group.key}
                 name={group.name}
                 items={group.items}
                 entries={entries}
@@ -1129,6 +1244,7 @@ function CreateMetricDialog({
   const [unit, setUnit] = useState("count");
   const [dataSource, setDataSource] = useState("manual");
   const [ghlKey, setGhlKey] = useState("");
+  const [groupLabel, setGroupLabel] = useState<string>("__none__");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -1144,6 +1260,7 @@ function CreateMetricDialog({
       unit,
       data_source: dataSource,
       ghl_field_key: dataSource === "ghl" ? ghlKey.trim() || null : null,
+      group_label: groupLabel === "__none__" ? null : groupLabel,
     });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
@@ -1186,6 +1303,18 @@ function CreateMetricDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Group</Label>
+            <Select value={groupLabel} onValueChange={setGroupLabel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None (legacy funnel classifier)</SelectItem>
+                <SelectItem value="Sourcing">Sourcing</SelectItem>
+                <SelectItem value="Portfolio">Portfolio</SelectItem>
+                <SelectItem value="SFR">SFR</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
