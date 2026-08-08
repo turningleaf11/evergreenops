@@ -20,12 +20,17 @@ type BusinessPlan = {
   title: string;
   one_liner: string | null;
   status: string;
+  priority: string;
   owner_id: string | null;
   visibility: string;
   shared_with: any;
 };
 
 type ProfileLite = { user_id: string; full_name: string | null; avatar_url: string | null };
+
+// Same scale tasks/projects use (src/lib/statusTone.ts) — most-urgent first,
+// so the venture that's the actual strategic focus surfaces at the top.
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 export default function BusinessPlansPage() {
   const { isAdmin, user, profile } = useAuth();
@@ -89,12 +94,15 @@ export default function BusinessPlansPage() {
   }
 
   const visiblePlans = useMemo(() =>
-    plans.filter((p) =>
-      matchesVisibility(
-        { visibility: p.visibility, sharedWith: p.shared_with, authorId: p.owner_id },
-        { isAdmin, userId: user?.id, departmentId: profile?.department_id }
+    plans
+      .filter((p) =>
+        matchesVisibility(
+          { visibility: p.visibility, sharedWith: p.shared_with, authorId: p.owner_id },
+          { isAdmin, userId: user?.id, departmentId: profile?.department_id }
+        )
       )
-    ), [plans, isAdmin, user?.id, profile?.department_id]);
+      .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2)),
+    [plans, isAdmin, user?.id, profile?.department_id]);
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
@@ -187,6 +195,7 @@ export default function BusinessPlansPage() {
                 key={plan.id}
                 kind="business_plan"
                 status={plan.status}
+                priority={plan.priority}
                 title={plan.title}
                 description={plan.one_liner}
                 assignees={people}

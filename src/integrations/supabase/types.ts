@@ -906,6 +906,38 @@ export type Database = {
         }
         Relationships: []
       }
+      business_plan_decisions: {
+        Row: {
+          business_plan_id: string
+          created_at: string
+          decided_by: string | null
+          id: string
+          text: string
+        }
+        Insert: {
+          business_plan_id: string
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          text: string
+        }
+        Update: {
+          business_plan_id?: string
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_plan_decisions_business_plan_id_fkey"
+            columns: ["business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plan_deliverables: {
         Row: {
           business_plan_id: string
@@ -1025,6 +1057,7 @@ export type Database = {
           milestones: Json
           one_liner: string | null
           owner_id: string | null
+          priority: string
           risks: Json
           shared_with: Json
           status: string
@@ -1040,6 +1073,7 @@ export type Database = {
           milestones?: Json
           one_liner?: string | null
           owner_id?: string | null
+          priority?: string
           risks?: Json
           shared_with?: Json
           status?: string
@@ -1055,6 +1089,7 @@ export type Database = {
           milestones?: Json
           one_liner?: string | null
           owner_id?: string | null
+          priority?: string
           risks?: Json
           shared_with?: Json
           status?: string

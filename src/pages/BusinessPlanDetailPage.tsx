@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import AccessPicker from "@/components/AccessPicker";
-import { StatusPill, AvatarStack, type AvatarStackPerson } from "@/components/primitives";
+import { StatusPill, PriorityPill, AvatarStack, type AvatarStackPerson } from "@/components/primitives";
 import { LinkOrCreate, type LinkCandidate } from "@/components/business-plans/LinkOrCreate";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import GoalPeekWrapper from "@/components/mention-peek/peeks/GoalPeekWrapper";
@@ -29,11 +29,13 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { format } from "date-fns";
 
 type BusinessPlan = {
-  id: string; title: string; one_liner: string | null; status: string; owner_id: string | null;
+  id: string; title: string; one_liner: string | null; status: string; priority: string; owner_id: string | null;
   visibility: string; shared_with: any; milestones: any[]; risks: any[];
 };
+type Decision = { id: string; business_plan_id: string; text: string; decided_by: string | null; created_at: string };
 type Deliverable = {
   id: string; business_plan_id: string; category: string; title: string; status: string;
   link_url: string | null; file_url: string | null; owner_id: string | null; due_date: string | null;
@@ -61,6 +63,7 @@ export default function BusinessPlanDetailPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [boards, setBoards] = useState<BoardRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -73,12 +76,13 @@ export default function BusinessPlanDetailPage() {
 
   const load = async () => {
     if (!id) return;
-    const [planRes, delivRes, rolesRes, goalsRes, docsRes, boardsRes, profRes,
+    const [planRes, delivRes, rolesRes, goalsRes, decisionsRes, docsRes, boardsRes, profRes,
            fGoals, fCad, fDocs, fBoards] = await Promise.all([
       supabase.from("business_plans").select("*").eq("id", id).single(),
       supabase.from("business_plan_deliverables").select("*").eq("business_plan_id", id).order("category").order("sort_order"),
       supabase.from("business_plan_roles").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("goals").select("id, title, status, quarter, year, measurable_target").eq("business_plan_id", id),
+      supabase.from("business_plan_decisions").select("*").eq("business_plan_id", id).order("created_at", { ascending: false }),
       supabase.from("documents").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("whiteboards").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("profiles").select("user_id, full_name, avatar_url, title"),
@@ -91,6 +95,7 @@ export default function BusinessPlanDetailPage() {
     setDeliverables((delivRes.data as Deliverable[]) || []);
     setRoles((rolesRes.data as RoleRow[]) || []);
     setGoals((goalsRes.data as Goal[]) || []);
+    setDecisions((decisionsRes.data as Decision[]) || []);
     setDocs((docsRes.data as DocRow[]) || []);
     setBoards((boardsRes.data as BoardRow[]) || []);
     setProfiles((profRes.data as ProfileRow[]) || []);
@@ -133,6 +138,7 @@ export default function BusinessPlanDetailPage() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-bold tracking-tight">{plan.title}</h1>
             <StatusPill kind="business_plan" value={plan.status} onChange={(v) => updatePlan({ status: v })} size="sm" />
+            <PriorityPill value={plan.priority} onChange={(v) => updatePlan({ priority: v })} size="sm" />
           </div>
           {plan.one_liner && <p className="text-sm text-muted-foreground mt-1 max-w-xl">{plan.one_liner}</p>}
         </div>
@@ -151,7 +157,7 @@ export default function BusinessPlanDetailPage() {
 
         <TabsContent value="overview" className="mt-4">
           <OverviewTab
-            plan={plan} goals={goals} freeGoals={freeGoals}
+            plan={plan} goals={goals} freeGoals={freeGoals} decisions={decisions} profiles={profiles}
             onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
             onDetach={(gid) => detach("goals", gid)} onReload={load}
           />
@@ -183,7 +189,7 @@ export default function BusinessPlanDetailPage() {
 // ── Overview ──────────────────────────────────────────────────────────────
 
 function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, onReload }: {
-  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[];
+  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; decisions: Decision[]; profiles: ProfileRow[];
   onPlanPatch: (p: Partial<BusinessPlan>) => void;
   onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
   onReload: () => Promise<void>;
@@ -192,6 +198,7 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
   const [newMilestone, setNewMilestone] = useState("");
   const [newRisk, setNewRisk] = useState("");
   const [newRiskSeverity, setNewRiskSeverity] = useState("med");
+  const [newDecision, setNewDecision] = useState("");
   const [goalPeekId, setGoalPeekId] = useState<string | null>(null);
 
   const milestones = plan.milestones || [];
@@ -228,6 +235,20 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
       business_plan_id: plan.id,
     });
     if (error) { toast({ title: "Couldn't create goal", description: error.message, variant: "destructive" }); return; }
+    await onReload();
+  };
+
+  const addDecision = async () => {
+    if (!newDecision.trim()) return;
+    const { error } = await supabase.from("business_plan_decisions").insert({
+      business_plan_id: plan.id, text: newDecision.trim(), decided_by: user?.id || null,
+    });
+    if (error) { toast({ title: "Couldn't log decision", description: error.message, variant: "destructive" }); return; }
+    setNewDecision("");
+    await onReload();
+  };
+  const removeDecision = async (decisionId: string) => {
+    await supabase.from("business_plan_decisions").delete().eq("id", decisionId);
     await onReload();
   };
 
@@ -291,6 +312,7 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
         </Card>
       </div>
 
+      <div className="space-y-4">
       <Card>
         <CardContent className="p-4 space-y-3">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Risks &amp; blockers</h4>
@@ -341,6 +363,36 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Decision log</h4>
+          <div className="space-y-2.5">
+            {decisions.length === 0 && <p className="text-xs text-muted-foreground py-2">Nothing logged yet — what changed, and why.</p>}
+            {decisions.map((d) => {
+              const who = profiles.find((p) => p.user_id === d.decided_by)?.full_name;
+              return (
+                <div key={d.id} className="flex items-start gap-2 text-sm group">
+                  <div className="flex-1">
+                    <p>{d.text}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {format(new Date(d.created_at), "MMM d, yyyy")}{who ? ` · ${who}` : ""}
+                    </p>
+                  </div>
+                  <button onClick={() => removeDecision(d.id)} className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-1.5 pt-1">
+            <Textarea value={newDecision} onChange={(e) => setNewDecision(e.target.value)} placeholder="What changed, and why…" rows={1} className="text-xs min-h-7" />
+            <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={addDecision}>Log</Button>
+          </div>
+        </CardContent>
+      </Card>
+      </div>
     </div>
   );
 }
