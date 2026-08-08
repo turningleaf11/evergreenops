@@ -22,7 +22,7 @@ const TONE = {
 export type EntityKind =
   | "goal" | "project" | "task" | "issue"
   | "deal" | "lead" | "transaction" | "contact"
-  | "thread" | "buyer_interest" | "deal_stage";
+  | "thread" | "buyer_interest" | "deal_stage" | "business_plan";
 
 interface Tone { hsl: string; label: string; }
 
@@ -141,10 +141,20 @@ const DEAL_STAGE: Record<string, Tone> = {
   lost_dead:         tone("danger",  "Lost / Dead"),
 };
 
+// A business venture/line's overall stage — separate from project/task
+// status since a plan doesn't "complete," it matures.
+const BUSINESS_PLAN: Record<string, Tone> = {
+  planning: tone("neutral", "Planning"),
+  building: tone("info",    "Building"),
+  scaling:  tone("success", "Scaling"),
+  paused:   tone("warning", "Paused"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
   thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
+  business_plan: BUSINESS_PLAN,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────

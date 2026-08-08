@@ -22,6 +22,8 @@ import PeoplePage from "./pages/PeoplePage";
 import SettingsPage from "./pages/SettingsPage";
 import TrainingPage from "./pages/TrainingPage";
 import ExecutionPage from "./pages/ExecutionPage";
+import BusinessPlansPage from "./pages/BusinessPlansPage";
+import BusinessPlanDetailPage from "./pages/BusinessPlanDetailPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import NotesPage from "./pages/NotesPage";
@@ -244,6 +246,10 @@ const App = () => (
                 </Route>
 
                 {/* Leader baseline + per-user grants */}
+                <Route element={<PageRoute pageKey="business_plans" minRole="leader" />}>
+                  <Route path="/business-plans" element={<BusinessPlansPage />} />
+                  <Route path="/business-plans/:id" element={<BusinessPlanDetailPage />} />
+                </Route>
                 <Route element={<PageRoute pageKey="execution" minRole="leader" />}>
                   <Route path="/execution" element={<ExecutionPage />} />
                   <Route path="/projects/:id" element={<ProjectDetailPage />} />

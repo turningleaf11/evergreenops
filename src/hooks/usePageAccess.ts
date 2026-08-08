@@ -9,6 +9,7 @@ const sb = supabase as any;
  * Pages NOT in this list are gated by role only (admin/leader) with no per-user grants.
  */
 export const PAGE_KEYS = [
+  "business_plans",
   "execution",
   "process_map",
   "crm",
@@ -24,6 +25,7 @@ export const PAGE_KEYS = [
 export type PageKey = (typeof PAGE_KEYS)[number];
 
 export const PAGE_LABELS: Record<PageKey, string> = {
+  business_plans: "Business Plans",
   execution: "Execution Hub",
   process_map: "Process Map",
   crm: "CRM / Deals",

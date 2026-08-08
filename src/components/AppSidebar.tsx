@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 import {
   Home, FileText, Database as DbIcon, Users,
   Settings, Building2, Compass, GraduationCap,
-  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket,
+  Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket, ClipboardList,
   HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown, Activity,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,6 +111,7 @@ export function AppSidebar() {
   // baseline or per-user grants). Revert to the commented conditions below
   // when ready to reopen them.
   const workNav = isOrbitOnly ? [] : [
+    ...(isLeader || can("business_plans") ? [{ title: "Business Plans", url: "/business-plans", icon: ClipboardList }] : []),
     ...(isLeader || can("execution") ? [{ title: "Execution Hub", url: "/execution", icon: Target }] : []),
     ...(isPrimaryAdmin /* was: isAdmin || can("process_map") */ ? [{ title: "Process Map", url: "/process-map", icon: Briefcase }] : []),
     ...(gmailAccess ? [{ title: "Inbox", url: "/inbox", icon: Mail }] : []),
