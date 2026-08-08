@@ -25,6 +25,10 @@ export interface AssembledStrategyContext {
   team: Array<{ name: string; title: string | null; departmentId: string | null }>;
   businessMemory: Array<{ memory_type: string; title: string; content: string }>;
   delegations: { perPerson: Record<string, number>; overdueCount: number };
+  businessPlans: Array<{
+    title: string; status: string; priority: string; oneLiner: string;
+    deliverablesDone: number; deliverablesTotal: number; openRoles: number;
+  }>;
 }
 
 function getQuarter(d = new Date()): string {
@@ -83,6 +87,9 @@ export async function assembleStrategyContext(opts: {
     teamRes,
     memoryRes,
     remindersRes,
+    plansRes,
+    planDeliverablesRes,
+    planRolesRes,
   ] = await Promise.all([
     supabase.from("vision").select("section,content").order("sort_order"),
     supabase
@@ -123,6 +130,12 @@ export async function assembleStrategyContext(opts: {
       .select("id,assigned_to,due_at,completed")
       .eq("completed", false)
       .limit(200),
+    supabase
+      .from("business_plans")
+      .select("id,title,status,priority,one_liner")
+      .order("priority"),
+    supabase.from("business_plan_deliverables").select("business_plan_id,status"),
+    supabase.from("business_plan_roles").select("business_plan_id,assigned_user_id"),
   ]);
 
   // Vision parsing
@@ -181,6 +194,22 @@ export async function assembleStrategyContext(opts: {
     };
   });
 
+  // Business plans — rollups computed client-side from the same tables the
+  // Business Plans pages use, so the AI sees the same numbers a person would.
+  const planDeliverableCounts: Record<string, { done: number; total: number }> = {};
+  for (const d of planDeliverablesRes.data || []) {
+    const b = planDeliverableCounts[(d as any).business_plan_id] || { done: 0, total: 0 };
+    b.total += 1;
+    if ((d as any).status === "done") b.done += 1;
+    planDeliverableCounts[(d as any).business_plan_id] = b;
+  }
+  const planOpenRoles: Record<string, number> = {};
+  for (const r of planRolesRes.data || []) {
+    if (!(r as any).assigned_user_id) {
+      planOpenRoles[(r as any).business_plan_id] = (planOpenRoles[(r as any).business_plan_id] || 0) + 1;
+    }
+  }
+
   // Delegations
   const reminders = remindersRes.data || [];
   const perPerson: Record<string, number> = {};
@@ -226,5 +255,14 @@ export async function assembleStrategyContext(opts: {
         content: m.content,
       })),
     delegations: { perPerson, overdueCount },
+    businessPlans: (plansRes.data || []).map((p: any) => ({
+      title: p.title,
+      status: p.status,
+      priority: p.priority || "medium",
+      oneLiner: p.one_liner || "",
+      deliverablesDone: planDeliverableCounts[p.id]?.done || 0,
+      deliverablesTotal: planDeliverableCounts[p.id]?.total || 0,
+      openRoles: planOpenRoles[p.id] || 0,
+    })),
   };
 }

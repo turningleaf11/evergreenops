@@ -95,6 +95,27 @@ function formatStrategyContext(ctx: any): string {
     );
   }
 
+  // 9. Business Plans — the venture-level layer between Vision and Rocks.
+  // Each plan is a business line (e.g. Fix & Flip, Buy & Hold/Portfolio) with
+  // its own deliverables checklist, staffing, and priority relative to the
+  // others — this is what makes "which venture matters most right now"
+  // answerable instead of only living in the CEO's head.
+  if (ctx.businessPlans?.length) {
+    parts.push(
+      `BUSINESS PLANS (${ctx.businessPlans.length}):\n${ctx.businessPlans
+        .map((p: any) => {
+          const bits = [`${p.status}`, `${p.priority} priority`];
+          if (p.deliverablesTotal > 0) bits.push(`${p.deliverablesDone}/${p.deliverablesTotal} deliverables ready`);
+          if (p.openRoles > 0) bits.push(`${p.openRoles} open role${p.openRoles === 1 ? "" : "s"}`);
+          const desc = p.oneLiner ? ` — ${p.oneLiner}` : "";
+          return `- ${p.title}${desc} (${bits.join(", ")})`;
+        })
+        .join("\n")}`
+    );
+  } else {
+    parts.push(`BUSINESS PLANS: none created yet.`);
+  }
+
   return parts.join("\n\n");
 }
 
