@@ -23,6 +23,11 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        // AI/Albus accent — see --ai in index.css. Reserved for AI affordances.
+        ai: {
+          DEFAULT: "hsl(var(--ai))",
+          foreground: "hsl(var(--ai-foreground))",
+        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

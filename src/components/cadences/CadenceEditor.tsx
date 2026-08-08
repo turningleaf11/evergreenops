@@ -15,12 +15,16 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   cadence: Cadence | null;
+  /** Stamped onto a newly-created cadence so it shows up on that plan's Ops
+      Support tab. Ignored when editing an existing cadence (its plan link
+      doesn't change here — unlinking happens from the plan page). */
+  businessPlanId?: string;
   onSaved: () => void;
 }
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
+export function CadenceEditor({ open, onOpenChange, cadence, businessPlanId, onSaved }: Props) {
   const { user } = useAuth();
   const { departments } = useDepartments();
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
@@ -87,6 +91,7 @@ export function CadenceEditor({ open, onOpenChange, cadence, onSaved }: Props) {
       ({ error } = await supabase.from("cadences").update(payload).eq("id", cadence.id));
     } else {
       payload.created_by = user?.id;
+      if (businessPlanId) payload.business_plan_id = businessPlanId;
       ({ error } = await supabase.from("cadences").insert(payload));
     }
 

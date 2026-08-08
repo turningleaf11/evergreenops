@@ -25,6 +25,7 @@ export interface Cadence {
   owner_id: string | null;
   department_id: string | null;
   sop_doc_id: string | null;
+  business_plan_id: string | null;
   schedule_type: "daily" | "weekly" | "monthly" | "quarterly" | "custom";
   schedule_config: any;
   task_template: any;
@@ -50,7 +51,16 @@ const FREQUENCY_LABELS: Record<string, string> = {
   custom: "Custom",
 };
 
-export function CadencesTab() {
+interface CadencesTabProps {
+  /** When set, scopes this tab to one business plan's cadences instead of the
+      company-wide list — hides the department filter (redundant once already
+      scoped to a venture) and stamps new cadences with this plan. Same
+      cadences/cadence_runs tables either way, so a cadence created here shows
+      up in the unscoped Execution Hub view too, and vice versa. */
+  businessPlanId?: string;
+}
+
+export function CadencesTab({ businessPlanId }: CadencesTabProps = {}) {
   const { user, isAdmin } = useAuth();
   const { departments } = useDepartments();
   const [cadences, setCadences] = useState<Cadence[]>([]);
@@ -66,8 +76,11 @@ export function CadencesTab() {
   const todayStr = format(startOfDay(new Date()), "yyyy-MM-dd");
 
   const load = async () => {
+    let cadenceQuery = supabase.from("cadences").select("*").order("created_at", { ascending: true });
+    if (businessPlanId) cadenceQuery = cadenceQuery.eq("business_plan_id", businessPlanId);
+
     const [c, r, p, d] = await Promise.all([
-      supabase.from("cadences").select("*").order("created_at", { ascending: true }),
+      cadenceQuery,
       supabase.from("cadence_runs").select("*").order("due_date", { ascending: false }).limit(500),
       supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("documents").select("id, title").eq("status", "active"),
@@ -78,7 +91,7 @@ export function CadencesTab() {
     if (d.data) setDocs(d.data);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [businessPlanId]);
 
   const getName = (uid: string | null) =>
     uid ? (profiles.find(p => p.user_id === uid)?.full_name ?? "—") : "—";
@@ -138,6 +151,14 @@ export function CadencesTab() {
     load();
   };
 
+  // Only offered when scoped to a plan — removes the plan tag without
+  // deleting the cadence; it keeps running company-wide.
+  const removeFromPlan = async (c: Cadence, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("cadences").update({ business_plan_id: null }).eq("id", c.id);
+    load();
+  };
+
   const deleteCadence = async (c: Cadence, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Delete "${c.title}"?`)) return;
@@ -159,8 +180,9 @@ export function CadencesTab() {
   };
 
   const filtered = useMemo(() => {
+    if (businessPlanId) return cadences; // already scoped by the load() query
     return filterDept === "all" ? cadences : cadences.filter(c => c.department_id === filterDept);
-  }, [cadences, filterDept]);
+  }, [cadences, filterDept, businessPlanId]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Cadence[]>();
@@ -189,14 +211,16 @@ export function CadencesTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            value={filterDept}
-            onChange={(e) => setFilterDept(e.target.value)}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-          >
-            <option value="all">All departments</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+          {!businessPlanId && (
+            <select
+              value={filterDept}
+              onChange={(e) => setFilterDept(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="all">All departments</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          )}
           <Button size="sm" onClick={() => { setEditing(null); setEditorOpen(true); }}>
             <Plus className="h-3.5 w-3.5 mr-1" /> New cadence
           </Button>
@@ -311,6 +335,11 @@ export function CadencesTab() {
                                 ? <><Pause className="h-3.5 w-3.5 mr-2" /> Pause</>
                                 : <><Play className="h-3.5 w-3.5 mr-2" /> Resume</>}
                             </DropdownMenuItem>
+                            {businessPlanId && (
+                              <DropdownMenuItem onClick={(e) => removeFromPlan(c, e)}>
+                                Remove from this plan
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={(e) => deleteCadence(c, e)}
@@ -397,6 +426,7 @@ export function CadencesTab() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         cadence={editing}
+        businessPlanId={businessPlanId}
         onSaved={() => { setEditorOpen(false); load(); }}
       />
     </div>

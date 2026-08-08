@@ -6,6 +6,9 @@ import type { Visibility, SharedWith } from "@/lib/mock-data";
 import AccessPicker from "@/components/AccessPicker";
 import { StatusPill, AvatarStack, type AvatarStackPerson } from "@/components/primitives";
 import { LinkOrCreate, type LinkCandidate } from "@/components/business-plans/LinkOrCreate";
+import { CadencesTab } from "@/components/cadences/CadencesTab";
+import GoalPeekWrapper from "@/components/mention-peek/peeks/GoalPeekWrapper";
+import DocPeek from "@/components/mention-peek/peeks/DocPeek";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +24,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Target, Plus, Trash2, FileText, Layers, Compass, Users, Repeat,
+  Target, Plus, Trash2, FileText, Layers, Compass, Users,
   ExternalLink, Link2, ChevronDown, X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -38,7 +41,6 @@ type Deliverable = {
 };
 type RoleRow = { id: string; business_plan_id: string; role_title: string; assigned_user_id: string | null; notes: string | null };
 type Goal = { id: string; title: string; status: string; quarter: string; year: number; measurable_target: string | null };
-type Cadence = { id: string; title: string; description: string | null; schedule_type: string; owner_id: string | null; is_active: boolean };
 type DocRow = { id: string; title: string; updated_at: string };
 type BoardRow = { id: string; title: string; updated_at: string };
 type ProfileRow = { user_id: string; full_name: string | null; avatar_url: string | null; title: string | null };
@@ -59,7 +61,6 @@ export default function BusinessPlanDetailPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [cadences, setCadences] = useState<Cadence[]>([]);
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [boards, setBoards] = useState<BoardRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -72,13 +73,12 @@ export default function BusinessPlanDetailPage() {
 
   const load = async () => {
     if (!id) return;
-    const [planRes, delivRes, rolesRes, goalsRes, cadRes, docsRes, boardsRes, profRes,
+    const [planRes, delivRes, rolesRes, goalsRes, docsRes, boardsRes, profRes,
            fGoals, fCad, fDocs, fBoards] = await Promise.all([
       supabase.from("business_plans").select("*").eq("id", id).single(),
       supabase.from("business_plan_deliverables").select("*").eq("business_plan_id", id).order("category").order("sort_order"),
       supabase.from("business_plan_roles").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("goals").select("id, title, status, quarter, year, measurable_target").eq("business_plan_id", id),
-      supabase.from("cadences").select("id, title, description, schedule_type, owner_id, is_active").eq("business_plan_id", id),
       supabase.from("documents").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("whiteboards").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("profiles").select("user_id, full_name, avatar_url, title"),
@@ -91,7 +91,6 @@ export default function BusinessPlanDetailPage() {
     setDeliverables((delivRes.data as Deliverable[]) || []);
     setRoles((rolesRes.data as RoleRow[]) || []);
     setGoals((goalsRes.data as Goal[]) || []);
-    setCadences((cadRes.data as Cadence[]) || []);
     setDocs((docsRes.data as DocRow[]) || []);
     setBoards((boardsRes.data as BoardRow[]) || []);
     setProfiles((profRes.data as ProfileRow[]) || []);
@@ -161,10 +160,7 @@ export default function BusinessPlanDetailPage() {
           <DeliverablesTab planId={plan.id} deliverables={deliverables} profiles={profiles} onChange={load} />
         </TabsContent>
         <TabsContent value="ops" className="mt-4">
-          <OpsSupportTab
-            planId={plan.id} cadences={cadences} freeCadences={freeCadences} profiles={profiles}
-            onAttach={(cid) => attach("cadences", cid)} onDetach={(cid) => detach("cadences", cid)} onReload={load}
-          />
+          <OpsSupportTab planId={plan.id} freeCadences={freeCadences} onAttach={(cid) => attach("cadences", cid)} />
         </TabsContent>
         <TabsContent value="roles" className="mt-4">
           <RolesTab planId={plan.id} roles={roles} profiles={profiles} onChange={load} />
@@ -196,6 +192,7 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
   const [newMilestone, setNewMilestone] = useState("");
   const [newRisk, setNewRisk] = useState("");
   const [newRiskSeverity, setNewRiskSeverity] = useState("med");
+  const [goalPeekId, setGoalPeekId] = useState<string | null>(null);
 
   const milestones = plan.milestones || [];
   const risks = plan.risks || [];
@@ -251,7 +248,9 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
               <div className="space-y-1.5">
                 {goals.map((g) => (
                   <div key={g.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-border/40 last:border-0 group">
-                    <span className="flex-1 min-w-0 truncate">{g.title}</span>
+                    <button onClick={() => setGoalPeekId(g.id)} className="flex-1 min-w-0 text-left truncate hover:text-primary transition-colors">
+                      {g.title}
+                    </button>
                     {g.measurable_target && <span className="text-xs text-muted-foreground shrink-0">{g.measurable_target}</span>}
                     <StatusPill kind="goal" value={g.status} size="sm" />
                     <button onClick={() => onDetach(g.id)} title="Unlink from this plan" className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -263,6 +262,12 @@ function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, 
             )}
           </CardContent>
         </Card>
+
+        <GoalPeekWrapper
+          id={goalPeekId || ""}
+          open={!!goalPeekId}
+          onClose={() => { setGoalPeekId(null); onReload(); }}
+        />
 
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -495,78 +500,31 @@ function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
   );
 }
 
-// ── Ops Support (Cadences, scoped) ───────────────────────────────────────
+// ── Ops Support — the REAL Cadences tab, scoped to this plan ──────────────
+//
+// Same component Execution Hub uses (accent bar, streaks, complete/skip menu,
+// full editor, peek) — CadencesTab takes an optional businessPlanId that
+// filters its query and stamps new cadences, instead of a lookalike rebuild.
+// A cadence created here is a normal cadence; it shows up in Execution Hub too.
 
-function OpsSupportTab({ planId, cadences, freeCadences, profiles, onAttach, onDetach, onReload }: {
-  planId: string; cadences: Cadence[]; freeCadences: LinkCandidate[]; profiles: ProfileRow[];
-  onAttach: (id: string) => Promise<void>; onDetach: (id: string) => Promise<void>; onReload: () => Promise<void>;
+function OpsSupportTab({ planId, freeCadences, onAttach }: {
+  planId: string; freeCadences: LinkCandidate[]; onAttach: (id: string) => Promise<void>;
 }) {
-  const { user } = useAuth();
-
-  const createCadence = async (title: string) => {
-    const { error } = await supabase.from("cadences").insert({
-      title, schedule_type: "weekly", is_active: true,
-      business_plan_id: planId, created_by: user?.id || null,
-    } as any);
-    if (error) { toast({ title: "Couldn't create cadence", description: error.message, variant: "destructive" }); return; }
-    await onReload();
-  };
-
-  const setOwner = async (c: Cadence, uid: string | null) => {
-    await supabase.from("cadences").update({ owner_id: uid }).eq("id", c.id);
-    await onReload();
-  };
-  const setFreq = async (c: Cadence, freq: string) => {
-    await supabase.from("cadences").update({ schedule_type: freq }).eq("id", c.id);
-    await onReload();
+  const [tick, setTick] = useState(0);
+  const linkExisting = async (cid: string) => {
+    await onAttach(cid);
+    setTick((t) => t + 1); // force CadencesTab (self-loading) to refetch
   };
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-1">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recurring ops support</h4>
-            <p className="text-[11px] text-muted-foreground mt-0.5">These are real Cadences — they also appear in Execution Hub.</p>
-          </div>
-          <LinkOrCreate noun="cadence" candidates={freeCadences} onLink={onAttach} onCreate={createCadence} />
+    <div className="space-y-3">
+      {freeCadences.length > 0 && (
+        <div className="flex justify-end">
+          <LinkOrCreate noun="cadence" candidates={freeCadences} onLink={linkExisting} onCreate={() => Promise.resolve()} allowCreate={false} />
         </div>
-        {cadences.length === 0 ? (
-          <EmptyState icon={Repeat} title="No ops support set up" description="Campaign monitoring, QA, email coverage — anything recurring this venture needs." card={false} size="sm" />
-        ) : (
-          cadences.map((c) => {
-            const owner = profiles.find((p) => p.user_id === c.owner_id);
-            return (
-              <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0 group">
-                <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0"><Repeat className="h-3.5 w-3.5 text-muted-foreground" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{c.title}</p>
-                  {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
-                </div>
-                <Select value={c.schedule_type} onValueChange={(v) => setFreq(c, v)}>
-                  <SelectTrigger className="h-6 w-[104px] text-[11px] shrink-0"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(FREQ_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={c.owner_id || "__none__"} onValueChange={(v) => setOwner(c, v === "__none__" ? null : v)}>
-                  <SelectTrigger className={`h-6 w-[132px] text-[11px] shrink-0 ${!c.owner_id ? "text-amber-600 border-amber-500/40" : ""}`}>
-                    <SelectValue>{owner ? owner.full_name : "Unassigned"}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
-                    {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <button onClick={() => onDetach(c.id)} title="Unlink from this plan" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                </button>
-              </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
+      )}
+      <CadencesTab key={`${planId}-${tick}`} businessPlanId={planId} />
+    </div>
   );
 }
 
@@ -677,6 +635,8 @@ function WorkspaceTab({ planId, docs, boards, freeDocs, freeBoards, onAttach, on
   onReload: () => Promise<void>;
   navigate: (path: string) => void; userId: string | null;
 }) {
+  const [docPeekId, setDocPeekId] = useState<string | null>(null);
+
   const createDoc = async (title: string) => {
     const { data, error } = await supabase.from("documents").insert({
       title, content: "", tags: [], parent_id: null,
@@ -684,7 +644,8 @@ function WorkspaceTab({ planId, docs, boards, freeDocs, freeBoards, onAttach, on
       author_id: userId, business_plan_id: planId,
     } as any).select("id").single();
     if (error || !data) { toast({ title: "Couldn't create page", description: error?.message, variant: "destructive" }); return; }
-    navigate(`/docs?id=${data.id}`);
+    await onReload();
+    setDocPeekId(data.id); // open it right here instead of navigating away
   };
 
   const createBoard = async (title: string) => {
@@ -705,7 +666,7 @@ function WorkspaceTab({ planId, docs, boards, freeDocs, freeBoards, onAttach, on
           </div>
           {docs.length === 0 ? <p className="text-xs text-muted-foreground py-2">No pages yet.</p> : docs.map((d) => (
             <div key={d.id} className="flex items-center gap-2 group">
-              <button onClick={() => navigate(`/docs?id=${d.id}`)} className="flex-1 text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors min-w-0">
+              <button onClick={() => setDocPeekId(d.id)} className="flex-1 text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors min-w-0">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-sm truncate">{d.title}</span>
               </button>
               <button onClick={() => onDetach("documents", d.id)} title="Unlink" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -713,6 +674,9 @@ function WorkspaceTab({ planId, docs, boards, freeDocs, freeBoards, onAttach, on
               </button>
             </div>
           ))}
+          {docPeekId && (
+            <DocPeek id={docPeekId} open={!!docPeekId} onClose={() => { setDocPeekId(null); onReload(); }} variant="doc" />
+          )}
         </CardContent>
       </Card>
 
