@@ -188,7 +188,7 @@ export default function BusinessPlanDetailPage() {
 
 // ── Overview ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, onReload }: {
+function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
   plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; decisions: Decision[]; profiles: ProfileRow[];
   onPlanPatch: (p: Partial<BusinessPlan>) => void;
   onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
