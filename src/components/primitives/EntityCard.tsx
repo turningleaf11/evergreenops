@@ -84,7 +84,7 @@ export function EntityCard({
         onClick={onClick}
         className={cn(
           "group bg-card rounded-xl border border-border/60 overflow-hidden",
-          "shadow-sm hover:shadow-md hover:border-border transition-all",
+          "shadow-card-lift hover:shadow-card-lift-hover hover:border-border transition-all",
           onClick && "cursor-pointer",
           "flex items-stretch",
           className,
@@ -149,7 +149,7 @@ export function EntityCard({
       onClick={onClick}
       className={cn(
         "group bg-card rounded-xl border border-border/60 overflow-hidden",
-        "shadow-sm hover:shadow-md hover:border-border transition-all",
+        "shadow-card-lift hover:shadow-card-lift-hover hover:border-border transition-all",
         onClick && "cursor-pointer",
         className,
       )}

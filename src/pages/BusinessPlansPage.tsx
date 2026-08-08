@@ -3,17 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { matchesVisibility } from "@/lib/visibility";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { StatusPill } from "@/components/primitives";
+import { EntityCard, type AvatarStackPerson } from "@/components/primitives";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Plus, Users } from "lucide-react";
+import { ClipboardList, Plus, CheckSquare, UserPlus, Repeat } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/shared/EmptyState";
 
@@ -27,9 +25,7 @@ type BusinessPlan = {
   shared_with: any;
 };
 
-function getInitials(name: string) {
-  return name.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-}
+type ProfileLite = { user_id: string; full_name: string | null; avatar_url: string | null };
 
 export default function BusinessPlansPage() {
   const { isAdmin, user, profile } = useAuth();
@@ -37,8 +33,9 @@ export default function BusinessPlansPage() {
 
   const [plans, setPlans] = useState<BusinessPlan[]>([]);
   const [deliverableCounts, setDeliverableCounts] = useState<Record<string, { done: number; total: number }>>({});
-  const [roleCounts, setRoleCounts] = useState<Record<string, { filled: number; total: number }>>({});
-  const [profiles, setProfiles] = useState<Record<string, { full_name: string | null }>>({});
+  const [roleCounts, setRoleCounts] = useState<Record<string, { open: number; total: number }>>({});
+  const [cadenceCounts, setCadenceCounts] = useState<Record<string, number>>({});
+  const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({});
   const [loading, setLoading] = useState(true);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -46,54 +43,58 @@ export default function BusinessPlansPage() {
   const [newOneLiner, setNewOneLiner] = useState("");
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   async function load() {
     setLoading(true);
-    const [plansRes, deliverablesRes, rolesRes, profilesRes] = await Promise.all([
+    const [plansRes, deliverablesRes, rolesRes, cadencesRes, profilesRes] = await Promise.all([
       supabase.from("business_plans").select("*").order("created_at", { ascending: false }),
       supabase.from("business_plan_deliverables").select("business_plan_id, status"),
       supabase.from("business_plan_roles").select("business_plan_id, assigned_user_id"),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("cadences").select("business_plan_id").not("business_plan_id", "is", null),
+      supabase.from("profiles").select("user_id, full_name, avatar_url"),
     ]);
 
     setPlans((plansRes.data as BusinessPlan[]) || []);
 
     const dCounts: Record<string, { done: number; total: number }> = {};
     (deliverablesRes.data || []).forEach((d: any) => {
-      const bucket = dCounts[d.business_plan_id] || { done: 0, total: 0 };
-      bucket.total += 1;
-      if (d.status === "done") bucket.done += 1;
-      dCounts[d.business_plan_id] = bucket;
+      const b = dCounts[d.business_plan_id] || { done: 0, total: 0 };
+      b.total += 1;
+      if (d.status === "done") b.done += 1;
+      dCounts[d.business_plan_id] = b;
     });
     setDeliverableCounts(dCounts);
 
-    const rCounts: Record<string, { filled: number; total: number }> = {};
+    const rCounts: Record<string, { open: number; total: number }> = {};
     (rolesRes.data || []).forEach((r: any) => {
-      const bucket = rCounts[r.business_plan_id] || { filled: 0, total: 0 };
-      bucket.total += 1;
-      if (r.assigned_user_id) bucket.filled += 1;
-      rCounts[r.business_plan_id] = bucket;
+      const b = rCounts[r.business_plan_id] || { open: 0, total: 0 };
+      b.total += 1;
+      if (!r.assigned_user_id) b.open += 1;
+      rCounts[r.business_plan_id] = b;
     });
     setRoleCounts(rCounts);
 
-    const profileMap: Record<string, { full_name: string | null }> = {};
-    (profilesRes.data || []).forEach((p: any) => { profileMap[p.user_id] = { full_name: p.full_name }; });
+    const cCounts: Record<string, number> = {};
+    (cadencesRes.data || []).forEach((c: any) => {
+      cCounts[c.business_plan_id] = (cCounts[c.business_plan_id] || 0) + 1;
+    });
+    setCadenceCounts(cCounts);
+
+    const profileMap: Record<string, ProfileLite> = {};
+    (profilesRes.data || []).forEach((p: any) => { profileMap[p.user_id] = p; });
     setProfiles(profileMap);
 
     setLoading(false);
   }
 
-  const visiblePlans = useMemo(() => {
-    return plans.filter((p) =>
+  const visiblePlans = useMemo(() =>
+    plans.filter((p) =>
       matchesVisibility(
         { visibility: p.visibility, sharedWith: p.shared_with, authorId: p.owner_id },
         { isAdmin, userId: user?.id, departmentId: profile?.department_id }
       )
-    );
-  }, [plans, isAdmin, user?.id, profile?.department_id]);
+    ), [plans, isAdmin, user?.id, profile?.department_id]);
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
@@ -163,57 +164,39 @@ export default function BusinessPlansPage() {
           icon={ClipboardList}
           title="No business plans yet"
           description="Create one for each venture — Fix & Flip, Buy & Hold, or anything else you're building."
+          actionLabel="New plan"
+          actionIcon={Plus}
+          onAction={() => setCreateOpen(true)}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visiblePlans.map((plan) => {
-            const dCount = deliverableCounts[plan.id] || { done: 0, total: 0 };
-            const rCount = roleCounts[plan.id] || { filled: 0, total: 0 };
-            const progress = dCount.total > 0 ? Math.round((dCount.done / dCount.total) * 100) : 0;
-            const memberIds: string[] = plan.shared_with?.memberIds || [];
-            const ownerName = plan.owner_id ? (profiles[plan.owner_id]?.full_name || "Unassigned") : "Unassigned";
+            const d = deliverableCounts[plan.id] || { done: 0, total: 0 };
+            const r = roleCounts[plan.id] || { open: 0, total: 0 };
+            const cadences = cadenceCounts[plan.id] || 0;
+
+            // Owner first, then anyone the plan is explicitly shared with.
+            const people: AvatarStackPerson[] = [];
+            if (plan.owner_id && profiles[plan.owner_id]) people.push(profiles[plan.owner_id]);
+            ((plan.shared_with?.memberIds as string[]) || []).forEach((uid) => {
+              if (uid !== plan.owner_id && profiles[uid]) people.push(profiles[uid]);
+            });
 
             return (
-              <Card
+              <EntityCard
                 key={plan.id}
+                kind="business_plan"
+                status={plan.status}
+                title={plan.title}
+                description={plan.one_liner}
+                assignees={people}
                 onClick={() => navigate(`/business-plans/${plan.id}`)}
-                className="cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all group border-border/50 bg-card/60 backdrop-blur-sm"
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-semibold leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                        {plan.title}
-                      </h3>
-                      {plan.one_liner && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.one_liner}</p>
-                      )}
-                    </div>
-                    <StatusPill kind="business_plan" value={plan.status} size="sm" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground">Deliverables</span>
-                      <span className="font-medium">{dCount.done}/{dCount.total}</span>
-                    </div>
-                    <Progress value={progress} className="h-1" />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <Users className="h-3 w-3" />
-                      {rCount.total === 0 ? "No roles set" : `${rCount.total - rCount.filled} open role${rCount.total - rCount.filled === 1 ? "" : "s"}`}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-4 w-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-semibold">
-                        {getInitials(ownerName)}
-                      </span>
-                      {memberIds.length > 0 && <span>+{memberIds.length}</span>}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                metadata={[
+                  { icon: CheckSquare, value: `${d.done}/${d.total}`, label: "Deliverables ready" },
+                  { icon: UserPlus, value: r.open, label: "Open roles" },
+                  { icon: Repeat, value: cadences, label: "Ops cadences" },
+                ]}
+              />
             );
           })}
         </div>

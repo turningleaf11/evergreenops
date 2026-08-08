@@ -911,11 +911,13 @@ export type Database = {
           business_plan_id: string
           category: string
           created_at: string
+          due_date: string | null
           file_url: string | null
           id: string
           link_url: string | null
           linked_project_id: string | null
           linked_task_id: string | null
+          owner_id: string | null
           sort_order: number
           status: string
           title: string
@@ -925,11 +927,13 @@ export type Database = {
           business_plan_id: string
           category?: string
           created_at?: string
+          due_date?: string | null
           file_url?: string | null
           id?: string
           link_url?: string | null
           linked_project_id?: string | null
           linked_task_id?: string | null
+          owner_id?: string | null
           sort_order?: number
           status?: string
           title: string
@@ -939,11 +943,13 @@ export type Database = {
           business_plan_id?: string
           category?: string
           created_at?: string
+          due_date?: string | null
           file_url?: string | null
           id?: string
           link_url?: string | null
           linked_project_id?: string | null
           linked_task_id?: string | null
+          owner_id?: string | null
           sort_order?: number
           status?: string
           title?: string

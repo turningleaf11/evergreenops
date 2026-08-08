@@ -4,12 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Visibility, SharedWith } from "@/lib/mock-data";
 import AccessPicker from "@/components/AccessPicker";
-import { StatusPill } from "@/components/primitives";
+import { StatusPill, AvatarStack, type AvatarStackPerson } from "@/components/primitives";
+import { LinkOrCreate, type LinkCandidate } from "@/components/business-plans/LinkOrCreate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -31,21 +33,27 @@ type BusinessPlan = {
 };
 type Deliverable = {
   id: string; business_plan_id: string; category: string; title: string; status: string;
-  link_url: string | null; file_url: string | null; linked_project_id: string | null; linked_task_id: string | null;
+  link_url: string | null; file_url: string | null; owner_id: string | null; due_date: string | null;
+  linked_project_id: string | null; linked_task_id: string | null;
 };
 type RoleRow = { id: string; business_plan_id: string; role_title: string; assigned_user_id: string | null; notes: string | null };
 type Goal = { id: string; title: string; status: string; quarter: string; year: number; measurable_target: string | null };
 type Cadence = { id: string; title: string; description: string | null; schedule_type: string; owner_id: string | null; is_active: boolean };
 type DocRow = { id: string; title: string; updated_at: string };
 type BoardRow = { id: string; title: string; updated_at: string };
-type ProfileRow = { user_id: string; full_name: string | null };
+type ProfileRow = { user_id: string; full_name: string | null; avatar_url: string | null; title: string | null };
 
 const FREQ_LABELS: Record<string, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly", custom: "Custom" };
+const SEVERITIES = [
+  { value: "high", label: "High", dot: "bg-destructive" },
+  { value: "med", label: "Medium", dot: "bg-amber-500" },
+  { value: "low", label: "Low", dot: "bg-muted-foreground" },
+];
 
 export default function BusinessPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   const [plan, setPlan] = useState<BusinessPlan | null>(null);
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
@@ -55,13 +63,17 @@ export default function BusinessPlanDetailPage() {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [boards, setBoards] = useState<BoardRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  // Unattached records available to link into this plan.
+  const [freeGoals, setFreeGoals] = useState<LinkCandidate[]>([]);
+  const [freeCadences, setFreeCadences] = useState<LinkCandidate[]>([]);
+  const [freeDocs, setFreeDocs] = useState<LinkCandidate[]>([]);
+  const [freeBoards, setFreeBoards] = useState<LinkCandidate[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const nameFor = (uid: string | null) => (uid ? profiles.find((p) => p.user_id === uid)?.full_name || "Unknown" : null);
 
   const load = async () => {
     if (!id) return;
-    const [planRes, delivRes, rolesRes, goalsRes, cadRes, docsRes, boardsRes, profRes] = await Promise.all([
+    const [planRes, delivRes, rolesRes, goalsRes, cadRes, docsRes, boardsRes, profRes,
+           fGoals, fCad, fDocs, fBoards] = await Promise.all([
       supabase.from("business_plans").select("*").eq("id", id).single(),
       supabase.from("business_plan_deliverables").select("*").eq("business_plan_id", id).order("category").order("sort_order"),
       supabase.from("business_plan_roles").select("*").eq("business_plan_id", id).order("sort_order"),
@@ -69,7 +81,11 @@ export default function BusinessPlanDetailPage() {
       supabase.from("cadences").select("id, title, description, schedule_type, owner_id, is_active").eq("business_plan_id", id),
       supabase.from("documents").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("whiteboards").select("id, title, updated_at").eq("business_plan_id", id),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("profiles").select("user_id, full_name, avatar_url, title"),
+      supabase.from("goals").select("id, title, quarter, year").is("business_plan_id", null).limit(100),
+      supabase.from("cadences").select("id, title, schedule_type").is("business_plan_id", null).limit(100),
+      supabase.from("documents").select("id, title, updated_at").is("business_plan_id", null).limit(100),
+      supabase.from("whiteboards").select("id, title, updated_at").is("business_plan_id", null).limit(100),
     ]);
     setPlan(planRes.data as BusinessPlan);
     setDeliverables((delivRes.data as Deliverable[]) || []);
@@ -79,6 +95,10 @@ export default function BusinessPlanDetailPage() {
     setDocs((docsRes.data as DocRow[]) || []);
     setBoards((boardsRes.data as BoardRow[]) || []);
     setProfiles((profRes.data as ProfileRow[]) || []);
+    setFreeGoals(((fGoals.data as any[]) || []).map((g) => ({ id: g.id, title: g.title, hint: `${g.quarter} ${g.year}` })));
+    setFreeCadences(((fCad.data as any[]) || []).map((c) => ({ id: c.id, title: c.title, hint: FREQ_LABELS[c.schedule_type] || c.schedule_type })));
+    setFreeDocs(((fDocs.data as any[]) || []).map((d) => ({ id: d.id, title: d.title })));
+    setFreeBoards(((fBoards.data as any[]) || []).map((b) => ({ id: b.id, title: b.title })));
     setLoading(false);
   };
 
@@ -93,6 +113,20 @@ export default function BusinessPlanDetailPage() {
     if (error) toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
   };
 
+  /** Attach an existing record from another table to this plan. */
+  const attach = async (table: "goals" | "cadences" | "documents" | "whiteboards", recordId: string) => {
+    const { error } = await supabase.from(table).update({ business_plan_id: plan.id } as any).eq("id", recordId);
+    if (error) { toast({ title: "Couldn't link", description: error.message, variant: "destructive" }); return; }
+    await load();
+  };
+  /** Detach without deleting — the record goes back to living on its own. */
+  const detach = async (table: "goals" | "cadences" | "documents" | "whiteboards", recordId: string) => {
+    await supabase.from(table).update({ business_plan_id: null } as any).eq("id", recordId);
+    await load();
+  };
+
+  const ownerProfile = profiles.find((p) => p.user_id === plan.owner_id);
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -103,6 +137,7 @@ export default function BusinessPlanDetailPage() {
           </div>
           {plan.one_liner && <p className="text-sm text-muted-foreground mt-1 max-w-xl">{plan.one_liner}</p>}
         </div>
+        {ownerProfile && <AvatarStack people={[ownerProfile]} size="lg" />}
       </div>
 
       <Tabs defaultValue="overview">
@@ -116,22 +151,33 @@ export default function BusinessPlanDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
-          <OverviewTab plan={plan} goals={goals} onPlanPatch={updatePlan} onGoalCreated={load} />
+          <OverviewTab
+            plan={plan} goals={goals} freeGoals={freeGoals}
+            onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
+            onDetach={(gid) => detach("goals", gid)} onReload={load}
+          />
         </TabsContent>
         <TabsContent value="deliverables" className="mt-4">
-          <DeliverablesTab planId={plan.id} deliverables={deliverables} onChange={load} />
+          <DeliverablesTab planId={plan.id} deliverables={deliverables} profiles={profiles} onChange={load} />
         </TabsContent>
         <TabsContent value="ops" className="mt-4">
-          <OpsSupportTab planId={plan.id} cadences={cadences} profiles={profiles} onChange={load} />
+          <OpsSupportTab
+            planId={plan.id} cadences={cadences} freeCadences={freeCadences} profiles={profiles}
+            onAttach={(cid) => attach("cadences", cid)} onDetach={(cid) => detach("cadences", cid)} onReload={load}
+          />
         </TabsContent>
         <TabsContent value="roles" className="mt-4">
           <RolesTab planId={plan.id} roles={roles} profiles={profiles} onChange={load} />
         </TabsContent>
         <TabsContent value="workspace" className="mt-4">
-          <WorkspaceTab planId={plan.id} docs={docs} boards={boards} onChange={load} navigate={navigate} userId={user?.id || null} />
+          <WorkspaceTab
+            planId={plan.id} docs={docs} boards={boards} freeDocs={freeDocs} freeBoards={freeBoards}
+            onAttach={attach} onDetach={detach} onReload={load}
+            navigate={navigate} userId={user?.id || null}
+          />
         </TabsContent>
         <TabsContent value="access" className="mt-4">
-          <AccessTab plan={plan} onPlanPatch={updatePlan} ownerName={nameFor(plan.owner_id)} />
+          <AccessTab plan={plan} onPlanPatch={updatePlan} ownerName={ownerProfile?.full_name || null} />
         </TabsContent>
       </Tabs>
     </div>
@@ -140,16 +186,16 @@ export default function BusinessPlanDetailPage() {
 
 // ── Overview ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
-  plan: BusinessPlan; goals: Goal[]; onPlanPatch: (p: Partial<BusinessPlan>) => void; onGoalCreated: () => void;
+function OverviewTab({ plan, goals, freeGoals, onPlanPatch, onAttach, onDetach, onReload }: {
+  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[];
+  onPlanPatch: (p: Partial<BusinessPlan>) => void;
+  onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
+  onReload: () => Promise<void>;
 }) {
   const { user } = useAuth();
   const [newMilestone, setNewMilestone] = useState("");
   const [newRisk, setNewRisk] = useState("");
-  const [goalOpen, setGoalOpen] = useState(false);
-  const [goalTitle, setGoalTitle] = useState("");
-  const [goalTarget, setGoalTarget] = useState("");
-  const [creatingGoal, setCreatingGoal] = useState(false);
+  const [newRiskSeverity, setNewRiskSeverity] = useState("med");
 
   const milestones = plan.milestones || [];
   const risks = plan.risks || [];
@@ -159,36 +205,33 @@ function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
     onPlanPatch({ milestones: [...milestones, { title: newMilestone.trim(), done: false }] });
     setNewMilestone("");
   };
-  const toggleMilestone = (idx: number) => {
-    const next = milestones.map((m: any, i: number) => (i === idx ? { ...m, done: !m.done } : m));
-    onPlanPatch({ milestones: next });
-  };
-  const removeMilestone = (idx: number) => onPlanPatch({ milestones: milestones.filter((_: any, i: number) => i !== idx) });
+  const toggleMilestone = (idx: number) =>
+    onPlanPatch({ milestones: milestones.map((m: any, i: number) => (i === idx ? { ...m, done: !m.done } : m)) });
+  const removeMilestone = (idx: number) =>
+    onPlanPatch({ milestones: milestones.filter((_: any, i: number) => i !== idx) });
 
   const addRisk = () => {
     if (!newRisk.trim()) return;
-    onPlanPatch({ risks: [...risks, { text: newRisk.trim(), severity: "med" }] });
+    onPlanPatch({ risks: [...risks, { text: newRisk.trim(), severity: newRiskSeverity }] });
     setNewRisk("");
+    setNewRiskSeverity("med");
   };
-  const removeRisk = (idx: number) => onPlanPatch({ risks: risks.filter((_: any, i: number) => i !== idx) });
+  const setRiskSeverity = (idx: number, severity: string) =>
+    onPlanPatch({ risks: risks.map((r: any, i: number) => (i === idx ? { ...r, severity } : r)) });
+  const removeRisk = (idx: number) =>
+    onPlanPatch({ risks: risks.filter((_: any, i: number) => i !== idx) });
 
-  const createGoal = async () => {
-    if (!goalTitle.trim()) return;
-    setCreatingGoal(true);
+  const createGoal = async (title: string) => {
     const now = new Date();
-    const quarter = `Q${Math.floor(now.getMonth() / 3) + 1}`;
     const { error } = await supabase.from("goals").insert({
-      title: goalTitle.trim(),
-      measurable_target: goalTarget.trim() || null,
-      quarter, year: now.getFullYear(),
+      title,
+      quarter: `Q${Math.floor(now.getMonth() / 3) + 1}`, year: now.getFullYear(),
       status: "on_track", progress: 0,
       owner_id: user?.id || null, created_by: user?.id || null,
       business_plan_id: plan.id,
     });
-    setCreatingGoal(false);
     if (error) { toast({ title: "Couldn't create goal", description: error.message, variant: "destructive" }); return; }
-    setGoalOpen(false); setGoalTitle(""); setGoalTarget("");
-    onGoalCreated();
+    await onReload();
   };
 
   return (
@@ -198,30 +241,22 @@ function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Goals</h4>
-              <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
-                <DialogTrigger asChild><Button size="sm" variant="outline" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" />New goal</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>New goal for {plan.title}</DialogTitle></DialogHeader>
-                  <div className="space-y-3 py-2">
-                    <div className="space-y-1.5"><Label>Title</Label><Input value={goalTitle} onChange={(e) => setGoalTitle(e.target.value)} placeholder="e.g. 10 offers a week" /></div>
-                    <div className="space-y-1.5"><Label>Measurable target</Label><Input value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="e.g. 10/week" /></div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setGoalOpen(false)}>Cancel</Button>
-                    <Button onClick={createGoal} disabled={!goalTitle.trim() || creatingGoal}>{creatingGoal ? "Creating…" : "Create goal"}</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <LinkOrCreate noun="goal" candidates={freeGoals} onLink={onAttach} onCreate={createGoal} />
             </div>
             {goals.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No goals linked yet.</p>
+              <p className="text-xs text-muted-foreground py-2">
+                No goals yet — link an existing one from Execution Hub or create one here.
+              </p>
             ) : (
               <div className="space-y-1.5">
                 {goals.map((g) => (
-                  <div key={g.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-border/40 last:border-0">
+                  <div key={g.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-border/40 last:border-0 group">
                     <span className="flex-1 min-w-0 truncate">{g.title}</span>
                     {g.measurable_target && <span className="text-xs text-muted-foreground shrink-0">{g.measurable_target}</span>}
                     <StatusPill kind="goal" value={g.status} size="sm" />
+                    <button onClick={() => onDetach(g.id)} title="Unlink from this plan" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -235,9 +270,11 @@ function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
             <div className="space-y-1.5">
               {milestones.map((m: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-sm group">
-                  <input type="checkbox" checked={!!m.done} onChange={() => toggleMilestone(i)} className="h-3.5 w-3.5" />
+                  <input type="checkbox" checked={!!m.done} onChange={() => toggleMilestone(i)} className="h-3.5 w-3.5 accent-primary" />
                   <span className={m.done ? "line-through text-muted-foreground flex-1" : "flex-1"}>{m.title}</span>
-                  <button onClick={() => removeMilestone(i)} className="opacity-0 group-hover:opacity-100"><X className="h-3 w-3 text-muted-foreground" /></button>
+                  <button onClick={() => removeMilestone(i)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -254,15 +291,46 @@ function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Risks &amp; blockers</h4>
           <div className="space-y-1.5">
             {risks.length === 0 && <p className="text-xs text-muted-foreground py-2">Nothing flagged.</p>}
-            {risks.map((r: any, i: number) => (
-              <div key={i} className="flex items-start gap-2 text-sm group">
-                <span className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${r.severity === "high" ? "bg-destructive" : "bg-amber-500"}`} />
-                <span className="flex-1">{r.text}</span>
-                <button onClick={() => removeRisk(i)} className="opacity-0 group-hover:opacity-100"><X className="h-3 w-3 text-muted-foreground" /></button>
-              </div>
-            ))}
+            {risks.map((r: any, i: number) => {
+              const sev = SEVERITIES.find((s) => s.value === (r.severity || "med")) || SEVERITIES[1];
+              return (
+                <div key={i} className="flex items-start gap-2 text-sm group">
+                  <Select value={r.severity || "med"} onValueChange={(v) => setRiskSeverity(i, v)}>
+                    <SelectTrigger className="h-6 w-[86px] text-[11px] shrink-0 mt-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} />
+                        {sev.label}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SEVERITIES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          <span className="flex items-center gap-2">
+                            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="flex-1 pt-1">{r.text}</span>
+                  <button onClick={() => removeRisk(i)} className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="flex gap-1.5 pt-1">
+            <Select value={newRiskSeverity} onValueChange={setNewRiskSeverity}>
+              <SelectTrigger className="h-7 w-[96px] text-xs shrink-0"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {SEVERITIES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input value={newRisk} onChange={(e) => setNewRisk(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRisk()} placeholder="Add a risk or blocker…" className="h-7 text-xs" />
             <Button size="sm" variant="outline" className="h-7" onClick={addRisk}>Add</Button>
           </div>
@@ -274,7 +342,9 @@ function OverviewTab({ plan, goals, onPlanPatch, onGoalCreated }: {
 
 // ── Deliverables ──────────────────────────────────────────────────────────
 
-function DeliverablesTab({ planId, deliverables, onChange }: { planId: string; deliverables: Deliverable[]; onChange: () => void; }) {
+function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
+  planId: string; deliverables: Deliverable[]; profiles: ProfileRow[]; onChange: () => void;
+}) {
   const { user } = useAuth();
   const [addOpen, setAddOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -286,35 +356,39 @@ function DeliverablesTab({ planId, deliverables, onChange }: { planId: string; d
     return m;
   }, [deliverables]);
 
-  const setStatus = async (d: Deliverable, status: string) => {
-    await supabase.from("business_plan_deliverables").update({ status }).eq("id", d.id);
+  const patch = async (d: Deliverable, values: Partial<Deliverable>) => {
+    await supabase.from("business_plan_deliverables").update(values as any).eq("id", d.id);
     onChange();
   };
 
   const setLink = async (d: Deliverable) => {
     const url = window.prompt("Link URL", d.link_url || "");
     if (url === null) return;
-    await supabase.from("business_plan_deliverables").update({ link_url: url || null }).eq("id", d.id);
-    onChange();
+    await patch(d, { link_url: url || null });
   };
 
   const promote = async (d: Deliverable, kind: "task" | "project") => {
     const table = kind === "task" ? "tasks" : "projects";
     const { data, error } = await supabase.from(table).insert({
-      title: d.title, status: kind === "task" ? "todo" : "not_started", priority: "medium",
-      business_plan_id: planId, created_by: user?.id || null,
+      title: d.title,
+      status: kind === "task" ? "todo" : "not_started",
+      priority: "medium",
+      business_plan_id: planId,
+      created_by: user?.id || null,
+      ...(kind === "task"
+        ? { assigned_to: d.owner_id, due_date: d.due_date }
+        : { owner_id: d.owner_id, due_date: d.due_date }),
     } as any).select("id").single();
     if (error || !data) { toast({ title: `Couldn't create ${kind}`, description: error?.message, variant: "destructive" }); return; }
-    await supabase.from("business_plan_deliverables").update(
-      kind === "task" ? { linked_task_id: data.id } : { linked_project_id: data.id }
-    ).eq("id", d.id);
-    toast({ title: `${kind === "task" ? "Task" : "Project"} created` });
-    onChange();
+    await patch(d, kind === "task" ? { linked_task_id: data.id } : { linked_project_id: data.id });
+    toast({ title: `${kind === "task" ? "Task" : "Project"} created`, description: "Owner and due date carried over." });
   };
 
   const addDeliverable = async () => {
     if (!title.trim()) return;
-    await supabase.from("business_plan_deliverables").insert({ business_plan_id: planId, title: title.trim(), category: category.trim() || "General" });
+    await supabase.from("business_plan_deliverables").insert({
+      business_plan_id: planId, title: title.trim(), category: category.trim() || "General",
+    });
     setAddOpen(false); setTitle(""); setCategory("General");
     onChange();
   };
@@ -351,34 +425,68 @@ function DeliverablesTab({ planId, deliverables, onChange }: { planId: string; d
             <CardContent className="p-4 space-y-1">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{cat}</h4>
-                <span className="text-[11px] text-muted-foreground">{items.filter((d) => d.status === "done").length}/{items.length}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums">{items.filter((d) => d.status === "done").length}/{items.length}</span>
               </div>
-              {items.map((d) => (
-                <div key={d.id} className="flex items-center gap-2.5 py-2 border-b border-border/40 last:border-0 group">
-                  <StatusPill kind="project" value={d.status} onChange={(v) => setStatus(d, v)} size="sm" />
-                  <span className={`flex-1 text-sm min-w-0 truncate ${d.status === "done" ? "text-muted-foreground line-through" : ""}`}>{d.title}</span>
-                  {d.link_url && <a href={d.link_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary"><ExternalLink className="h-3.5 w-3.5" /></a>}
-                  <Button size="sm" variant="ghost" className="h-6 text-[11px] px-1.5" onClick={() => setLink(d)}>
-                    <Link2 className="h-3 w-3 mr-1" />{d.link_url ? "Edit link" : "Add link"}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="ghost" className="h-6 text-[11px] px-1.5">
-                        {d.linked_task_id || d.linked_project_id ? "Linked" : "Promote"} <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => promote(d, "task")} disabled={!!d.linked_task_id}>
-                        {d.linked_task_id ? "Task already created" : "Promote to Task"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => promote(d, "project")} disabled={!!d.linked_project_id}>
-                        {d.linked_project_id ? "Project already created" : "Promote to Project"}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <button onClick={() => remove(d)} className="opacity-0 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" /></button>
-                </div>
-              ))}
+              {items.map((d) => {
+                const owner = profiles.find((p) => p.user_id === d.owner_id);
+                const overdue = d.due_date && d.status !== "done" && new Date(d.due_date) < new Date();
+                return (
+                  <div key={d.id} className="flex items-center gap-2.5 py-2 border-b border-border/40 last:border-0 group">
+                    <StatusPill kind="project" value={d.status} onChange={(v) => patch(d, { status: v })} size="sm" />
+                    <span className={`flex-1 text-sm min-w-0 truncate ${d.status === "done" ? "text-muted-foreground line-through" : ""}`}>{d.title}</span>
+
+                    {/* Owner */}
+                    <Select value={d.owner_id || "__none__"} onValueChange={(v) => patch(d, { owner_id: v === "__none__" ? null : v })}>
+                      <SelectTrigger className="h-6 w-[132px] text-[11px] shrink-0">
+                        <SelectValue placeholder="Unassigned">
+                          {owner ? owner.full_name : <span className="text-muted-foreground">Unassigned</span>}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Unassigned</SelectItem>
+                        {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Due date */}
+                    <Input
+                      type="date"
+                      value={d.due_date || ""}
+                      onChange={(e) => patch(d, { due_date: e.target.value || null })}
+                      className={`h-6 w-[126px] text-[11px] shrink-0 ${overdue ? "text-destructive border-destructive/50" : ""}`}
+                    />
+
+                    {d.link_url && (
+                      <a href={d.link_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary shrink-0" title={d.link_url}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 text-[11px] px-1.5 shrink-0" onClick={() => setLink(d)}>
+                      <Link2 className="h-3 w-3 mr-1" />{d.link_url ? "Edit" : "Link"}
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-6 text-[11px] px-1.5 shrink-0">
+                          {d.linked_task_id || d.linked_project_id ? "Linked" : "Promote"} <ChevronDown className="h-3 w-3 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => promote(d, "task")} disabled={!!d.linked_task_id}>
+                          {d.linked_task_id ? "Task already created" : "Promote to Task"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => promote(d, "project")} disabled={!!d.linked_project_id}>
+                          {d.linked_project_id ? "Project already created" : "Promote to Project"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <button onClick={() => remove(d)} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         ))
@@ -389,66 +497,70 @@ function DeliverablesTab({ planId, deliverables, onChange }: { planId: string; d
 
 // ── Ops Support (Cadences, scoped) ───────────────────────────────────────
 
-function OpsSupportTab({ planId, cadences, profiles, onChange }: {
-  planId: string; cadences: Cadence[]; profiles: ProfileRow[]; onChange: () => void;
+function OpsSupportTab({ planId, cadences, freeCadences, profiles, onAttach, onDetach, onReload }: {
+  planId: string; cadences: Cadence[]; freeCadences: LinkCandidate[]; profiles: ProfileRow[];
+  onAttach: (id: string) => Promise<void>; onDetach: (id: string) => Promise<void>; onReload: () => Promise<void>;
 }) {
   const { user } = useAuth();
-  const [addOpen, setAddOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [schedule, setSchedule] = useState("weekly");
 
-  const addCadence = async () => {
-    if (!title.trim()) return;
-    await supabase.from("cadences").insert({
-      title: title.trim(), schedule_type: schedule, is_active: true,
+  const createCadence = async (title: string) => {
+    const { error } = await supabase.from("cadences").insert({
+      title, schedule_type: "weekly", is_active: true,
       business_plan_id: planId, created_by: user?.id || null,
     } as any);
-    setAddOpen(false); setTitle(""); setSchedule("weekly");
-    onChange();
+    if (error) { toast({ title: "Couldn't create cadence", description: error.message, variant: "destructive" }); return; }
+    await onReload();
+  };
+
+  const setOwner = async (c: Cadence, uid: string | null) => {
+    await supabase.from("cadences").update({ owner_id: uid }).eq("id", c.id);
+    await onReload();
+  };
+  const setFreq = async (c: Cadence, freq: string) => {
+    await supabase.from("cadences").update({ schedule_type: freq }).eq("id", c.id);
+    await onReload();
   };
 
   return (
     <Card>
       <CardContent className="p-4 space-y-1">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recurring ops support</h4>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild><Button size="sm" variant="outline" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" />New cadence</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>New recurring cadence</DialogTitle></DialogHeader>
-              <div className="space-y-3 py-2">
-                <div className="space-y-1.5"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. QA on calls" /></div>
-                <div className="space-y-1.5">
-                  <Label>Frequency</Label>
-                  <Select value={schedule} onValueChange={setSchedule}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(FREQ_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button onClick={addCadence} disabled={!title.trim()}>Add</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recurring ops support</h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5">These are real Cadences — they also appear in Execution Hub.</p>
+          </div>
+          <LinkOrCreate noun="cadence" candidates={freeCadences} onLink={onAttach} onCreate={createCadence} />
         </div>
         {cadences.length === 0 ? (
           <EmptyState icon={Repeat} title="No ops support set up" description="Campaign monitoring, QA, email coverage — anything recurring this venture needs." card={false} size="sm" />
         ) : (
           cadences.map((c) => {
-            const owner = c.owner_id ? profiles.find((p) => p.user_id === c.owner_id)?.full_name : null;
+            const owner = profiles.find((p) => p.user_id === c.owner_id);
             return (
-              <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0">
+              <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0 group">
                 <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0"><Repeat className="h-3.5 w-3.5 text-muted-foreground" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{c.title}</p>
                   {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
                 </div>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{FREQ_LABELS[c.schedule_type] || c.schedule_type}</span>
-                <span className={`text-xs shrink-0 ${owner ? "text-muted-foreground" : "text-amber-600"}`}>{owner || "Unassigned"}</span>
+                <Select value={c.schedule_type} onValueChange={(v) => setFreq(c, v)}>
+                  <SelectTrigger className="h-6 w-[104px] text-[11px] shrink-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FREQ_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={c.owner_id || "__none__"} onValueChange={(v) => setOwner(c, v === "__none__" ? null : v)}>
+                  <SelectTrigger className={`h-6 w-[132px] text-[11px] shrink-0 ${!c.owner_id ? "text-amber-600 border-amber-500/40" : ""}`}>
+                    <SelectValue>{owner ? owner.full_name : "Unassigned"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <button onClick={() => onDetach(c.id)} title="Unlink from this plan" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                </button>
               </div>
             );
           })
@@ -458,23 +570,37 @@ function OpsSupportTab({ planId, cadences, profiles, onChange }: {
   );
 }
 
-// ── Roles ─────────────────────────────────────────────────────────────────
+// ── Roles (mapped to the real roster) ─────────────────────────────────────
 
 function RolesTab({ planId, roles, profiles, onChange }: {
   planId: string; roles: RoleRow[]; profiles: ProfileRow[]; onChange: () => void;
 }) {
-  const [addOpen, setAddOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  // Role titles that already exist on the roster — so a plan's seats use the
+  // same vocabulary as People rather than inventing parallel job names.
+  const rosterTitles: LinkCandidate[] = useMemo(() => {
+    const seen = new Map<string, number>();
+    profiles.forEach((p) => {
+      const t = (p.title || "").trim();
+      if (t) seen.set(t, (seen.get(t) || 0) + 1);
+    });
+    return Array.from(seen.entries())
+      .filter(([t]) => !roles.some((r) => r.role_title.toLowerCase() === t.toLowerCase()))
+      .map(([t, n]) => ({ id: t, title: t, hint: `${n} on roster` }));
+  }, [profiles, roles]);
 
-  const addRole = async () => {
-    if (!title.trim()) return;
-    await supabase.from("business_plan_roles").insert({ business_plan_id: planId, role_title: title.trim() });
-    setAddOpen(false); setTitle("");
+  const addRole = async (roleTitle: string) => {
+    // Pre-fill the assignee when exactly one person on the roster holds this title.
+    const holders = profiles.filter((p) => (p.title || "").trim().toLowerCase() === roleTitle.trim().toLowerCase());
+    await supabase.from("business_plan_roles").insert({
+      business_plan_id: planId,
+      role_title: roleTitle.trim(),
+      assigned_user_id: holders.length === 1 ? holders[0].user_id : null,
+    });
     onChange();
   };
 
-  const assign = async (r: RoleRow, userId: string) => {
-    await supabase.from("business_plan_roles").update({ assigned_user_id: userId || null }).eq("id", r.id);
+  const assign = async (r: RoleRow, userId: string | null) => {
+    await supabase.from("business_plan_roles").update({ assigned_user_id: userId }).eq("id", r.id);
     onChange();
   };
 
@@ -483,54 +609,77 @@ function RolesTab({ planId, roles, profiles, onChange }: {
     onChange();
   };
 
+  const openSeats = roles.filter((r) => !r.assigned_user_id).length;
+
   return (
     <Card>
       <CardContent className="p-4 space-y-1">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Roles</h4>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild><Button size="sm" variant="outline" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" />Add role</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>New role</DialogTitle></DialogHeader>
-              <div className="space-y-1.5 py-2"><Label>Role title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Acquisitions Manager" /></div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button onClick={addRole} disabled={!title.trim()}>Add</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Roles</h4>
+            {openSeats > 0 && (
+              <Badge variant="secondary" className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15">
+                {openSeats} open seat{openSeats === 1 ? "" : "s"}
+              </Badge>
+            )}
+          </div>
+          <LinkOrCreate noun="role" candidates={rosterTitles} onLink={addRole} onCreate={addRole} />
         </div>
         {roles.length === 0 ? (
-          <EmptyState icon={Users} title="No roles defined" description="Name what this venture needs staffed — you can assign people later." card={false} size="sm" />
+          <EmptyState icon={Users} title="No roles defined" description="Pull a title from your roster or name a new seat — unfilled ones show up as hiring needs." card={false} size="sm" />
         ) : (
-          roles.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0 group">
-              <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0"><Users className="h-3.5 w-3.5 text-muted-foreground" /></div>
-              <span className="flex-1 text-sm font-medium min-w-0 truncate">{r.role_title}</span>
-              <Select value={r.assigned_user_id || "__none__"} onValueChange={(v) => assign(r, v === "__none__" ? "" : v)}>
-                <SelectTrigger className="h-7 text-xs w-44"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Unnamed"}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <button onClick={() => remove(r)} className="opacity-0 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" /></button>
-            </div>
-          ))
+          roles.map((r) => {
+            const person = profiles.find((p) => p.user_id === r.assigned_user_id);
+            return (
+              <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0 group">
+                {person ? (
+                  <AvatarStack people={[person]} size="md" />
+                ) : (
+                  <div className="h-[22px] w-[22px] rounded-full border border-dashed border-amber-500/60 flex items-center justify-center shrink-0">
+                    <Users className="h-3 w-3 text-amber-600" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{r.role_title}</p>
+                  {!person && <p className="text-[11px] text-amber-600">Open seat — nobody assigned</p>}
+                </div>
+                <Select value={r.assigned_user_id || "__none__"} onValueChange={(v) => assign(r, v === "__none__" ? null : v)}>
+                  <SelectTrigger className="h-7 text-xs w-48 shrink-0">
+                    <SelectValue>{person ? (person.full_name || "Unnamed") : "Unassigned"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.full_name || "Unnamed"}{p.title ? ` — ${p.title}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button onClick={() => remove(r)} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                </button>
+              </div>
+            );
+          })
         )}
       </CardContent>
     </Card>
   );
 }
 
-// ── Workspace (Wiki, Whiteboards, Process Map stub, Files) ─────────────────
+// ── Workspace (Wiki, Whiteboards, Process Map stub) ───────────────────────
 
-function WorkspaceTab({ planId, docs, boards, onChange, navigate, userId }: {
-  planId: string; docs: DocRow[]; boards: BoardRow[]; onChange: () => void; navigate: (path: string) => void; userId: string | null;
+function WorkspaceTab({ planId, docs, boards, freeDocs, freeBoards, onAttach, onDetach, onReload, navigate, userId }: {
+  planId: string; docs: DocRow[]; boards: BoardRow[]; freeDocs: LinkCandidate[]; freeBoards: LinkCandidate[];
+  onAttach: (table: "goals" | "cadences" | "documents" | "whiteboards", id: string) => Promise<void>;
+  onDetach: (table: "goals" | "cadences" | "documents" | "whiteboards", id: string) => Promise<void>;
+  onReload: () => Promise<void>;
+  navigate: (path: string) => void; userId: string | null;
 }) {
-  const newDoc = async () => {
+  const createDoc = async (title: string) => {
     const { data, error } = await supabase.from("documents").insert({
-      title: "Untitled", content: "", tags: [], parent_id: null,
+      title, content: "", tags: [], parent_id: null,
       visibility: "workspace", shared_with: { departmentIds: [], memberIds: [] },
       author_id: userId, business_plan_id: planId,
     } as any).select("id").single();
@@ -538,9 +687,9 @@ function WorkspaceTab({ planId, docs, boards, onChange, navigate, userId }: {
     navigate(`/docs?id=${data.id}`);
   };
 
-  const newBoard = async () => {
+  const createBoard = async (title: string) => {
     const { data, error } = await supabase.from("whiteboards").insert({
-      title: "Untitled Whiteboard", created_by: userId, business_plan_id: planId,
+      title, created_by: userId, business_plan_id: planId,
     } as any).select("id").single();
     if (error || !data) { toast({ title: "Couldn't create board", description: error?.message, variant: "destructive" }); return; }
     navigate(`/whiteboards/${data.id}`);
@@ -550,40 +699,49 @@ function WorkspaceTab({ planId, docs, boards, onChange, navigate, userId }: {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <Card>
         <CardContent className="p-4 space-y-2">
-          <div className="flex items-center justify-between"><h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Wiki pages</h4></div>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Wiki pages</h4>
+            <LinkOrCreate noun="page" candidates={freeDocs} onLink={(id) => onAttach("documents", id)} onCreate={createDoc} />
+          </div>
           {docs.length === 0 ? <p className="text-xs text-muted-foreground py-2">No pages yet.</p> : docs.map((d) => (
-            <button key={d.id} onClick={() => navigate(`/docs?id=${d.id}`)} className="w-full text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-sm truncate">{d.title}</span>
-            </button>
+            <div key={d.id} className="flex items-center gap-2 group">
+              <button onClick={() => navigate(`/docs?id=${d.id}`)} className="flex-1 text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors min-w-0">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-sm truncate">{d.title}</span>
+              </button>
+              <button onClick={() => onDetach("documents", d.id)} title="Unlink" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
+            </div>
           ))}
-          <Button size="sm" variant="outline" className="h-7 text-xs mt-1" onClick={newDoc}><Plus className="h-3 w-3 mr-1" />New page</Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Whiteboards</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Whiteboards</h4>
+            <LinkOrCreate noun="board" candidates={freeBoards} onLink={(id) => onAttach("whiteboards", id)} onCreate={createBoard} />
+          </div>
           {boards.length === 0 ? <p className="text-xs text-muted-foreground py-2">No boards yet.</p> : boards.map((b) => (
-            <button key={b.id} onClick={() => navigate(`/whiteboards/${b.id}`)} className="w-full text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-              <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-sm truncate">{b.title}</span>
-            </button>
+            <div key={b.id} className="flex items-center gap-2 group">
+              <button onClick={() => navigate(`/whiteboards/${b.id}`)} className="flex-1 text-left flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors min-w-0">
+                <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-sm truncate">{b.title}</span>
+              </button>
+              <button onClick={() => onDetach("whiteboards", b.id)} title="Unlink" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
+            </div>
           ))}
-          <Button size="sm" variant="outline" className="h-7 text-xs mt-1" onClick={newBoard}><Plus className="h-3 w-3 mr-1" />New board</Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4 space-y-2">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Process map</h4>
-          <p className="text-xs text-muted-foreground py-1">Embedding a scoped map here is coming soon — for now, open the shared Process Map.</p>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate("/process-map")}><Compass className="h-3 w-3 mr-1" />Open Process Map</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4 space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Files</h4>
-          <p className="text-xs text-muted-foreground py-1">File uploads aren't wired up yet — use a wiki page or link on a deliverable for now.</p>
+          <p className="text-xs text-muted-foreground py-1">A map scoped to this venture is coming — for now, open the shared Process Map.</p>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate("/process-map")}>
+            <Compass className="h-3 w-3 mr-1" />Open Process Map
+          </Button>
         </CardContent>
       </Card>
     </div>
