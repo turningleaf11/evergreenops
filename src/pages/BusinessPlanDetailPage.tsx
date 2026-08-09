@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,15 +25,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Target, Plus, Trash2, FileText, Layers, Compass, Users,
-  ExternalLink, Link2, ChevronDown, X,
+  ExternalLink, Link2, ChevronDown, X, Sparkles,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
+import RichTextEditor from "@/components/RichTextEditor";
+import { AlbusDraftDeliverablesSheet } from "@/components/business-plans/AlbusDraftDeliverables";
 
 type BusinessPlan = {
   id: string; title: string; one_liner: string | null; status: string; priority: string; owner_id: string | null;
-  visibility: string; shared_with: any; milestones: any[]; risks: any[];
+  visibility: string; shared_with: any; milestones: any[]; risks: any[]; plan_doc: string;
 };
 type Decision = { id: string; business_plan_id: string; text: string; decided_by: string | null; created_at: string };
 type Deliverable = {
@@ -148,6 +150,7 @@ export default function BusinessPlanDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="plan">Plan</TabsTrigger>
           <TabsTrigger value="deliverables">Deliverables ({deliverables.filter((d) => d.status === "done").length}/{deliverables.length})</TabsTrigger>
           <TabsTrigger value="ops">Ops Support</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
@@ -160,6 +163,12 @@ export default function BusinessPlanDetailPage() {
             plan={plan} goals={goals} freeGoals={freeGoals} decisions={decisions} profiles={profiles}
             onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
             onDetach={(gid) => detach("goals", gid)} onReload={load}
+          />
+        </TabsContent>
+        <TabsContent value="plan" className="mt-4">
+          <PlanDocTab
+            planId={plan.id} content={plan.plan_doc || ""} profiles={profiles}
+            onSave={(html) => updatePlan({ plan_doc: html })} onDeliverableAdded={load}
           />
         </TabsContent>
         <TabsContent value="deliverables" className="mt-4">
@@ -393,6 +402,76 @@ function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch,
         </CardContent>
       </Card>
       </div>
+    </div>
+  );
+}
+
+// ── Plan doc — an open page for notes/brainstorming, separate from the Wiki
+// pages system. Autosaves like a scratch pad; "Ask Albus" reads it and
+// proposes deliverables for review.
+
+function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
+  planId: string; content: string; profiles: ProfileRow[];
+  onSave: (html: string) => void; onDeliverableAdded: () => void;
+}) {
+  const [value, setValue] = useState(content);
+  const [saving, setSaving] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flush = (html: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSaving(true);
+    onSave(html);
+    setSaving(false);
+  };
+
+  const handleChange = (html: string) => {
+    setValue(html);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => flush(html), 1500);
+  };
+
+  const plainText = useMemo(() => {
+    const div = document.createElement("div");
+    div.innerHTML = value;
+    return div.textContent || "";
+  }, [value]);
+  const isEmpty = plainText.trim().length < 3;
+
+  const askAlbus = () => {
+    flush(value); // make sure Albus reads the latest text, not a stale debounced version
+    setSheetOpen(true);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Open space for notes, brain dumps, and ideas — whatever this venture needs. Ask Albus when you're ready to turn it into deliverables.
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
+            <Sparkles className="h-3.5 w-3.5" /> Ask Albus
+          </Button>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="p-4">
+          <RichTextEditor
+            content={value}
+            onChange={handleChange}
+            borderless
+            minHeight="360px"
+            placeholder="Start writing — notes, brain dump, ideas, whatever this venture needs…"
+          />
+        </CardContent>
+      </Card>
+      <AlbusDraftDeliverablesSheet
+        planId={planId} open={sheetOpen} onOpenChange={setSheetOpen}
+        profiles={profiles} onAccepted={onDeliverableAdded}
+      />
     </div>
   );
 }

@@ -14,7 +14,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Lightbulb, Plus, MoreHorizontal, Trash2, Pencil, ArrowRight, CheckSquare, FolderKanban, Target, Compass, Map } from "lucide-react";
+import { Lightbulb, Plus, MoreHorizontal, Trash2, Pencil, ArrowRight, CheckSquare, FolderKanban, Target, Compass, Map, Briefcase } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -55,6 +55,7 @@ const PROMOTE_TARGETS = [
   { key: "task", label: "Task", desc: "Quick action, no project needed", icon: CheckSquare },
   { key: "project", label: "Project", desc: "Becomes a new project in Execution Hub", icon: FolderKanban },
   { key: "goal", label: "Goal / Rock", desc: "Becomes a new goal in Execution Hub", icon: Target },
+  { key: "business_plan", label: "Business Plan", desc: "Start a new venture plan, or add to one already underway", icon: Briefcase },
   { key: "strategy_item", label: "Strategy Item", desc: "Surfaces in Command tab strategy section", icon: Compass },
   { key: "roadmap", label: "Roadmap Initiative", desc: "Log it for the future roadmap — no action yet", icon: Map },
 ] as const;
@@ -62,6 +63,12 @@ const PROMOTE_TARGETS = [
 type PromoteTarget = typeof PROMOTE_TARGETS[number]["key"];
 
 const sb = supabase as any;
+
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 export function IdeaVault() {
   const { user } = useAuth();
@@ -101,6 +108,15 @@ export function IdeaVault() {
   const [promoteTarget, setPromoteTarget] = useState<PromoteTarget | null>(null);
   const [promoteName, setPromoteName] = useState("");
   const [promoting, setPromoting] = useState(false);
+  const [promoteBizPlanMode, setPromoteBizPlanMode] = useState<"new" | "existing">("new");
+  const [promoteExistingPlanId, setPromoteExistingPlanId] = useState<string | null>(null);
+  const [bizPlans, setBizPlans] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    sb.from("business_plans").select("id, title").order("title").then(({ data }: any) => {
+      if (data) setBizPlans(data);
+    });
+  }, []);
 
   const load = useCallback(async () => {
     const { data, error } = await sb.from("idea_vault").select("*").order("created_at", { ascending: false });
@@ -201,6 +217,8 @@ export function IdeaVault() {
     setPromoteIdea(idea);
     setPromoteTarget(null);
     setPromoteName(idea.title);
+    setPromoteBizPlanMode("new");
+    setPromoteExistingPlanId(null);
   };
 
   const confirmPromote = async () => {
@@ -250,6 +268,29 @@ export function IdeaVault() {
         }).select("id").maybeSingle();
         if (error) throw error;
         newId = data?.id ?? null;
+      } else if (promoteTarget === "business_plan") {
+        const seed = `<h3>${escapeHtml(promoteIdea.title)}</h3>${promoteIdea.description ? `<p>${escapeHtml(promoteIdea.description)}</p>` : ""}${promoteIdea.ai_summary ? `<p><em>${escapeHtml(promoteIdea.ai_summary)}</em></p>` : ""}`;
+        if (promoteBizPlanMode === "new") {
+          const { data, error } = await sb.from("business_plans").insert({
+            title: name,
+            one_liner: promoteIdea.description || promoteIdea.ai_summary || null,
+            owner_id: user.id,
+            created_by: user.id,
+            status: "planning",
+            workspace_id: ws,
+            plan_doc: seed,
+          }).select("id").maybeSingle();
+          if (error) throw error;
+          newId = data?.id ?? null;
+        } else {
+          if (!promoteExistingPlanId) throw new Error("Choose a plan to add this to.");
+          const { data: existingPlan, error: fetchError } = await sb.from("business_plans").select("plan_doc").eq("id", promoteExistingPlanId).maybeSingle();
+          if (fetchError) throw fetchError;
+          const merged = `${existingPlan?.plan_doc || ""}${existingPlan?.plan_doc ? "<hr />" : ""}${seed}`;
+          const { error } = await sb.from("business_plans").update({ plan_doc: merged }).eq("id", promoteExistingPlanId);
+          if (error) throw error;
+          newId = promoteExistingPlanId;
+        }
       } else if (promoteTarget === "strategy_item") {
         const { data, error } = await sb.from("strategy_items").insert({
           title: name,
@@ -288,6 +329,13 @@ export function IdeaVault() {
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  const promoteConfirmDisabled =
+    promoteTarget === "roadmap"
+      ? false
+      : promoteTarget === "business_plan"
+        ? (promoteBizPlanMode === "new" ? !promoteName.trim() : !promoteExistingPlanId)
+        : !promoteName.trim();
 
   return (
     <div className="space-y-5">
@@ -488,7 +536,50 @@ export function IdeaVault() {
                 {" · "}
                 <button onClick={() => setPromoteTarget(null)} className="text-primary hover:underline">change</button>
               </div>
-              {promoteTarget !== "roadmap" && (
+              {promoteTarget === "business_plan" && (
+                <div className="space-y-3">
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPromoteBizPlanMode("new")}
+                      className={cn(
+                        "flex-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition",
+                        promoteBizPlanMode === "new" ? "bg-primary/10 border-primary/40 text-primary" : "border-border text-muted-foreground hover:bg-muted/50",
+                      )}
+                    >
+                      New plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPromoteBizPlanMode("existing")}
+                      className={cn(
+                        "flex-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition",
+                        promoteBizPlanMode === "existing" ? "bg-primary/10 border-primary/40 text-primary" : "border-border text-muted-foreground hover:bg-muted/50",
+                      )}
+                    >
+                      Existing plan
+                    </button>
+                  </div>
+                  {promoteBizPlanMode === "new" ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Plan name</label>
+                      <Input value={promoteName} onChange={(e) => setPromoteName(e.target.value)} autoFocus />
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Which plan?</label>
+                      <Select value={promoteExistingPlanId || ""} onValueChange={setPromoteExistingPlanId}>
+                        <SelectTrigger><SelectValue placeholder="Choose a plan" /></SelectTrigger>
+                        <SelectContent>
+                          {bizPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {bizPlans.length === 0 && <p className="text-xs text-muted-foreground">No existing plans yet.</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+              {promoteTarget !== "roadmap" && promoteTarget !== "business_plan" && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Name</label>
                   <Input value={promoteName} onChange={(e) => setPromoteName(e.target.value)} autoFocus />
@@ -505,7 +596,7 @@ export function IdeaVault() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setPromoteIdea(null); setPromoteTarget(null); }}>Cancel</Button>
             {promoteTarget && (
-              <Button onClick={confirmPromote} disabled={promoting || (promoteTarget !== "roadmap" && !promoteName.trim())}>
+              <Button onClick={confirmPromote} disabled={promoting || promoteConfirmDisabled}>
                 {promoting ? "Promoting…" : "Confirm"}
               </Button>
             )}
