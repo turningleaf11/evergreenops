@@ -35,8 +35,10 @@ import { AlbusDraftDeliverablesSheet } from "@/components/business-plans/AlbusDr
 
 type BusinessPlan = {
   id: string; title: string; one_liner: string | null; status: string; priority: string; owner_id: string | null;
-  visibility: string; shared_with: any; milestones: any[]; risks: any[]; plan_doc: string;
+  visibility: string; shared_with: any; plan_doc: string;
 };
+type Milestone = { id: string; business_plan_id: string; title: string; done: boolean; due_date: string | null };
+type Risk = { id: string; business_plan_id: string; text: string; severity: string };
 type Decision = { id: string; business_plan_id: string; text: string; decided_by: string | null; created_at: string };
 type Deliverable = {
   id: string; business_plan_id: string; category: string; title: string; status: string;
@@ -65,6 +67,8 @@ export default function BusinessPlanDetailPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [risks, setRisks] = useState<Risk[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [boards, setBoards] = useState<BoardRow[]>([]);
@@ -78,12 +82,14 @@ export default function BusinessPlanDetailPage() {
 
   const load = async () => {
     if (!id) return;
-    const [planRes, delivRes, rolesRes, goalsRes, decisionsRes, docsRes, boardsRes, profRes,
+    const [planRes, delivRes, rolesRes, goalsRes, milestonesRes, risksRes, decisionsRes, docsRes, boardsRes, profRes,
            fGoals, fCad, fDocs, fBoards] = await Promise.all([
       supabase.from("business_plans").select("*").eq("id", id).single(),
       supabase.from("business_plan_deliverables").select("*").eq("business_plan_id", id).order("category").order("sort_order"),
       supabase.from("business_plan_roles").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("goals").select("id, title, status, quarter, year, measurable_target").eq("business_plan_id", id),
+      supabase.from("business_plan_milestones").select("*").eq("business_plan_id", id).order("sort_order"),
+      supabase.from("business_plan_risks").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("business_plan_decisions").select("*").eq("business_plan_id", id).order("created_at", { ascending: false }),
       supabase.from("documents").select("id, title, updated_at").eq("business_plan_id", id),
       supabase.from("whiteboards").select("id, title, updated_at").eq("business_plan_id", id),
@@ -97,6 +103,8 @@ export default function BusinessPlanDetailPage() {
     setDeliverables((delivRes.data as Deliverable[]) || []);
     setRoles((rolesRes.data as RoleRow[]) || []);
     setGoals((goalsRes.data as Goal[]) || []);
+    setMilestones((milestonesRes.data as Milestone[]) || []);
+    setRisks((risksRes.data as Risk[]) || []);
     setDecisions((decisionsRes.data as Decision[]) || []);
     setDocs((docsRes.data as DocRow[]) || []);
     setBoards((boardsRes.data as BoardRow[]) || []);
@@ -160,7 +168,8 @@ export default function BusinessPlanDetailPage() {
 
         <TabsContent value="overview" className="mt-4">
           <OverviewTab
-            plan={plan} goals={goals} freeGoals={freeGoals} decisions={decisions} profiles={profiles}
+            plan={plan} goals={goals} freeGoals={freeGoals} milestones={milestones} risks={risks}
+            decisions={decisions} profiles={profiles}
             onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
             onDetach={(gid) => detach("goals", gid)} onReload={load}
           />
@@ -197,8 +206,8 @@ export default function BusinessPlanDetailPage() {
 
 // ── Overview ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
-  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; decisions: Decision[]; profiles: ProfileRow[];
+function OverviewTab({ plan, goals, freeGoals, milestones, risks, decisions, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
+  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; milestones: Milestone[]; risks: Risk[]; decisions: Decision[]; profiles: ProfileRow[];
   onPlanPatch: (p: Partial<BusinessPlan>) => void;
   onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
   onReload: () => Promise<void>;
@@ -210,29 +219,42 @@ function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch,
   const [newDecision, setNewDecision] = useState("");
   const [goalPeekId, setGoalPeekId] = useState<string | null>(null);
 
-  const milestones = plan.milestones || [];
-  const risks = plan.risks || [];
-
-  const addMilestone = () => {
+  const addMilestone = async () => {
     if (!newMilestone.trim()) return;
-    onPlanPatch({ milestones: [...milestones, { title: newMilestone.trim(), done: false }] });
+    const { error } = await supabase.from("business_plan_milestones").insert({
+      business_plan_id: plan.id, title: newMilestone.trim(), sort_order: milestones.length,
+    });
+    if (error) { toast({ title: "Couldn't add milestone", description: error.message, variant: "destructive" }); return; }
     setNewMilestone("");
+    await onReload();
   };
-  const toggleMilestone = (idx: number) =>
-    onPlanPatch({ milestones: milestones.map((m: any, i: number) => (i === idx ? { ...m, done: !m.done } : m)) });
-  const removeMilestone = (idx: number) =>
-    onPlanPatch({ milestones: milestones.filter((_: any, i: number) => i !== idx) });
+  const toggleMilestone = async (m: Milestone) => {
+    await supabase.from("business_plan_milestones").update({ done: !m.done }).eq("id", m.id);
+    await onReload();
+  };
+  const removeMilestone = async (m: Milestone) => {
+    await supabase.from("business_plan_milestones").delete().eq("id", m.id);
+    await onReload();
+  };
 
-  const addRisk = () => {
+  const addRisk = async () => {
     if (!newRisk.trim()) return;
-    onPlanPatch({ risks: [...risks, { text: newRisk.trim(), severity: newRiskSeverity }] });
+    const { error } = await supabase.from("business_plan_risks").insert({
+      business_plan_id: plan.id, text: newRisk.trim(), severity: newRiskSeverity, sort_order: risks.length,
+    });
+    if (error) { toast({ title: "Couldn't add risk", description: error.message, variant: "destructive" }); return; }
     setNewRisk("");
     setNewRiskSeverity("med");
+    await onReload();
   };
-  const setRiskSeverity = (idx: number, severity: string) =>
-    onPlanPatch({ risks: risks.map((r: any, i: number) => (i === idx ? { ...r, severity } : r)) });
-  const removeRisk = (idx: number) =>
-    onPlanPatch({ risks: risks.filter((_: any, i: number) => i !== idx) });
+  const setRiskSeverity = async (r: Risk, severity: string) => {
+    await supabase.from("business_plan_risks").update({ severity }).eq("id", r.id);
+    await onReload();
+  };
+  const removeRisk = async (r: Risk) => {
+    await supabase.from("business_plan_risks").delete().eq("id", r.id);
+    await onReload();
+  };
 
   const createGoal = async (title: string) => {
     const now = new Date();
@@ -303,11 +325,11 @@ function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch,
           <CardContent className="p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Milestones</h4>
             <div className="space-y-1.5">
-              {milestones.map((m: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-sm group">
-                  <input type="checkbox" checked={!!m.done} onChange={() => toggleMilestone(i)} className="h-3.5 w-3.5 accent-primary" />
+              {milestones.map((m) => (
+                <div key={m.id} className="flex items-center gap-2 text-sm group">
+                  <input type="checkbox" checked={m.done} onChange={() => toggleMilestone(m)} className="h-3.5 w-3.5 accent-primary" />
                   <span className={m.done ? "line-through text-muted-foreground flex-1" : "flex-1"}>{m.title}</span>
-                  <button onClick={() => removeMilestone(i)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => removeMilestone(m)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                   </button>
                 </div>
@@ -327,11 +349,11 @@ function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch,
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Risks &amp; blockers</h4>
           <div className="space-y-1.5">
             {risks.length === 0 && <p className="text-xs text-muted-foreground py-2">Nothing flagged.</p>}
-            {risks.map((r: any, i: number) => {
+            {risks.map((r) => {
               const sev = SEVERITIES.find((s) => s.value === (r.severity || "med")) || SEVERITIES[1];
               return (
-                <div key={i} className="flex items-start gap-2 text-sm group">
-                  <Select value={r.severity || "med"} onValueChange={(v) => setRiskSeverity(i, v)}>
+                <div key={r.id} className="flex items-start gap-2 text-sm group">
+                  <Select value={r.severity || "med"} onValueChange={(v) => setRiskSeverity(r, v)}>
                     <SelectTrigger className="h-6 w-[86px] text-[11px] shrink-0 mt-0.5">
                       <span className="flex items-center gap-1.5">
                         <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} />
@@ -349,7 +371,7 @@ function OverviewTab({ plan, goals, freeGoals, decisions, profiles, onPlanPatch,
                     </SelectContent>
                   </Select>
                   <span className="flex-1 pt-1">{r.text}</span>
-                  <button onClick={() => removeRisk(i)} className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                  <button onClick={() => removeRisk(r)} className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
                     <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                   </button>
                 </div>
