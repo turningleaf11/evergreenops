@@ -456,7 +456,7 @@ function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
         {/* RichTextEditor's root hardcodes bg-background (the app canvas token,
             darker than --card) — neutralize it here so the "paper" reads as one
             continuous surface instead of a darker box nested inside a lighter one. */}
-        <div className="max-w-3xl mx-auto px-10 sm:px-16 py-12 min-h-[70vh] [&>.rich-editor]:bg-transparent">
+        <div className="max-w-3xl mx-auto px-6 sm:px-8 py-12 min-h-[70vh] [&>.rich-editor]:bg-transparent">
           <RichTextEditor
             content={value}
             onChange={handleChange}
