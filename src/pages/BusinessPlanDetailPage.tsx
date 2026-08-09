@@ -446,28 +446,23 @@ function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          Open space for notes, brain dumps, and ideas — whatever this venture needs. Ask Albus when you're ready to turn it into deliverables.
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
-          {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
-          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
-            <Sparkles className="h-3.5 w-3.5" /> Ask Albus
-          </Button>
-        </div>
+      <div className="flex items-center justify-end gap-3">
+        {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
+          <Sparkles className="h-3.5 w-3.5" /> Ask Albus
+        </Button>
       </div>
-      <Card>
-        <CardContent className="p-4">
+      <div className="rounded-xl border shadow-sm bg-white dark:bg-card overflow-hidden">
+        <div className="max-w-3xl mx-auto px-10 sm:px-16 py-12 min-h-[70vh]">
           <RichTextEditor
             content={value}
             onChange={handleChange}
             borderless
-            minHeight="360px"
+            minHeight="55vh"
             placeholder="Start writing — notes, brain dump, ideas, whatever this venture needs…"
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
       <AlbusDraftDeliverablesSheet
         planId={planId} open={sheetOpen} onOpenChange={setSheetOpen}
         profiles={profiles} onAccepted={onDeliverableAdded}

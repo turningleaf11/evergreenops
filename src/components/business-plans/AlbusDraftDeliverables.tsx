@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Loader2, Check, X, RefreshCw, Send } from "lucide-react";
@@ -45,10 +45,13 @@ export function AlbusDraftDeliverablesSheet({ planId, open, onOpenChange, profil
     setGeneratedFor(planId);
   };
 
-  const onSheetOpenChange = (o: boolean) => {
-    onOpenChange(o);
-    if (o && generatedFor !== planId && !loading) void generate();
-  };
+  // The parent opens this sheet by flipping its own `open` state (not via
+  // Radix's onOpenChange, which only fires on user-driven close/escape) —
+  // so the auto-generate-on-open trigger has to watch `open` itself.
+  useEffect(() => {
+    if (open && generatedFor !== planId && !loading) void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, planId]);
 
   const accept = async (i: number, d: DraftDeliverable) => {
     if (accepted.has(i)) return;
@@ -75,7 +78,7 @@ export function AlbusDraftDeliverablesSheet({ planId, open, onOpenChange, profil
   };
 
   return (
-    <Sheet open={open} onOpenChange={onSheetOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader className="space-y-1">
           <SheetTitle className="flex items-center gap-2">
