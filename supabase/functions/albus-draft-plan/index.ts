@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { data: plan, error: planError } = await admin
       .from("business_plans")
-      .select("id, title, one_liner, plan_doc")
+      .select("id, title, type, one_liner, purpose, plan_doc")
       .eq("id", businessPlanId)
       .maybeSingle();
     if (planError || !plan) return json({ error: "Plan not found" }, 404);
@@ -85,6 +85,7 @@ Your job: read the notes below and propose concrete deliverables — the checkli
 
 Rules:
 - Read the notes closely — don't invent things unrelated to what's written.
+- Use the venture TYPE and PURPOSE below to judge what categories of deliverable make sense for this kind of business, but only propose deliverables the notes actually support — type/purpose set context, they aren't a template to fill in.
 - Don't repeat anything already in the EXISTING DELIVERABLES list below.
 - Give each deliverable a short category (matches how the notes group ideas, or "General" if unclear).
 - If the notes mention a rough deadline, set due_date (YYYY-MM-DD). Otherwise null.
@@ -104,7 +105,9 @@ CONTEXT
 =======
 
 VENTURE: ${plan.title}
+TYPE: ${plan.type || "(not set)"}
 ONE-LINER: ${plan.one_liner || "(not set)"}
+PURPOSE: ${plan.purpose || "(not set)"}
 
 NOTES (from the plan's working doc):
 ${notes || "(empty)"}

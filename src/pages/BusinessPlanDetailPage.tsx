@@ -34,7 +34,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 import { AlbusDraftDeliverablesSheet } from "@/components/business-plans/AlbusDraftDeliverables";
 
 type BusinessPlan = {
-  id: string; title: string; one_liner: string | null; status: string; priority: string; owner_id: string | null;
+  id: string; title: string; type: string | null; one_liner: string | null; status: string; priority: string; owner_id: string | null;
   visibility: string; shared_with: any; plan_doc: string;
 };
 type Milestone = { id: string; business_plan_id: string; title: string; done: boolean; due_date: string | null };
@@ -147,6 +147,7 @@ export default function BusinessPlanDetailPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-bold tracking-tight">{plan.title}</h1>
+            {plan.type && <Badge variant="secondary" className="text-[11px] font-medium rounded-full">{plan.type}</Badge>}
             <StatusPill kind="business_plan" value={plan.status} onChange={(v) => updatePlan({ status: v })} size="sm" />
             <PriorityPill value={plan.priority} onChange={(v) => updatePlan({ priority: v })} size="sm" />
           </div>
@@ -474,20 +475,21 @@ function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
           <Sparkles className="h-3.5 w-3.5" /> Ask Albus
         </Button>
       </div>
-      <div className="rounded-xl border shadow-sm bg-white dark:bg-card overflow-hidden">
+      <Card className="shadow-card-lift overflow-hidden">
         {/* RichTextEditor's root hardcodes bg-background (the app canvas token,
             darker than --card) — neutralize it here so the "paper" reads as one
             continuous surface instead of a darker box nested inside a lighter one. */}
-        <div className="max-w-3xl mx-auto px-6 sm:px-8 py-12 min-h-[70vh] [&>.rich-editor]:bg-transparent">
+        <CardContent className="max-w-3xl mx-auto px-6 sm:px-8 py-12 min-h-[70vh] [&>.rich-editor]:bg-transparent">
           <RichTextEditor
             content={value}
             onChange={handleChange}
             borderless
+            showToolbar
             minHeight="55vh"
             placeholder="Start writing — notes, brain dump, ideas, whatever this venture needs…"
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       <AlbusDraftDeliverablesSheet
         planId={planId} open={sheetOpen} onOpenChange={setSheetOpen}
         profiles={profiles} onAccepted={onDeliverableAdded}

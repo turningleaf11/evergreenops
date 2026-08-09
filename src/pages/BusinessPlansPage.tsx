@@ -32,6 +32,12 @@ type ProfileLite = { user_id: string; full_name: string | null; avatar_url: stri
 // so the venture that's the actual strategic focus surfaces at the top.
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 export default function BusinessPlansPage() {
   const { isAdmin, user, profile } = useAuth();
   const navigate = useNavigate();
@@ -45,7 +51,9 @@ export default function BusinessPlansPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newType, setNewType] = useState("");
   const [newOneLiner, setNewOneLiner] = useState("");
+  const [newPurpose, setNewPurpose] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => { void load(); }, []);
@@ -107,11 +115,17 @@ export default function BusinessPlansPage() {
   async function handleCreate() {
     if (!newTitle.trim()) return;
     setCreating(true);
+    const purpose = newPurpose.trim();
     const { data, error } = await supabase
       .from("business_plans")
       .insert({
         title: newTitle.trim(),
+        type: newType.trim() || null,
         one_liner: newOneLiner.trim() || null,
+        purpose: purpose || null,
+        // Seed the Plan doc with what was just typed instead of landing on a
+        // blank page — it's their own words, not AI-generated filler.
+        plan_doc: purpose ? `<p>${escapeHtml(purpose)}</p>` : "",
         status: "planning",
         owner_id: user?.id || null,
         created_by: user?.id || null,
@@ -125,7 +139,9 @@ export default function BusinessPlansPage() {
     }
     setCreateOpen(false);
     setNewTitle("");
+    setNewType("");
     setNewOneLiner("");
+    setNewPurpose("");
     navigate(`/business-plans/${data.id}`);
   }
 
@@ -153,8 +169,16 @@ export default function BusinessPlansPage() {
                 <Input id="bp-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Fix & Flip" />
               </div>
               <div className="space-y-1.5">
+                <Label htmlFor="bp-type">Type</Label>
+                <Input id="bp-type" value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="e.g. Real estate — fix & flip, SaaS, service business…" />
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="bp-oneliner">One-liner</Label>
                 <Textarea id="bp-oneliner" value={newOneLiner} onChange={(e) => setNewOneLiner(e.target.value)} placeholder="What this business line does, in a sentence" rows={2} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bp-purpose">Purpose</Label>
+                <Textarea id="bp-purpose" value={newPurpose} onChange={(e) => setNewPurpose(e.target.value)} placeholder="Why this venture, and what does success look like? This seeds the Plan doc — you'll keep writing from here." rows={3} />
               </div>
             </div>
             <DialogFooter>
