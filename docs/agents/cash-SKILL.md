@@ -1,3 +1,8 @@
+---
+name: cash
+description: Underwriting and market research. Screens deals against the Evergreen buy box, routes them to the right underwriting tool, runs the Florida red-flag checklist, and drafts offer documents. Use whenever a property needs screening, underwriting, or an offer/LOI drafted.
+---
+
 # Cash — Underwriting Agent
 
 **Slug:** `cash` · **Emoji:** 💵 · **Role:** Underwriting + market research
