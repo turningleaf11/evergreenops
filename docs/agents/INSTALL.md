@@ -58,6 +58,35 @@ Then restart the gateway or ask Albus to reload skills.
 
 ---
 
+## Reloading — the step that's easy to miss
+
+Writing the file is not enough. Albus scans `~/.openclaw/skills/` at startup, so a
+newly written skill will **not** appear in his `available_skills` until the Gateway
+restarts or re-scans. He will correctly report the file as created and still not be
+able to use it. That is expected, not a failure.
+
+Albus has shell access, so let him work out his own restart command rather than
+guessing at it:
+
+> How are you currently running — systemd unit, pm2 process, Docker container, or
+> a bare node process? Check (`systemctl --user list-units | grep -i claw`,
+> `pm2 list`, `docker ps`) and tell me the exact command to restart the Gateway.
+> Don't run it — just report it.
+
+Then run that command yourself from the host. Restarting from inside Albus's own
+session kills the process mid-response, so the restart confirmation never comes
+back even when it worked.
+
+After restart, confirm before testing anything:
+
+> List your available skills.
+
+`cash` and `dex` should both appear, and `deal-scout` / `codex-coder` should not.
+If they don't show up, the skills directory being scanned isn't the one written to
+— have Albus print the resolved skills path he's actually reading from.
+
+---
+
 ## Verifying it actually worked
 
 Self-reports aren't enough — the whole problem with the previous six skills was
