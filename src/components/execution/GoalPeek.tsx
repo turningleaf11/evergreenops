@@ -36,7 +36,16 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
   const [loading, setLoading] = useState(false);
   const [krsOpen, setKrsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [businessPlans, setBusinessPlans] = useState<{ id: string; title: string }[]>([]);
   const krSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A goal can belong to a venture. The plan page can already link/create in
+  // this direction — this is the same association from the Execution Hub side.
+  useEffect(() => {
+    supabase.from("business_plans").select("id, title").order("title").then(({ data }) => {
+      if (data) setBusinessPlans(data as { id: string; title: string }[]);
+    });
+  }, []);
 
   const fetchGoal = useCallback(async () => {
     if (!goalId) return;
@@ -192,6 +201,24 @@ export default function GoalPeek({ goalId, onClose, allProjects, getName, onChan
                     onChange={ids => update({ followers: ids })}
                   />
                 </div>
+
+                {businessPlans.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Business plan</div>
+                    <Select
+                      value={goal.business_plan_id || "__none__"}
+                      onValueChange={v => update({ business_plan_id: v === "__none__" ? null : v })}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Not tied to a venture" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Not tied to a venture</SelectItem>
+                        {businessPlans.map(bp => <SelectItem key={bp.id} value={bp.id}>{bp.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
