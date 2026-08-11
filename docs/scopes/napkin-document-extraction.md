@@ -92,8 +92,35 @@ Practical limit: keep uploads under ~10 MB in v1 and say so in the UI.
 
 `supabase/functions/extract-deal-inputs/index.ts`
 
-- Mirror `broker-feedback` for CORS, key handling, and error shape.
+- Mirror `broker-feedback` for CORS and error shape.
 - Gemini reads PDFs natively — pass the document, don't pre-parse it.
+
+#### Keep the AI provider swappable — this matters
+
+The Lovable AI Gateway currently works but **is not being paid for**, and Napkin is
+expected to move off Lovable to Evergreen's own Supabase/Vercel eventually. The
+gateway could stop working with no warning.
+
+Do **not** touch `broker-feedback` — it works, leave it. But build the new function
+so the provider is configuration, not code:
+
+```ts
+const AI_ENDPOINT = Deno.env.get("AI_ENDPOINT")
+  ?? "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_API_KEY  = Deno.env.get("AI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY");
+const AI_MODEL    = Deno.env.get("AI_MODEL") ?? "google/gemini-3-flash-preview";
+```
+
+The gateway speaks the OpenAI chat-completions shape, which Anthropic, OpenAI, and
+Google all have compatible endpoints for — so migration becomes three environment
+variables rather than a rewrite. Falling back to `LOVABLE_API_KEY` means it runs
+today with nothing configured.
+
+**Fail loudly.** If the key is missing or the gateway returns 401/403, surface a
+clear error — "AI extraction is unavailable, enter values manually" — rather than
+returning an empty extraction that reads as "this document had nothing in it."
+Manual entry is unaffected either way; extraction is additive, so losing it
+degrades the feature rather than breaking underwriting.
 - Use **structured output** (JSON schema) so the response is typed, not prose.
 - Every field returns:
 
@@ -131,13 +158,16 @@ optional polish.
 
 ## Cost
 
-Flash-tier model, and PDFs are the expensive input — a scanned forty-page OM costs
-far more than a clean digital T12. Expect low single-digit cents per document.
-Worth confirming against Lovable's gateway pricing, since that's the billing path
-and their rates govern, not the underlying model's list price.
+Currently effectively zero, because the Lovable gateway isn't being paid for — but
+that's a temporary accident, not a plan. Size the feature for the world after
+migration, where real rates apply.
 
-If cost becomes real: extract from T12 and rent roll only (where the numbers
-actually live) and let the OM fields be typed — those are four easy ones.
+Flash-tier model, and PDFs are the expensive input: a scanned forty-page OM costs
+far more than a clean digital T12. Expect low single-digit cents per document at
+Flash pricing once billing is real.
+
+If cost becomes a factor: extract from T12 and rent roll only — that's where the
+numbers actually live — and let the four OM fields be typed.
 
 ---
 
