@@ -47,6 +47,24 @@ Before the session closes, write one memory entry summarizing:
 - What's open/next
 - Any decisions made
 
+### 6. Update the system map if the system changed
+`docs/system-map.html` is the running map of agents, tools, data, handoffs, and
+what is actually live. Update it in the SAME session that changes the thing it
+describes — a map updated later is a map that drifts, which is the exact failure
+this file exists to prevent.
+
+Update it when: an agent is added/removed/rewired, a tool joins or leaves the
+routing, a table is added, a handoff or approval gate changes, or something moves
+between planned → partial → live.
+
+**Republish to the existing artifact so the URL stays stable:**
+```
+Artifact(file_path: "docs/system-map.html",
+         url: "https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc")
+```
+Omitting `url` from a new conversation creates a SECOND artifact at a different
+link. Always pass it.
+
 ---
 
 ## AI Team context
