@@ -47,12 +47,25 @@ GET /buy_box_exceptions?or=(asset_class.eq.<class>,asset_class.eq.all)&active=eq
 Asset classes: `fix_flip` | `multifamily` | `rv_park` | `mhp` | `business`.
 For multifamily / RV / MHP also load `asset_class=eq.buy_hold` for the market list.
 
-**Evaluating:**
+**`rule_type` first — the rows are two different kinds of thing:**
 
-1. Check every `hardness='hard'` criterion first. Any failure with no applicable
-   exception → verdict `fail`. Stop. Report which criterion failed.
-2. Check `soft` criteria. Failures are noted, not fatal.
+- `rule_type='screen'` — evaluated pass/fail. This is the screen.
+- `rule_type='pricing'` — governs the **offer amount**. Never rejects a deal.
+
+A pricing rule can carry `hardness='hard'` and still not be a gate. Fix & flip's
+`max_offer_rule` (70% of ARV less repairs) is the case that exists today: a deal
+never *fails* it, a deal gets *priced* by it. Treating it as a screen would kill
+deals that should simply be offered on at a lower number.
+
+**Evaluating — screen rules only:**
+
+1. Check every `rule_type='screen'` AND `hardness='hard'` criterion first. Any
+   failure with no applicable exception → verdict `fail`. Stop. Report which
+   criterion failed.
+2. Check `screen` + `soft` criteria. Failures are noted, not fatal.
 3. For any failure, look for a matching exception on that `triggers_on` field.
+
+**Then apply pricing rules** to whatever survives, to produce the offer number.
 
 **Exception types — handle differently:**
 

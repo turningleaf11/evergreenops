@@ -113,7 +113,7 @@ before changing agent behavior.
 
 | Table | Purpose |
 |---|---|
-| `buy_box_criteria` | Structured buy box, per asset class. `hardness` = hard/soft. Source of truth mirrors buybox.evergreenreventures.com |
+| `buy_box_criteria` | Structured buy box, per asset class. `rule_type` = screen (pass/fail) or pricing (governs the offer, never rejects). `hardness` = hard/soft, applies to screen rows. Source of truth mirrors buybox.evergreenreventures.com |
 | `buy_box_exceptions` | Documented exceptions. `widened_band` = threshold relaxed; `conditional_adjustment` = curable, price it and flag for a human — never auto-waive |
 | `underwriting_runs` | Cross-app index of every underwrite: which tool, which record, deep link, verdict, headline metrics. `actual_*` columns exist for later predicted-vs-actual calibration |
 
