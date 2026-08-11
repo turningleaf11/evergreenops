@@ -1,0 +1,225 @@
+<title>Evergreen — Business Map</title>
+<style>
+  :root {
+    --ink:#12312A; --ink-soft:#3D5B52; --ink-faint:#6B857C;
+    --ground:#F2F3EF; --surface:#FBFBFB; --surface-sunk:#EAEDE7;
+    --rule:#C4D8D2; --rule-soft:#DCE5E0;
+    --accent:#1C9E6F; --accent-deep:#12312A; --accent-wash:rgba(28,158,111,.09);
+    --live:#1C9E6F; --partial:#B5761B; --partial-wash:rgba(181,118,27,.10);
+    --planned:#7A8B85; --planned-wash:rgba(122,139,133,.10);
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:#E8EFEB; --ink-soft:#A8BFB7; --ink-faint:#7E9891;
+      --ground:#0B0B0C; --surface:#141517; --surface-sunk:#1B1D1F;
+      --rule:#2B3733; --rule-soft:#222B28;
+      --accent:#37C08C; --accent-deep:#9ACABA; --accent-wash:rgba(55,192,140,.12);
+      --live:#37C08C; --partial:#D69A3C; --partial-wash:rgba(214,154,60,.14);
+      --planned:#7E9891; --planned-wash:rgba(126,152,145,.13);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink:#E8EFEB; --ink-soft:#A8BFB7; --ink-faint:#7E9891;
+    --ground:#0B0B0C; --surface:#141517; --surface-sunk:#1B1D1F;
+    --rule:#2B3733; --rule-soft:#222B28;
+    --accent:#37C08C; --accent-deep:#9ACABA; --accent-wash:rgba(55,192,140,.12);
+    --live:#37C08C; --partial:#D69A3C; --partial-wash:rgba(214,154,60,.14);
+    --planned:#7E9891; --planned-wash:rgba(126,152,145,.13);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1000px; margin:0 auto; padding:0 28px 110px; }
+
+  header { padding:76px 0 38px; border-bottom:1px solid var(--rule); margin-bottom:46px; }
+  .kicker {
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 18px;
+  }
+  h1 {
+    font-size:clamp(32px,5vw,50px); line-height:1.06; letter-spacing:-.025em;
+    font-weight:640; margin:0 0 20px; text-wrap:balance;
+  }
+  .standfirst { font-size:17.5px; line-height:1.6; color:var(--ink-soft); margin:0; max-width:60ch; }
+
+  section { margin-bottom:58px; }
+  h2 {
+    font-size:13px; font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase;
+    font-weight:620; margin:0 0 6px; padding-bottom:12px;
+    border-bottom:2px solid var(--ink); display:inline-block;
+  }
+  .sec-note { color:var(--ink-soft); margin:20px 0 26px; max-width:68ch; }
+  p { margin:0 0 16px; max-width:68ch; }
+  code {
+    font-family:var(--mono); font-size:.875em; background:var(--accent-wash);
+    color:var(--accent-deep); padding:.1em .38em; border-radius:3px;
+  }
+
+  .chip {
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+    font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+    padding:4px 9px 4px 7px; border-radius:2px; border:1px solid; white-space:nowrap;
+  }
+  .chip::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; flex:none; }
+  .chip.live    { color:var(--live);    border-color:color-mix(in srgb,var(--live) 45%,transparent);    background:var(--accent-wash); }
+  .chip.partial { color:var(--partial); border-color:color-mix(in srgb,var(--partial) 45%,transparent); background:var(--partial-wash); }
+  .chip.planned { color:var(--planned); border-color:color-mix(in srgb,var(--planned) 40%,transparent); background:var(--planned-wash); }
+
+  .domains { display:grid; gap:1px; background:var(--rule-soft);
+             border:1px solid var(--rule-soft); border-radius:4px; overflow:hidden; }
+
+  a.card, div.card {
+    background:var(--surface); padding:22px 24px; display:block;
+    text-decoration:none; color:inherit;
+  }
+  a.card { transition:background .13s ease; }
+  a.card:hover { background:var(--accent-wash); }
+  a.card:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  div.card { opacity:.72; }
+
+  .card-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+  .card h3 { margin:0; font-size:17px; font-weight:620; letter-spacing:-.013em; }
+  a.card h3 { color:var(--accent-deep); }
+  a.card:hover h3 { text-decoration:underline; text-underline-offset:3px; }
+  .card p { margin:0; font-size:14px; color:var(--ink-soft); line-height:1.55; max-width:70ch; }
+  .lane {
+    font-family:var(--mono); font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--ink-faint); margin:0 0 14px; padding-top:4px;
+  }
+
+  .principles { list-style:none; padding:0; margin:26px 0 0; }
+  .principles li {
+    padding:17px 0 17px 18px; border-top:1px solid var(--rule-soft);
+    border-left:2px solid var(--accent); margin-bottom:2px; max-width:74ch;
+  }
+  .principles li:first-child { border-top:none; }
+  .principles strong { color:var(--ink); font-weight:620; display:block; margin-bottom:3px; }
+  .principles span { color:var(--ink-soft); font-size:14.5px; }
+
+  footer {
+    margin-top:70px; padding-top:24px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:12px; color:var(--ink-faint); line-height:1.75;
+  }
+  footer p { max-width:none; margin:0; }
+
+  @media (max-width:640px) {
+    header { padding-top:50px; }
+    .wrap { padding:0 18px 76px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="kicker">Evergreen Real Estate Ventures · Internal</p>
+  <h1>Business Map</h1>
+  <p class="standfirst">
+    A bird's-eye view of how the business actually runs — where leads come from, how a deal
+    moves, who owns each step, and which parts are automated versus someone remembering.
+    Built one domain at a time.
+  </p>
+</header>
+
+<section>
+  <h2>Domains</h2>
+  <p class="sec-note">
+    Each page is short enough to read in a few minutes. Status here is the page's coverage,
+    not the health of the thing it describes.
+  </p>
+
+  <p class="lane">Acquisition channels</p>
+  <div class="domains">
+    <a class="card" href="https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256">
+      <div class="card-top"><h3>DTS — Direct to Seller</h3><span class="chip live">Mapped</span></div>
+      <p>DealMachine list build through signed agreement. SFR 1–4 unit only. Nine stages,
+      one of which is automated.</p>
+    </a>
+    <div class="card">
+      <div class="card-top"><h3>DTA — Direct to Agent</h3><span class="chip planned">Not started</span></div>
+      <p>Its own flow. Not yet described.</p>
+    </div>
+    <div class="card">
+      <div class="card-top"><h3>DTB — Direct to Broker</h3><span class="chip planned">Not started</span></div>
+      <p>The channel feeding the portfolio side — multifamily, RV, MHP.</p>
+    </div>
+  </div>
+
+  <p class="lane" style="margin-top:34px;">Deal machine</p>
+  <div class="domains">
+    <div class="card">
+      <div class="card-top"><h3>Underwriting process</h3><span class="chip planned">Not started</span></div>
+      <p>Stage 07 of DTS as an actual sequence — who underwrites, in what order, what the
+      offer hand-back contains.</p>
+    </div>
+    <div class="card">
+      <div class="card-top"><h3>Buy box</h3><span class="chip partial">Data only</span></div>
+      <p>Fully structured in the database — 28 criteria, 4 typed exceptions — but no page
+      renders it yet.</p>
+    </div>
+    <div class="card">
+      <div class="card-top"><h3>Dispositions</h3><span class="chip planned">Not started</span></div>
+      <p>Buyer list, matching, campaigns. Parts of the engine are already built in OpsHQ.</p>
+    </div>
+  </div>
+
+  <p class="lane" style="margin-top:34px;">The company</p>
+  <div class="domains">
+    <a class="card" href="https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc">
+      <div class="card-top"><h3>AI ops</h3><span class="chip live">Mapped</span></div>
+      <p>The agent fleet, underwriting tools, data layer, handoffs, and approval gates.</p>
+    </a>
+    <div class="card">
+      <div class="card-top"><h3>Team and roles</h3><span class="chip planned">Not started</span></div>
+      <p>Five departments, who owns which stage, and the comp model that ties pay to the
+      specific deal worked.</p>
+    </div>
+    <div class="card">
+      <div class="card-top"><h3>Systems and data</h3><span class="chip planned">Not started</span></div>
+      <p>GHL, OpsHQ, DealMachine, LeadEngine, and the apps — what holds what, and what
+      syncs to what.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>How this stays useful</h2>
+  <p class="sec-note">
+    Three rules, each one aimed at a specific way maps normally rot.
+  </p>
+
+  <ul class="principles">
+    <li>
+      <strong>It holds structure, not status</strong>
+      <span>Process, owners, and routing change monthly. Task status changes daily. The Miro
+      Task Board keeps the fast-moving things; this map keeps the slow ones, so it isn't
+      stale a week after it's written.</span>
+    </li>
+    <li>
+      <strong>Every node says whether it's real</strong>
+      <span>Automated, manual, or unmapped — stated on the node itself. A step drawn as a box
+      doesn't get to imply it runs. Steps that exist but aren't documented are drawn as
+      dashed outlines so the hole is visible.</span>
+    </li>
+    <li>
+      <strong>Gaps live next to the process</strong>
+      <span>What's missing at a stage is written into that stage, not filed in a separate
+      improvements doc. It's how bottlenecks stay in view instead of being rediscovered.</span>
+    </li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    Source: <code>docs/map/</code> in <code>turningleaf11/evergreenops</code>.<br>
+    Each page is version-controlled beside the systems it describes and published to a
+    stable link — edit the file, republish, same URL.
+  </p>
+</footer>
+
+</div>

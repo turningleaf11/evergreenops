@@ -47,23 +47,36 @@ Before the session closes, write one memory entry summarizing:
 - What's open/next
 - Any decisions made
 
-### 6. Update the system map if the system changed
-`docs/system-map.html` is the running map of agents, tools, data, handoffs, and
-what is actually live. Update it in the SAME session that changes the thing it
-describes — a map updated later is a map that drifts, which is the exact failure
-this file exists to prevent.
+### 6. Update the business map if the business or system changed
+The map is a set of pages under `docs/map/`, one per domain, each published to its
+own stable artifact URL. Update the relevant page in the SAME session that changes
+what it describes — a map updated later is a map that drifts, which is the exact
+failure this file exists to prevent.
 
-Update it when: an agent is added/removed/rewired, a tool joins or leaves the
-routing, a table is added, a handoff or approval gate changes, or something moves
-between planned → partial → live.
+| Page | File | Artifact URL |
+|---|---|---|
+| Hub / index | `docs/map/index.html` | `https://claude.ai/code/artifact/0ec07be1-2835-4fef-bbd7-871635be599f` |
+| DTS lead flow | `docs/map/dts-lead-flow.html` | `https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256` |
+| AI ops | `docs/system-map.html` | `https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc` |
 
-**Republish to the existing artifact so the URL stays stable:**
+**Always pass `url` when republishing** — omitting it from a new conversation
+creates a SECOND artifact at a different link, leaving two pages disagreeing:
 ```
-Artifact(file_path: "docs/system-map.html",
-         url: "https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc")
+Artifact(file_path: "docs/map/dts-lead-flow.html",
+         url: "https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256")
 ```
-Omitting `url` from a new conversation creates a SECOND artifact at a different
-link. Always pass it.
+When adding a new domain page, publish it, add a row above, and link it from the hub.
+
+**Conventions these pages follow** (from how Autumn maps processes — match it):
+- Swimlanes by **function**, not by time
+- **Owner badges** on every step; who does it is first-class, never implied
+- **Tool chips** on the step that uses the tool
+- Decision exits shown **including dead ends** — the "no" branch is where leads die
+- Two views per domain: a **flow** (how it moves) and a **stage register**
+  (stage → owner → what happens → what's missing)
+- Gaps written **into the stage**, not filed separately
+- Every node states whether it's automated, manual, or unmapped. A step that exists
+  but isn't documented is drawn dashed, so the hole is visible rather than absent.
 
 ---
 
