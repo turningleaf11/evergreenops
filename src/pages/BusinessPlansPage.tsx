@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { ClipboardList, Plus, CheckSquare, UserPlus, Repeat } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { buildPlanDoc } from "@/lib/planSections";
 
 type BusinessPlan = {
   id: string;
@@ -31,12 +32,6 @@ type ProfileLite = { user_id: string; full_name: string | null; avatar_url: stri
 // Same scale tasks/projects use (src/lib/statusTone.ts) — most-urgent first,
 // so the venture that's the actual strategic focus surfaces at the top.
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 export default function BusinessPlansPage() {
   const { isAdmin, user, profile } = useAuth();
@@ -123,9 +118,9 @@ export default function BusinessPlansPage() {
         type: newType.trim() || null,
         one_liner: newOneLiner.trim() || null,
         purpose: purpose || null,
-        // Seed the Plan doc with what was just typed instead of landing on a
-        // blank page — it's their own words, not AI-generated filler.
-        plan_doc: purpose ? `<p>${escapeHtml(purpose)}</p>` : "",
+        // Open on a starting outline rather than a blank page. Headings are
+        // ordinary content — rename, reorder or delete them freely.
+        plan_doc: buildPlanDoc(newType.trim(), purpose),
         status: "planning",
         owner_id: user?.id || null,
         created_by: user?.id || null,

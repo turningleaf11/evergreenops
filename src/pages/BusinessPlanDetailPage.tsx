@@ -7,7 +7,6 @@ import AccessPicker from "@/components/AccessPicker";
 import { StatusPill, PriorityPill, AvatarStack, type AvatarStackPerson } from "@/components/primitives";
 import { LinkOrCreate, type LinkCandidate } from "@/components/business-plans/LinkOrCreate";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
-import GoalPeekWrapper from "@/components/mention-peek/peeks/GoalPeekWrapper";
 import DocPeek from "@/components/mention-peek/peeks/DocPeek";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -162,9 +161,8 @@ export default function BusinessPlanDetailPage() {
         {ownerProfile && <AvatarStack people={[ownerProfile]} size="lg" />}
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue="plan">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
           <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
           <TabsTrigger value="deliverables">Deliverables ({deliverables.filter((d) => d.status === "done").length}/{deliverables.length})</TabsTrigger>
@@ -175,26 +173,22 @@ export default function BusinessPlanDetailPage() {
           <TabsTrigger value="access">Access</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
-          <OverviewTab
-            plan={plan} goals={goals} freeGoals={freeGoals} milestones={milestones} risks={risks}
-            profiles={profiles}
-            onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
-            onDetach={(gid) => detach("goals", gid)} onReload={load}
-          />
-        </TabsContent>
-        <TabsContent value="roadmap" className="mt-4">
-          <RoadmapTab goals={goals} milestones={milestones} deliverables={deliverables} />
-        </TabsContent>
-        <TabsContent value="decisions" className="mt-4">
-          <DecisionsTab planId={plan.id} decisions={decisions} profiles={profiles} onReload={load} />
-        </TabsContent>
         <TabsContent value="plan" className="mt-4">
           <PlanDocTab
             planId={plan.id} content={plan.plan_doc || ""} profiles={profiles}
             milestones={milestones} risks={risks} goals={goals}
             onSave={(html) => updatePlan({ plan_doc: html })} onReload={load}
           />
+        </TabsContent>
+        <TabsContent value="roadmap" className="mt-4">
+          <RoadmapTab
+            planId={plan.id} goals={goals} milestones={milestones} deliverables={deliverables}
+            risks={risks} freeGoals={freeGoals}
+            onAttachGoal={(gid) => attach("goals", gid)} onReload={load}
+          />
+        </TabsContent>
+        <TabsContent value="decisions" className="mt-4">
+          <DecisionsTab planId={plan.id} decisions={decisions} profiles={profiles} onReload={load} />
         </TabsContent>
         <TabsContent value="deliverables" className="mt-4">
           <DeliverablesTab planId={plan.id} deliverables={deliverables} profiles={profiles} onChange={load} />
@@ -220,215 +214,6 @@ export default function BusinessPlanDetailPage() {
   );
 }
 
-// ── Overview ──────────────────────────────────────────────────────────────
-
-function OverviewTab({ plan, goals, freeGoals, milestones, risks, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
-  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; milestones: Milestone[]; risks: Risk[]; profiles: ProfileRow[];
-  onPlanPatch: (p: Partial<BusinessPlan>) => void;
-  onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
-  onReload: () => Promise<void>;
-}) {
-  const { user } = useAuth();
-  const [newMilestone, setNewMilestone] = useState("");
-  const [newRisk, setNewRisk] = useState("");
-  const [newRiskSeverity, setNewRiskSeverity] = useState("med");
-  const [goalPeekId, setGoalPeekId] = useState<string | null>(null);
-
-  const addMilestone = async () => {
-    if (!newMilestone.trim()) return;
-    const { error } = await supabase.from("business_plan_milestones").insert({
-      business_plan_id: plan.id, title: newMilestone.trim(), sort_order: milestones.length,
-    });
-    if (error) { toast({ title: "Couldn't add milestone", description: error.message, variant: "destructive" }); return; }
-    setNewMilestone("");
-    await onReload();
-  };
-  const patchMilestone = async (m: Milestone, values: Partial<Milestone>) => {
-    await supabase.from("business_plan_milestones").update(values as any).eq("id", m.id);
-    await onReload();
-  };
-  const removeMilestone = async (m: Milestone) => {
-    await supabase.from("business_plan_milestones").delete().eq("id", m.id);
-    await onReload();
-  };
-
-  const addRisk = async () => {
-    if (!newRisk.trim()) return;
-    const { error } = await supabase.from("business_plan_risks").insert({
-      business_plan_id: plan.id, text: newRisk.trim(), severity: newRiskSeverity, sort_order: risks.length,
-    });
-    if (error) { toast({ title: "Couldn't add risk", description: error.message, variant: "destructive" }); return; }
-    setNewRisk("");
-    setNewRiskSeverity("med");
-    await onReload();
-  };
-  const setRiskSeverity = async (r: Risk, severity: string) => {
-    await supabase.from("business_plan_risks").update({ severity }).eq("id", r.id);
-    await onReload();
-  };
-  const removeRisk = async (r: Risk) => {
-    await supabase.from("business_plan_risks").delete().eq("id", r.id);
-    await onReload();
-  };
-
-  const createGoal = async (title: string) => {
-    const now = new Date();
-    const { error } = await supabase.from("goals").insert({
-      title,
-      quarter: `Q${Math.floor(now.getMonth() / 3) + 1}`, year: now.getFullYear(),
-      status: "on_track", progress: 0,
-      owner_id: user?.id || null, created_by: user?.id || null,
-      business_plan_id: plan.id,
-    });
-    if (error) { toast({ title: "Couldn't create goal", description: error.message, variant: "destructive" }); return; }
-    await onReload();
-  };
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Goals</h4>
-              <LinkOrCreate noun="goal" candidates={freeGoals} onLink={onAttach} onCreate={createGoal} />
-            </div>
-            {goals.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">
-                No goals yet — link an existing one from Execution Hub or create one here.
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                {goals.map((g) => (
-                  <div key={g.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-border/40 last:border-0 group">
-                    <button onClick={() => setGoalPeekId(g.id)} className="flex-1 min-w-0 text-left truncate hover:text-primary transition-colors">
-                      {g.title}
-                    </button>
-                    {g.measurable_target && <span className="text-xs text-muted-foreground shrink-0">{g.measurable_target}</span>}
-                    <StatusPill kind="goal" value={g.status} size="sm" />
-                    <button onClick={() => onDetach(g.id)} title="Unlink from this plan" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <GoalPeekWrapper
-          id={goalPeekId || ""}
-          open={!!goalPeekId}
-          onClose={() => { setGoalPeekId(null); onReload(); }}
-        />
-
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Milestones</h4>
-              <span className="text-[10px] text-muted-foreground/70">Checkpoints you reach</span>
-            </div>
-            <div className="space-y-1.5">
-              {milestones.length === 0 && <p className="text-xs text-muted-foreground py-2">No milestones yet.</p>}
-              {milestones.map((m) => {
-                const goal = goals.find((g) => g.id === m.goal_id);
-                return (
-                  <div key={m.id} className="flex items-center gap-2 text-sm group">
-                    <input type="checkbox" checked={m.done} onChange={() => patchMilestone(m, { done: !m.done })} className="h-3.5 w-3.5 accent-primary shrink-0" />
-                    <span className={`flex-1 min-w-0 truncate ${m.done ? "line-through text-muted-foreground" : ""}`}>{m.title}</span>
-                    {goal && (
-                      <Badge variant="secondary" className="text-[10px] shrink-0 font-normal" title={`Checkpoint toward: ${goal.title}`}>
-                        → {goal.title}
-                      </Badge>
-                    )}
-                    <Input
-                      type="date"
-                      value={m.due_date || ""}
-                      onChange={(e) => patchMilestone(m, { due_date: e.target.value || null })}
-                      className="h-6 w-[122px] text-[11px] shrink-0"
-                    />
-                    {goals.length > 0 && (
-                      <Select value={m.goal_id || "__none__"} onValueChange={(v) => patchMilestone(m, { goal_id: v === "__none__" ? null : v })}>
-                        <SelectTrigger className="h-6 w-[34px] text-[11px] shrink-0 px-1.5" title="Attach to a goal">
-                          <Target className="h-3 w-3 text-muted-foreground" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Standalone</SelectItem>
-                          {goals.map((g) => <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <button onClick={() => removeMilestone(m)} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-1.5 pt-1">
-              <Input value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addMilestone()} placeholder="Add a milestone…" className="h-7 text-xs" />
-              <Button size="sm" variant="outline" className="h-7" onClick={addMilestone}>Add</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Risks &amp; blockers</h4>
-          <div className="space-y-1.5">
-            {risks.length === 0 && <p className="text-xs text-muted-foreground py-2">Nothing flagged.</p>}
-            {risks.map((r) => {
-              const sev = SEVERITIES.find((s) => s.value === (r.severity || "med")) || SEVERITIES[1];
-              return (
-                <div key={r.id} className="flex items-start gap-2 text-sm group">
-                  <Select value={r.severity || "med"} onValueChange={(v) => setRiskSeverity(r, v)}>
-                    <SelectTrigger className="h-6 w-[86px] text-[11px] shrink-0 mt-0.5">
-                      <span className="flex items-center gap-1.5">
-                        <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} />
-                        {sev.label}
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SEVERITIES.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          <span className="flex items-center gap-2">
-                            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="flex-1 pt-1">{r.text}</span>
-                  <button onClick={() => removeRisk(r)} className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex gap-1.5 pt-1">
-            <Select value={newRiskSeverity} onValueChange={setNewRiskSeverity}>
-              <SelectTrigger className="h-7 w-[96px] text-xs shrink-0"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {SEVERITIES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input value={newRisk} onChange={(e) => setNewRisk(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRisk()} placeholder="Add a risk or blocker…" className="h-7 text-xs" />
-            <Button size="sm" variant="outline" className="h-7" onClick={addRisk}>Add</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      </div>
-    </div>
-  );
-}
 
 // ── Roadmap — a view, not a table ─────────────────────────────────────────
 //
@@ -451,9 +236,58 @@ const KIND_STRIPE: Record<RoadmapItem["kind"], string> = {
 
 function quarterOf(d: Date) { return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`; }
 
-function RoadmapTab({ goals, milestones, deliverables }: {
-  goals: Goal[]; milestones: Milestone[]; deliverables: Deliverable[];
+function RoadmapTab({ planId, goals, milestones, deliverables, risks, freeGoals, onAttachGoal, onReload }: {
+  planId: string; goals: Goal[]; milestones: Milestone[]; deliverables: Deliverable[];
+  risks: Risk[]; freeGoals: LinkCandidate[];
+  onAttachGoal: (goalId: string) => Promise<void>; onReload: () => Promise<void>;
 }) {
+  const { user } = useAuth();
+  const [newMilestone, setNewMilestone] = useState("");
+  const [newRisk, setNewRisk] = useState("");
+  const [newRiskSeverity, setNewRiskSeverity] = useState("med");
+
+  const createGoal = async (title: string) => {
+    const now = new Date();
+    const { error } = await supabase.from("goals").insert({
+      title,
+      quarter: `Q${Math.floor(now.getMonth() / 3) + 1}`, year: now.getFullYear(),
+      status: "on_track", progress: 0,
+      owner_id: user?.id || null, created_by: user?.id || null,
+      business_plan_id: planId,
+    });
+    if (error) { toast({ title: "Couldn't create goal", description: error.message, variant: "destructive" }); return; }
+    await onReload();
+  };
+
+  const addMilestone = async () => {
+    if (!newMilestone.trim()) return;
+    const { error } = await supabase.from("business_plan_milestones").insert({
+      business_plan_id: planId, title: newMilestone.trim(), sort_order: milestones.length,
+    });
+    if (error) { toast({ title: "Couldn't add milestone", description: error.message, variant: "destructive" }); return; }
+    setNewMilestone("");
+    await onReload();
+  };
+
+  const addRisk = async () => {
+    if (!newRisk.trim()) return;
+    const { error } = await supabase.from("business_plan_risks").insert({
+      business_plan_id: planId, text: newRisk.trim(), severity: newRiskSeverity, sort_order: risks.length,
+    });
+    if (error) { toast({ title: "Couldn't add risk", description: error.message, variant: "destructive" }); return; }
+    setNewRisk("");
+    setNewRiskSeverity("med");
+    await onReload();
+  };
+  const patchRisk = async (r: Risk, values: Partial<Risk>) => {
+    await supabase.from("business_plan_risks").update(values as any).eq("id", r.id);
+    await onReload();
+  };
+  const removeRisk = async (r: Risk) => {
+    await supabase.from("business_plan_risks").delete().eq("id", r.id);
+    await onReload();
+  };
+
   const grouped = useMemo(() => {
     const items: RoadmapItem[] = [];
 
@@ -502,19 +336,35 @@ function RoadmapTab({ goals, milestones, deliverables }: {
 
   const total = grouped.reduce((n, [, items]) => n + items.length, 0);
 
-  if (total === 0) {
-    return (
-      <EmptyState
-        icon={CalendarRange}
-        title="Nothing scheduled yet"
-        description="Give a goal a quarter, or a milestone or deliverable a due date, and it lands here automatically."
-      />
-    );
-  }
-
   return (
+    <div className="space-y-4">
     <Card>
       <CardContent className="p-5 space-y-1">
+        <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timeline</h4>
+          <div className="flex items-center gap-1.5">
+            <Input
+              value={newMilestone}
+              onChange={(e) => setNewMilestone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addMilestone()}
+              placeholder="Add a milestone…"
+              className="h-7 text-xs w-48"
+            />
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={addMilestone} disabled={!newMilestone.trim()}>Add</Button>
+            <LinkOrCreate noun="goal" candidates={freeGoals} onLink={onAttachGoal} onCreate={createGoal} />
+          </div>
+        </div>
+
+        {total === 0 && (
+          <EmptyState
+            icon={CalendarRange}
+            title="Nothing scheduled yet"
+            description="Give a goal a quarter, or a milestone or deliverable a due date, and it lands here automatically."
+            card={false}
+            size="sm"
+          />
+        )}
+
         {grouped.map(([label, items]) => (
           <div key={label}>
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-4 pb-2 border-b border-border/40 mb-1">
@@ -545,6 +395,61 @@ function RoadmapTab({ goals, milestones, deliverables }: {
         </div>
       </CardContent>
     </Card>
+
+    {/* Risks sit with the roadmap: this is the plan, and this is what could
+        derail it. They're undated, so they don't belong on the timeline
+        itself — but they do need a home outside the doc, or a risk whose
+        block was deleted would become invisible. */}
+    <Card>
+      <CardContent className="p-5 space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Risks &amp; blockers</h4>
+        <div className="space-y-1.5">
+          {risks.length === 0 && <p className="text-xs text-muted-foreground py-1">Nothing flagged.</p>}
+          {risks.map((r) => {
+            const sev = SEVERITIES.find((s) => s.value === (r.severity || "med")) || SEVERITIES[1];
+            return (
+              <div key={r.id} className="flex items-start gap-2 text-sm group">
+                <Select value={r.severity || "med"} onValueChange={(v) => patchRisk(r, { severity: v })}>
+                  <SelectTrigger className="h-6 w-[86px] text-[11px] shrink-0 mt-0.5">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} />{sev.label}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEVERITIES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className="flex items-center gap-2">
+                          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="flex-1 pt-1">{r.text}</span>
+                <button onClick={() => removeRisk(r)} className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1.5 pt-1">
+          <Select value={newRiskSeverity} onValueChange={setNewRiskSeverity}>
+            <SelectTrigger className="h-7 w-[96px] text-xs shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SEVERITIES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  <span className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input value={newRisk} onChange={(e) => setNewRisk(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRisk()} placeholder="Add a risk or blocker…" className="h-7 text-xs" />
+          <Button size="sm" variant="outline" className="h-7" onClick={addRisk}>Add</Button>
+        </div>
+      </CardContent>
+    </Card>
+    </div>
   );
 }
 
@@ -677,10 +582,25 @@ function PlanDocTab({ planId, content, profiles, milestones, risks, goals, onSav
   return (
     <PlanEntityProvider value={entities}>
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] text-muted-foreground">
-          Select any text and use <Target className="h-3 w-3 inline-block -mt-0.5" /> in the toolbar to turn it into a goal, milestone or risk.
-        </p>
+      {/* Read-only status strip — what Overview used to be, minus the editing.
+          Everything here is created and edited in the doc or on Roadmap. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Target className="h-3 w-3 text-blue-500" />
+            <span className="tabular-nums">{goals.length}</span> goal{goals.length === 1 ? "" : "s"}
+            {goals.length > 0 && <span className="text-muted-foreground/60">· {goals.filter((g) => g.status === "on_track" || g.status === "done").length} on track</span>}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <CalendarRange className="h-3 w-3 text-amber-500" />
+            <span className="tabular-nums">{milestones.length}</span> milestone{milestones.length === 1 ? "" : "s"}
+            {milestones.length > 0 && <span className="text-muted-foreground/60">· {milestones.filter((m) => m.done).length} reached</span>}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full ${risks.some((r) => r.severity === "high") ? "bg-destructive" : "bg-muted-foreground/50"}`} />
+            <span className="tabular-nums">{risks.length}</span> open risk{risks.length === 1 ? "" : "s"}
+          </span>
+        </div>
         <div className="flex items-center gap-3 shrink-0">
           {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
           <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
@@ -688,6 +608,9 @@ function PlanDocTab({ planId, content, profiles, milestones, risks, goals, onSav
           </Button>
         </div>
       </div>
+      <p className="text-[11px] text-muted-foreground/70">
+        Select any text and use <Target className="h-3 w-3 inline-block -mt-0.5" /> in the toolbar to turn it into a goal, milestone or risk.
+      </p>
       <Card className="shadow-card-lift overflow-hidden">
         {/* RichTextEditor's root hardcodes bg-background (the app canvas token,
             darker than --card) — neutralize it here so the "paper" reads as one
