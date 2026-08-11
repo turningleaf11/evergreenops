@@ -25,25 +25,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Target, Plus, Trash2, FileText, Layers, Compass, Users,
-  ExternalLink, Link2, ChevronDown, X, Sparkles,
+  ExternalLink, Link2, ChevronDown, X, Sparkles, Flag,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import RichTextEditor from "@/components/RichTextEditor";
 import { AlbusDraftDeliverablesSheet } from "@/components/business-plans/AlbusDraftDeliverables";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type BusinessPlan = {
   id: string; title: string; type: string | null; one_liner: string | null; status: string; priority: string; owner_id: string | null;
   visibility: string; shared_with: any; plan_doc: string;
 };
-type Milestone = { id: string; business_plan_id: string; title: string; done: boolean; due_date: string | null };
 type Risk = { id: string; business_plan_id: string; text: string; severity: string };
 type Decision = { id: string; business_plan_id: string; text: string; decided_by: string | null; created_at: string };
 type Deliverable = {
   id: string; business_plan_id: string; category: string; title: string; status: string;
   link_url: string | null; file_url: string | null; owner_id: string | null; due_date: string | null;
-  linked_project_id: string | null; linked_task_id: string | null;
+  linked_project_id: string | null; linked_task_id: string | null; is_milestone: boolean;
 };
 type RoleRow = { id: string; business_plan_id: string; role_title: string; assigned_user_id: string | null; notes: string | null };
 type Goal = { id: string; title: string; status: string; quarter: string; year: number; measurable_target: string | null };
@@ -67,7 +67,6 @@ export default function BusinessPlanDetailPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [risks, setRisks] = useState<Risk[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [docs, setDocs] = useState<DocRow[]>([]);
@@ -82,13 +81,12 @@ export default function BusinessPlanDetailPage() {
 
   const load = async () => {
     if (!id) return;
-    const [planRes, delivRes, rolesRes, goalsRes, milestonesRes, risksRes, decisionsRes, docsRes, boardsRes, profRes,
+    const [planRes, delivRes, rolesRes, goalsRes, risksRes, decisionsRes, docsRes, boardsRes, profRes,
            fGoals, fCad, fDocs, fBoards] = await Promise.all([
       supabase.from("business_plans").select("*").eq("id", id).single(),
       supabase.from("business_plan_deliverables").select("*").eq("business_plan_id", id).order("category").order("sort_order"),
       supabase.from("business_plan_roles").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("goals").select("id, title, status, quarter, year, measurable_target").eq("business_plan_id", id),
-      supabase.from("business_plan_milestones").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("business_plan_risks").select("*").eq("business_plan_id", id).order("sort_order"),
       supabase.from("business_plan_decisions").select("*").eq("business_plan_id", id).order("created_at", { ascending: false }),
       supabase.from("documents").select("id, title, updated_at").eq("business_plan_id", id),
@@ -103,7 +101,6 @@ export default function BusinessPlanDetailPage() {
     setDeliverables((delivRes.data as Deliverable[]) || []);
     setRoles((rolesRes.data as RoleRow[]) || []);
     setGoals((goalsRes.data as Goal[]) || []);
-    setMilestones((milestonesRes.data as Milestone[]) || []);
     setRisks((risksRes.data as Risk[]) || []);
     setDecisions((decisionsRes.data as Decision[]) || []);
     setDocs((docsRes.data as DocRow[]) || []);
@@ -169,7 +166,7 @@ export default function BusinessPlanDetailPage() {
 
         <TabsContent value="overview" className="mt-4">
           <OverviewTab
-            plan={plan} goals={goals} freeGoals={freeGoals} milestones={milestones} risks={risks}
+            plan={plan} goals={goals} freeGoals={freeGoals} deliverables={deliverables} risks={risks}
             decisions={decisions} profiles={profiles}
             onPlanPatch={updatePlan} onAttach={(gid) => attach("goals", gid)}
             onDetach={(gid) => detach("goals", gid)} onReload={load}
@@ -207,8 +204,8 @@ export default function BusinessPlanDetailPage() {
 
 // ── Overview ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ plan, goals, freeGoals, milestones, risks, decisions, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
-  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; milestones: Milestone[]; risks: Risk[]; decisions: Decision[]; profiles: ProfileRow[];
+function OverviewTab({ plan, goals, freeGoals, deliverables, risks, decisions, profiles, onPlanPatch, onAttach, onDetach, onReload }: {
+  plan: BusinessPlan; goals: Goal[]; freeGoals: LinkCandidate[]; deliverables: Deliverable[]; risks: Risk[]; decisions: Decision[]; profiles: ProfileRow[];
   onPlanPatch: (p: Partial<BusinessPlan>) => void;
   onAttach: (goalId: string) => Promise<void>; onDetach: (goalId: string) => Promise<void>;
   onReload: () => Promise<void>;
@@ -220,21 +217,26 @@ function OverviewTab({ plan, goals, freeGoals, milestones, risks, decisions, pro
   const [newDecision, setNewDecision] = useState("");
   const [goalPeekId, setGoalPeekId] = useState<string | null>(null);
 
+  // A milestone isn't a separate concept — it's a deliverable flagged as a
+  // launch checkpoint (ClickUp's model), so it's fully editable, promotable
+  // to a task/project, etc. from the Deliverables tab like any other item.
+  const milestones = useMemo(() => deliverables.filter((d) => d.is_milestone), [deliverables]);
+
   const addMilestone = async () => {
     if (!newMilestone.trim()) return;
-    const { error } = await supabase.from("business_plan_milestones").insert({
-      business_plan_id: plan.id, title: newMilestone.trim(), sort_order: milestones.length,
+    const { error } = await supabase.from("business_plan_deliverables").insert({
+      business_plan_id: plan.id, title: newMilestone.trim(), category: "Milestone", is_milestone: true,
     });
     if (error) { toast({ title: "Couldn't add milestone", description: error.message, variant: "destructive" }); return; }
     setNewMilestone("");
     await onReload();
   };
-  const toggleMilestone = async (m: Milestone) => {
-    await supabase.from("business_plan_milestones").update({ done: !m.done }).eq("id", m.id);
+  const toggleMilestone = async (m: Deliverable) => {
+    await supabase.from("business_plan_deliverables").update({ status: m.status === "done" ? "not_started" : "done" }).eq("id", m.id);
     await onReload();
   };
-  const removeMilestone = async (m: Milestone) => {
-    await supabase.from("business_plan_milestones").delete().eq("id", m.id);
+  const removeMilestone = async (m: Deliverable) => {
+    await supabase.from("business_plan_deliverables").delete().eq("id", m.id);
     await onReload();
   };
 
@@ -324,12 +326,17 @@ function OverviewTab({ plan, goals, freeGoals, milestones, risks, decisions, pro
 
         <Card>
           <CardContent className="p-4 space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Milestones</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Milestones</h4>
+              <span className="text-[10px] text-muted-foreground/70">Launch checkpoints — full editing lives in Deliverables</span>
+            </div>
             <div className="space-y-1.5">
+              {milestones.length === 0 && <p className="text-xs text-muted-foreground py-2">No milestones flagged yet.</p>}
               {milestones.map((m) => (
                 <div key={m.id} className="flex items-center gap-2 text-sm group">
-                  <input type="checkbox" checked={m.done} onChange={() => toggleMilestone(m)} className="h-3.5 w-3.5 accent-primary" />
-                  <span className={m.done ? "line-through text-muted-foreground flex-1" : "flex-1"}>{m.title}</span>
+                  <input type="checkbox" checked={m.status === "done"} onChange={() => toggleMilestone(m)} className="h-3.5 w-3.5 accent-primary" />
+                  <span className={m.status === "done" ? "line-through text-muted-foreground flex-1" : "flex-1"}>{m.title}</span>
+                  {m.due_date && <span className="text-[11px] text-muted-foreground shrink-0">{format(new Date(m.due_date), "MMM d")}</span>}
                   <button onClick={() => removeMilestone(m)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                   </button>
@@ -507,6 +514,7 @@ function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
   const [addOpen, setAddOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("General");
+  const [isMilestone, setIsMilestone] = useState(false);
 
   const grouped = useMemo(() => {
     const m = new Map<string, Deliverable[]>();
@@ -545,10 +553,14 @@ function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
   const addDeliverable = async () => {
     if (!title.trim()) return;
     await supabase.from("business_plan_deliverables").insert({
-      business_plan_id: planId, title: title.trim(), category: category.trim() || "General",
+      business_plan_id: planId, title: title.trim(), category: category.trim() || "General", is_milestone: isMilestone,
     });
-    setAddOpen(false); setTitle(""); setCategory("General");
+    setAddOpen(false); setTitle(""); setCategory("General"); setIsMilestone(false);
     onChange();
+  };
+
+  const toggleIsMilestone = async (d: Deliverable) => {
+    await patch(d, { is_milestone: !d.is_milestone });
   };
 
   const remove = async (d: Deliverable) => {
@@ -566,6 +578,10 @@ function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
             <div className="space-y-3 py-2">
               <div className="space-y-1.5"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Buy box" /></div>
               <div className="space-y-1.5"><Label>Category</Label><Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Team Resources" /></div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox checked={isMilestone} onCheckedChange={(v) => setIsMilestone(!!v)} />
+                Flag as a milestone — a launch checkpoint, shown on Overview
+              </label>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
@@ -591,6 +607,13 @@ function DeliverablesTab({ planId, deliverables, profiles, onChange }: {
                 return (
                   <div key={d.id} className="flex items-center gap-2.5 py-2 border-b border-border/40 last:border-0 group">
                     <StatusPill kind="project" value={d.status} onChange={(v) => patch(d, { status: v })} size="sm" />
+                    <button
+                      onClick={() => toggleIsMilestone(d)}
+                      title={d.is_milestone ? "Milestone — click to unflag" : "Flag as a milestone"}
+                      className={`shrink-0 transition-opacity ${d.is_milestone ? "text-amber-600" : "text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-amber-600"}`}
+                    >
+                      <Flag className="h-3.5 w-3.5" fill={d.is_milestone ? "currentColor" : "none"} />
+                    </button>
                     <span className={`flex-1 text-sm min-w-0 truncate ${d.status === "done" ? "text-muted-foreground line-through" : ""}`}>{d.title}</span>
 
                     {/* Owner */}
