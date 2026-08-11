@@ -51,15 +51,42 @@ Before the session closes, write one memory entry summarizing:
 
 ## AI Team context
 
-| Agent | Role | Assigned_to key |
-|---|---|---|
-| Claude | Integrator / COO / builder | `claude` |
-| Albus | Orchestrator / Chief of Staff | `albus` |
-| Dex | Jr. Coder | `dex` |
-| Codex | Coding tasks | `codex` |
+| Agent | Role | Assigned_to key | Engine |
+|---|---|---|---|
+| Claude | Integrator / COO / builder | `claude` | Claude |
+| Albus | Orchestrator / Chief of Staff | `albus` | OpenClaw gateway |
+| Cash | Underwriting + market research | `cash` | OpenClaw skill |
+| Dex | Jr. Coder | `dex` | OpenClaw skill → spawns Codex |
+| Codex | Coding tasks | `codex` | OpenAI Codex |
 
 Tasks flow through `agent_tasks` table. Results written back to `result` column.
 Supabase project: `dsxrekabnwvarnroanny`
+
+**Agent skill definitions live in `docs/agents/`** — those are the canonical copies.
+The running versions sit at `~/.openclaw/skills/<name>/SKILL.md` inside Albus's
+Docker container, which is *not* version-controlled. See `docs/agents/INSTALL.md`
+before changing agent behavior.
+
+### Two rules that apply to every agent
+
+1. **Persistence is mandatory.** A result that only appears in chat did not happen.
+   Write to `agent_tasks.result`, log to `ai_logs`, and for underwriting also to
+   `underwriting_runs`. The entire fleet was previously non-functional for exactly
+   this reason — the skills ran fine and wrote nothing.
+2. **Status ceiling is `review`, never `approved`.** Setting `approved` fires a real
+   GitHub Actions build against the repo. That's a human's call, or Albus's — never
+   the agent that produced the work.
+
+### Underwriting tables
+
+| Table | Purpose |
+|---|---|
+| `buy_box_criteria` | Structured buy box, per asset class. `hardness` = hard/soft. Source of truth mirrors buybox.evergreenreventures.com |
+| `buy_box_exceptions` | Documented exceptions. `widened_band` = threshold relaxed; `conditional_adjustment` = curable, price it and flag for a human — never auto-waive |
+| `underwriting_runs` | Cross-app index of every underwrite: which tool, which record, deep link, verdict, headline metrics. `actual_*` columns exist for later predicted-vs-actual calibration |
+
+Markets differ by strategy: **Fix & Flip is Miami-Dade + Broward only**; Buy & Hold
+spans FL, TX, TN, GA, NC, VA, AL, KY. Don't collapse the two.
 
 ---
 
