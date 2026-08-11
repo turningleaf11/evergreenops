@@ -57,6 +57,7 @@ failure this file exists to prevent.
 |---|---|---|
 | Hub / index | `docs/map/index.html` | `https://claude.ai/code/artifact/0ec07be1-2835-4fef-bbd7-871635be599f` |
 | DTS lead flow | `docs/map/dts-lead-flow.html` | `https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256` |
+| Buy box | `docs/map/buy-box.html` | `https://claude.ai/code/artifact/2b895494-2b53-4e67-ab5c-c83b3edb9ae4` |
 | AI ops | `docs/system-map.html` | `https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc` |
 
 **Always pass `url` when republishing** — omitting it from a new conversation

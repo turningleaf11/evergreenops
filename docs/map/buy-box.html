@@ -1,0 +1,348 @@
+<title>Buy Box — Evergreen Map</title>
+<style>
+  :root {
+    --ink:#12312A; --ink-soft:#3D5B52; --ink-faint:#6B857C;
+    --ground:#F2F3EF; --surface:#FBFBFB; --surface-sunk:#EAEDE7;
+    --rule:#C4D8D2; --rule-soft:#DCE5E0;
+    --accent:#1C9E6F; --accent-deep:#12312A; --accent-wash:rgba(28,158,111,.09);
+    --hard:#12312A; --hard-wash:rgba(18,49,42,.07);
+    --soft:#59907F; --soft-wash:rgba(89,144,127,.12);
+    --partial:#B5761B; --partial-wash:rgba(181,118,27,.10);
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:#E8EFEB; --ink-soft:#A8BFB7; --ink-faint:#7E9891;
+      --ground:#0B0B0C; --surface:#141517; --surface-sunk:#1B1D1F;
+      --rule:#2B3733; --rule-soft:#222B28;
+      --accent:#37C08C; --accent-deep:#9ACABA; --accent-wash:rgba(55,192,140,.12);
+      --hard:#9ACABA; --hard-wash:rgba(154,202,186,.10);
+      --soft:#7FB3A0; --soft-wash:rgba(127,179,160,.12);
+      --partial:#D69A3C; --partial-wash:rgba(214,154,60,.14);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink:#E8EFEB; --ink-soft:#A8BFB7; --ink-faint:#7E9891;
+    --ground:#0B0B0C; --surface:#141517; --surface-sunk:#1B1D1F;
+    --rule:#2B3733; --rule-soft:#222B28;
+    --accent:#37C08C; --accent-deep:#9ACABA; --accent-wash:rgba(55,192,140,.12);
+    --hard:#9ACABA; --hard-wash:rgba(154,202,186,.10);
+    --soft:#7FB3A0; --soft-wash:rgba(127,179,160,.12);
+    --partial:#D69A3C; --partial-wash:rgba(214,154,60,.14);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink);
+         font-family:var(--sans); font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1000px; margin:0 auto; padding:0 28px 110px; }
+
+  header { padding:64px 0 36px; border-bottom:1px solid var(--rule); margin-bottom:44px; }
+  .breadcrumb { font-family:var(--mono); font-size:11px; letter-spacing:.13em;
+                text-transform:uppercase; color:var(--accent); margin:0 0 18px; }
+  h1 { font-size:clamp(28px,4.4vw,42px); line-height:1.08; letter-spacing:-.022em;
+       font-weight:640; margin:0 0 18px; text-wrap:balance; }
+  .standfirst { font-size:17px; line-height:1.6; color:var(--ink-soft); margin:0; max-width:62ch; }
+  .stamp { margin-top:26px; font-family:var(--mono); font-size:12px; color:var(--ink-faint);
+           display:flex; flex-wrap:wrap; gap:6px 20px; }
+
+  section { margin-bottom:60px; }
+  h2 { font-size:13px; font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase;
+       font-weight:620; margin:0 0 6px; padding-bottom:12px;
+       border-bottom:2px solid var(--ink); display:inline-block; }
+  .sec-note { color:var(--ink-soft); margin:20px 0 28px; max-width:68ch; }
+  h3 { font-size:19px; letter-spacing:-.015em; font-weight:640; margin:0 0 4px; }
+  .h3sub { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+           color:var(--ink-faint); margin:0 0 18px; }
+  p { margin:0 0 16px; max-width:68ch; }
+  code { font-family:var(--mono); font-size:.875em; background:var(--accent-wash);
+         color:var(--accent-deep); padding:.1em .38em; border-radius:3px; }
+
+  /* screening logic cards */
+  .logic { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1px;
+           background:var(--rule-soft); border:1px solid var(--rule-soft);
+           border-radius:4px; overflow:hidden; margin-top:24px; }
+  .logic > div { background:var(--surface); padding:20px 20px 18px; }
+  .logic .lbl { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em;
+                text-transform:uppercase; margin:0 0 8px; }
+  .logic .lbl.h { color:var(--ink); }
+  .logic .lbl.s { color:var(--soft); }
+  .logic .lbl.w { color:var(--accent); }
+  .logic .lbl.c { color:var(--partial); }
+  .logic p { margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-soft); max-width:none; }
+
+  /* asset class blocks */
+  .ac { background:var(--surface); border:1px solid var(--rule-soft); border-radius:4px;
+        padding:26px 26px 22px; margin-bottom:20px; }
+  .rules { list-style:none; padding:0; margin:0; }
+  .rules li { display:flex; gap:12px; align-items:baseline; padding:9px 0;
+              border-bottom:1px solid var(--rule-soft); }
+  .rules li:last-child { border-bottom:none; }
+  .rules .mark { font-family:var(--mono); font-size:10px; letter-spacing:.07em;
+                 text-transform:uppercase; padding:2px 7px; border-radius:2px;
+                 white-space:nowrap; flex:none; margin-top:2px; }
+  .mark.hard { background:var(--hard-wash); color:var(--hard);
+               border:1px solid color-mix(in srgb,var(--hard) 30%,transparent); }
+  .mark.soft { background:var(--soft-wash); color:var(--soft);
+               border:1px solid color-mix(in srgb,var(--soft) 34%,transparent); }
+  .rules .txt { font-size:14.5px; line-height:1.5; }
+  .rules .txt small { display:block; color:var(--ink-faint); font-size:12.5px; margin-top:2px; }
+
+  .group-lbl { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+               text-transform:uppercase; color:var(--ink-faint); margin:20px 0 6px; }
+  .group-lbl:first-of-type { margin-top:4px; }
+
+  /* markets */
+  .markets { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:18px 26px;
+             margin-top:22px; }
+  .mk h4 { margin:0 0 6px; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+           color:var(--accent); font-weight:600; }
+  .mk ul { list-style:none; padding:0; margin:0; }
+  .mk li { font-size:14px; color:var(--ink-soft); padding:2px 0; }
+
+  /* exceptions */
+  .exc { border-left:2px solid var(--accent); padding:16px 0 16px 18px; margin-bottom:18px;
+         max-width:76ch; }
+  .exc.cond { border-left-color:var(--partial); }
+  .exc .top { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:7px; }
+  .exc .ty { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+             padding:2px 7px; border-radius:2px; }
+  .ty.wide { background:var(--accent-wash); color:var(--accent-deep);
+             border:1px solid color-mix(in srgb,var(--accent) 32%,transparent); }
+  .ty.cnd { background:var(--partial-wash); color:var(--partial);
+            border:1px solid color-mix(in srgb,var(--partial) 34%,transparent); }
+  .exc .scope { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); letter-spacing:.05em; }
+  .exc strong { display:block; font-size:15px; font-weight:620; margin-bottom:5px; }
+  .exc p { margin:0 0 5px; font-size:14px; color:var(--ink-soft); line-height:1.55; max-width:none; }
+  .exc .kv { font-size:13.5px; color:var(--ink-soft); }
+  .exc .kv b { font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+               color:var(--ink-faint); font-weight:600; }
+
+  .callout { background:var(--partial-wash); border:1px solid color-mix(in srgb,var(--partial) 28%,transparent);
+             border-radius:4px; padding:18px 20px; margin-top:24px; max-width:74ch; }
+  .callout p { margin:0; font-size:14.5px; color:var(--ink-soft); line-height:1.58; max-width:none; }
+  .callout b { color:var(--partial); }
+
+  footer { margin-top:70px; padding-top:24px; border-top:1px solid var(--rule);
+           font-family:var(--mono); font-size:12px; color:var(--ink-faint); line-height:1.75; }
+  footer p { max-width:none; margin:0; }
+
+  @media (max-width:640px) {
+    header { padding-top:44px; } .wrap { padding:0 18px 76px; }
+    .ac { padding:20px 18px 18px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="breadcrumb">Evergreen Map · Deal machine</p>
+  <h1>Buy Box</h1>
+  <p class="standfirst">
+    The internal screening rule — what auto-fails a deal, what's merely a preference, and
+    which exceptions are real. This is what Cash screens against before an underwriter
+    spends any time. The public page at buybox.evergreenreventures.com is the outward
+    version; this is the decision logic behind it.
+  </p>
+  <p class="stamp">
+    <span>Updated 2026-08-11</span>
+    <span>Source: buy_box_criteria · buy_box_exceptions</span>
+    <span>28 criteria · 4 exceptions</span>
+  </p>
+</header>
+
+<section>
+  <h2>How screening works</h2>
+  <p class="sec-note">
+    The distinction that matters operationally, and the one the public page doesn't carry.
+  </p>
+
+  <div class="logic">
+    <div>
+      <p class="lbl h">Hard</p>
+      <p>Fails the screen outright. Stop, report which criterion failed, don't underwrite.
+      Unless an exception applies.</p>
+    </div>
+    <div>
+      <p class="lbl s">Soft</p>
+      <p>A target, not a gate. Missing it is noted and carried forward — never fatal on
+      its own.</p>
+    </div>
+    <div>
+      <p class="lbl w">Widened band</p>
+      <p>The threshold is simply relaxed for this case. Note it and proceed.</p>
+    </div>
+    <div>
+      <p class="lbl c">Conditional adjustment</p>
+      <p>Curable, not waivable. State the condition, price the cure into the model, flag
+      for a human. Never auto-waive.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><b>The buy box is the filter, not the verdict.</b> It runs before underwriting to
+    decide whether a deal is worth modelling at all. The tools' own thresholds — DSCR 1.25,
+    cash-on-cash 7%, IRR 12%, $100/door — are the verdict, applied after the model runs.
+    Confusing the two is how a deal that should have died in sixty seconds consumes an
+    afternoon.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Fix &amp; Flip</h2>
+  <p class="sec-note">
+    The most constrained box, and the only one with a geographic hard gate.
+  </p>
+
+  <div class="ac">
+    <p class="group-lbl">Auto-fail</p>
+    <ul class="rules">
+      <li><span class="mark hard">Hard</span><span class="txt">Florida: Miami-Dade and Broward only</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">Single family and small multifamily only</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">3 bed minimum<small>Has a conditional exception — see below</small></span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">2 bath minimum</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">At least 1,000 sqft</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No flood zones</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No fire damage</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No structural or foundation problems</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No condos</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No HOA property</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No post possession</span></li>
+    </ul>
+
+    <p class="group-lbl">Targets</p>
+    <ul class="rules">
+      <li><span class="mark soft">Soft</span><span class="txt">ARV $350K–$900K<small>Will consider lower fills with strong comps</small></span></li>
+      <li><span class="mark soft">Soft</span><span class="txt">Purchase price $150K–$750K</span></li>
+      <li><span class="mark soft">Soft</span><span class="txt">Light, medium, or heavy rehab</span></li>
+    </ul>
+
+    <p class="group-lbl">Pricing rule</p>
+    <ul class="rules">
+      <li><span class="mark hard">Rule</span><span class="txt">Max offer = 70% of ARV, less repairs<small>Governs the offer — not a screen. A deal doesn't fail this, it gets priced by it.</small></span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Multifamily</h2>
+  <div class="ac">
+    <p class="group-lbl">Auto-fail</p>
+    <ul class="rules">
+      <li><span class="mark hard">Hard</span><span class="txt">Occupancy above 50%</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">Neighborhood poverty rate under 20%</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No flood zones</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No high-crime areas</span></li>
+    </ul>
+    <p class="group-lbl">Targets</p>
+    <ul class="rules">
+      <li><span class="mark soft">Soft</span><span class="txt">10–100 units, sweet spot 20–50 doors<small>4–9 units still get a look — see exceptions</small></span></li>
+      <li><span class="mark soft">Soft</span><span class="txt">Class B/C, value-add</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>RV parks and mobile home parks</h2>
+  <div class="ac">
+    <h3>RV parks</h3>
+    <p class="h3sub">3 criteria</p>
+    <ul class="rules">
+      <li><span class="mark hard">Hard</span><span class="txt">30+ sites minimum</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No flood zones</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">No high-crime areas</span></li>
+    </ul>
+  </div>
+  <div class="ac">
+    <h3>Mobile home parks</h3>
+    <p class="h3sub">3 criteria</p>
+    <ul class="rules">
+      <li><span class="mark hard">Hard</span><span class="txt">30+ pads minimum</span></li>
+      <li><span class="mark hard">Hard</span><span class="txt">Within 45 minutes of a growing metro</span></li>
+      <li><span class="mark soft">Soft</span><span class="txt">Tenant-owned homes preferred, some park-owned acceptable</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Markets</h2>
+  <p class="sec-note">
+    Markets differ by strategy and the two must not be collapsed. <b>Fix &amp; Flip is
+    Miami-Dade and Broward only</b> — a hard gate. Buy &amp; Hold spans 23 markets across
+    eight states, and is soft, so a compelling out-of-market deal can still be looked at.
+  </p>
+
+  <div class="markets">
+    <div class="mk"><h4>Florida</h4><ul>
+      <li>Miami-Dade</li><li>Broward</li><li>Fort Myers</li><li>Jacksonville</li></ul></div>
+    <div class="mk"><h4>Texas</h4><ul>
+      <li>Dallas–Fort Worth</li><li>Houston</li><li>Austin</li><li>Killeen</li></ul></div>
+    <div class="mk"><h4>Tennessee</h4><ul>
+      <li>Nashville</li><li>Clarksville</li><li>Knoxville</li><li>Memphis</li></ul></div>
+    <div class="mk"><h4>North Carolina</h4><ul>
+      <li>Raleigh</li><li>Charlotte</li><li>Winston-Salem</li></ul></div>
+    <div class="mk"><h4>Virginia</h4><ul>
+      <li>Richmond</li><li>Williamsburg</li><li>Norfolk / Hampton Roads</li></ul></div>
+    <div class="mk"><h4>Kentucky</h4><ul>
+      <li>Louisville</li><li>Lexington</li><li>Murray</li></ul></div>
+    <div class="mk"><h4>Georgia</h4><ul><li>Atlanta</li></ul></div>
+    <div class="mk"><h4>Alabama</h4><ul><li>Huntsville</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>Exceptions</h2>
+  <p class="sec-note">
+    Documented exceptions, so a rule bent for good reason is distinguishable from a rule
+    quietly ignored. Type determines how it's handled.
+  </p>
+
+  <div class="exc">
+    <div class="top"><span class="ty wide">Widened band</span><span class="scope">All asset classes · geography</span></div>
+    <strong>Out-of-market deals considered when the case is compelling</strong>
+    <p class="kv"><b>Condition</b> — the property, operator, or deal structure makes a compelling case.</p>
+    <p class="kv"><b>Human sign-off</b> — required.</p>
+  </div>
+
+  <div class="exc cond">
+    <div class="top"><span class="ty cnd">Conditional adjustment</span><span class="scope">Fix &amp; flip · beds</span></div>
+    <strong>Under 3 beds is acceptable if a bedroom can be added</strong>
+    <p class="kv"><b>Condition</b> — sqft and layout are large enough to sustain an additional bedroom.</p>
+    <p class="kv"><b>Adjustment</b> — add the conversion cost to the repair budget, then re-run the model.</p>
+    <p class="kv"><b>Human sign-off</b> — required. Feasibility is never assumed.</p>
+  </div>
+
+  <div class="exc">
+    <div class="top"><span class="ty wide">Widened band</span><span class="scope">Fix &amp; flip · ARV</span></div>
+    <strong>Will consider lower fills with strong comps</strong>
+    <p class="kv"><b>Condition</b> — comps supporting the lower ARV are strong.</p>
+    <p class="kv"><b>Human sign-off</b> — required.</p>
+  </div>
+
+  <div class="exc">
+    <div class="top"><span class="ty wide">Widened band</span><span class="scope">Multifamily · units</span></div>
+    <strong>4–9 unit properties still get a look despite the 10-unit floor</strong>
+    <p class="kv"><b>Condition</b> — unit count falls between 4 and 9.</p>
+    <p class="kv"><b>Human sign-off</b> — not required.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Known gaps</h2>
+  <ul class="rules" style="max-width:74ch;">
+    <li><span class="mark soft">Open</span><span class="txt">Co-living / PadSplit has no criteria<small>An exit strategy the team hasn't modelled yet, so it's deliberately absent rather than guessed at.</small></span></li>
+    <li><span class="mark soft">Open</span><span class="txt">Business acquisitions have no criteria<small>The asset class exists in the schema; the buy box for it doesn't.</small></span></li>
+    <li><span class="mark soft">Open</span><span class="txt">No screen has been run yet<small><code>underwriting_runs</code> is empty. These rules are structured but unexercised — the first real screens are what will show whether the thresholds are right.</small></span></li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    Source of truth: <code>buy_box_criteria</code> and <code>buy_box_exceptions</code> in
+    OpsHQ Supabase.<br>
+    Page source: <code>docs/map/buy-box.html</code> · Change the rules in the database,
+    then update this page in the same session.
+  </p>
+</footer>
+
+</div>
