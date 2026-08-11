@@ -480,3 +480,64 @@ span.mention-chip:hover,
 [data-type="mention"]:hover {
   background: hsl(var(--primary) / 0.18);
 }
+
+/* ── Plan entity blocks ────────────────────────────────────────────────
+   A live business-plan record (milestone / risk / goal) embedded in the
+   plan doc. Reads as a distinct object in the prose without shouting —
+   a left accent keyed to the record type, and a surface one step off the
+   page so it's clearly not text. */
+.rich-editor .tiptap .plan-entity,
+.prose .plan-entity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  border: 1px solid hsl(var(--border));
+  border-left-width: 3px;
+  border-radius: 0.45rem;
+  background: hsl(var(--muted) / 0.35);
+  padding: 0.55rem 0.75rem;
+  margin: 0.6rem 0;
+}
+.rich-editor .tiptap .plan-entity[data-kind="milestone"],
+.prose .plan-entity[data-kind="milestone"] { border-left-color: hsl(38 92% 55%); }
+.rich-editor .tiptap .plan-entity[data-kind="risk"],
+.prose .plan-entity[data-kind="risk"] { border-left-color: hsl(var(--destructive)); }
+.rich-editor .tiptap .plan-entity[data-kind="goal"],
+.prose .plan-entity[data-kind="goal"] { border-left-color: hsl(var(--info)); }
+
+.rich-editor .tiptap .plan-entity--orphan,
+.prose .plan-entity--orphan {
+  border-left-color: hsl(var(--muted-foreground) / 0.4);
+  opacity: 0.75;
+}
+
+.plan-entity__meta {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.plan-entity__x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.plan-entity:hover .plan-entity__x { opacity: 1; }
+.plan-entity__x:hover { color: hsl(var(--destructive)); }
+.plan-entity__x:focus-visible { opacity: 1; outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+/* Selected-node state — TipTap adds this to the wrapper of an atom node. */
+.rich-editor .tiptap .plan-entity.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--ring) / 0.6);
+  outline-offset: 1px;
+}

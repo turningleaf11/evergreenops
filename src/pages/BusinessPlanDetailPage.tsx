@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import RichTextEditor from "@/components/RichTextEditor";
 import { AlbusDraftDeliverablesSheet } from "@/components/business-plans/AlbusDraftDeliverables";
+import { PlanEntityProvider, type PlanEntityValue } from "@/components/business-plans/PlanEntityContext";
 
 type BusinessPlan = {
   id: string; title: string; type: string | null; one_liner: string | null; status: string; priority: string; owner_id: string | null;
@@ -191,7 +192,8 @@ export default function BusinessPlanDetailPage() {
         <TabsContent value="plan" className="mt-4">
           <PlanDocTab
             planId={plan.id} content={plan.plan_doc || ""} profiles={profiles}
-            onSave={(html) => updatePlan({ plan_doc: html })} onDeliverableAdded={load}
+            milestones={milestones} risks={risks} goals={goals}
+            onSave={(html) => updatePlan({ plan_doc: html })} onReload={load}
           />
         </TabsContent>
         <TabsContent value="deliverables" className="mt-4">
@@ -625,14 +627,27 @@ function DecisionsTab({ planId, decisions, profiles, onReload }: {
 // pages system. Autosaves like a scratch pad; "Ask Albus" reads it and
 // proposes deliverables for review.
 
-function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
+function PlanDocTab({ planId, content, profiles, milestones, risks, goals, onSave, onReload }: {
   planId: string; content: string; profiles: ProfileRow[];
-  onSave: (html: string) => void; onDeliverableAdded: () => void;
+  milestones: Milestone[]; risks: Risk[]; goals: Goal[];
+  onSave: (html: string) => void; onReload: () => Promise<void>;
 }) {
   const [value, setValue] = useState(content);
   const [saving, setSaving] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Blocks embedded in the doc read their live state from here rather than
+  // storing a copy, so they can't drift from the Roadmap or Overview.
+  const entities = useMemo<PlanEntityValue>(() => ({
+    planId,
+    milestones: milestones.map((m) => ({
+      id: m.id, goal_id: m.goal_id, title: m.title, done: m.done, due_date: m.due_date,
+    })),
+    risks: risks.map((r) => ({ id: r.id, text: r.text, severity: r.severity })),
+    goals: goals.map((g) => ({ id: g.id, title: g.title, status: g.status, quarter: g.quarter, year: g.year })),
+    refresh: onReload,
+  }), [planId, milestones, risks, goals, onReload]);
 
   const flush = (html: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -660,12 +675,18 @@ function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
   };
 
   return (
+    <PlanEntityProvider value={entities}>
     <div className="space-y-3">
-      <div className="flex items-center justify-end gap-3">
-        {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
-        <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
-          <Sparkles className="h-3.5 w-3.5" /> Ask Albus
-        </Button>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] text-muted-foreground">
+          Select any text and use <Target className="h-3 w-3 inline-block -mt-0.5" /> in the toolbar to turn it into a goal, milestone or risk.
+        </p>
+        <div className="flex items-center gap-3 shrink-0">
+          {saving && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={askAlbus} disabled={isEmpty}>
+            <Sparkles className="h-3.5 w-3.5" /> Ask Albus
+          </Button>
+        </div>
       </div>
       <Card className="shadow-card-lift overflow-hidden">
         {/* RichTextEditor's root hardcodes bg-background (the app canvas token,
@@ -684,9 +705,10 @@ function PlanDocTab({ planId, content, profiles, onSave, onDeliverableAdded }: {
       </Card>
       <AlbusDraftDeliverablesSheet
         planId={planId} open={sheetOpen} onOpenChange={setSheetOpen}
-        profiles={profiles} onAccepted={onDeliverableAdded}
+        profiles={profiles} onAccepted={onReload}
       />
     </div>
+    </PlanEntityProvider>
   );
 }
 

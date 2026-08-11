@@ -17,6 +17,8 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import Callout from "@/extensions/CalloutNode";
 import Badge from "@/extensions/BadgeNode";
+import PlanEntity from "@/extensions/PlanEntityNode";
+import { ConvertSelectionMenu } from "@/components/business-plans/ConvertSelectionMenu";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -128,6 +130,8 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
       TableHeader,
       Callout,
       Badge,
+      // Inert unless the editor sits inside a plan doc — see PlanEntityContext.
+      PlanEntity,
       SlashCommands,
       UniversalMention,
       Extension.create({
@@ -223,6 +227,9 @@ export default function RichTextEditor({ content, onChange, placeholder = "Type 
         </button>
 
         <div className="bubble-separator" />
+
+        {/* Renders only inside a business plan doc. */}
+        <ConvertSelectionMenu editor={editor} />
 
         <Popover>
           <PopoverTrigger asChild>
