@@ -65,6 +65,45 @@ newly written skill will **not** appear in his `available_skills` until the Gate
 restarts or re-scans. He will correctly report the file as created and still not be
 able to use it. That is expected, not a failure.
 
+### If OpenClaw runs in Docker — check this before restarting
+
+`docker restart <id>` stops and starts the **same** container, so its writable
+layer survives and the skill file will still be there. That command is safe.
+
+What is *not* safe is anything that **recreates** the container — an image
+rebuild, `docker compose up -d` after a pull, `docker rm` + `docker run`. Those
+discard the writable layer. If `~/.openclaw/skills/` isn't on a mounted volume,
+every deploy silently resets the fleet to whatever skills were baked into the
+image, and the agents quietly revert to their old behavior with no error anywhere.
+
+Check whether the directory is persisted — from the host:
+
+```bash
+docker inspect <container-id> --format '{{json .Mounts}}' | python3 -m json.tool
+```
+
+or ask Albus to check from inside:
+
+```bash
+mount | grep -i -E 'openclaw|skills'
+```
+
+If `~/.openclaw/skills` is **not** backed by a volume or bind mount, treat the
+current install as temporary and fix it in the compose file:
+
+```yaml
+services:
+  openclaw:
+    volumes:
+      - ./openclaw-skills:/root/.openclaw/skills
+```
+
+The canonical copies live in this repo under `docs/agents/`, so a wipe is
+recoverable — but it's recoverable only if someone notices, and a silently
+reverted agent is exactly the kind of failure that goes unnoticed for weeks.
+
+---
+
 Albus has shell access, so let him work out his own restart command rather than
 guessing at it:
 
