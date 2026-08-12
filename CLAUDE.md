@@ -47,26 +47,34 @@ Before the session closes, write one memory entry summarizing:
 - What's open/next
 - Any decisions made
 
-### 6. Update the business map if the business or system changed
-The map is a set of pages under `docs/map/`, one per domain, each published to its
-own stable artifact URL. Update the relevant page in the SAME session that changes
-what it describes — a map updated later is a map that drifts, which is the exact
-failure this file exists to prevent.
+### 6. Update the docs site if the business or system changed
 
-| Page | File | Artifact URL |
-|---|---|---|
-| Hub / index | `docs/map/index.html` | `https://claude.ai/code/artifact/0ec07be1-2835-4fef-bbd7-871635be599f` |
-| DTS lead flow | `docs/map/dts-lead-flow.html` | `https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256` |
-| Buy box | `docs/map/buy-box.html` | `https://claude.ai/code/artifact/2b895494-2b53-4e67-ab5c-c83b3edb9ae4` |
-| AI ops | `docs/system-map.html` | `https://claude.ai/code/artifact/53d7ad3f-0d9b-4966-878e-512e32860bbc` |
+**Documentation lives in `turningleaf11/evergreen-dev-docs`** → published at
+**https://evergreen-dev-docs.vercel.app**. VitePress, markdown, deploys from `main`.
+It is NOT in this repo. Clone it when you need to change it.
 
-**Always pass `url` when republishing** — omitting it from a new conversation
-creates a SECOND artifact at a different link, leaving two pages disagreeing:
-```
-Artifact(file_path: "docs/map/dts-lead-flow.html",
-         url: "https://claude.ai/code/artifact/16a4658c-94e2-4e87-bf54-7ee204b23256")
-```
-When adding a new domain page, publish it, add a row above, and link it from the hub.
+Update the relevant page in the SAME session that changes what it describes — a
+page updated later is a page that drifts, which is the exact failure this file
+exists to prevent.
+
+| Page | File in the docs repo |
+|---|---|
+| Business map hub | `docs/business/index.md` |
+| DTS lead flow | `docs/business/dts-lead-flow.md` |
+| Buy box | `docs/business/buy-box.md` |
+| Ecosystem map | `docs/systems/index.md` |
+| Supabase projects + ownership risk | `docs/systems/supabase-projects.md` |
+| AI ops — how it fits together | `docs/systems/ai-ops.md` |
+| Agent fleet | `docs/systems/agent-fleet.md` |
+| Cash · Dex | `docs/systems/cash.md` · `docs/systems/dex.md` |
+
+Run `npm run docs:build` before pushing — it catches dead links.
+
+Adding a domain page means adding it to the sidebar in
+`docs/.vitepress/config.ts` and linking it from the relevant hub.
+
+> The old claude.ai artifacts are retired and now redirect to the site. Don't
+> publish map pages as artifacts again — one home only.
 
 **Conventions these pages follow** (from how Autumn maps processes — match it):
 - Swimlanes by **function**, not by time
