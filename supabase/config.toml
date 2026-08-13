@@ -27,3 +27,6 @@ verify_jwt = false
 
 [functions.ghl-reply-webhook]
 verify_jwt = false
+
+[functions.team-hub-pin-login]
+verify_jwt = false

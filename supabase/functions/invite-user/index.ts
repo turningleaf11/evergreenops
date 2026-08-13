@@ -47,31 +47,61 @@ Deno.serve(async (req) => {
       console.warn("listUsers precheck failed (continuing):", e);
     }
 
-    const { data: inviteData, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, { data: { full_name: full_name || "" } });
+    // Team Hub accounts skip the email-invite round trip entirely — the field
+    // team lives in Discord, not email. Create the account directly with a
+    // generated temp password and hand it back so the admin can relay it
+    // out-of-band; must_set_credential forces a real password or PIN on first
+    // login before the temp one is usable again.
+    let newUserId: string | undefined;
+    let tempPassword: string | undefined;
 
-    if (inviteError) {
-      const raw = inviteError.message || "Invite failed";
-      console.error("inviteUserByEmail failed:", raw, "status:", (inviteError as any).status);
-      let userMessage = raw;
-      let code = "invite_failed";
-      if (/already.*registered|already.*exists|duplicate/i.test(raw)) {
-        userMessage = `A user with email "${trimmedEmail}" is already registered.`;
-        code = "user_exists";
-      } else if (/rate.?limit|too many/i.test(raw)) {
-        userMessage = "Supabase Auth rate limit hit. Wait a few minutes and try again, or configure a custom SMTP provider.";
-        code = "rate_limited";
-      } else if (/smtp|email.*not.*sent|sender/i.test(raw)) {
-        userMessage = "Couldn't send the invite email — Supabase SMTP needs configuring.";
-        code = "smtp_error";
-      } else if (/site.?url|redirect.?url/i.test(raw)) {
-        userMessage = "Supabase Site URL isn't configured. Set it in Supabase → Auth → URL Configuration.";
-        code = "site_url_missing";
+    if (role === "team_hub") {
+      tempPassword = generateTempPassword();
+      const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+        email: trimmedEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: full_name || "" },
+      });
+      if (createError) {
+        console.error("createUser (team_hub) failed:", createError.message);
+        return json({ error: createError.message || "Account creation failed", code: "create_failed" }, 400);
       }
-      return json({ error: userMessage, code, raw }, 400);
-    }
+      newUserId = createData.user?.id;
+      if (newUserId) {
+        const { error: flagErr } = await adminClient
+          .from("profiles")
+          .update({ must_set_credential: true })
+          .eq("user_id", newUserId);
+        if (flagErr) console.warn("must_set_credential flag failed (non-fatal):", flagErr.message);
+      }
+    } else {
+      const { data: inviteData, error: inviteError } =
+        await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, { data: { full_name: full_name || "" } });
 
-    const newUserId = inviteData.user?.id;
+      if (inviteError) {
+        const raw = inviteError.message || "Invite failed";
+        console.error("inviteUserByEmail failed:", raw, "status:", (inviteError as any).status);
+        let userMessage = raw;
+        let code = "invite_failed";
+        if (/already.*registered|already.*exists|duplicate/i.test(raw)) {
+          userMessage = `A user with email "${trimmedEmail}" is already registered.`;
+          code = "user_exists";
+        } else if (/rate.?limit|too many/i.test(raw)) {
+          userMessage = "Supabase Auth rate limit hit. Wait a few minutes and try again, or configure a custom SMTP provider.";
+          code = "rate_limited";
+        } else if (/smtp|email.*not.*sent|sender/i.test(raw)) {
+          userMessage = "Couldn't send the invite email — Supabase SMTP needs configuring.";
+          code = "smtp_error";
+        } else if (/site.?url|redirect.?url/i.test(raw)) {
+          userMessage = "Supabase Site URL isn't configured. Set it in Supabase → Auth → URL Configuration.";
+          code = "site_url_missing";
+        }
+        return json({ error: userMessage, code, raw }, 400);
+      }
+
+      newUserId = inviteData.user?.id;
+    }
 
     if (newUserId) {
       const profileUpdates: Record<string, any> = {};
@@ -115,13 +145,20 @@ Deno.serve(async (req) => {
       if (grantsErr) console.warn("Page grants insert failed (non-fatal):", grantsErr.message);
     }
 
-    return json({ success: true, user_id: newUserId });
+    return json({ success: true, user_id: newUserId, temp_password: tempPassword });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("invite-user uncaught:", msg, err);
     return json({ error: msg }, 500);
   }
 });
+
+/** 12-char random password, alphanumeric — meets Supabase's minimum policy, never shown twice. */
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint32Array(12));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
 
 function json(body: any, status = 200) {
   return new Response(JSON.stringify(body), {

@@ -663,6 +663,7 @@ function UsersTab() {
   const [inviteGrants, setInviteGrants] = useState<Set<string>>(new Set());
   const [inviteIsLeader, setInviteIsLeader] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [tempPasswordResult, setTempPasswordResult] = useState<{ email: string; password: string } | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -758,7 +759,13 @@ function UsersTab() {
         throw new Error(detail || error.message || "Invite failed");
       }
       if (data?.error) throw new Error(data.error);
-      toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
+      if (data?.temp_password) {
+        // Team Hub accounts get a temp password instead of an email invite —
+        // this is the only time it's ever shown, so surface it clearly.
+        setTempPasswordResult({ email: inviteEmail.trim(), password: data.temp_password });
+      } else {
+        toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
+      }
       setInviteEmail("");
       setInviteName("");
       setInviteDept("");
@@ -822,7 +829,9 @@ function UsersTab() {
       }
       if (data?.error) throw new Error(data.error);
 
-      if (data?.invite_url) {
+      if (data?.temp_password) {
+        setTempPasswordResult({ email: data.email, password: data.temp_password });
+      } else if (data?.invite_url) {
         try { await navigator.clipboard.writeText(data.invite_url); } catch { /* ignore */ }
         toast({
           title: "Invite link copied to clipboard",
@@ -943,9 +952,42 @@ function UsersTab() {
               )}
 
               <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()} className="w-full">
-                {inviting ? "Inviting..." : "Send Invite"}
+                {inviting ? "Creating..." : inviteRole === "team_hub" ? "Create Account" : "Send Invite"}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!tempPasswordResult} onOpenChange={(open) => !open && setTempPasswordResult(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Account created</DialogTitle>
+            </DialogHeader>
+            {tempPasswordResult && (
+              <div className="space-y-3 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  No email was sent — Team Hub accounts skip that. Send this temp password to{" "}
+                  <b>{tempPasswordResult.email}</b> yourself (Discord, text, whatever). They'll be asked to set
+                  their own password or a 4-digit PIN the first time they sign in, and this one stops working.
+                </p>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 font-mono text-sm">
+                  <span className="flex-1 select-all">{tempPasswordResult.password}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempPasswordResult.password);
+                      toast({ title: "Copied" });
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground/70">
+                  This is shown once. If it's lost, use Resend on that user to issue a fresh one.
+                </p>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
