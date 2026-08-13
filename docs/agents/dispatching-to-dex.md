@@ -99,16 +99,19 @@ table.
 
 ---
 
-## 5. The open question this doesn't answer
+## 5. The trigger
 
-Whether Albus checks `agent_tasks` for pending Dex work on any kind of
-schedule, or only ever acts on it when explicitly told to, is not documented
-anywhere as of this writing and is not something a Claude Code session can
-configure — that lives in Albus's own OpenClaw setup. Ask Albus directly if
-this matters for a given handoff:
+Albus runs on crons/heartbeats — he checks in on a schedule rather than sitting
+idle waiting to be told. The exact cadence, and whether it currently includes
+scanning `agent_tasks` for anything `pending` and assigned to `dex` specifically,
+isn't confirmed as of this writing. If a dispatch is time-sensitive, don't
+assume the heartbeat will catch it soon enough — say so explicitly rather than
+silently queuing and hoping.
 
-> Do any of your skills poll `agent_tasks` for pending work assigned to Dex or
-> Cash, or does something have to tell you to check?
-
-Until that's answered, treat every dispatch as needing a manual nudge —
-either tell Albus yourself, or tell Autumn to.
+**Architecture note (2026-08-13):** Albus can also spin up autonomous agents
+directly, not only follow skill files — Cash was converted from a skill to an
+agent this way. That may change what "queue a task in `agent_tasks`" even means
+going forward, versus asking Albus to create or direct an agent for the work.
+This doc describes the skill-file-era mechanism and needs revisiting once the
+agent-based shape is confirmed — see the handoff note in `memories` dated
+2026-08-13 for what's still open.
