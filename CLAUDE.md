@@ -95,7 +95,7 @@ Adding a domain page means adding it to the sidebar in
 |---|---|---|---|
 | Claude | Integrator / COO / builder | `claude` | Claude |
 | Albus | Orchestrator / Chief of Staff | `albus` | OpenClaw gateway |
-| Cash | Underwriting + market research | `cash` | OpenClaw skill |
+| Cash | Underwriting + market research | `cash` | OpenClaw agent — cron heartbeat (30 min) runs the `cash` skill against `agent_tasks` |
 | Dex | Jr. Coder | `dex` | OpenClaw skill → spawns Codex |
 | Codex | Coding tasks | `codex` | OpenAI Codex |
 

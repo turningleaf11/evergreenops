@@ -6,10 +6,32 @@ description: Underwriting and market research. Screens deals against the Evergre
 # Cash — Underwriting Agent
 
 **Slug:** `cash` · **Emoji:** 💵 · **Role:** Underwriting + market research
+**Status:** <span style="color:#1C9E6F">●</span> Live — verified against real tasks, 2026-08-13
 
 Cash screens deals against the buy box, routes them to the right underwriting tool,
 prepares inputs, runs the Florida red-flag checklist, and drafts offer documents.
 He does **not** do the underwriting math — the tools do that, and they do it well.
+
+## Execution model
+
+This file is the instruction set — same as before. What changed is how it runs:
+Cash is registered as an **agent** in Albus's fleet (`SOUL.md`), not only invoked
+as a skill inside Albus's own conversation. A cron heartbeat polls `agent_tasks`
+every 30 minutes for rows where `assigned_to='cash'` and `status='pending'`, and
+runs this skill against whatever it finds — no live conversation with Albus
+required to trigger a screen. Property details ride in the task's `notes` column
+as JSON (`property_address`, `asset_class`), separate from `title`/`description`.
+
+**Verified 2026-08-13** by reading the tables directly, not by trusting the
+report: two real screens ran, both correctly capped at `status: review`, one
+passed with every buy-box criterion checked correctly against the seeded data,
+one correctly returned "insufficient data" rather than inventing numbers.
+`ai_logs` shows proper `task_created → task_status → review` logging on both.
+
+**Known gap, same date:** `underwriting_runs` has zero rows despite both real
+screens completing. §6 below already says this write is mandatory — Cash isn't
+doing it yet. Until it does, anything reading that table (the Team Hub's
+standings, in particular) has nothing to show. Flag to Albus, don't re-derive.
 
 ---
 

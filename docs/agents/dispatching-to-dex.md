@@ -99,19 +99,32 @@ table.
 
 ---
 
-## 5. The trigger
+## 5. The trigger — confirmed via Cash's setup
 
-Albus runs on crons/heartbeats — he checks in on a schedule rather than sitting
-idle waiting to be told. The exact cadence, and whether it currently includes
-scanning `agent_tasks` for anything `pending` and assigned to `dex` specifically,
-isn't confirmed as of this writing. If a dispatch is time-sensitive, don't
-assume the heartbeat will catch it soon enough — say so explicitly rather than
-silently queuing and hoping.
+Cash was converted from a skill to an **agent** on 2026-08-13, and the shape is
+now known precisely (relayed from Albus, then verified against the tables
+directly rather than trusted on report):
 
-**Architecture note (2026-08-13):** Albus can also spin up autonomous agents
-directly, not only follow skill files — Cash was converted from a skill to an
-agent this way. That may change what "queue a task in `agent_tasks`" even means
-going forward, versus asking Albus to create or direct an agent for the work.
-This doc describes the skill-file-era mechanism and needs revisiting once the
-agent-based shape is confirmed — see the handoff note in `memories` dated
-2026-08-13 for what's still open.
+- The skill file (`docs/agents/cash-SKILL.md`) stays the instruction set — an
+  agent doesn't replace a skill, it wraps one with independent execution.
+- Cash is registered in Albus's fleet (`SOUL.md`), not only invoked ad hoc.
+- A **cron heartbeat polls `agent_tasks` every 30 minutes** for rows where
+  `assigned_to='cash'` and `status='pending'`, and runs the skill against
+  whatever it finds.
+- Structured task input rides in the task's **`notes` column as JSON**
+  (e.g. `{"property_address": "...", "asset_class": "fix_flip"}`) — separate
+  from `title`/`description`, which stay human-readable.
+- Verified 2026-08-13: two real screens ran end to end, both correctly capped
+  at `status: review`, with proper `ai_logs` entries. One real gap found —
+  `underwriting_runs` wasn't being written despite the skill saying it's
+  mandatory. Fixing that is Albus-side, not something this doc controls.
+
+**Dex is expected to follow the same path** — an agent registration plus its own
+30-minute-class heartbeat polling for `assigned_to='dex'`. Until that's live,
+treat a queued Dex task as needing a manual nudge to Albus, the same as before.
+Once it's confirmed live, update this section to say so and drop the caveat —
+don't leave it here as permanent hedging once the fact is known.
+
+Put structured task input in `notes`, not `description`, to match the pattern
+Cash already uses — a future agent conversion for Dex will likely expect the
+same shape.
