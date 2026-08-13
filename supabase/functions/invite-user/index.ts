@@ -93,6 +93,17 @@ Deno.serve(async (req) => {
       if (roleErr) console.warn("Role insert failed (non-fatal):", roleErr.message);
     }
 
+    if (role === "team_hub" && newUserId) {
+      // Team Hub accounts share this Supabase auth pool but should never reach
+      // OpsHQ-only data (CRM, deal/transaction documents) — RLS excludes anyone
+      // holding this role via is_team_hub_only(). No page_grants are inserted:
+      // this account is meant to use the separate Team Hub app, not OpsHQ's UI.
+      const { error: roleErr } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: newUserId, role: "team_hub", is_primary: false });
+      if (roleErr) console.warn("Role insert failed (non-fatal):", roleErr.message);
+    }
+
     // Insert page grants (only meaningful for non-admin users; admins have access to everything anyway)
     if (newUserId && role !== "admin" && Array.isArray(grants) && grants.length > 0) {
       const grantRows = grants.map((page_key: string) => ({

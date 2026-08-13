@@ -703,10 +703,12 @@ function UsersTab() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
-    if (newRole === "admin") {
-      await supabase.from("user_roles").insert({ user_id: userId, role: "admin" } as any);
-    } else {
-      await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    // Clear both special roles first, then grant whichever was picked — keeps
+    // this a clean 3-way switch instead of accumulating stale role rows.
+    await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "team_hub");
+    if (newRole === "admin" || newRole === "team_hub") {
+      await supabase.from("user_roles").insert({ user_id: userId, role: newRole } as any);
     }
     fetchUsers();
     toast({ title: "Role updated" });
@@ -896,10 +898,13 @@ function UsersTab() {
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="team_hub">Team Hub only</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Admins have access to everything automatically. The grants below only apply to users.
+                  {inviteRole === "team_hub"
+                    ? "Signs into the Team Hub app only — no OpsHQ pages, no CRM or deal document access, regardless of grants."
+                    : "Admins have access to everything automatically. The grants below only apply to users."}
                 </p>
               </div>
 
@@ -946,7 +951,11 @@ function UsersTab() {
       </div>
 
       {users.map((u) => {
-        const currentRole: AppRole = u.roles.includes("admin") ? "admin" : "user";
+        const currentRole: AppRole = u.roles.includes("admin")
+          ? "admin"
+          : u.roles.includes("team_hub")
+            ? "team_hub"
+            : "user";
         const initials = (u.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
         const deptName = departments.find((d) => d.id === u.department_id)?.name;
         const isEditing = editingUserId === u.user_id;
@@ -1007,6 +1016,7 @@ function UsersTab() {
                         <SelectContent>
                           <SelectItem value="user" className="text-xs">User</SelectItem>
                           <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                          <SelectItem value="team_hub" className="text-xs">Team Hub only</SelectItem>
                         </SelectContent>
                       </Select>
                       {deleteConfirmId === u.user_id ? (
