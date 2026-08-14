@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import "@/components/RichTextEditor.css";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { OrbitRoster } from "@/components/orbit/OrbitRoster";
+import { TeamHubManager } from "@/components/orbit/TeamHubManager";
 import { ProgramOverview } from "@/components/orbit/ProgramOverview";
 import { OrbitProgramOverview } from "@/components/orbit/OrbitProgramOverview";
 import { DepartmentOverviewV2, type ViewerRole } from "@/components/department/DepartmentOverviewV2";
@@ -318,6 +319,7 @@ export default function DepartmentPage() {
           {dept.is_program && <TabsTrigger value="trackpages">Track Pages</TabsTrigger>}
           {!dept.is_program && <TabsTrigger value="work">Work</TabsTrigger>}
           {dept.is_program && canManageOrbit && <TabsTrigger value="roster">Roster</TabsTrigger>}
+          {dept.is_program && canManageOrbit && <TabsTrigger value="team-hub">Team Hub</TabsTrigger>}
           <TabsTrigger value="people">People</TabsTrigger>
           {!dept.is_program && <TabsTrigger value="resources">Resources</TabsTrigger>}
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -399,6 +401,12 @@ export default function DepartmentPage() {
         {dept.is_program && canManageOrbit && (
           <TabsContent value="roster" className="mt-4">
             <OrbitRoster departmentId={id!} />
+          </TabsContent>
+        )}
+
+        {dept.is_program && canManageOrbit && (
+          <TabsContent value="team-hub" className="mt-4">
+            <TeamHubManager />
           </TabsContent>
         )}
 
