@@ -41,7 +41,8 @@ from (values
   ('underwriter', 'Underwriter',           'Acq',   false, 2),
   ('dispo',       'Dispositions',          'Dispo', false, 3),
   ('tc',          'Transaction Coordinator','Ops',  false, 4),
-  ('ops',         'Operations',            'Ops',   false, 5)
+  ('ops',         'Operations',            'Ops',   false, 5),
+  ('ir',          'Investor Relations',    'Capital', false, 6)
 ) as v(key, label, dept_name, has_tracks, ord)
 left join public.departments d on d.name = v.dept_name
 on conflict (key) do nothing;
