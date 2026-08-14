@@ -663,6 +663,7 @@ function UsersTab() {
   const [inviteGrants, setInviteGrants] = useState<Set<string>>(new Set());
   const [inviteIsLeader, setInviteIsLeader] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [tempPasswordResult, setTempPasswordResult] = useState<{ email: string; password: string } | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -703,10 +704,12 @@ function UsersTab() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
-    if (newRole === "admin") {
-      await supabase.from("user_roles").insert({ user_id: userId, role: "admin" } as any);
-    } else {
-      await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    // Clear both special roles first, then grant whichever was picked — keeps
+    // this a clean 3-way switch instead of accumulating stale role rows.
+    await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "team_hub");
+    if (newRole === "admin" || newRole === "team_hub") {
+      await supabase.from("user_roles").insert({ user_id: userId, role: newRole } as any);
     }
     fetchUsers();
     toast({ title: "Role updated" });
@@ -756,7 +759,13 @@ function UsersTab() {
         throw new Error(detail || error.message || "Invite failed");
       }
       if (data?.error) throw new Error(data.error);
-      toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
+      if (data?.temp_password) {
+        // Team Hub accounts get a temp password instead of an email invite —
+        // this is the only time it's ever shown, so surface it clearly.
+        setTempPasswordResult({ email: inviteEmail.trim(), password: data.temp_password });
+      } else {
+        toast({ title: "User invited", description: `${inviteEmail} has been invited.` });
+      }
       setInviteEmail("");
       setInviteName("");
       setInviteDept("");
@@ -820,7 +829,9 @@ function UsersTab() {
       }
       if (data?.error) throw new Error(data.error);
 
-      if (data?.invite_url) {
+      if (data?.temp_password) {
+        setTempPasswordResult({ email: data.email, password: data.temp_password });
+      } else if (data?.invite_url) {
         try { await navigator.clipboard.writeText(data.invite_url); } catch { /* ignore */ }
         toast({
           title: "Invite link copied to clipboard",
@@ -896,10 +907,13 @@ function UsersTab() {
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="team_hub">Team Hub only</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Admins have access to everything automatically. The grants below only apply to users.
+                  {inviteRole === "team_hub"
+                    ? "Signs into the Team Hub app only — no OpsHQ pages, no CRM or deal document access, regardless of grants."
+                    : "Admins have access to everything automatically. The grants below only apply to users."}
                 </p>
               </div>
 
@@ -938,15 +952,52 @@ function UsersTab() {
               )}
 
               <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()} className="w-full">
-                {inviting ? "Inviting..." : "Send Invite"}
+                {inviting ? "Creating..." : inviteRole === "team_hub" ? "Create Account" : "Send Invite"}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!tempPasswordResult} onOpenChange={(open) => !open && setTempPasswordResult(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Account created</DialogTitle>
+            </DialogHeader>
+            {tempPasswordResult && (
+              <div className="space-y-3 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  No email was sent — Team Hub accounts skip that. Send this temp password to{" "}
+                  <b>{tempPasswordResult.email}</b> yourself (Discord, text, whatever). They'll be asked to set
+                  their own password or a 4-digit PIN the first time they sign in, and this one stops working.
+                </p>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 font-mono text-sm">
+                  <span className="flex-1 select-all">{tempPasswordResult.password}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempPasswordResult.password);
+                      toast({ title: "Copied" });
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground/70">
+                  This is shown once. If it's lost, use Resend on that user to issue a fresh one.
+                </p>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
 
       {users.map((u) => {
-        const currentRole: AppRole = u.roles.includes("admin") ? "admin" : "user";
+        const currentRole: AppRole = u.roles.includes("admin")
+          ? "admin"
+          : u.roles.includes("team_hub")
+            ? "team_hub"
+            : "user";
         const initials = (u.full_name || "U").split(" ").map((n) => n[0]).join("").toUpperCase();
         const deptName = departments.find((d) => d.id === u.department_id)?.name;
         const isEditing = editingUserId === u.user_id;
@@ -1007,6 +1058,7 @@ function UsersTab() {
                         <SelectContent>
                           <SelectItem value="user" className="text-xs">User</SelectItem>
                           <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                          <SelectItem value="team_hub" className="text-xs">Team Hub only</SelectItem>
                         </SelectContent>
                       </Select>
                       {deleteConfirmId === u.user_id ? (

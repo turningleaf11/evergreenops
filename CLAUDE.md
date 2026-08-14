@@ -47,19 +47,86 @@ Before the session closes, write one memory entry summarizing:
 - What's open/next
 - Any decisions made
 
+### 6. Update the docs site if the business or system changed
+
+**Documentation lives in `turningleaf11/evergreen-dev-docs`** → published at
+**https://evergreen-dev-docs.vercel.app**. VitePress, markdown, deploys from `main`.
+It is NOT in this repo. Clone it when you need to change it.
+
+Update the relevant page in the SAME session that changes what it describes — a
+page updated later is a page that drifts, which is the exact failure this file
+exists to prevent.
+
+| Page | File in the docs repo |
+|---|---|
+| Business map hub | `docs/business/index.md` |
+| DTS lead flow | `docs/business/dts-lead-flow.md` |
+| Buy box | `docs/business/buy-box.md` |
+| Ecosystem map | `docs/systems/index.md` |
+| Supabase projects + ownership risk | `docs/systems/supabase-projects.md` |
+| AI ops — how it fits together | `docs/systems/ai-ops.md` |
+| Agent fleet | `docs/systems/agent-fleet.md` |
+| Cash · Dex | `docs/systems/cash.md` · `docs/systems/dex.md` |
+
+Run `npm run docs:build` before pushing — it catches dead links.
+
+Adding a domain page means adding it to the sidebar in
+`docs/.vitepress/config.ts` and linking it from the relevant hub.
+
+> The old claude.ai artifacts are retired and now redirect to the site. Don't
+> publish map pages as artifacts again — one home only.
+
+**Conventions these pages follow** (from how Autumn maps processes — match it):
+- Swimlanes by **function**, not by time
+- **Owner badges** on every step; who does it is first-class, never implied
+- **Tool chips** on the step that uses the tool
+- Decision exits shown **including dead ends** — the "no" branch is where leads die
+- Two views per domain: a **flow** (how it moves) and a **stage register**
+  (stage → owner → what happens → what's missing)
+- Gaps written **into the stage**, not filed separately
+- Every node states whether it's automated, manual, or unmapped. A step that exists
+  but isn't documented is drawn dashed, so the hole is visible rather than absent.
+
 ---
 
 ## AI Team context
 
-| Agent | Role | Assigned_to key |
-|---|---|---|
-| Claude | Integrator / COO / builder | `claude` |
-| Albus | Orchestrator / Chief of Staff | `albus` |
-| Dex | Jr. Coder | `dex` |
-| Codex | Coding tasks | `codex` |
+| Agent | Role | Assigned_to key | Engine |
+|---|---|---|---|
+| Claude | Integrator / COO / builder | `claude` | Claude |
+| Albus | Orchestrator / Chief of Staff | `albus` | OpenClaw gateway |
+| Cash | Underwriting + market research | `cash` | OpenClaw agent — cron heartbeat (30 min) runs the `cash` skill against `agent_tasks` |
+| Dex | Jr. Coder | `dex` | OpenClaw skill → spawns Codex |
+| Codex | Coding tasks | `codex` | OpenAI Codex |
 
 Tasks flow through `agent_tasks` table. Results written back to `result` column.
 Supabase project: `dsxrekabnwvarnroanny`
+
+**Agent skill definitions live in `docs/agents/`** — those are the canonical copies.
+The running versions sit at `~/.openclaw/skills/<name>/SKILL.md` inside Albus's
+Docker container, which is *not* version-controlled. See `docs/agents/INSTALL.md`
+before changing agent behavior.
+
+### Two rules that apply to every agent
+
+1. **Persistence is mandatory.** A result that only appears in chat did not happen.
+   Write to `agent_tasks.result`, log to `ai_logs`, and for underwriting also to
+   `underwriting_runs`. The entire fleet was previously non-functional for exactly
+   this reason — the skills ran fine and wrote nothing.
+2. **Status ceiling is `review`, never `approved`.** Setting `approved` fires a real
+   GitHub Actions build against the repo. That's a human's call, or Albus's — never
+   the agent that produced the work.
+
+### Underwriting tables
+
+| Table | Purpose |
+|---|---|
+| `buy_box_criteria` | Structured buy box, per asset class. `rule_type` = screen (pass/fail) or pricing (governs the offer, never rejects). `hardness` = hard/soft, applies to screen rows. Source of truth mirrors buybox.evergreenreventures.com |
+| `buy_box_exceptions` | Documented exceptions. `widened_band` = threshold relaxed; `conditional_adjustment` = curable, price it and flag for a human — never auto-waive |
+| `underwriting_runs` | Cross-app index of every underwrite: which tool, which record, deep link, verdict, headline metrics. `actual_*` columns exist for later predicted-vs-actual calibration |
+
+Markets differ by strategy: **Fix & Flip is Miami-Dade + Broward only**; Buy & Hold
+spans FL, TX, TN, GA, NC, VA, AL, KY. Don't collapse the two.
 
 ---
 

@@ -63,6 +63,25 @@ Deno.serve(async (req) => {
       if (!email) {
         return json({ error: "Target user has no email on file" }, 400);
       }
+
+      // Team Hub accounts never went through the email-invite flow, so
+      // email_confirmed_at is already set on day one — that's not a signal
+      // they've logged in. Issue a fresh temp password instead of a link.
+      const { data: roleRow } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", targetUserId)
+        .eq("role", "team_hub")
+        .maybeSingle();
+      if (roleRow) {
+        const tempPassword = generateTempPassword();
+        const { error: pwErr } = await admin.auth.admin.updateUserById(targetUserId, { password: tempPassword });
+        if (pwErr) return json({ error: pwErr.message, code: "generate_failed" }, 400);
+        const { error: flagErr } = await admin.from("profiles").update({ must_set_credential: true }).eq("user_id", targetUserId);
+        if (flagErr) console.warn("must_set_credential flag failed (non-fatal):", flagErr.message);
+        return json({ success: true, email, temp_password: tempPassword });
+      }
+
       // Already accepted?
       if (targetUser.user.email_confirmed_at) {
         return json({
@@ -104,6 +123,13 @@ Deno.serve(async (req) => {
     return json({ error: msg }, 500);
   }
 });
+
+/** 12-char random password, alphanumeric — meets Supabase's minimum policy, never shown twice. */
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint32Array(12));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
 
 function json(body: any, status = 200) {
   return new Response(JSON.stringify(body), {
