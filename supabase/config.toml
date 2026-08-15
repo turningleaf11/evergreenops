@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.team-hub-pin-login]
 verify_jwt = false
+
+[functions.ema-gmail-gateway]
+verify_jwt = false

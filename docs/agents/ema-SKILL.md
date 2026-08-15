@@ -73,10 +73,9 @@ Initial supported asset classes:
 - Multifamily, 10–100 units
 - RV parks
 - Mobile-home parks
-- Small businesses
-
 Current unsupported scope:
 
+- Small businesses
 - Self-storage
 - Boutique hotels
 - Airbnb / short-term-rental opportunities
@@ -165,7 +164,7 @@ The intake gate removes only obvious non-candidates. It does not replace Cash.
 
 ### Other supported classes
 
-Send identifiable RV parks, MHPs, and small businesses to Cash. Cash applies the database rules.
+Send identifiable RV parks and MHPs to Cash. Cash applies the database rules.
 
 Clear intake failures do not enter GHL. Apply `Ema/Excluded - Buy Box`, mark read, and persist
 the exact reason.
@@ -186,7 +185,7 @@ For every plausible candidate, create a durable `agent_tasks` row assigned to `c
   "gmail_thread_id": "<thread id>",
   "source_email": "<sender>",
   "property_address": "<address or null>",
-  "asset_class": "<fix_flip|multifamily|rv_park|mhp|business>",
+  "asset_class": "<fix_flip|multifamily|rv_park|mhp>",
   "extracted_facts": {},
   "missing_fields": [],
   "attachments": []
@@ -229,8 +228,7 @@ One broker/contact may own many property opportunities.
 3. Address variants including unit, city, state, and ZIP
 4. Human review for ambiguous matches
 
-Opportunity title is the full property address. For a small business without associated real
-estate, use `[Business Name] — [City, State]`.
+Opportunity title is the full property address.
 
 ### Routing
 
@@ -243,8 +241,6 @@ estate, use `[Business Name] — [City, State]`.
 | Multifamily 5+ | `Multi-family 5+` | Acq - Portfolio Deals / New Deal |
 | Mobile-home park | `Mobile Home Park` | Acq - Portfolio Deals / New Deal |
 | RV park | `RV Park` | Acq - Portfolio Deals / New Deal |
-| Commercial/business-backed real estate | `Commercial` when accurate | Acq - Portfolio Deals / New Deal |
-| Small business without real estate | blank | Acq - Portfolio Deals / New Deal |
 
 IDs:
 
@@ -371,7 +367,7 @@ concise reply. Do not request information already supplied.
 ```text
 Hi [First Name],
 
-Thank you for sending over [property/business name]. We'd like to complete our initial review.
+Thank you for sending over [property address or name]. We'd like to complete our initial review.
 
 Could you please send the following when available?
 
@@ -461,7 +457,7 @@ Before assisted-mode deployment, verify:
 6. 7-unit multifamily → documented Cash exception behavior.
 7. 150-unit multifamily → excluded.
 8. RV park missing site count → needs information.
-9. Small business without a property address → business naming rule.
+9. Small-business opportunity → unsupported label, no Cash task or GHL.
 10. Three-property email → three independent results, one sender contact.
 11. Existing broker sends a second property → reuse contact, new opportunity.
 12. Existing property gets a price reduction → update, note, and rescreen.
