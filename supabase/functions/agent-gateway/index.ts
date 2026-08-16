@@ -83,7 +83,9 @@ Deno.serve(async (req) => {
       return json({ error: auth.error.code, request_id: requestId }, auth.error.status);
     }
 
-    if (!context) throw new GatewayError(401, 'invalid_credentials');\n\n    request = await readAndValidateRequest(req);
+    if (!context) throw new GatewayError(401, 'invalid_credentials');
+
+    request = await readAndValidateRequest(req);
 
     if (!context.agentEnabled) {
       throw new GatewayError(403, 'agent_disabled');
