@@ -318,9 +318,10 @@ async function consumeRateLimit(
     .single();
 
   if (error || !data) throw new GatewayError(500, 'rate_limit_check_failed');
-  const resetAt = new Date(data.reset_at).getTime();
+  const result = data as { allowed: boolean; reset_at: string };
+  const resetAt = new Date(result.reset_at).getTime();
   return {
-    allowed: Boolean(data.allowed),
+    allowed: Boolean(result.allowed),
     retryAfterSeconds: Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)),
   };
 }
@@ -398,6 +399,7 @@ async function resolveGmailContext(
 
 async function listMessages(
   accessToken: string,
+  accountEmail: string,
   input: Record<string, unknown>,
   inboxOnly: boolean,
 ): Promise<Record<string, unknown>> {
