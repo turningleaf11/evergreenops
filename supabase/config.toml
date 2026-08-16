@@ -33,3 +33,9 @@ verify_jwt = false
 
 [functions.ema-gmail-gateway]
 verify_jwt = false
+
+# Agent credentials are verified inside the function using per-agent hashes.
+# Supabase JWT verification remains disabled because autonomous agents are not
+# issued human Supabase sessions or project signing secrets.
+[functions.agent-gateway]
+verify_jwt = false
