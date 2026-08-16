@@ -343,9 +343,9 @@ async function dispatch(
 
   switch (request.action) {
     case 'email.list':
-      return listMessages(gmailContext.accessToken, request.input, true);
+      return listMessages(gmailContext.accessToken, gmailContext.email, request.input, true);
     case 'email.search':
-      return listMessages(gmailContext.accessToken, request.input, false);
+      return listMessages(gmailContext.accessToken, gmailContext.email, request.input, false);
     case 'email.read':
       return getThread(gmailContext.accessToken, String(request.input.thread_id));
     case 'email.get_attachment':
@@ -423,7 +423,7 @@ async function listMessages(
   );
 
   return {
-    account: DEFAULT_GMAIL_ACCOUNT,
+    account: accountEmail,
     messages,
     next_page_token: listed.nextPageToken ?? null,
     result_size_estimate: listed.resultSizeEstimate ?? null,
