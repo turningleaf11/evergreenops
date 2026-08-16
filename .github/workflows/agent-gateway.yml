@@ -1,0 +1,33 @@
+name: Agent Gateway
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/agent-gateway/**"
+      - "supabase/functions/_shared/gmail.ts"
+      - "supabase/migrations/*agent_gateway*"
+      - ".github/workflows/agent-gateway.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/agent-gateway/**"
+      - "supabase/functions/_shared/gmail.ts"
+      - "supabase/migrations/*agent_gateway*"
+      - ".github/workflows/agent-gateway.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Gateway
+        run: deno check supabase/functions/agent-gateway/index.ts
+      - name: Test request boundary
+        run: deno test supabase/functions/agent-gateway/core_test.ts
