@@ -15,7 +15,7 @@ function assertEquals(actual: unknown, expected: unknown): void {
   if (a !== e) throw new Error(`Expected ${e}, received ${a}`);
 }
 
-function assertThrows(fn: () => unknown, errorType: typeof Error): void {
+function assertThrows(\n  fn: () => unknown,\n  errorType: typeof RequestValidationError,\n): void {
   try {
     fn();
   } catch (error) {
