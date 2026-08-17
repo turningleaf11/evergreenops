@@ -1,9 +1,11 @@
-export type OrbitTrack = "dts" | "dta" | "deal_scout" | "underwriting" | "d4" | "closer";
+export type OrbitTrack = "dts" | "dta" | "dtb" | "dtw" | "deal_scout" | "underwriting" | "d4" | "closer";
 export type OrbitStatus = "active" | "on_notice" | "graduated" | "removed";
 
 export const TRACK_OPTIONS: { value: OrbitTrack; label: string }[] = [
   { value: "dts", label: "DTS" },
   { value: "dta", label: "DTA" },
+  { value: "dtb", label: "DTB" },
+  { value: "dtw", label: "DTW" },
   { value: "closer", label: "Closer" },
   { value: "deal_scout", label: "Deal Scout" },
   { value: "underwriting", label: "Underwriting" },
@@ -27,6 +29,8 @@ export const STATUS_COLORS: Record<OrbitStatus, string> = {
 export const TRACK_COLORS: Record<OrbitTrack, string> = {
   dts:         "bg-sky-500/15 text-sky-700 dark:text-sky-300",
   dta:         "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  dtb:         "bg-teal-500/15 text-teal-700 dark:text-teal-300",
+  dtw:         "bg-orange-500/15 text-orange-700 dark:text-orange-300",
   closer:      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   deal_scout:  "bg-rose-500/15 text-rose-700 dark:text-rose-300",
   underwriting:"bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
@@ -42,6 +46,8 @@ export const TRACK_COLORS: Record<OrbitTrack, string> = {
 export const TRACK_ACCENT: Record<OrbitTrack, string> = {
   dts:          "#0EA5E9",  // sky-500
   dta:          "#0F6E56",  // evergreen
+  dtb:          "#14B8A6",  // teal-500
+  dtw:          "#F97316",  // orange-500
   closer:       "#10B981",  // emerald-500
   deal_scout:   "#F43F5E",  // rose-500
   underwriting: "#6366F1",  // indigo-500
@@ -205,6 +211,33 @@ export const TRACK_CONTENT: Record<OrbitTrack, TrackContent> = {
       { key: "agent_response_guide",label: "Read the Agent Response Guide" },
       { key: "first_conversation",  label: "Log your first 4-pillar conversation" },
     ],
+  },
+  // dtb/dtw: scorecard/roster-only for now — the per-person KPI (10 new
+  // relationships/week) is real and drives the auto-scaled scorecard target,
+  // but the rest of the workbook (daily flow, success criteria, getting
+  // started) hasn't been written yet. Fill it in via the editor on this page
+  // once the track has real workflow to document, rather than guessing here.
+  dtb: {
+    full_name: "Direct to Broker",
+    tagline: "Relationship-based outreach to brokers.",
+    what_it_is: "Build relationships with brokers who send deals your way — the DTB counterpart to DTA's agent outreach. Workbook content for this track (daily flow, success criteria, getting-started checklist) hasn't been written yet.",
+    kpis: [
+      { metric: "New broker relationships / week", target: "10", starting_when: "TBD" },
+    ],
+    daily_flow: [],
+    success_criteria: [],
+    getting_started: [],
+  },
+  dtw: {
+    full_name: "Direct to Wholesaler",
+    tagline: "Relationship-based outreach to wholesalers.",
+    what_it_is: "Build relationships with wholesalers who send deals your way — the DTW counterpart to DTA's agent outreach. Workbook content for this track (daily flow, success criteria, getting-started checklist) hasn't been written yet.",
+    kpis: [
+      { metric: "New wholesaler relationships / week", target: "10", starting_when: "TBD" },
+    ],
+    daily_flow: [],
+    success_criteria: [],
+    getting_started: [],
   },
   closer: {
     full_name: "Closer",
