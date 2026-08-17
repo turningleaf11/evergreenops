@@ -39,7 +39,7 @@ import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusPill, PriorityPill } from "@/components/primitives";
 import { resolveStatusTone } from "@/lib/statusTone";
-import { StageColorPicker } from "@/components/execution/StageColorPicker";
+import { ColumnActionsMenu } from "@/components/execution/ColumnActionsMenu";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -907,22 +907,25 @@ export default function ExecutionPage() {
           </div>
 
           {(() => {
-            const TaskCard = ({ task }: { task: Task }) => (
-              <Card
-                className="cursor-pointer hover:bg-accent/30 transition-colors"
+            // Same card shape as AI Hub's TaskCard — title on its own line,
+            // never behind an avatar; avatar/name/priority form a second
+            // row. Status only shows where the view doesn't already imply
+            // it via the column (board view relies on the column instead).
+            const TaskCard = ({ task, showStatus }: { task: Task; showStatus: boolean }) => (
+              <div
                 onClick={() => openTaskDrawer(task)}
+                className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 transition-all space-y-2.5 hover:border-primary/40"
               >
-                <CardContent className="py-3 flex items-center gap-3">
-                  <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
+                <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-secondary text-[10px] font-medium shrink-0">
                     {getName(task.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{task.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{getName(task.assigned_to)}</p>
-                  </div>
-                  <StatusPill kind="task" value={task.status} size="sm" />
-                </CardContent>
-              </Card>
+                  <p className="flex-1 min-w-0 text-xs text-muted-foreground truncate">{getName(task.assigned_to)}</p>
+                  <PriorityPill value={task.priority} size="sm" />
+                  {showStatus && <StatusPill kind="task" value={task.status} size="sm" />}
+                </div>
+              </div>
             );
 
             if (tv.view === "list") {
@@ -940,7 +943,7 @@ export default function ExecutionPage() {
                         </div>
                       )}
                       <div className="flex flex-col gap-2">
-                        {grp.rows.map(task => <TaskCard key={task.id} task={task} />)}
+                        {grp.rows.map(task => <TaskCard key={task.id} task={task} showStatus />)}
                       </div>
                     </div>
                   ))}
@@ -957,19 +960,22 @@ export default function ExecutionPage() {
                     return (
                       <div key={col.key} className="flex flex-col gap-2">
                         <div
-                          className="flex items-center gap-1 rounded-lg px-3 py-2"
+                          className="group flex items-center gap-1 rounded-lg px-3 py-2"
                           style={{ backgroundColor: `hsl(${col.color} / 0.14)`, color: `hsl(${col.color})` }}
                         >
                           <span className="text-sm font-semibold">{col.label}</span>
                           {isPrimaryAdmin && (
-                            <StageColorPicker value={col.color} onChange={hsl => setStageColor("task", col.key, hsl)} />
+                            <ColumnActionsMenu
+                              color={col.color}
+                              onColorChange={hsl => setStageColor("task", col.key, hsl)}
+                            />
                           )}
                           <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{colRows.length}</span>
                         </div>
                         <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
                           {colRows.length === 0 ? (
                             <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
-                          ) : colRows.map(task => <TaskCard key={task.id} task={task} />)}
+                          ) : colRows.map(task => <TaskCard key={task.id} task={task} showStatus={false} />)}
                           {col.key !== "done" && (
                             addingTaskCol === col.key ? (
                               <Input

@@ -31,7 +31,7 @@ import { useStageVisibility } from "@/hooks/useStageVisibility";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { StageColorPicker } from "@/components/execution/StageColorPicker";
+import { ColumnActionsMenu } from "@/components/execution/ColumnActionsMenu";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Shared with tasks.status — see statusTone.ts TASK registry. Literal,
@@ -473,13 +473,13 @@ export default function AiHubPage() {
                 return (
                   <div key={col.key} className="flex flex-col gap-2">
                     <div
-                      className="flex items-center gap-1 rounded-lg px-3 py-2"
+                      className="group flex items-center gap-1 rounded-lg px-3 py-2"
                       style={{ backgroundColor: `hsl(${hsl} / 0.14)`, color: `hsl(${hsl})` }}
                     >
                       {STATUS_ICON[col.key]}
                       <span className="text-sm font-semibold">{col.label}</span>
                       {isPrimaryAdmin && (
-                        <StageColorPicker value={hsl} onChange={next => setStageColor(col.key, next)} />
+                        <ColumnActionsMenu color={hsl} onColorChange={next => setStageColor(col.key, next)} />
                       )}
                       {col.key === "in_progress" && colTasks.length > 0 && (
                         <span className="relative flex h-2 w-2">
