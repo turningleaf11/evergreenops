@@ -102,7 +102,7 @@ export function OrbitMembershipControl({ targetUserId }: { targetUserId: string 
         </div>
       </div>
 
-      {(orbitOnly || hasMember) && (
+      {orbitOnly && (
         <div className="flex items-center gap-2 pl-0.5">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Track</span>
           <Select value={track} onValueChange={changeTrack} disabled={saving}>
