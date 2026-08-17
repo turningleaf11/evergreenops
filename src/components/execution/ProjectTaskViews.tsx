@@ -19,6 +19,7 @@ interface CommonProps {
   getName: (uid: string | null) => string;
   onItemClick: (task: any) => void;
   onStatusChange: (id: string, status: string) => void;
+  onFieldChange?: (id: string, patch: Record<string, any>) => void;
 }
 
 const TASK_COLUMNS = [
@@ -35,7 +36,7 @@ function parseDue(d: string | null | undefined): Date | null {
 }
 
 /** Board — tasks grouped into status columns (reuses the shared KanbanBoard). */
-export function ProjectBoardView({ tasks, profiles, getName, onItemClick, onStatusChange }: CommonProps) {
+export function ProjectBoardView({ tasks, profiles, getName, onItemClick, onStatusChange, onFieldChange }: CommonProps) {
   return (
     <KanbanBoard
       columns={TASK_COLUMNS}
@@ -47,6 +48,8 @@ export function ProjectBoardView({ tasks, profiles, getName, onItemClick, onStat
       getName={getName}
       onItemClick={onItemClick}
       onStatusChange={onStatusChange}
+      onPriorityChange={onFieldChange ? (id, v) => onFieldChange(id, { priority: v }) : undefined}
+      onDateChange={onFieldChange ? (id, v) => onFieldChange(id, { due_date: v }) : undefined}
     />
   );
 }

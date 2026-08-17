@@ -25,6 +25,7 @@ import { StatusPill } from "./StatusPill";
 import { PriorityPill } from "./PriorityPill";
 import { AvatarStack, type AvatarStackPerson } from "./AvatarStack";
 import { MetadataRow, type MetadataItem } from "./MetadataRow";
+import { InlineDate } from "@/components/shared/InlineCell";
 import type { EntityKind } from "@/lib/statusTone";
 
 interface Props {
@@ -43,7 +44,8 @@ interface Props {
   /** Who's on this — used for the avatar stack. */
   assignees?: AvatarStackPerson[];
 
-  /** Pre-formatted due date / date string. */
+  /** Pre-formatted due date / date string, used when the date isn't
+      editable (no onDateChange). */
   dateLabel?: string | null;
   dateIcon?: React.ComponentType<{ className?: string }>;
 
@@ -55,6 +57,14 @@ interface Props {
 
   /** Menu (...) click handler. Omit to hide the menu button. */
   onMenuClick?: (e: React.MouseEvent) => void;
+
+  /** Opt-in inline editing — omit either to keep that field read-only.
+      Passing onPriorityChange swaps the static PriorityPill for an
+      editable dropdown; passing onDateChange swaps the static date label
+      for an InlineDate picker (raw ISO date, not the formatted dateLabel). */
+  onPriorityChange?: (value: string) => void;
+  dateValue?: string | null;
+  onDateChange?: (value: string | null) => void;
 
   /** Layout mode. "card" (default) is the vertical kanban/grid layout;
       "row" is a horizontal full-width strip used in list views. */
@@ -71,11 +81,28 @@ export function EntityCard({
   dateLabel, dateIcon: DateIcon = Flag,
   metadata,
   onClick, onMenuClick,
+  onPriorityChange, dateValue, onDateChange,
   layout = "card",
   className,
 }: Props) {
   const hasMetadata = metadata && metadata.length > 0;
   const isRow = layout === "row";
+
+  const priorityNode = priority && (
+    <PriorityPill value={priority} size="sm" onChange={onPriorityChange} />
+  );
+  const dateNode = onDateChange ? (
+    <InlineDate
+      value={dateValue ?? null}
+      onChange={onDateChange}
+      className="h-auto min-h-0 mx-0 px-0 hover:bg-transparent w-auto text-[11px]"
+    />
+  ) : dateLabel && (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <DateIcon className="h-3 w-3" />
+      {dateLabel}
+    </span>
+  );
 
   // ── Row layout — horizontal strip used in list views ──────────────────────
   if (isRow) {
@@ -112,18 +139,13 @@ export function EntityCard({
           )}
 
           {/* Bottom row: assignees + date + priority + metadata, all inline */}
-          {(assignees?.length || dateLabel || priority || hasMetadata) && (
+          {(assignees?.length || dateLabel || dateValue || priority || hasMetadata) && (
             <div className="flex items-center gap-3 flex-wrap pt-0.5">
               {assignees && assignees.length > 0 && (
                 <AvatarStack people={assignees} size="sm" max={4} />
               )}
-              {dateLabel && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <DateIcon className="h-3 w-3" />
-                  {dateLabel}
-                </span>
-              )}
-              {priority && <PriorityPill value={priority} size="sm" />}
+              {dateNode}
+              {priorityNode}
               {hasMetadata && <MetadataRow items={metadata!} className="text-[10px]" />}
             </div>
           )}
@@ -187,20 +209,15 @@ export function EntityCard({
           )}
         </div>
 
-        {(assignees && assignees.length > 0 || dateLabel || priority) && (
+        {(assignees && assignees.length > 0 || dateLabel || dateValue || priority) && (
           <div className="flex items-center justify-between gap-2">
             {assignees && assignees.length > 0
               ? <AvatarStack people={assignees} size="md" max={4} />
               : <span />
             }
             <div className="flex items-center gap-2 shrink-0">
-              {dateLabel && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <DateIcon className="h-3 w-3" />
-                  {dateLabel}
-                </span>
-              )}
-              {priority && <PriorityPill value={priority} size="sm" />}
+              {dateNode}
+              {priorityNode}
             </div>
           </div>
         )}

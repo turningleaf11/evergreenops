@@ -40,6 +40,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusPill, PriorityPill } from "@/components/primitives";
 import { resolveStatusTone } from "@/lib/statusTone";
 import { ColumnActionsMenu } from "@/components/execution/ColumnActionsMenu";
+import { InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -441,6 +442,14 @@ export default function ExecutionPage() {
     }
   };
 
+  // Generic field patch for inline-editable card fields (priority, assignee,
+  // due date) — lets kanban/list cards edit without opening the full task.
+  const updateEntity = async (table: "projects" | "tasks", id: string, patch: Record<string, any>) => {
+    const { error } = await supabase.from(table).update(patch).eq("id", id);
+    if (error) toast.error(error.message);
+    else fetchAll();
+  };
+
   const createNextOccurrence = async (task: Task) => {
     const rule = task.recurrence_rule;
     if (!rule) return;
@@ -823,6 +832,8 @@ export default function ExecutionPage() {
                   ownerField="owner_id"
                   type="project"
                   profiles={profiles}
+                  onPriorityChange={(id, v) => updateEntity("projects", id, { priority: v })}
+                  onDateChange={(id, v) => updateEntity("projects", id, { due_date: v })}
                 />
               )}
 
@@ -911,6 +922,8 @@ export default function ExecutionPage() {
             // never behind an avatar; avatar/name/priority form a second
             // row. Status only shows where the view doesn't already imply
             // it via the column (board view relies on the column instead).
+            // Priority, assignee, and due date are all inline-editable
+            // right here — no need to open the task for a quick change.
             const TaskCard = ({ task, showStatus }: { task: Task; showStatus: boolean }) => (
               <div
                 onClick={() => openTaskDrawer(task)}
@@ -918,13 +931,28 @@ export default function ExecutionPage() {
               >
                 <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-secondary text-[10px] font-medium shrink-0">
-                    {getName(task.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                  </span>
-                  <p className="flex-1 min-w-0 text-xs text-muted-foreground truncate">{getName(task.assigned_to)}</p>
-                  <PriorityPill value={task.priority} size="sm" />
+                  <InlineAssignee
+                    value={task.assigned_to}
+                    onChange={(uid) => updateEntity("tasks", task.id, { assigned_to: uid })}
+                    profiles={profiles}
+                    className="flex-1 min-w-0 h-auto min-h-0 mx-0 px-0 hover:bg-transparent"
+                    renderDisplay={(uid) => (
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="flex items-center justify-center h-6 w-6 rounded-full bg-secondary text-[10px] font-medium shrink-0">
+                          {getName(uid).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">{getName(uid)}</span>
+                      </span>
+                    )}
+                  />
+                  <PriorityPill value={task.priority} size="sm" onChange={(v) => updateEntity("tasks", task.id, { priority: v })} />
                   {showStatus && <StatusPill kind="task" value={task.status} size="sm" />}
                 </div>
+                <InlineDate
+                  value={task.due_date}
+                  onChange={(v) => updateEntity("tasks", task.id, { due_date: v })}
+                  className="h-auto min-h-0 mx-0 px-0 hover:bg-transparent w-auto"
+                />
               </div>
             );
 

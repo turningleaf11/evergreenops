@@ -323,6 +323,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                       onChange={(html) => updateTask({ notes_content: html })}
                       placeholder="Add a description, plans, context…"
                       borderless
+                      minHeight="56px"
                     />
                   </div>
                 </section>

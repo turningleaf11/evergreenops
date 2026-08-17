@@ -173,6 +173,12 @@ export default function ProjectDetailPage() {
     fetchData();
   };
 
+  const updateTaskFields = async (taskId: string, patch: Record<string, any>) => {
+    const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
+    if (error) toast.error(error.message);
+    else fetchData();
+  };
+
   const addView = async (type: ProjectViewType, label: string) => {
     const { data, error } = await (supabase as any)
       .from("project_views")
@@ -539,7 +545,7 @@ export default function ProjectDetailPage() {
           />
         )}
         {activeView?.type === "board" && (
-          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} />
+          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} onFieldChange={updateTaskFields} />
         )}
         {activeView?.type === "calendar" && (
           <ProjectCalendarView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />

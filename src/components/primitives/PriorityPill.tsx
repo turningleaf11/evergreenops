@@ -53,7 +53,7 @@ export function PriorityPill({ value, size = "md", shape = "rect", onChange, cla
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button">{pill}</button>
+        <button type="button" onClick={(e) => e.stopPropagation()}>{pill}</button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {listPriorityOptions().map((opt) => (

@@ -28,6 +28,9 @@ interface KanbanBoardProps {
   /** Full profile list — used so the EntityCard can render real avatars
       (with avatar_url) in the AvatarStack instead of just initials. */
   profiles?: Array<{ user_id: string; full_name: string | null; avatar_url?: string | null }>;
+  /** Opt-in inline editing on cards — omit either to keep read-only. */
+  onPriorityChange?: (id: string, value: string) => void;
+  onDateChange?: (id: string, value: string | null) => void;
 }
 
 const priorityStyles: Record<string, string> = {
@@ -81,6 +84,7 @@ function ColorSwatchPicker({ current, onPick }: { current: KanbanColorName; onPi
 
 export default function KanbanBoard({
   columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor, profiles,
+  onPriorityChange, onDateChange,
 }: KanbanBoardProps) {
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -210,6 +214,9 @@ export default function KanbanBoard({
                         dateLabel={item.due_date || null}
                         dateIcon={Calendar}
                         onClick={() => onItemClick(item)}
+                        onPriorityChange={onPriorityChange ? (v) => onPriorityChange(item.id, v) : undefined}
+                        dateValue={item.due_date || null}
+                        onDateChange={onDateChange ? (v) => onDateChange(item.id, v) : undefined}
                       />
                     </div>
                   );
