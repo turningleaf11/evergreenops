@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (roleData && roleData.length > 0) {
         const roles = roleData.map((r: any) => r.role);
-        setRole(roles.includes("admin") ? "admin" : "user");
+        setRole(roles.includes("admin") ? "admin" : roles.includes("team_hub") ? "team_hub" : "user");
         setIsPrimaryAdmin(roleData.some((r: any) => r.role === "admin" && r.is_primary === true));
       } else {
         setRole("user");
