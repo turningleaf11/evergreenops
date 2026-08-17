@@ -18,7 +18,7 @@ export function useFileViewer() {
   return ctx;
 }
 
-function inferKind(name: string, mime?: string): "image" | "pdf" | "video" | "audio" | "text" | "other" {
+export function inferKind(name: string, mime?: string): "image" | "pdf" | "video" | "audio" | "text" | "other" {
   const m = (mime || "").toLowerCase();
   const n = (name || "").toLowerCase();
   if (m.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic)$/i.test(n)) return "image";

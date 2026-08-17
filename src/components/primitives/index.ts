@@ -25,3 +25,4 @@ export { CoverImageZone, CoverMenuItems } from "./CoverImageZone";
 
 export { CollapsibleNotes } from "./CollapsibleNotes";
 export { QuickAddPopover } from "./QuickAddPopover";
+export { UnreadDot } from "./UnreadDot";

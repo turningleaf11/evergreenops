@@ -17,6 +17,8 @@ import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
 import { StatusPill, PriorityPill, CollapsibleNotes } from "@/components/primitives";
 import { useReportActiveEntity } from "@/contexts/CompanionContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { notifyEntityWatchers, markEntityNotificationsRead } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 const sb = supabase as any;
@@ -40,6 +42,7 @@ function FieldRow({ icon: Icon, label, children }: { icon: any; label: string; c
 
 export default function TaskPeek({ id, open, onClose }: Props) {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [row, setRow] = useState<any>(null);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [projectTitle, setProjectTitle] = useState<string>("");
@@ -91,6 +94,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
   }, [id, loadDocs]);
 
   useEffect(() => { if (open && id) load(); }, [open, id, load]);
+  useEffect(() => { if (open && id) markEntityNotificationsRead("task", id); }, [open, id]);
 
   // Tell Albus which task you're viewing while the peek is open.
   useReportActiveEntity(open && row ? { type: "task", id, title: row.title } : null);
@@ -119,6 +123,14 @@ export default function TaskPeek({ id, open, onClose }: Props) {
     } as any);
     setSubmittingComment(false);
     // ActivityPanel's realtime subscription picks up the new comment automatically
+    notifyEntityWatchers({
+      entityType: "task",
+      entityId: id,
+      authorId: user.id,
+      actorName: profile?.full_name,
+      bodyPreview: payload.contentText || "Sent an attachment",
+      url: `/tasks/${id}`,
+    });
   };
 
   const assignee = profiles.find((p) => p.user_id === row?.assigned_to);

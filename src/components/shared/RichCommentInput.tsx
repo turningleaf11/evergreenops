@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Paperclip, Send, X, AtSign, Loader2, FileText } from "lucide-react";
+import { Paperclip, Send, X, AtSign, Loader2, FileText, FileSpreadsheet, FileVideo, FileAudio, File as FileIcon } from "lucide-react";
 import { uploadFile } from "@/lib/file-upload";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { inferKind } from "@/components/file-viewer/FileViewerProvider";
 
 export interface CommentAttachment {
   url: string;
@@ -122,13 +123,11 @@ export function RichCommentInput({ placeholder = "Write a comment...", onSubmit,
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {attachments.map((a) => (
-            <div key={a.url} className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
-              <FileText className="h-3 w-3 text-muted-foreground" />
-              <a href={a.url} target="_blank" rel="noopener" className="text-foreground hover:underline truncate max-w-[160px]">{a.name}</a>
-              <button onClick={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))} className="text-muted-foreground hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
+            <AttachmentPreviewChip
+              key={a.url}
+              attachment={a}
+              onRemove={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))}
+            />
           ))}
         </div>
       )}
@@ -196,22 +195,88 @@ export function RichCommentInput({ placeholder = "Write a comment...", onSubmit,
   );
 }
 
+// Icon + tint per file type — images never land here, they get an actual
+// thumbnail instead (see AttachmentChips below).
+function fileVisual(name: string, mime?: string): { icon: typeof FileText; tint: string } {
+  const kind = inferKind(name, mime);
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  if (kind === "pdf") return { icon: FileText, tint: "bg-red-500/10 text-red-600 dark:text-red-400" };
+  if (kind === "video") return { icon: FileVideo, tint: "bg-violet-500/10 text-violet-600 dark:text-violet-400" };
+  if (kind === "audio") return { icon: FileAudio, tint: "bg-pink-500/10 text-pink-600 dark:text-pink-400" };
+  if (["xls", "xlsx", "csv"].includes(ext)) return { icon: FileSpreadsheet, tint: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
+  if (["doc", "docx", "txt", "md"].includes(ext)) return { icon: FileText, tint: "bg-blue-500/10 text-blue-600 dark:text-blue-400" };
+  return { icon: FileIcon, tint: "bg-muted text-muted-foreground" };
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Small removable chip shown while composing — image thumbnail or type icon. */
+export function AttachmentPreviewChip({ attachment, onRemove }: { attachment: CommentAttachment; onRemove: () => void }) {
+  const isImage = inferKind(attachment.name, attachment.contentType) === "image";
+  const { icon: Icon, tint } = fileVisual(attachment.name, attachment.contentType);
+  return (
+    <div className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
+      {isImage ? (
+        <img src={attachment.url} alt="" className="h-4 w-4 rounded-sm object-cover shrink-0" />
+      ) : (
+        <span className={cn("flex items-center justify-center h-4 w-4 rounded-sm shrink-0", tint)}>
+          <Icon className="h-3 w-3" />
+        </span>
+      )}
+      <span className="truncate max-w-[160px]">{attachment.name}</span>
+      <button onClick={onRemove} className="text-muted-foreground hover:text-destructive">
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+/** Posted-comment attachments — images render as real inline thumbnails,
+    everything else gets a compact "document card" (type icon + name + size),
+    both wrapped as file-attachment anchors so the global FileViewerProvider
+    click interceptor still opens the full viewer. */
 export function AttachmentChips({ attachments }: { attachments: CommentAttachment[] }) {
   if (!attachments?.length) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 mt-1">
-      {attachments.map((a) => (
-        <a
-          key={a.url}
-          href={a.url}
-          data-file-attachment
-          data-file-name={a.name}
-          className="file-attachment inline-flex items-center gap-1.5 bg-muted/60 hover:bg-muted rounded-md px-2 py-0.5 text-xs text-foreground/90 cursor-pointer"
-        >
-          <FileText className="h-3 w-3 text-muted-foreground" />
-          <span className="truncate max-w-[160px]">{a.name}</span>
-        </a>
-      ))}
+    <div className="flex flex-wrap gap-2 mt-1.5">
+      {attachments.map((a) => {
+        if (inferKind(a.name, a.contentType) === "image") {
+          return (
+            <a
+              key={a.url}
+              href={a.url}
+              data-file-attachment
+              data-file-name={a.name}
+              className="file-attachment block h-24 w-24 rounded-lg overflow-hidden border border-border/60 hover:border-primary/40 transition-colors"
+            >
+              <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+            </a>
+          );
+        }
+        const { icon: Icon, tint } = fileVisual(a.name, a.contentType);
+        return (
+          <a
+            key={a.url}
+            href={a.url}
+            data-file-attachment
+            data-file-name={a.name}
+            className="file-attachment flex items-center gap-2 rounded-lg border border-border/60 hover:border-primary/40 transition-colors px-2.5 py-2 min-w-[160px] max-w-[220px]"
+          >
+            <span className={cn("flex items-center justify-center h-8 w-8 rounded-md shrink-0", tint)}>
+              <Icon className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-medium text-foreground truncate">{a.name}</span>
+              {a.size ? <span className="block text-[10px] text-muted-foreground">{formatFileSize(a.size)}</span> : null}
+            </span>
+          </a>
+        );
+      })}
     </div>
   );
 }

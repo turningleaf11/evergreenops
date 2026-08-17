@@ -19,6 +19,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { markEntityNotificationsRead } from "@/lib/notifications";
+import { useUnreadEntityIds } from "@/hooks/useUnreadEntityIds";
 import { cn } from "@/lib/utils";
 import { StatusPill, PriorityPill } from "@/components/primitives";
 import ProjectOverviewTab from "@/components/execution/ProjectOverviewTab";
@@ -53,6 +55,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const unreadTaskIds = useUnreadEntityIds("task");
 
   const [project, setProject] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -109,6 +112,7 @@ export default function ProjectDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (id) markEntityNotificationsRead("project", id); }, [id]);
 
   // Tell Albus which project you're viewing (context-aware).
   useReportActiveEntity(project ? { type: "project", id: project.id, title: project.title } : null);
@@ -542,10 +546,11 @@ export default function ProjectDetailPage() {
             onCreate={createTask}
             onStatusChange={updateTaskStatus}
             onChanged={fetchData}
+            unreadIds={unreadTaskIds}
           />
         )}
         {activeView?.type === "board" && (
-          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} onFieldChange={updateTaskFields} />
+          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} onFieldChange={updateTaskFields} unreadIds={unreadTaskIds} />
         )}
         {activeView?.type === "calendar" && (
           <ProjectCalendarView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />

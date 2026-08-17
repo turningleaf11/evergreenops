@@ -31,6 +31,8 @@ interface KanbanBoardProps {
   /** Opt-in inline editing on cards — omit either to keep read-only. */
   onPriorityChange?: (id: string, value: string) => void;
   onDateChange?: (id: string, value: string | null) => void;
+  /** Item ids with unread activity — shows a leading dot on the card title. */
+  unreadIds?: Set<string>;
 }
 
 const priorityStyles: Record<string, string> = {
@@ -84,7 +86,7 @@ function ColorSwatchPicker({ current, onPick }: { current: KanbanColorName; onPi
 
 export default function KanbanBoard({
   columns, items, statusField, onItemClick, onStatusChange, getName, ownerField, type, onAddCard, onEditColumnColor, profiles,
-  onPriorityChange, onDateChange,
+  onPriorityChange, onDateChange, unreadIds,
 }: KanbanBoardProps) {
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -217,6 +219,7 @@ export default function KanbanBoard({
                         onPriorityChange={onPriorityChange ? (v) => onPriorityChange(item.id, v) : undefined}
                         dateValue={item.due_date || null}
                         onDateChange={onDateChange ? (v) => onDateChange(item.id, v) : undefined}
+                        unread={unreadIds?.has(item.id)}
                       />
                     </div>
                   );

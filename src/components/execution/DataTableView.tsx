@@ -4,6 +4,7 @@ import { ArrowUp, ArrowDown, Repeat, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { InlineText, InlineSelect, InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
+import { UnreadDot } from "@/components/primitives";
 
 interface DataTableViewProps {
   items: any[];
@@ -16,6 +17,7 @@ interface DataTableViewProps {
   profiles?: { user_id: string; full_name: string | null }[];
   goals?: any[];
   projects?: any[];
+  unreadIds?: Set<string>;
 }
 
 type SortCol = "title" | "status" | "priority" | "assignee" | "due_date";
@@ -70,7 +72,7 @@ const COLUMNS: ColDef[] = [
 ];
 
 export default function DataTableView({
-  items, type, onItemClick, onStatusChange, onUpdate, getName, statusOptions, profiles = [],
+  items, type, onItemClick, onStatusChange, onUpdate, getName, statusOptions, profiles = [], unreadIds,
 }: DataTableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [sortCol, setSortCol] = useState<SortCol>("title");
@@ -177,6 +179,7 @@ export default function DataTableView({
                 >
                   {/* Name (inline editable) + open affordance at the name's trailing edge */}
                   <div className="px-3 py-2.5 min-w-0 flex items-center gap-1.5">
+                    {unreadIds?.has(item.id) && <UnreadDot />}
                     {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <InlineText

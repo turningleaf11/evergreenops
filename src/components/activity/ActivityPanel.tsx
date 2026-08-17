@@ -12,6 +12,7 @@ import { AttachmentChips, type CommentAttachment } from "@/components/shared/Ric
 import { CommentReactions } from "@/components/shared/CommentReactions";
 import { cn } from "@/lib/utils";
 import { InlineEmailComposer } from "@/components/crm/InlineEmailComposer";
+import { notifyEntityWatchers } from "@/lib/notifications";
 import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
@@ -76,7 +77,7 @@ interface Props {
 }
 
 export default function ActivityPanel({ entityType, entityId, hideHeader = false, hideComposer = false, defaultFilter = "all", onReplyEmail, agentTaskId, inline = false }: Props) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [sortAsc, setSortAsc] = useState(true);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -166,6 +167,17 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
     }
     if (parentId) setReplyTo(null);
     fetchAll();
+
+    if (entityType === "task" || entityType === "project") {
+      notifyEntityWatchers({
+        entityType,
+        entityId,
+        authorId: user.id,
+        actorName: profile?.full_name,
+        bodyPreview: payload.contentText || "Sent an attachment",
+        url: `/${entityType}s/${entityId}`,
+      });
+    }
 
     // @Albus trigger — on projects, fire project-albus-reply edge function.
     const mentionsAlbus = /@\s*albus\b/i.test(payload.contentText || "");

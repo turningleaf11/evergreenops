@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Calendar, Repeat, Check } from "lucide-react";
+import { UnreadDot } from "@/components/primitives";
 import { cn } from "@/lib/utils";
 
 interface TableViewProps {
@@ -15,6 +16,7 @@ interface TableViewProps {
   goals?: any[];
   projects?: any[];
   disableGrouping?: boolean;
+  unreadIds?: Set<string>;
 }
 
 const statusRingColors: Record<string, string> = {
@@ -90,7 +92,7 @@ function StatusCircle({ status, statusOptions, onStatusChange, itemId }: {
 /* HoverActions removed — drop-down/edit/archive icons no longer rendered on row hover */
 
 export default function TableView({
-  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects, disableGrouping,
+  items, type, onItemClick, onStatusChange, getName, statusOptions, goals, projects, disableGrouping, unreadIds,
 }: TableViewProps) {
   const ownerField = type === "project" ? "owner_id" : "assigned_to";
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -153,9 +155,10 @@ export default function TableView({
                             itemId={item.id}
                           />
                           <span className={cn(
-                            "flex-1 min-w-0 truncate text-sm",
+                            "flex-1 min-w-0 truncate text-sm flex items-center gap-1.5",
                             item.status === "done" && "line-through text-muted-foreground"
                           )}>
+                            {unreadIds?.has(item.id) && <UnreadDot />}
                             {item.title}
                           </span>
                           {item.priority && (
@@ -200,6 +203,7 @@ export default function TableView({
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                            {unreadIds?.has(item.id) && <UnreadDot />}
                             {item.is_recurring && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
                             {item.title}
                           </p>

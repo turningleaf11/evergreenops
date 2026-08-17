@@ -11,6 +11,7 @@ interface Props {
   onCreate: (title: string) => void;
   onStatusChange: (taskId: string, status: string) => void;
   onChanged?: () => void;
+  unreadIds?: Set<string>;
 }
 
 const TASK_STATUS_OPTIONS = [
@@ -20,7 +21,7 @@ const TASK_STATUS_OPTIONS = [
   { value: "done", label: "Done" },
 ];
 
-export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusChange, onChanged }: Props) {
+export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusChange, onChanged, unreadIds }: Props) {
   const [peekTaskId, setPeekTaskId] = useState<string | null>(null);
 
   const getName = (uid: string | null) =>
@@ -49,6 +50,7 @@ export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusCha
         getName={getName}
         statusOptions={TASK_STATUS_OPTIONS}
         profiles={profiles}
+        unreadIds={unreadIds}
       />
 
       {peekTaskId && (

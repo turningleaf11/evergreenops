@@ -26,6 +26,7 @@ import { PriorityPill } from "./PriorityPill";
 import { AvatarStack, type AvatarStackPerson } from "./AvatarStack";
 import { MetadataRow, type MetadataItem } from "./MetadataRow";
 import { InlineDate } from "@/components/shared/InlineCell";
+import { UnreadDot } from "./UnreadDot";
 import type { EntityKind } from "@/lib/statusTone";
 
 interface Props {
@@ -36,6 +37,9 @@ interface Props {
 
   title: string;
   description?: string | null;
+
+  /** Shows a small leading dot next to the title when this card has unread activity. */
+  unread?: boolean;
 
   /** Optional hero image. In "card" layout it's a full-width 16:9 hero at the
       top; in "row" layout it's a small square on the far right. */
@@ -76,6 +80,7 @@ interface Props {
 export function EntityCard({
   kind, status, priority,
   title, description,
+  unread,
   coverUrl,
   assignees,
   dateLabel, dateIcon: DateIcon = Flag,
@@ -122,7 +127,10 @@ export function EntityCard({
           {/* Title row: status pill + title (status inline, not on its own row) */}
           <div className="flex items-center gap-2 min-w-0">
             {status && <StatusPill kind={kind} value={status} size="sm" />}
-            <h3 className="text-sm font-semibold leading-snug truncate text-foreground flex-1 min-w-0">{title}</h3>
+            <h3 className="text-sm font-semibold leading-snug truncate text-foreground flex-1 min-w-0 flex items-center gap-1.5">
+              {unread && <UnreadDot />}
+              <span className="truncate">{title}</span>
+            </h3>
             {onMenuClick && (
               <button
                 onClick={(e) => { e.stopPropagation(); onMenuClick(e); }}
@@ -203,7 +211,10 @@ export function EntityCard({
         )}
 
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">{title}</h3>
+          <h3 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground flex items-start gap-1.5">
+            {unread && <UnreadDot className="mt-1.5" />}
+            <span className="line-clamp-2">{title}</span>
+          </h3>
           {description && (
             <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{description}</p>
           )}

@@ -41,6 +41,8 @@ import { StatusPill, PriorityPill } from "@/components/primitives";
 import { resolveStatusTone } from "@/lib/statusTone";
 import { ColumnActionsMenu } from "@/components/execution/ColumnActionsMenu";
 import { InlineAssignee, InlineDate } from "@/components/shared/InlineCell";
+import { UnreadDot } from "@/components/primitives";
+import { useUnreadEntityIds } from "@/hooks/useUnreadEntityIds";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -183,6 +185,8 @@ function applyFilters<T extends { title: string; status: string; priority?: stri
 
 export default function ExecutionPage() {
   const { user, isAdmin, isPrimaryAdmin } = useAuth();
+  const unreadTaskIds = useUnreadEntityIds("task");
+  const unreadProjectIds = useUnreadEntityIds("project");
   const { allowed: councilAllowed } = usePageAccess("ai_hub", "primary_admin");
   const { departments } = useDepartments();
   const navigate = useNavigate();
@@ -818,6 +822,7 @@ export default function ExecutionPage() {
                   getName={getName}
                   statusOptions={projectStatusOptions}
                   goals={goals}
+                  unreadIds={unreadProjectIds}
                 />
               )}
 
@@ -834,6 +839,7 @@ export default function ExecutionPage() {
                   profiles={profiles}
                   onPriorityChange={(id, v) => updateEntity("projects", id, { priority: v })}
                   onDateChange={(id, v) => updateEntity("projects", id, { due_date: v })}
+                  unreadIds={unreadProjectIds}
                 />
               )}
 
@@ -852,6 +858,7 @@ export default function ExecutionPage() {
                   statusOptions={projectStatusOptions}
                   profiles={profiles}
                   goals={goals}
+                  unreadIds={unreadProjectIds}
                 />
               )}
             </>
@@ -929,7 +936,10 @@ export default function ExecutionPage() {
                 onClick={() => openTaskDrawer(task)}
                 className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 transition-all space-y-2.5 hover:border-primary/40"
               >
-                <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+                <p className="text-sm font-medium leading-snug line-clamp-2 flex items-start gap-1.5">
+                  {unreadTaskIds.has(task.id) && <UnreadDot className="mt-1.5" />}
+                  <span className="line-clamp-2">{task.title}</span>
+                </p>
                 <div className="flex items-center gap-2">
                   <InlineAssignee
                     value={task.assigned_to}
@@ -1072,7 +1082,12 @@ export default function ExecutionPage() {
                         )}
                         {grp.rows.map(task => (
                           <tr key={task.id} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(task)}>
-                            <td className="px-3 py-2">{task.title}</td>
+                            <td className="px-3 py-2">
+                              <span className="flex items-center gap-1.5">
+                                {unreadTaskIds.has(task.id) && <UnreadDot />}
+                                {task.title}
+                              </span>
+                            </td>
                             <td className="px-3 py-2 text-muted-foreground">{getName(task.assigned_to)}</td>
                             <td className="px-3 py-2">
                               <StatusPill kind="task" value={task.status} size="sm" />

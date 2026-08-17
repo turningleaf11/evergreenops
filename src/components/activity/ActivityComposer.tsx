@@ -16,7 +16,7 @@ import { UniversalMention } from "@/extensions/MentionExtension";
 import { uploadFile, triggerFileInput } from "@/lib/file-upload";
 import { GiphyPicker } from "@/components/feed/GiphyPicker";
 import { toast } from "sonner";
-import type { CommentAttachment } from "@/components/shared/RichCommentInput";
+import { AttachmentPreviewChip, type CommentAttachment } from "@/components/shared/RichCommentInput";
 import { cn } from "@/lib/utils";
 
 const EMOJIS = ["👍","❤️","🎉","🔥","🙌","👏","😂","😍","🤔","✅","❌","🚀","💡","⚡","✨","💪","👀","💯","🙏","😅","😎","🤝","👋","☕","📌","📎","🗓️","🎯","💬","🔔"];
@@ -162,13 +162,11 @@ export function ActivityComposer({ placeholder = "Write a comment…", onSubmit,
       {(attachments.length > 0 || gifUrl || audioUrl) && (
         <div className="px-3 pt-3 pb-1 flex flex-wrap gap-1.5 border-b border-border/40">
           {attachments.map((a) => (
-            <div key={a.url} className="inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1 text-xs">
-              <FileText className="h-3 w-3 text-muted-foreground" />
-              <span className="truncate max-w-[160px]">{a.name}</span>
-              <button onClick={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))} className="text-muted-foreground hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
+            <AttachmentPreviewChip
+              key={a.url}
+              attachment={a}
+              onRemove={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))}
+            />
           ))}
           {gifUrl && (
             <div className="relative">
