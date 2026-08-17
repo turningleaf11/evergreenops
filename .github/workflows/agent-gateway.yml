@@ -6,6 +6,7 @@ on:
       - "supabase/functions/agent-gateway/**"
       - "supabase/functions/agent-gateway-mcp/**"
       - "supabase/functions/_shared/gmail.ts"
+      - "supabase/functions/_shared/ghl.ts"
       - "supabase/migrations/*agent_gateway*"
       - ".github/workflows/agent-gateway.yml"
   push:
@@ -15,6 +16,7 @@ on:
       - "supabase/functions/agent-gateway/**"
       - "supabase/functions/agent-gateway-mcp/**"
       - "supabase/functions/_shared/gmail.ts"
+      - "supabase/functions/_shared/ghl.ts"
       - "supabase/migrations/*agent_gateway*"
       - ".github/workflows/agent-gateway.yml"
 
@@ -34,6 +36,6 @@ jobs:
       - name: Type-check MCP adapter
         run: deno check --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp/index.ts
       - name: Test request boundary
-        run: deno test supabase/functions/agent-gateway/core_test.ts
+        run: deno test supabase/functions/agent-gateway/core_test.ts supabase/functions/_shared/ghl_test.ts
       - name: Test MCP adapter boundary
         run: deno test --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp

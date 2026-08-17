@@ -64,6 +64,9 @@ Deno.test("exposes exactly the approved Ema MCP action mappings", () => {
     email_search: "email.search",
     email_read: "email.read",
     email_get_attachment: "email.get_attachment",
+    crm_search_contacts: "crm.search_contacts",
+    crm_search_opportunities: "crm.search_opportunities",
+    crm_list_pipelines: "crm.list_pipelines",
   });
 });
 

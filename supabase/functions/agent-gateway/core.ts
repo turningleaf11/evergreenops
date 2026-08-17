@@ -4,7 +4,13 @@ export const ALLOWED_ACTIONS = [
   'email.search',
   'email.read',
   'email.get_attachment',
+  'crm.search_contacts',
+  'crm.search_opportunities',
+  'crm.list_pipelines',
 ] as const;
+
+export const DEFAULT_INLINE_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+export const MAX_INLINE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 export type GatewayAction = typeof ALLOWED_ACTIONS[number];
 
@@ -38,13 +44,20 @@ export async function sha256Hex(value: string): Promise<string> {
 }
 
 export function parseGatewayRequest(value: unknown): GatewayRequest {
-  if (!isRecord(value)) throw new RequestValidationError('Body must be a JSON object');
-  if (typeof value.action !== 'string' || !ALLOWED_ACTIONS.includes(value.action as GatewayAction)) {
+  if (!isRecord(value)) {
+    throw new RequestValidationError('Body must be a JSON object');
+  }
+  if (
+    typeof value.action !== 'string' ||
+    !ALLOWED_ACTIONS.includes(value.action as GatewayAction)
+  ) {
     throw new RequestValidationError('Unsupported action');
   }
 
   const input = value.input === undefined ? {} : value.input;
-  if (!isRecord(input)) throw new RequestValidationError('input must be a JSON object');
+  if (!isRecord(input)) {
+    throw new RequestValidationError('input must be a JSON object');
+  }
 
   switch (value.action as GatewayAction) {
     case 'system.whoami':
@@ -56,8 +69,12 @@ export function parseGatewayRequest(value: unknown): GatewayRequest {
         input: {
           max_results: optionalInteger(input.max_results, 'max_results', 1, 50) ?? 50,
           page_token: optionalPageToken(input.page_token),
-          after_epoch_seconds:
-            optionalInteger(input.after_epoch_seconds, 'after_epoch_seconds', 0, Number.MAX_SAFE_INTEGER) ?? null,
+          after_epoch_seconds: optionalInteger(
+            input.after_epoch_seconds,
+            'after_epoch_seconds',
+            0,
+            Number.MAX_SAFE_INTEGER,
+          ) ?? null,
         },
       };
 
@@ -85,9 +102,56 @@ export function parseGatewayRequest(value: unknown): GatewayRequest {
         input: {
           message_id: gmailId(input.message_id, 'message_id'),
           attachment_id: gmailId(input.attachment_id, 'attachment_id'),
+          max_bytes: optionalInteger(
+            input.max_bytes,
+            'max_bytes',
+            64 * 1024,
+            MAX_INLINE_ATTACHMENT_BYTES,
+          ) ?? DEFAULT_INLINE_ATTACHMENT_BYTES,
         },
       };
+
+    case 'crm.search_contacts':
+      return {
+        action: 'crm.search_contacts',
+        input: {
+          query: requiredString(input.query, 'query', 1, 75),
+          limit: optionalInteger(input.limit, 'limit', 1, 20) ?? 20,
+          page: optionalInteger(input.page, 'page', 1, 1000) ?? 1,
+        },
+      };
+
+    case 'crm.search_opportunities': {
+      const query = optionalString(input.query, 'query', 1, 200);
+      const contactId = optionalGhlId(input.contact_id, 'contact_id');
+      if (!query && !contactId) {
+        throw new RequestValidationError('query or contact_id is required');
+      }
+      return {
+        action: 'crm.search_opportunities',
+        input: {
+          query,
+          contact_id: contactId,
+          pipeline_id: optionalGhlId(input.pipeline_id, 'pipeline_id'),
+          stage_id: optionalGhlId(input.stage_id, 'stage_id'),
+          status: optionalEnum(
+            input.status,
+            'status',
+            ['open', 'won', 'lost', 'abandoned', 'all'] as const,
+          ),
+          limit: optionalInteger(input.limit, 'limit', 1, 50) ?? 20,
+          page: optionalInteger(input.page, 'page', 1, 1000) ?? 1,
+        },
+      };
+    }
+
+    case 'crm.list_pipelines':
+      return { action: 'crm.list_pipelines', input: {} };
   }
+}
+
+export function isUntrustedExternalAction(action: GatewayAction): boolean {
+  return action.startsWith('email.') || action.startsWith('crm.');
 }
 
 export function summarizeGatewayInput(request: GatewayRequest): {
@@ -126,16 +190,55 @@ export function summarizeGatewayInput(request: GatewayRequest): {
       };
     case 'email.get_attachment':
       return {
-        inputSummary: { message_id: request.input.message_id },
+        inputSummary: {
+          message_id: request.input.message_id,
+          max_bytes: request.input.max_bytes,
+        },
         resourceType: 'gmail_attachment',
         resourceId: String(request.input.attachment_id),
+      };
+    case 'crm.search_contacts':
+      return {
+        inputSummary: {
+          query_length: String(request.input.query).length,
+          limit: request.input.limit,
+          page: request.input.page,
+        },
+        resourceType: 'ghl_contact_search',
+        resourceId: null,
+      };
+    case 'crm.search_opportunities':
+      return {
+        inputSummary: {
+          query_length: request.input.query ? String(request.input.query).length : 0,
+          has_contact_id: Boolean(request.input.contact_id),
+          has_pipeline_id: Boolean(request.input.pipeline_id),
+          has_stage_id: Boolean(request.input.stage_id),
+          status: request.input.status,
+          limit: request.input.limit,
+          page: request.input.page,
+        },
+        resourceType: 'ghl_opportunity_search',
+        resourceId: null,
+      };
+    case 'crm.list_pipelines':
+      return {
+        inputSummary: {},
+        resourceType: 'ghl_pipeline_list',
+        resourceId: null,
       };
   }
 }
 
 export function selectedHeaders(headers: unknown): Record<string, string> {
   const allowed = new Set([
-    'from', 'to', 'cc', 'delivered-to', 'subject', 'date', 'message-id',
+    'from',
+    'to',
+    'cc',
+    'delivered-to',
+    'subject',
+    'date',
+    'message-id',
   ]);
   const result: Record<string, string> = {};
   if (!Array.isArray(headers)) return result;
@@ -180,9 +283,7 @@ export function extractAttachments(
   ) {
     output.push({
       filename: payload.filename,
-      mime_type: typeof payload.mimeType === 'string'
-        ? payload.mimeType
-        : 'application/octet-stream',
+      mime_type: typeof payload.mimeType === 'string' ? payload.mimeType : 'application/octet-stream',
       size: typeof payload.body.size === 'number' ? payload.body.size : null,
       attachment_id: payload.body.attachmentId,
     });
@@ -229,6 +330,37 @@ function optionalPageToken(value: unknown): string | null {
   return result;
 }
 
+function optionalGhlId(value: unknown, field: string): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const result = requiredString(value, field, 1, 128);
+  if (!/^[A-Za-z0-9_-]+$/.test(result)) {
+    throw new RequestValidationError(`${field} is invalid`);
+  }
+  return result;
+}
+
+function optionalString(
+  value: unknown,
+  field: string,
+  minimum: number,
+  maximum: number,
+): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  return requiredString(value, field, minimum, maximum);
+}
+
+function optionalEnum<const T extends readonly string[]>(
+  value: unknown,
+  field: string,
+  allowed: T,
+): T[number] | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !allowed.includes(value)) {
+    throw new RequestValidationError(`${field} is invalid`);
+  }
+  return value as T[number];
+}
+
 function requiredString(
   value: unknown,
   field: string,
@@ -254,7 +386,10 @@ function optionalInteger(
   maximum: number,
 ): number | null {
   if (value === undefined || value === null) return null;
-  if (!Number.isSafeInteger(value) || Number(value) < minimum || Number(value) > maximum) {
+  if (
+    !Number.isSafeInteger(value) || Number(value) < minimum ||
+    Number(value) > maximum
+  ) {
     throw new RequestValidationError(
       `${field} must be an integer between ${minimum} and ${maximum}`,
     );

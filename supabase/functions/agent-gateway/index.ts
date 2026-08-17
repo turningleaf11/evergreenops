@@ -1,9 +1,17 @@
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import { refreshAccessToken } from '../_shared/gmail.ts';
 import {
+  GhlReadError,
+  listGhlPipelines,
+  resolveGhlContext,
+  searchGhlContacts,
+  searchGhlOpportunities,
+} from '../_shared/ghl.ts';
+import {
   extractAttachments,
   extractBody,
   GatewayRequest,
+  isUntrustedExternalAction,
   parseBearerToken,
   parseGatewayRequest,
   RequestValidationError,
@@ -14,7 +22,6 @@ import {
 } from './core.ts';
 
 const DEFAULT_GMAIL_ACCOUNT = 'office@evergreenhomegroup.com';
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 64 * 1024;
 
 interface AgentContext {
@@ -51,7 +58,10 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
-    return json({ error: 'gateway_not_configured', request_id: requestId }, 500);
+    return json(
+      { error: 'gateway_not_configured', request_id: requestId },
+      500,
+    );
   }
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
@@ -80,7 +90,10 @@ Deno.serve(async (req) => {
           error_code: auth.error.code,
         }));
       }
-      return json({ error: auth.error.code, request_id: requestId }, auth.error.status);
+      return json(
+        { error: auth.error.code, request_id: requestId },
+        auth.error.status,
+      );
     }
 
     if (!context) throw new GatewayError(401, 'invalid_credentials');
@@ -91,7 +104,11 @@ Deno.serve(async (req) => {
       throw new GatewayError(403, 'agent_disabled');
     }
 
-    const permission = await getPermission(admin, context.agentId, request.action);
+    const permission = await getPermission(
+      admin,
+      context.agentId,
+      request.action,
+    );
     if (!permission) {
       throw new GatewayError(403, 'action_not_permitted');
     }
@@ -113,11 +130,15 @@ Deno.serve(async (req) => {
         errorCode: 'rate_limit_exceeded',
         request,
       });
-      return json({
-        error: 'rate_limit_exceeded',
-        request_id: requestId,
-        retry_after_seconds: rateLimit.retryAfterSeconds,
-      }, 429, { 'Retry-After': String(rateLimit.retryAfterSeconds) });
+      return json(
+        {
+          error: 'rate_limit_exceeded',
+          request_id: requestId,
+          retry_after_seconds: rateLimit.retryAfterSeconds,
+        },
+        429,
+        { 'Retry-After': String(rateLimit.retryAfterSeconds) },
+      );
     }
 
     const payloadHash = await sha256Hex(JSON.stringify(request));
@@ -145,7 +166,9 @@ Deno.serve(async (req) => {
       .from('agent_gateway_operations')
       .update({ status: 'succeeded' })
       .eq('id', operationId);
-    if (operationUpdateError) throw new GatewayError(500, 'operation_update_failed');
+    if (operationUpdateError) {
+      throw new GatewayError(500, 'operation_update_failed');
+    }
 
     const auditWritten = await writeAudit(admin, req, {
       requestId,
@@ -163,7 +186,7 @@ Deno.serve(async (req) => {
       ok: true,
       request_id: requestId,
       action: request.action,
-      untrusted_external_content: request.action.startsWith('email.'),
+      untrusted_external_content: isUntrustedExternalAction(request.action),
       data: result,
     });
   } catch (error) {
@@ -211,7 +234,10 @@ async function authenticate(
 }> {
   const rawToken = parseBearerToken(req.headers.get('Authorization'));
   if (!rawToken) {
-    return { context: null, error: { status: 401, code: 'invalid_credentials' } };
+    return {
+      context: null,
+      error: { status: 401, code: 'invalid_credentials' },
+    };
   }
 
   const tokenHash = await sha256Hex(rawToken);
@@ -222,7 +248,10 @@ async function authenticate(
     .maybeSingle();
 
   if (error || !credential) {
-    return { context: null, error: { status: 401, code: 'invalid_credentials' } };
+    return {
+      context: null,
+      error: { status: 401, code: 'invalid_credentials' },
+    };
   }
 
   const { data: agent, error: agentError } = await admin
@@ -232,7 +261,10 @@ async function authenticate(
     .maybeSingle();
 
   if (agentError || !agent) {
-    return { context: null, error: { status: 401, code: 'invalid_credentials' } };
+    return {
+      context: null,
+      error: { status: 401, code: 'invalid_credentials' },
+    };
   }
 
   const context: AgentContext = {
@@ -247,7 +279,10 @@ async function authenticate(
   if (credential.revoked_at) {
     return { context, error: { status: 401, code: 'credential_revoked' } };
   }
-  if (credential.expires_at && new Date(credential.expires_at).getTime() <= Date.now()) {
+  if (
+    credential.expires_at &&
+    new Date(credential.expires_at).getTime() <= Date.now()
+  ) {
     return { context, error: { status: 401, code: 'credential_expired' } };
   }
 
@@ -342,20 +377,46 @@ async function dispatch(
     };
   }
 
+  if (request.action.startsWith('crm.')) {
+    const ghlContext = await resolveGhlContext(admin);
+    switch (request.action) {
+      case 'crm.search_contacts':
+        return searchGhlContacts(ghlContext, request.input);
+      case 'crm.search_opportunities':
+        return searchGhlOpportunities(ghlContext, request.input);
+      case 'crm.list_pipelines':
+        return listGhlPipelines(ghlContext);
+    }
+  }
+
   const gmailContext = await resolveGmailContext(admin, context.workspaceId);
 
   switch (request.action) {
     case 'email.list':
-      return listMessages(gmailContext.accessToken, gmailContext.email, request.input, true);
+      return listMessages(
+        gmailContext.accessToken,
+        gmailContext.email,
+        request.input,
+        true,
+      );
     case 'email.search':
-      return listMessages(gmailContext.accessToken, gmailContext.email, request.input, false);
+      return listMessages(
+        gmailContext.accessToken,
+        gmailContext.email,
+        request.input,
+        false,
+      );
     case 'email.read':
-      return getThread(gmailContext.accessToken, String(request.input.thread_id));
+      return getThread(
+        gmailContext.accessToken,
+        String(request.input.thread_id),
+      );
     case 'email.get_attachment':
       return getAttachment(
         gmailContext.accessToken,
         String(request.input.message_id),
         String(request.input.attachment_id),
+        Number(request.input.max_bytes),
       );
     default:
       throw new GatewayError(400, 'unsupported_action');
@@ -420,7 +481,9 @@ async function listMessages(
     (listed.messages ?? []).map(async (item: { id: string }) => {
       const metadata = await google(
         accessToken,
-        `/messages/${encodeURIComponent(item.id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Delivered-To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID`,
+        `/messages/${
+          encodeURIComponent(item.id)
+        }?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Delivered-To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID`,
       );
       return summarizeMessage(metadata);
     }),
@@ -455,6 +518,7 @@ async function getAttachment(
   accessToken: string,
   messageId: string,
   attachmentId: string,
+  maximumBytes: number,
 ): Promise<Record<string, unknown>> {
   const attachment = await google(
     accessToken,
@@ -464,13 +528,14 @@ async function getAttachment(
   if (!Number.isFinite(size) || size < 0) {
     throw new GatewayError(502, 'invalid_gmail_attachment');
   }
-  if (size > MAX_ATTACHMENT_BYTES) {
-    throw new GatewayError(413, 'attachment_too_large');
+  if (size > maximumBytes) {
+    throw new GatewayError(413, 'attachment_exceeds_inline_limit');
   }
   return {
     attachment: {
       data_base64url: typeof attachment.data === 'string' ? attachment.data : '',
       size,
+      inline_limit_bytes: maximumBytes,
     },
   };
 }
@@ -489,11 +554,15 @@ async function google(accessToken: string, path: string): Promise<any> {
       event: 'agent_gateway_google_error',
       status: response.status,
     }));
-    if (response.status === 404) throw new GatewayError(404, 'gmail_resource_not_found');
+    if (response.status === 404) {
+      throw new GatewayError(404, 'gmail_resource_not_found');
+    }
     if (response.status === 401 || response.status === 403) {
       throw new GatewayError(503, 'gmail_reauth_required');
     }
-    if (response.status === 429) throw new GatewayError(503, 'gmail_rate_limited');
+    if (response.status === 429) {
+      throw new GatewayError(503, 'gmail_rate_limited');
+    }
     throw new GatewayError(502, 'gmail_request_failed');
   }
   return response.json();
@@ -574,6 +643,9 @@ async function writeAudit(
 
 function normalizeError(error: unknown): GatewayError {
   if (error instanceof GatewayError) return error;
+  if (error instanceof GhlReadError) {
+    return new GatewayError(error.status, error.code);
+  }
   if (error instanceof DOMException && error.name === 'TimeoutError') {
     return new GatewayError(504, 'upstream_timeout');
   }

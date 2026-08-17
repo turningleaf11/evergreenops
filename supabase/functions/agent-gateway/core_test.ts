@@ -1,11 +1,17 @@
 import {
+  DEFAULT_INLINE_ATTACHMENT_BYTES,
+  isUntrustedExternalAction,
+  MAX_INLINE_ATTACHMENT_BYTES,
   parseBearerToken,
   parseGatewayRequest,
   RequestValidationError,
   summarizeGatewayInput,
 } from './core.ts';
 
-function assert(condition: unknown, message = 'Assertion failed'): asserts condition {
+function assert(
+  condition: unknown,
+  message = 'Assertion failed',
+): asserts condition {
   if (!condition) throw new Error(message);
 }
 
@@ -51,17 +57,20 @@ Deno.test('normalizes email.list defaults', () => {
 });
 
 Deno.test('validates and normalizes email.search', () => {
-  assertEquals(parseGatewayRequest({
-    action: 'email.search',
-    input: { query: 'from:broker@example.com', max_results: 10 },
-  }), {
-    action: 'email.search',
-    input: {
-      query: 'from:broker@example.com',
-      max_results: 10,
-      page_token: null,
+  assertEquals(
+    parseGatewayRequest({
+      action: 'email.search',
+      input: { query: 'from:broker@example.com', max_results: 10 },
+    }),
+    {
+      action: 'email.search',
+      input: {
+        query: 'from:broker@example.com',
+        max_results: 10,
+        page_token: null,
+      },
     },
-  });
+  );
 });
 
 Deno.test('rejects unsupported actions and invalid Gmail identifiers', () => {
@@ -70,10 +79,11 @@ Deno.test('rejects unsupported actions and invalid Gmail identifiers', () => {
     RequestValidationError,
   );
   assertThrows(
-    () => parseGatewayRequest({
-      action: 'email.read',
-      input: { thread_id: '../secret' },
-    }),
+    () =>
+      parseGatewayRequest({
+        action: 'email.read',
+        input: { thread_id: '../secret' },
+      }),
     RequestValidationError,
   );
 });
@@ -92,7 +102,7 @@ Deno.test('audit summary never contains the Gmail search query', () => {
   assert(!JSON.stringify(summary).includes('confidential seller terms'));
 });
 
-Deno.test('attachment requests retain only identifiers needed for routing', () => {
+Deno.test('attachment requests apply bounded inline limits', () => {
   const request = parseGatewayRequest({
     action: 'email.get_attachment',
     input: {
@@ -103,5 +113,110 @@ Deno.test('attachment requests retain only identifiers needed for routing', () =
   assertEquals(request.input, {
     message_id: 'message_123',
     attachment_id: 'attachment_456',
+    max_bytes: DEFAULT_INLINE_ATTACHMENT_BYTES,
   });
+  assertEquals(
+    parseGatewayRequest({
+      action: 'email.get_attachment',
+      input: {
+        message_id: 'message_123',
+        attachment_id: 'attachment_456',
+        max_bytes: MAX_INLINE_ATTACHMENT_BYTES,
+      },
+    }).input.max_bytes,
+    MAX_INLINE_ATTACHMENT_BYTES,
+  );
+  assertThrows(
+    () =>
+      parseGatewayRequest({
+        action: 'email.get_attachment',
+        input: {
+          message_id: 'message_123',
+          attachment_id: 'attachment_456',
+          max_bytes: MAX_INLINE_ATTACHMENT_BYTES + 1,
+        },
+      }),
+    RequestValidationError,
+  );
+});
+
+Deno.test('normalizes the three read-only CRM actions', () => {
+  assertEquals(
+    parseGatewayRequest({
+      action: 'crm.search_contacts',
+      input: { query: 'broker@example.com' },
+    }),
+    {
+      action: 'crm.search_contacts',
+      input: { query: 'broker@example.com', limit: 20, page: 1 },
+    },
+  );
+  assertEquals(
+    parseGatewayRequest({
+      action: 'crm.search_opportunities',
+      input: {
+        query: '123 Main St',
+        contact_id: 'contact_123',
+        pipeline_id: 'pipeline_123',
+        stage_id: 'stage_123',
+        status: 'open',
+      },
+    }),
+    {
+      action: 'crm.search_opportunities',
+      input: {
+        query: '123 Main St',
+        contact_id: 'contact_123',
+        pipeline_id: 'pipeline_123',
+        stage_id: 'stage_123',
+        status: 'open',
+        limit: 20,
+        page: 1,
+      },
+    },
+  );
+  assertEquals(parseGatewayRequest({ action: 'crm.list_pipelines' }), {
+    action: 'crm.list_pipelines',
+    input: {},
+  });
+});
+
+Deno.test('rejects broad or malformed CRM requests', () => {
+  assertThrows(
+    () =>
+      parseGatewayRequest({
+        action: 'crm.search_opportunities',
+        input: {},
+      }),
+    RequestValidationError,
+  );
+  assertThrows(
+    () =>
+      parseGatewayRequest({
+        action: 'crm.search_opportunities',
+        input: { query: '123 Main', status: 'deleted' },
+      }),
+    RequestValidationError,
+  );
+  assertThrows(
+    () =>
+      parseGatewayRequest({
+        action: 'crm.update_opportunity',
+        input: {},
+      }),
+    RequestValidationError,
+  );
+});
+
+Deno.test('CRM audit summaries omit search terms and external data stays untrusted', () => {
+  const request = parseGatewayRequest({
+    action: 'crm.search_opportunities',
+    input: { query: 'confidential property address' },
+  });
+  const summary = summarizeGatewayInput(request);
+  assert(summary.inputSummary.query_length === 29);
+  assert(!JSON.stringify(summary).includes('confidential property address'));
+  assert(isUntrustedExternalAction('email.read'));
+  assert(isUntrustedExternalAction('crm.search_contacts'));
+  assert(!isUntrustedExternalAction('system.whoami'));
 });
