@@ -64,7 +64,8 @@ export function TeamRoleControl({ targetUserId }: { targetUserId: string }) {
             <Briefcase className="h-3.5 w-3.5" /> Role
           </p>
           <p className="text-[10px] text-muted-foreground">
-            Which Team Hub Resources shelves they see. Not the same as their OpsHQ department.
+            Their job (Jr. Acq, Closer, Underwriter…) — which Team Hub Resources shelves they see. Not the access
+            level dropdown above, and not their OpsHQ department.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

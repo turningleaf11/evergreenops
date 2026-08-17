@@ -15,7 +15,6 @@ import {
   TRACK_OPTIONS, STATUS_OPTIONS, STATUS_COLORS, TRACK_COLORS, TRACK_LABEL, STATUS_LABEL,
 } from "./orbit-types";
 import { AlertTriangle, Plus, Trash2, Loader2, Calendar, BarChart3, ListChecks, FileText, CheckCircle2, UserMinus, Link2, RefreshCw } from "lucide-react";
-import { GhlUserPicker } from "./GhlUserPicker";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -63,8 +62,11 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // GHL sync
+  // GHL sync — the identity link itself now lives in Settings → Users
+  // (profiles.ghl_user_id), since it's a fact about the person, not their
+  // Orbit enrollment. This drawer just shows sync status and can trigger one.
   const [syncingGhl, setSyncingGhl] = useState(false);
+  const [ghlLink, setGhlLink] = useState<{ ghl_user_id: string | null; ghl_synced_at: string | null } | null>(null);
 
   const syncFromGhl = async () => {
     if (!memberId) return;
@@ -79,12 +81,14 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
       } else if (result) {
         toast.success(`Synced from GHL — ${result.metrics.deals_closed} deals, ${result.metrics.appointments_set} appts`);
         // Refresh the drawer's data
-        const [m, p] = await Promise.all([
-          sb.from("orbit_members").select("*").eq("id", memberId).maybeSingle(),
+        const [p, prof] = await Promise.all([
           sb.from("orbit_performance_snapshots").select("*").eq("member_id", memberId).order("snapshot_date", { ascending: false }).limit(12),
+          member ? sb.from("profiles").select("ghl_user_id, ghl_synced_at").eq("user_id", member.user_id).maybeSingle() : Promise.resolve({ data: null }),
         ]);
-        if (m.data) setMember(m.data as OrbitMember);
         if (p.data) setPerformance(p.data as OrbitPerformance[]);
+        if (prof.data) setGhlLink(prof.data);
+      } else {
+        toast.error("Not linked to a GHL user yet — set that in Settings → Users.");
       }
     } catch (e: any) {
       toast.error("Sync failed: " + String(e?.message ?? e));
@@ -107,6 +111,12 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
       setStrikes((s.data ?? []) as OrbitStrike[]);
       setPerformance((p.data ?? []) as OrbitPerformance[]);
       setNotes((m.data as any)?.notes || "");
+      if (m.data?.user_id) {
+        const { data: prof } = await sb.from("profiles").select("ghl_user_id, ghl_synced_at").eq("user_id", m.data.user_id).maybeSingle();
+        setGhlLink(prof ?? null);
+      } else {
+        setGhlLink(null);
+      }
       setLoading(false);
     })();
   }, [open, memberId]);
@@ -286,18 +296,18 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
               {/* Sales-only restricted UI toggle */}
               <OrbitOnlyAccessToggle userId={member.user_id} />
 
-              {/* GHL Link */}
+              {/* GHL Link — set in Settings → Users, this just shows status + a manual sync */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <Link2 className="h-3 w-3 text-muted-foreground" />
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">GHL account</p>
                   <div className="ml-auto flex items-center gap-2">
-                    {member.ghl_synced_at && (
+                    {ghlLink?.ghl_synced_at && (
                       <span className="text-[10px] text-muted-foreground/50">
-                        synced {format(new Date(member.ghl_synced_at), "MMM d, h:mm a")}
+                        synced {format(new Date(ghlLink.ghl_synced_at), "MMM d, h:mm a")}
                       </span>
                     )}
-                    {member.ghl_user_id && (
+                    {ghlLink?.ghl_user_id && (
                       <button
                         onClick={syncFromGhl}
                         disabled={syncingGhl}
@@ -309,13 +319,10 @@ export function OrbitMemberDetailDrawer({ open, onOpenChange, memberId, profile,
                     )}
                   </div>
                 </div>
-                <GhlUserPicker
-                  currentGhlUserId={member.ghl_user_id}
-                  onChange={(ghlUserId) => updateMember({ ghl_user_id: ghlUserId } as any)}
-                  compact
-                />
                 <p className="text-[10px] text-muted-foreground/70">
-                  Required to auto-sync appts and deals from GHL. Calls + conversations still need manual entry for now.
+                  {ghlLink?.ghl_user_id
+                    ? "Auto-syncs appts and deals from GHL. Calls + conversations still need manual entry for now."
+                    : "Not linked to a GHL user — set that in Settings → Users to enable auto-sync."}
                 </p>
               </div>
 

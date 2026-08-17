@@ -98,8 +98,6 @@ export interface OrbitMember {
   removed_at: string | null;
   removal_reason: string | null;
   notes: string;
-  ghl_user_id: string | null;
-  ghl_synced_at: string | null;
 }
 
 export interface OrbitChecklistItem {
