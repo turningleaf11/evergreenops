@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "supabase/functions/agent-gateway/**"
+      - "supabase/functions/agent-gateway-mcp/**"
       - "supabase/functions/_shared/gmail.ts"
       - "supabase/migrations/*agent_gateway*"
       - ".github/workflows/agent-gateway.yml"
@@ -12,6 +13,7 @@ on:
       - main
     paths:
       - "supabase/functions/agent-gateway/**"
+      - "supabase/functions/agent-gateway-mcp/**"
       - "supabase/functions/_shared/gmail.ts"
       - "supabase/migrations/*agent_gateway*"
       - ".github/workflows/agent-gateway.yml"
@@ -29,5 +31,9 @@ jobs:
           deno-version: v2.x
       - name: Type-check Gateway
         run: deno check supabase/functions/agent-gateway/index.ts
+      - name: Type-check MCP adapter
+        run: deno check --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp/index.ts
       - name: Test request boundary
         run: deno test supabase/functions/agent-gateway/core_test.ts
+      - name: Test MCP adapter boundary
+        run: deno test supabase/functions/agent-gateway-mcp/core_test.ts

@@ -39,3 +39,8 @@ verify_jwt = false
 # issued human Supabase sessions or project signing secrets.
 [functions.agent-gateway]
 verify_jwt = false
+
+# Thin MCP protocol adapter. It forwards the caller's opaque agent credential
+# to agent-gateway, which remains the sole authentication and policy engine.
+[functions.agent-gateway-mcp]
+verify_jwt = false

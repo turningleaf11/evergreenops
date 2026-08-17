@@ -50,6 +50,55 @@ into the Authorization header outside the model-visible tool arguments.
 The model-visible tool contract must contain only `action` and `input`.
 Ema must never be asked to read, remember, print, or interpolate the credential.
 
+## MCP adapter milestone
+
+`agent-gateway-mcp` is a thin Streamable HTTP MCP adapter in front of the JSON
+Gateway. It does not authenticate credentials or reproduce Gateway policy. For
+each MCP request it forwards the caller's `Authorization` header to the
+existing `system.whoami` action and reuses that authenticated result.
+
+Initially the adapter exposes exactly one MCP tool:
+
+- `system_whoami` -> `system.whoami`
+
+No Gmail or CRM MCP tools are exposed in this milestone. The JSON Gateway
+continues to own the credential check, agent kill switch, permission lookup,
+rate limit, operation record, execution, and audit event.
+
+Production endpoint:
+
+```text
+https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp
+```
+
+OpenClaw must inject the hosted environment variable rather than a literal
+credential:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "ema-gateway": {
+        "url": "https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "Authorization": "Bearer ${EMA_GATEWAY_TOKEN}"
+        },
+        "toolFilter": {
+          "include": ["system_whoami"]
+        },
+        "supportsParallelToolCalls": false,
+        "connectionTimeoutMs": 5000,
+        "requestTimeoutMs": 30000
+      }
+    }
+  }
+}
+```
+
+This server binding is for Ema only. Do not project it into Albus, Cash, or any
+other agent runtime.
+
 ## Authentication and authorization
 
 1. Hash the presented bearer credential with SHA-256.
