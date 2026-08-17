@@ -170,7 +170,7 @@ async function syncMember(admin: any, apiKey: string, locationId: string, member
       source: "ghl",
     }, { onConflict: "member_id,snapshot_date" });
 
-    await admin.from("orbit_members").update({ ghl_synced_at: new Date().toISOString() }).eq("id", member.id);
+    await admin.from("profiles").update({ ghl_synced_at: new Date().toISOString() }).eq("user_id", member.user_id);
 
     return { member_id: member.id, ghl_user_id: member.ghl_user_id, week: weekStart, metrics: { deals_closed, appointments_set, calls_made, conversations } };
   } catch (e: any) {
@@ -212,14 +212,25 @@ Deno.serve(async (req) => {
     const { apiKey, locationId } = await fetchGhlCreds(admin);
     if (!apiKey || !locationId) return json({ error: "GHL not configured (need GHL_API_KEY + GHL_LOCATION_ID)" }, 400);
 
-    let query = admin.from("orbit_members").select("id, user_id, ghl_user_id, status").not("ghl_user_id", "is", null);
+    let query = admin.from("orbit_members").select("id, user_id, status");
     if (memberId) query = query.eq("id", memberId);
     else if (all) query = query.in("status", ["active", "on_notice"]);
     else return json({ error: "Specify { memberId } or { all: true }" }, 400);
 
-    const { data: members, error: mErr } = await query;
+    const { data: memberRows, error: mErr } = await query;
     if (mErr) throw mErr;
-    if (!members || members.length === 0) return json({ synced: 0, results: [], message: "No linked members to sync" });
+    if (!memberRows || memberRows.length === 0) return json({ synced: 0, results: [], message: "No linked members to sync" });
+
+    // ghl_user_id lives on profiles now (it's the person's identity, not a fact
+    // about their Orbit enrollment) — resolve it in a second pass.
+    const userIds = memberRows.map((m: any) => m.user_id);
+    const { data: linkedProfiles } = await admin
+      .from("profiles").select("user_id, ghl_user_id").in("user_id", userIds).not("ghl_user_id", "is", null);
+    const ghlUserIdByUserId = new Map((linkedProfiles ?? []).map((p: any) => [p.user_id, p.ghl_user_id]));
+    const members = memberRows
+      .map((m: any) => ({ ...m, ghl_user_id: ghlUserIdByUserId.get(m.user_id) ?? null }))
+      .filter((m: any) => m.ghl_user_id);
+    if (members.length === 0) return json({ synced: 0, results: [], message: "No linked members to sync" });
 
     const results: SyncResult[] = [];
     for (const m of members) results.push(await syncMember(admin, apiKey, locationId, m, weekStart));

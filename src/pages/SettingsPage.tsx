@@ -33,6 +33,7 @@ import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel
 import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
 import { OrbitMembershipControl } from "@/components/settings/OrbitMembershipControl";
 import { TeamRoleControl } from "@/components/settings/TeamRoleControl";
+import { GhlLinkControl } from "@/components/settings/GhlLinkControl";
 import { PAGE_KEYS, PAGE_LABELS } from "@/hooks/usePageAccess";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -902,7 +903,7 @@ function UsersTab() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label>Access Level</Label>
                 <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1053,7 +1054,7 @@ function UsersTab() {
                   ) : (
                     <>
                       <Select value={currentRole} onValueChange={(v) => handleRoleChange(u.user_id, v as AppRole)}>
-                        <SelectTrigger className="w-24 h-8 text-xs">
+                        <SelectTrigger className="w-24 h-8 text-xs" title="Access level">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1137,6 +1138,7 @@ function UsersTab() {
 
               {!u.is_primary && <TeamRoleControl targetUserId={u.user_id} />}
               {!u.is_primary && <OrbitMembershipControl targetUserId={u.user_id} />}
+              <GhlLinkControl targetUserId={u.user_id} />
             </CardContent>
           </Card>
         );
