@@ -1,80 +1,76 @@
 // OrbitMembershipControl — one-stop Orbit provisioning from Settings → Users.
 //
 // Consolidates what used to be three disjoint steps (set is_orbit_only, create
-// an orbit_members row, pick a track) into a single toggle + track selector.
+// an orbit_members row, pick a track) into a single toggle + track checklist.
 // Turning "Orbit member" on enrolls the user in the Orbit program on a track
 // AND flips is_orbit_only so they get the member workbook hub.
+//
+// A person can hold more than one track at once (e.g. Kez works DTA + DTB) —
+// each checked track is its own orbit_members row. Unchecking a track doesn't
+// delete its row (that would lose its checklist/strike history); it sets
+// status to "removed" so re-checking later reactivates the same row instead
+// of violating the (user_id, department_id, track) unique constraint.
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TRACK_OPTIONS, type OrbitTrack } from "@/components/orbit/orbit-types";
 import { Loader2, Orbit } from "lucide-react";
 import { toast } from "sonner";
 
 const sb = supabase as any;
 
+type TrackRow = { id: string; track: OrbitTrack; status: string };
+
 export function OrbitMembershipControl({ targetUserId }: { targetUserId: string }) {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingTrack, setSavingTrack] = useState<OrbitTrack | null>(null);
   const [orbitOnly, setOrbitOnly] = useState(false);
-  const [hasMember, setHasMember] = useState(false);
-  const [track, setTrack] = useState<OrbitTrack>("dts");
+  const [rows, setRows] = useState<TrackRow[]>([]);
   const [programDeptId, setProgramDeptId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const [profRes, memRes, deptRes] = await Promise.all([
-        sb.from("profiles").select("is_orbit_only").eq("user_id", targetUserId).maybeSingle(),
-        sb.from("orbit_members").select("track, status").eq("user_id", targetUserId).maybeSingle(),
-        sb.from("departments").select("id").eq("is_program", true).maybeSingle(),
-      ]);
-      if (cancelled) return;
-      setOrbitOnly(!!profRes.data?.is_orbit_only);
-      if (memRes.data) { setHasMember(true); setTrack((memRes.data.track as OrbitTrack) ?? "dts"); }
-      setProgramDeptId(deptRes.data?.id ?? null);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [targetUserId]);
-
-  // Upsert the orbit_members row without relying on a DB unique constraint.
-  const persistMembership = async (nextTrack: OrbitTrack): Promise<boolean> => {
-    if (!programDeptId) { toast.error("No Orbit program department found"); return false; }
-    if (hasMember) {
-      const { error } = await sb.from("orbit_members")
-        .update({ track: nextTrack, status: "active", department_id: programDeptId })
-        .eq("user_id", targetUserId);
-      if (error) { toast.error(error.message); return false; }
-    } else {
-      const { error } = await sb.from("orbit_members")
-        .insert({ user_id: targetUserId, department_id: programDeptId, track: nextTrack, status: "active" });
-      if (error) { toast.error(error.message); return false; }
-      setHasMember(true);
-    }
-    return true;
+  const load = async () => {
+    setLoading(true);
+    const [profRes, memRes, deptRes] = await Promise.all([
+      sb.from("profiles").select("is_orbit_only").eq("user_id", targetUserId).maybeSingle(),
+      sb.from("orbit_members").select("id, track, status").eq("user_id", targetUserId),
+      sb.from("departments").select("id").eq("is_program", true).maybeSingle(),
+    ]);
+    setOrbitOnly(!!profRes.data?.is_orbit_only);
+    setRows((memRes.data as TrackRow[]) ?? []);
+    setProgramDeptId(deptRes.data?.id ?? null);
+    setLoading(false);
   };
 
+  useEffect(() => { load(); }, [targetUserId]);
+
+  const activeTracks = rows.filter((r) => r.status === "active");
+
   const toggleOrbit = async (next: boolean) => {
-    setSaving(true);
-    if (next && !(await persistMembership(track))) { setSaving(false); return; }
+    setSavingTrack(null);
     const { error } = await sb.from("profiles").update({ is_orbit_only: next }).eq("user_id", targetUserId);
-    setSaving(false);
     if (error) { toast.error(error.message); return; }
     setOrbitOnly(next);
     toast.success(next ? "Added to Orbit — member hub enabled" : "Removed from Orbit-only access");
   };
 
-  const changeTrack = async (v: string) => {
-    const next = v as OrbitTrack;
-    setTrack(next);
-    setSaving(true);
-    const ok = await persistMembership(next);
-    setSaving(false);
-    if (ok) toast.success("Track updated");
+  const toggleTrack = async (track: OrbitTrack, checked: boolean) => {
+    if (!programDeptId) { toast.error("No Orbit program department found"); return; }
+    setSavingTrack(track);
+    const existing = rows.find((r) => r.track === track);
+    if (checked) {
+      const { error } = existing
+        ? await sb.from("orbit_members").update({ status: "active" }).eq("id", existing.id)
+        : await sb.from("orbit_members").insert({ user_id: targetUserId, department_id: programDeptId, track, status: "active" });
+      if (error) { toast.error(error.message); setSavingTrack(null); return; }
+    } else if (existing) {
+      const { error } = await sb.from("orbit_members").update({ status: "removed", removed_at: new Date().toISOString() }).eq("id", existing.id);
+      if (error) { toast.error(error.message); setSavingTrack(null); return; }
+    }
+    await load();
+    setSavingTrack(null);
+    toast.success(checked ? `Added to ${track.toUpperCase()}` : `Removed from ${track.toUpperCase()}`);
   };
 
   if (loading) {
@@ -93,24 +89,35 @@ export function OrbitMembershipControl({ targetUserId }: { targetUserId: string 
             <Orbit className="h-3.5 w-3.5" /> Orbit member
           </p>
           <p className="text-[10px] text-muted-foreground">
-            Enrolls them in the Orbit program on a track and gives them the sales-only member hub. No internal ops.
+            Enrolls them in the Orbit program and gives them the sales-only member hub. No internal ops.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-          <Switch checked={orbitOnly} onCheckedChange={toggleOrbit} disabled={saving} />
+          <Switch checked={orbitOnly} onCheckedChange={toggleOrbit} />
         </div>
       </div>
 
-      {(orbitOnly || hasMember) && (
-        <div className="flex items-center gap-2 pl-0.5">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Track</span>
-          <Select value={track} onValueChange={changeTrack} disabled={saving}>
-            <SelectTrigger className="h-7 text-xs w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {TRACK_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      {(orbitOnly || activeTracks.length > 0) && (
+        <div className="pl-0.5 space-y-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Tracks {activeTracks.length > 1 && "(more than one — workbook shows a switcher)"}
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5">
+            {TRACK_OPTIONS.map((t) => {
+              const checked = activeTracks.some((r) => r.track === t.value);
+              return (
+                <label key={t.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                  <Checkbox
+                    checked={checked}
+                    disabled={savingTrack === t.value}
+                    onCheckedChange={(v) => toggleTrack(t.value, v === true)}
+                  />
+                  {t.label}
+                  {savingTrack === t.value && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />}
+                </label>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ import {
   docMatchesTrack,
   type Doc,
 } from "./ProgramOverview";
-import { TRACK_LABEL, STATUS_LABEL } from "./orbit-types";
+import { TRACK_LABEL, TRACK_ACCENT, STATUS_LABEL, type OrbitPerformance, type OrbitStrike } from "./orbit-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -212,13 +212,38 @@ function PacePage({ member, recentPerformance, strikes, accent }: any) {
 
 export function OrbitMemberHub() {
   const { profile, signOut } = useAuth();
-  const { member, recentPerformance, strikes, loading } = useMyOrbitMembership();
+  const { member: primaryMember, members, recentPerformance: primaryPerformance, strikes: primaryStrikes, loading } = useMyOrbitMembership();
   const [tab, setTab] = useState<TabKey>("playbook");
   const [docs, setDocs] = useState<Doc[]>([]);
   const [previewDoc, setPreviewDoc] = useState<{ id: string; title: string; content: string | null; author_name: string | null } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Someone can hold more than one active track at once (e.g. DTA + DTB) —
+  // the workbook shows one at a time, defaulting to the primary (earliest
+  // track_started_at), with a switcher when there's more than one active.
+  const activeMembers = useMemo(() => members.filter((m) => m.status === "active"), [members]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const member = activeMembers.find((m) => m.id === selectedMemberId) ?? primaryMember;
   const track = member?.track ?? null;
+
+  // Pace data only comes pre-fetched for the primary member from the hook —
+  // fetch it separately when the switcher picks a different track.
+  const [switchedPace, setSwitchedPace] = useState<{ recentPerformance: OrbitPerformance[]; strikes: OrbitStrike[] } | null>(null);
+  useEffect(() => {
+    if (!member || member.id === primaryMember?.id) { setSwitchedPace(null); return; }
+    let cancelled = false;
+    (async () => {
+      const [perfRes, strikesRes] = await Promise.all([
+        sb.from("orbit_performance_snapshots").select("*").eq("member_id", member.id).order("snapshot_date", { ascending: false }).limit(6),
+        sb.from("orbit_strikes").select("*").eq("member_id", member.id).order("strike_number", { ascending: true }),
+      ]);
+      if (!cancelled) setSwitchedPace({ recentPerformance: perfRes.data ?? [], strikes: strikesRes.data ?? [] });
+    })();
+    return () => { cancelled = true; };
+  }, [member?.id, primaryMember?.id]);
+  const recentPerformance = switchedPace?.recentPerformance ?? primaryPerformance;
+  const strikes = switchedPace?.strikes ?? primaryStrikes;
+
   const { content } = useTrackContent(track ?? "dts");
   const { accentColor } = useWorkspace();
   // Lock the hub to the workspace brand color (Settings → Accent Color),
@@ -226,13 +251,13 @@ export function OrbitMemberHub() {
   const accent = accentToCss(accentColor);
 
   useEffect(() => {
-    if (!member?.department_id) return;
+    if (!primaryMember?.department_id) return;
     (async () => {
       const { data } = await sb.from("documents").select("id, title, author_name, updated_at, visibility, shared_with, tags, icon");
       const all = (data ?? []) as (Doc & { visibility: string; shared_with: any })[];
-      setDocs(all.filter((d) => isSharedWithDept(d, member.department_id)));
+      setDocs(all.filter((d) => isSharedWithDept(d, primaryMember.department_id)));
     })();
-  }, [member?.department_id]);
+  }, [primaryMember?.department_id]);
 
   const openDoc = async (docId: string) => {
     const { data } = await sb.from("documents").select("id, title, content, author_name").eq("id", docId).single();
@@ -327,6 +352,26 @@ export function OrbitMemberHub() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {activeMembers.length > 1 && (
+          <div className="flex items-center gap-1.5 px-4 sm:px-6 pb-3">
+            {activeMembers.map((m) => {
+              const on = m.id === member.id;
+              const trackAccent = TRACK_ACCENT[m.track];
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMemberId(m.id)}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide transition-colors"
+                  style={on
+                    ? { background: soft(trackAccent, 15), color: trackAccent }
+                    : { color: "var(--muted-foreground)" }}
+                >
+                  {TRACK_LABEL[m.track]}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       {/* Body — desktop left rail + content */}
