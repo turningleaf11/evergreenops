@@ -213,6 +213,9 @@ const App = () => (
                 <Route element={<PrimaryAdminRoute />}>
                   <Route path="/ceo" element={<CeoDashboard />} />
                 </Route>
+                {/* Agent task board — currently the primary admin (+ any explicit
+                    page_grants), by design. To widen to all Admins later, change
+                    minRole below to "admin". */}
                 <Route element={<PageRoute pageKey="ai_hub" minRole="primary_admin" />}>
                   <Route path="/ai-hub" element={<AiHubPage />} />
                   <Route path="/ai-hub/agent-tasks" element={<AiHubAgentTasksPage />} />

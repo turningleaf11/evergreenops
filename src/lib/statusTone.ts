@@ -51,21 +51,19 @@ const PROJECT: Record<string, Tone> = {
 
 // Agent (AI) tasks share this same registry as human tasks — an agent
 // task should never look like a different product from a human one.
-// The extra values below (backlog/pending/doing/review/approved/
-// needs_input/cancelled) are stages a human task doesn't have; add more
-// here if agents grow new stages.
+// Both `tasks.status` and `agent_tasks.status` use these exact 7 keys,
+// literally — no bucketing/aliasing layer on top. A card's status badge
+// must always equal a real column on whichever board it's rendered in;
+// don't reintroduce synonym keys here to paper over a board that hasn't
+// added the matching column.
 const TASK: Record<string, Tone> = {
-  todo:        tone("neutral", "To Do"),
   backlog:     tone("neutral", "Backlog"),
-  pending:     tone("neutral", "To Do"),
+  todo:        tone("neutral", "To Do"),
   in_progress: tone("info",    "In Progress"),
-  doing:       tone("info",    "In Progress"),
-  review:      tone("accent",  "Reviewing"),
-  approved:    tone("accent",  "Reviewing"),
-  needs_input: tone("danger",  "Needs Input"),
   blocked:     tone("danger",  "Blocked"),
+  review:      tone("accent",  "Review"),
+  approved:    tone("accent",  "Approved"),
   done:        tone("success", "Done"),
-  cancelled:   tone("neutral", "Cancelled"),
 };
 
 const ISSUE: Record<string, Tone> = {

@@ -8,6 +8,10 @@ import GoalCard from "@/components/execution/GoalCard";
 import GoalPeek from "@/components/execution/GoalPeek";
 import ViewControls, { ViewMode, SortField, SortDir } from "@/components/execution/ViewControls";
 import { useViewPreference } from "@/hooks/useViewPreference";
+import { useStageVisibility } from "@/hooks/useStageVisibility";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { useUrlState } from "@/hooks/useUrlState";
 import KanbanBoard from "@/components/execution/KanbanBoard";
 import TableView from "@/components/execution/TableView";
@@ -27,9 +31,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Target, Plus, ChevronDown, Calendar, CheckCircle2, Circle, Clock,
   AlertTriangle, XCircle, AlertCircle, ArrowRight, MessageSquare, Lightbulb, X, Search,
-  User, Repeat, Sparkles,
+  User, Repeat,
 } from "lucide-react";
-import { AgentTaskDetail } from "@/components/execution/AgentTaskDetail";
 import { toast } from "sonner";
 import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
@@ -57,12 +60,6 @@ type Task = {
   goal_id: string | null; status: string; priority: string; assigned_to: string | null;
   due_date: string | null; created_by: string | null; created_at: string; updated_at: string;
   tags: string[]; is_recurring?: boolean; recurrence_rule?: any; recurring_parent_id?: string | null;
-};
-type AgentTask = {
-  id: string; title: string; description: string | null; assigned_to: string;
-  status: string; priority: string; created_at: string; updated_at: string;
-  due_date: string | null; is_system_task: boolean; project_id: string | null;
-  context: Record<string, unknown> | null;
 };
 type AgentMeta = { slug: string; name: string; emoji: string | null; avatar_url: string | null; accent_color: string | null };
 
@@ -98,9 +95,12 @@ const projectStatusOptions = [
 ];
 
 const taskStatusOptions = [
+  { value: "backlog", label: "Backlog" },
   { value: "todo", label: "To Do" },
   { value: "in_progress", label: "In Progress" },
   { value: "blocked", label: "Blocked" },
+  { value: "review", label: "Review" },
+  { value: "approved", label: "Approved" },
   { value: "done", label: "Done" },
 ];
 
@@ -119,12 +119,21 @@ const projectKanbanColsBase = [
   { key: "done",        label: "Completed",   color: "green" },
 ];
 
+// Literal, non-bucketed — shared verbatim with AI Hub's column set
+// (statusTone.ts TASK registry). A human task simply won't populate
+// Review/Approved unless the team opts into a sign-off step for it; those
+// columns still exist for real, they're just hidden by default (see
+// useStageVisibility) rather than mapped into a coarser bucket.
 const taskKanbanColsBase = [
+  { key: "backlog", label: "Backlog", color: "slate" },
   { key: "todo", label: "To Do", color: "slate" },
   { key: "in_progress", label: "In Progress", color: "blue" },
   { key: "blocked", label: "Blocked", color: "red" },
+  { key: "review", label: "Review", color: "violet" },
+  { key: "approved", label: "Approved", color: "violet" },
   { key: "done", label: "Done", color: "green" },
 ];
+const DEFAULT_VISIBLE_TASK_STAGES = ["backlog", "todo", "in_progress", "blocked", "done"];
 
 const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
@@ -177,15 +186,13 @@ export default function ExecutionPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const [agentsMeta, setAgentsMeta] = useState<AgentMeta[]>([]);
   const [repos, setRepos] = useState<{ slug: string; name: string; github_repo: string }[]>([]);
-  const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine" | "ai" | "needs_input">("all");
+  const [taskSourceFilter, setTaskSourceFilter] = useState<"all" | "mine">("all");
   const [taskGroupBy, setTaskGroupBy] = useState<"none" | "status" | "priority" | "due_date" | "assignee" | "project">("none");
-  const [showSystemTasks, setShowSystemTasks] = useState(false);
   const [addingTaskCol, setAddingTaskCol] = useState<string | null>(null);
   const [addTaskTitle, setAddTaskTitle] = useState("");
-  const [agentTaskPeekId, setAgentTaskPeekId] = useUrlState("aiTask");
+  const [visibleTaskStages, toggleTaskStage] = useStageVisibility("execution:tasks", DEFAULT_VISIBLE_TASK_STAGES);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null; avatar_url?: string | null }[]>([]);
   const [stageColors, setStageColors] = useState<Record<string, string>>({});
@@ -233,13 +240,12 @@ export default function ExecutionPage() {
   const tv = useViewState("tasks");
 
   const fetchAll = useCallback(async () => {
-    const [g, p, t, pr, i, at, ag, rp] = await Promise.all([
+    const [g, p, t, pr, i, ag, rp] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, avatar_url"),
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
-      supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("agents").select("slug, name, emoji, avatar_url, accent_color"),
       supabase.from("repos").select("slug, name, github_repo").eq("active", true),
     ]);
@@ -248,7 +254,6 @@ export default function ExecutionPage() {
     if (t.data) setTasks(t.data as any);
     if (pr.data) setProfiles(pr.data);
     if (i.data) setIssues(i.data as any);
-    if (at.data) setAgentTasks(at.data as any);
     if (ag.data) setAgentsMeta(ag.data as any);
     if (rp.data) setRepos(rp.data as any);
   }, []);
@@ -271,62 +276,21 @@ export default function ExecutionPage() {
     return applyFilters(base, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir);
   }, [tasks, isAdmin, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
 
-  const visibleAgentTasks = useMemo(
-    () => agentTasks.filter(t => showSystemTasks || !t.is_system_task),
-    [agentTasks, showSystemTasks]
-  );
-  const systemHiddenCount = useMemo(
-    () => agentTasks.filter(t => t.is_system_task).length,
-    [agentTasks]
-  );
-  const needsInputCount = useMemo(
-    () => agentTasks.filter(t => t.status === "needs_input").length,
-    [agentTasks]
-  );
-  const getAgentMeta = (slug: string) => agentsMeta.find(a => a.slug === slug);
-
-  // Unified Tasks tab feed (list view only): human tasks + agent tasks merged
-  // into one chronological feed, per the AI Hub / Execution Hub task-board merge.
-  type UnifiedRow = { kind: "human"; task: Task } | { kind: "agent"; task: AgentTask };
-  const unifiedFeed = useMemo<UnifiedRow[]>(() => {
-    let humanRows: UnifiedRow[] = [];
-    let agentRows: UnifiedRow[] = [];
-    if (taskSourceFilter === "all") {
-      humanRows = visibleTasks.map(task => ({ kind: "human" as const, task }));
-      agentRows = visibleAgentTasks.map(task => ({ kind: "agent" as const, task }));
-    } else if (taskSourceFilter === "mine") {
-      humanRows = applyFilters(
+  // Tasks tab feed — human tasks only. Agent tasks live in the AI Hub now;
+  // the two boards don't share a feed or a bucketed status mapping, so a
+  // card's status badge always equals a real column on whichever board
+  // it's rendered in.
+  const taskFeed = useMemo(() => {
+    if (taskSourceFilter === "mine") {
+      return applyFilters(
         tasks.filter(t => t.assigned_to === user?.id),
         tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir
-      ).map(task => ({ kind: "human" as const, task }));
-    } else if (taskSourceFilter === "ai") {
-      agentRows = visibleAgentTasks.map(task => ({ kind: "agent" as const, task }));
-    } else if (taskSourceFilter === "needs_input") {
-      agentRows = visibleAgentTasks.filter(t => t.status === "needs_input").map(task => ({ kind: "agent" as const, task }));
+      );
     }
-    return [...humanRows, ...agentRows].sort(
-      (a, b) => new Date(b.task.created_at).getTime() - new Date(a.task.created_at).getTime()
-    );
-  }, [taskSourceFilter, visibleTasks, visibleAgentTasks, tasks, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
+    return visibleTasks;
+  }, [taskSourceFilter, visibleTasks, tasks, user?.id, tv.search, tv.filterStatus, tv.filterPriority, tv.sortField, tv.sortDir]);
 
-  // Shared bucketing across human tasks + agent_tasks — used by both the
-  // board view's columns and the list/table "Group by" control, so the two
-  // task models line up the same way everywhere.
-  const statusBucket = (row: UnifiedRow): string => {
-    if (row.kind === "human") return row.task.status;
-    if (["backlog", "pending"].includes(row.task.status)) return "todo";
-    if (row.task.status === "needs_input") return "blocked";
-    if (row.task.status === "done" || row.task.status === "cancelled") return "done";
-    return "in_progress"; // doing, review, approved
-  };
-  const priorityKey = (row: UnifiedRow): string => {
-    const p = row.task.priority || "medium";
-    return p === "normal" ? "medium" : p;
-  };
-  const assigneeLabel = (row: UnifiedRow): string =>
-    row.kind === "human" ? getName(row.task.assigned_to) : (getAgentMeta(row.task.assigned_to)?.name || row.task.assigned_to);
-  const dueDateBucket = (row: UnifiedRow): { key: string; label: string; order: number } => {
-    const dueRaw = row.task.due_date;
+  const dueDateBucket = (dueRaw: string | null): { key: string; label: string; order: number } => {
     if (!dueRaw) return { key: "none", label: "No Due Date", order: 99 };
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const due = new Date(dueRaw.length <= 10 ? `${dueRaw}T00:00:00` : dueRaw);
@@ -339,42 +303,42 @@ export default function ExecutionPage() {
     return { key: "later", label: "Later", order: 5 };
   };
 
-  const groupedUnifiedFeed = useMemo(() => {
-    if (taskGroupBy === "none") return [{ key: "all", label: "", rows: unifiedFeed }];
-    const groups = new Map<string, { label: string; order: number; rows: UnifiedRow[] }>();
-    for (const row of unifiedFeed) {
+  const groupedTaskFeed = useMemo(() => {
+    if (taskGroupBy === "none") return [{ key: "all", label: "", rows: taskFeed }];
+    const groups = new Map<string, { label: string; order: number; rows: Task[] }>();
+    for (const task of taskFeed) {
       let key: string, label: string, order: number;
       if (taskGroupBy === "status") {
-        key = statusBucket(row);
+        key = task.status;
         const col = taskKanbanCols.find(c => c.key === key);
         label = col?.label || key;
         order = taskKanbanCols.findIndex(c => c.key === key);
       } else if (taskGroupBy === "priority") {
-        key = priorityKey(row);
+        key = task.priority || "medium";
         const opt = priorityOptions.find(p => p.value === key);
         label = opt?.label || "No Priority";
         order = priorityOrder[key] ?? 99;
       } else if (taskGroupBy === "due_date") {
-        const d = dueDateBucket(row);
+        const d = dueDateBucket(task.due_date);
         key = d.key; label = d.label; order = d.order;
       } else if (taskGroupBy === "project") {
-        const proj = projects.find(p => p.id === row.task.project_id);
-        key = row.task.project_id || "none";
+        const proj = projects.find(p => p.id === task.project_id);
+        key = task.project_id || "none";
         label = proj?.title || "No Project";
         order = proj ? projects.indexOf(proj) : 9999;
       } else {
-        label = assigneeLabel(row);
+        label = getName(task.assigned_to);
         key = label;
         order = 0;
       }
       if (!groups.has(key)) groups.set(key, { label, order, rows: [] });
-      groups.get(key)!.rows.push(row);
+      groups.get(key)!.rows.push(task);
     }
     const sorted = Array.from(groups.entries()).sort((a, b) =>
       taskGroupBy === "assignee" ? a[1].label.localeCompare(b[1].label) : a[1].order - b[1].order
     );
     return sorted.map(([key, g]) => ({ key, label: g.label, rows: g.rows }));
-  }, [unifiedFeed, taskGroupBy, taskKanbanCols]);
+  }, [taskFeed, taskGroupBy, taskKanbanCols]);
 
   const goalsByQuarter = goals.reduce<Record<string, Goal[]>>((acc, g) => {
     const key = `${g.year} ${g.quarter}`;
@@ -864,7 +828,7 @@ export default function ExecutionPage() {
           )}
         </TabsContent>
 
-        {/* Tasks tab — unified human + AI task feed, same filters/badges across all 3 view modes */}
+        {/* Tasks tab — human tasks only; agent tasks live in the AI Hub */}
         <TabsContent value="tasks" className="space-y-4">
           <ViewControls
             search={tv.search} onSearchChange={tv.setSearch}
@@ -885,10 +849,6 @@ export default function ExecutionPage() {
               <SelectContent>
                 <SelectItem value="all">All tasks</SelectItem>
                 <SelectItem value="mine">My tasks</SelectItem>
-                <SelectItem value="ai">AI tasks</SelectItem>
-                <SelectItem value="needs_input">
-                  Needs input{needsInputCount > 0 && ` (${needsInputCount})`}
-                </SelectItem>
               </SelectContent>
             </Select>
             <div className="flex items-center gap-3">
@@ -907,63 +867,52 @@ export default function ExecutionPage() {
                   </SelectContent>
                 </Select>
               )}
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={showSystemTasks} onCheckedChange={(v) => setShowSystemTasks(!!v)} />
-                Show system tasks ({systemHiddenCount} hidden)
-              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs">Columns</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {taskKanbanColsBase.map(col => (
+                    <DropdownMenuCheckboxItem
+                      key={col.key}
+                      checked={visibleTaskStages.includes(col.key)}
+                      onCheckedChange={() => toggleTaskStage(col.key)}
+                      onSelect={e => e.preventDefault()}
+                    >
+                      {col.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
           {(() => {
-            // One card shape for both human and agent tasks — the avatar
-            // is the only thing that visually distinguishes "who" is on it;
-            // status badge, title, and secondary line all render identically.
-            const TaskCard = ({ row }: { row: UnifiedRow }) => {
-              const isAgent = row.kind === "agent";
-              const t = row.task as Task & AgentTask;
-              const meta = isAgent ? getAgentMeta(t.assigned_to) : undefined;
-              const avatar = isAgent ? (
-                <span
-                  className="flex items-center justify-center h-7 w-7 rounded-full text-white text-[11px] font-medium shrink-0"
-                  style={{ background: meta?.accent_color || "#7F77DD" }}
-                >
-                  {meta?.emoji ?? <Sparkles className="h-3.5 w-3.5" />}
-                </span>
-              ) : (
-                <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
-                  {getName(t.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                </span>
-              );
-              const secondary = isAgent
-                ? `${meta?.name || t.assigned_to} · AI${t.is_system_task ? " · system" : ""}`
-                : getName(t.assigned_to);
-              return (
-                <Card
-                  key={`${row.kind}-${t.id}`}
-                  className="cursor-pointer hover:bg-accent/30 transition-colors"
-                  onClick={() => isAgent ? setAgentTaskPeekId(t.id) : openTaskDrawer(t)}
-                >
-                  <CardContent className="py-3 flex items-center gap-3">
-                    {avatar}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{t.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{secondary}</p>
-                    </div>
-                    <StatusPill kind="task" value={t.status} size="sm" />
-                  </CardContent>
-                </Card>
-              );
-            };
-
-            const Row = ({ row }: { row: UnifiedRow }) => <TaskCard row={row} />;
+            const TaskCard = ({ task }: { task: Task }) => (
+              <Card
+                className="cursor-pointer hover:bg-accent/30 transition-colors"
+                onClick={() => openTaskDrawer(task)}
+              >
+                <CardContent className="py-3 flex items-center gap-3">
+                  <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-[11px] font-medium shrink-0">
+                    {getName(task.assigned_to).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{task.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{getName(task.assigned_to)}</p>
+                  </div>
+                  <StatusPill kind="task" value={task.status} size="sm" />
+                </CardContent>
+              </Card>
+            );
 
             if (tv.view === "list") {
-              if (unifiedFeed.length === 0) {
+              if (taskFeed.length === 0) {
                 return <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks.</CardContent></Card>;
               }
               return (
                 <div className="space-y-6">
-                  {groupedUnifiedFeed.map(grp => (
+                  {groupedTaskFeed.map(grp => (
                     <div key={grp.key} className="space-y-2">
                       {taskGroupBy !== "none" && (
                         <div className="flex items-center gap-2 px-1">
@@ -972,7 +921,7 @@ export default function ExecutionPage() {
                         </div>
                       )}
                       <div className="flex flex-col gap-2">
-                        {grp.rows.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                        {grp.rows.map(task => <TaskCard key={task.id} task={task} />)}
                       </div>
                     </div>
                   ))}
@@ -981,13 +930,10 @@ export default function ExecutionPage() {
             }
 
             if (tv.view === "board") {
-              // Buckets agent_tasks into the same 4 columns human tasks use
-              // (statusBucket is shared with the "Group by: Status" option
-              // below, so board layout and grouped list/table line up).
               return (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  {taskKanbanCols.map(col => {
-                    const colRows = unifiedFeed.filter(row => statusBucket(row) === col.key);
+                  {taskKanbanCols.filter(col => visibleTaskStages.includes(col.key)).map(col => {
+                    const colRows = taskFeed.filter(task => task.status === col.key);
                     return (
                       <div key={col.key} className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2" style={{ borderLeftColor: col.color }}>
@@ -997,7 +943,7 @@ export default function ExecutionPage() {
                         <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
                           {colRows.length === 0 ? (
                             <div className="rounded-lg border border-dashed border-border/50 p-4 text-center text-xs text-muted-foreground">No tasks</div>
-                          ) : colRows.map(row => <Row key={`${row.kind}-${row.task.id}`} row={row} />)}
+                          ) : colRows.map(task => <TaskCard key={task.id} task={task} />)}
                           {col.key !== "done" && (
                             addingTaskCol === col.key ? (
                               <Input
@@ -1053,9 +999,9 @@ export default function ExecutionPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {unifiedFeed.length === 0 ? (
+                    {taskFeed.length === 0 ? (
                       <tr><td colSpan={4} className="text-center text-muted-foreground py-10">No tasks.</td></tr>
-                    ) : groupedUnifiedFeed.map(grp => (
+                    ) : groupedTaskFeed.map(grp => (
                       <Fragment key={grp.key}>
                         {taskGroupBy !== "none" && (
                           <tr key={`grp-${grp.key}`} className="bg-muted/30">
@@ -1064,36 +1010,16 @@ export default function ExecutionPage() {
                             </td>
                           </tr>
                         )}
-                        {grp.rows.map(row => {
-                          if (row.kind === "human") {
-                            const t = row.task;
-                            return (
-                              <tr key={`h-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(t)}>
-                                <td className="px-3 py-2">{t.title}</td>
-                                <td className="px-3 py-2 text-muted-foreground">{getName(t.assigned_to)}</td>
-                                <td className="px-3 py-2">
-                                  <StatusPill kind="task" value={t.status} size="sm" />
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
-                              </tr>
-                            );
-                          }
-                          const t = row.task;
-                          const meta = getAgentMeta(t.assigned_to);
-                          return (
-                            <tr key={`a-${t.id}`} className="cursor-pointer hover:bg-accent/30" onClick={() => setAgentTaskPeekId(t.id)}>
-                              <td className="px-3 py-2 flex items-center gap-2">
-                                <Sparkles className="h-3 w-3 shrink-0" style={{ color: meta?.accent_color || "#7F77DD" }} />
-                                {t.title}
-                              </td>
-                              <td className="px-3 py-2 text-muted-foreground">{meta?.name || t.assigned_to} · AI{t.is_system_task ? " · system" : ""}</td>
-                              <td className="px-3 py-2">
-                                <StatusPill kind="task" value={t.status} size="sm" />
-                              </td>
-                              <td className="px-3 py-2 text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
-                            </tr>
-                          );
-                        })}
+                        {grp.rows.map(task => (
+                          <tr key={task.id} className="cursor-pointer hover:bg-accent/30" onClick={() => openTaskDrawer(task)}>
+                            <td className="px-3 py-2">{task.title}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{getName(task.assigned_to)}</td>
+                            <td className="px-3 py-2">
+                              <StatusPill kind="task" value={task.status} size="sm" />
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">{new Date(task.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
                       </Fragment>
                     ))}
                   </tbody>
@@ -1315,14 +1241,6 @@ export default function ExecutionPage() {
           id={taskPeekId}
           open={!!taskPeekId}
           onClose={() => setTaskPeekId(null)}
-        />
-      )}
-
-      {agentTaskPeekId && (
-        <AgentTaskDetail
-          taskId={agentTaskPeekId}
-          open={!!agentTaskPeekId}
-          onClose={() => setAgentTaskPeekId(null)}
         />
       )}
 

@@ -482,6 +482,25 @@
   z-index: 1;
 }
 
+/* ── AI Hub "actively working" card glow ──
+   A rotating light traces the card's edge while an agent task is
+   in_progress. Same padding-box conic-gradient technique as
+   .scratchpad-magic, always-on rather than hover-gated, in the
+   reserved --ai token so it never collides with status/priority tones. */
+.agent-active-glow {
+  position: relative;
+  padding: 1.5px;
+  border-radius: 0.5rem;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    hsl(var(--ai) / 0.9),
+    hsl(var(--ai) / 0.1),
+    hsl(var(--ai) / 0.9)
+  );
+  animation: conic-spin 3s linear infinite;
+  box-shadow: 0 0 14px hsl(var(--ai) / 0.22);
+}
+
 /* ===== Sidebar Pinned Mode =====
    When the user pins the sidebar, override the default overlay/floating
    behaviour: the spacer element becomes full sidebar width (so content

@@ -24,10 +24,19 @@ import type { AiLog, AiLogCategory } from "@/types/aiLogs";
 import { subscribeToAiLogs } from "@/lib/aiLogService";
 import { AgentActivityDrillDown } from "@/components/ai-hub/AgentActivityDrillDown";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
+import { StatusPill } from "@/components/primitives/StatusPill";
+import { PriorityPill } from "@/components/primitives/PriorityPill";
+import { resolveStatusTone } from "@/lib/statusTone";
+import { useStageVisibility } from "@/hooks/useStageVisibility";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 
-type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
+// Shared with tasks.status — see statusTone.ts TASK registry. Literal,
+// no bucketing: every value here is a real board column.
+type Status = "backlog" | "todo" | "in_progress" | "blocked" | "review" | "approved" | "done";
 type TaskType = "general" | "research" | "code" | "decision" | "communication";
-type Priority = "low" | "normal" | "high" | "urgent";
+type Priority = "low" | "medium" | "high" | "urgent";
 
 interface AgentTask {
   id: string;
@@ -96,23 +105,20 @@ const STATUS_DOT: Record<string, string> = {
   online:  "bg-green-400",
 };
 
-const COLUMNS: { key: Status; label: string; color: string; icon: React.ReactNode }[] = [
-  { key: "backlog",     label: "Backlog",     color: "border-slate-400",  icon: <Clock className="h-3.5 w-3.5 text-slate-400" /> },
-  { key: "pending",     label: "Pending",     color: "border-blue-400",   icon: <Clock className="h-3.5 w-3.5 text-blue-400" /> },
-  { key: "doing",       label: "Doing",       color: "border-yellow-400", icon: <Play className="h-3.5 w-3.5 text-yellow-400" /> },
-  { key: "review",      label: "Review",      color: "border-orange-400", icon: <Sparkles className="h-3.5 w-3.5 text-orange-400" /> },
-  { key: "approved",    label: "Approved",    color: "border-teal-400",   icon: <CheckCircle2 className="h-3.5 w-3.5 text-teal-400" /> },
-  { key: "needs_input", label: "Needs Input", color: "border-purple-400", icon: <AlertCircle className="h-3.5 w-3.5 text-purple-400" /> },
-  { key: "done",        label: "Done",        color: "border-green-400",  icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> },
-  { key: "cancelled",   label: "Cancelled",   color: "border-slate-600",  icon: <AlertCircle className="h-3.5 w-3.5 text-slate-500" /> },
-];
-
-const PRIORITY_BADGE: Record<Priority, string> = {
-  urgent: "bg-red-100 text-red-800 border-red-200",
-  high:   "bg-orange-100 text-orange-800 border-orange-200",
-  normal: "bg-blue-100 text-blue-800 border-blue-200",
-  low:    "bg-slate-100 text-slate-700 border-slate-200",
+// Column set = the literal status taxonomy, verbatim — no column here
+// that isn't a real status, no status that isn't a column here.
+const STATUS_ICON: Record<Status, React.ReactNode> = {
+  backlog:     <Clock className="h-3.5 w-3.5" />,
+  todo:        <Clock className="h-3.5 w-3.5" />,
+  in_progress: <Play className="h-3.5 w-3.5" />,
+  review:      <Sparkles className="h-3.5 w-3.5" />,
+  approved:    <CheckCircle2 className="h-3.5 w-3.5" />,
+  blocked:     <AlertCircle className="h-3.5 w-3.5" />,
+  done:        <CheckCircle2 className="h-3.5 w-3.5" />,
 };
+
+const ALL_STAGES: Status[] = ["backlog", "todo", "in_progress", "blocked", "review", "approved", "done"];
+const COLUMNS: { key: Status; label: string }[] = ALL_STAGES.map(key => ({ key, label: resolveStatusTone("task", key).label }));
 
 const AVATAR_COLORS = ["#6366f1","#f59e0b","#10b981","#06b6d4","#f43f5e","#a78bfa","#34d399","#60a5fa"];
 const colorFor = (s: string) => AVATAR_COLORS[Math.abs(s.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % AVATAR_COLORS.length];
@@ -135,18 +141,18 @@ function AssigneeAvatar({ assignee, size = "sm" }: { assignee: Assignee | undefi
 }
 
 const CATEGORY_BADGE: Record<AiLogCategory, { label: string; className: string }> = {
-  task_created:    { label: "Created",   className: "bg-purple-100 text-purple-800 border-purple-200" },
-  task_status:     { label: "Status",    className: "bg-amber-100 text-amber-800 border-amber-200" },
-  task_updated:    { label: "Updated",   className: "bg-slate-100 text-slate-700 border-slate-200" },
-  task_started:    { label: "Started",   className: "bg-blue-100 text-blue-800 border-blue-200" },
-  task_completed:  { label: "Completed", className: "bg-green-100 text-green-800 border-green-200" },
-  task_failed:     { label: "Failed",    className: "bg-red-100 text-red-800 border-red-200" },
-  agent_message:   { label: "Message",   className: "bg-slate-100 text-slate-700 border-slate-200" },
-  agent_thought:   { label: "Thinking",  className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
-  agent_tool:      { label: "Tool",      className: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+  task_created:    { label: "Created",   className: "bg-accent/40 text-accent-foreground" },
+  task_status:     { label: "Status",    className: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+  task_updated:    { label: "Updated",   className: "bg-muted text-muted-foreground" },
+  task_started:    { label: "Started",   className: "bg-blue-500/10 text-blue-700 dark:text-blue-400" },
+  task_completed:  { label: "Completed", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
+  task_failed:     { label: "Failed",    className: "bg-destructive/10 text-destructive" },
+  agent_message:   { label: "Message",   className: "bg-muted text-muted-foreground" },
+  agent_thought:   { label: "Thinking",  className: "bg-ai/10 text-ai" },
+  agent_tool:      { label: "Tool",      className: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400" },
 };
 // Safety fallback if a future category sneaks in from the DB
-const DEFAULT_BADGE = { label: "Event", className: "bg-slate-100 text-slate-700 border-slate-200" };
+const DEFAULT_BADGE = { label: "Event", className: "bg-muted text-muted-foreground" };
 
 const ACTIVE_AGENT_STATUSES = new Set(["active", "online"]);
 
@@ -210,6 +216,7 @@ export default function AiHubPage() {
   const [activityLogs, setActivityLogs] = useState<AiLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [avatarUploadingKey, setAvatarUploadingKey] = useState<string | null>(null);
+  const [visibleStages, toggleStage] = useStageVisibility("ai-hub:tasks", ALL_STAGES);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const avatarAgentKeyRef = useRef<string | null>(null);
 
@@ -316,7 +323,7 @@ export default function AiHubPage() {
   const stats = {
     activeAgents: assignees.filter(a => a.kind === "agent" && ACTIVE_AGENT_STATUSES.has(a.status)).length,
     completedToday: tasks.filter(t => t.status === "done" && isToday(t.completed_at)).length,
-    needsInput: tasksByStatus("needs_input").length,
+    blocked: tasksByStatus("blocked").length,
     avgCompletionTime: formatCompletionTime(avgCompletionMinutes),
   };
 
@@ -332,6 +339,23 @@ export default function AiHubPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Agent task board</p>
         </div>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">Columns</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {COLUMNS.map(col => (
+                <DropdownMenuCheckboxItem
+                  key={col.key}
+                  checked={visibleStages.includes(col.key)}
+                  onCheckedChange={() => toggleStage(col.key)}
+                  onSelect={e => e.preventDefault()}
+                >
+                  {col.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={fetchAll}>
             <Activity className="h-4 w-4 mr-2" /> Refresh
           </Button>
@@ -344,10 +368,10 @@ export default function AiHubPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Active Agents",    value: stats.activeAgents,      color: "bg-teal-100",   icon: <Activity className="h-5 w-5 text-teal-600" /> },
-          { label: "Completed Today",  value: stats.completedToday,    color: "bg-green-100",  icon: <CheckCircle2 className="h-5 w-5 text-green-600" /> },
-          { label: "Needs Input",      value: stats.needsInput,        color: "bg-purple-100", icon: <AlertCircle className="h-5 w-5 text-purple-600" /> },
-          { label: "Avg Completion",   value: stats.avgCompletionTime, color: "bg-blue-100",   icon: <Clock className="h-5 w-5 text-blue-600" /> },
+          { label: "Active Agents",    value: stats.activeAgents,      color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <Activity className="h-5 w-5" /> },
+          { label: "Completed Today",  value: stats.completedToday,    color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", icon: <CheckCircle2 className="h-5 w-5" /> },
+          { label: "Blocked",          value: stats.blocked,           color: "bg-destructive/10 text-destructive",                        icon: <AlertCircle className="h-5 w-5" /> },
+          { label: "Avg Completion",   value: stats.avgCompletionTime, color: "bg-blue-500/10 text-blue-700 dark:text-blue-400",           icon: <Clock className="h-5 w-5" /> },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="pt-6">
@@ -393,7 +417,7 @@ export default function AiHubPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
                         <p className="text-sm font-medium truncate">{log.agent_name}</p>
-                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${badge.className}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}>
                           {badge.label}
                         </span>
                       </div>
@@ -424,18 +448,22 @@ export default function AiHubPage() {
               <Loader2 className="h-5 w-5 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-              {COLUMNS.map(col => {
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {COLUMNS.filter(col => visibleStages.includes(col.key)).map(col => {
                 const colTasks = tasksByStatus(col.key);
+                const tone = resolveStatusTone("task", col.key);
                 return (
                   <div key={col.key} className="flex flex-col gap-2">
-                    <div className={`flex items-center gap-2 rounded-lg border-l-4 ${col.color} bg-card px-3 py-2`}>
-                      {col.icon}
-                      <span className="text-sm font-semibold">{col.label}</span>
-                      {col.key === "doing" && colTasks.length > 0 && (
+                    <div
+                      className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2"
+                      style={{ borderLeftColor: `hsl(${tone.hsl})`, color: `hsl(${tone.hsl})` }}
+                    >
+                      {STATUS_ICON[col.key]}
+                      <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                      {col.key === "in_progress" && colTasks.length > 0 && (
                         <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" />
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ai opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-ai" />
                         </span>
                       )}
                       <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colTasks.length}</span>
@@ -534,7 +562,7 @@ export default function AiHubPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold">{log.agent_name}</p>
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.className}`}>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}>
                             {badge.label}
                           </span>
                           <span className="text-xs text-muted-foreground">
@@ -570,72 +598,74 @@ export default function AiHubPage() {
 }
 
 
-const TaskCard = ({ task, assignee, followers, onClick }: { task: AgentTask; assignee: Assignee | undefined; followers: Assignee[]; onClick: () => void }) => (
-  <div
-    onClick={onClick}
-    className={`cursor-pointer rounded-lg border bg-card p-3 transition-all space-y-2.5 ${
-      task.status === "doing"
-        ? "border-yellow-400/70 ring-2 ring-yellow-400/20 shadow-[0_0_14px_3px_rgba(250,204,21,0.12)] hover:border-yellow-400"
-        : "border-border/60 hover:border-primary/40"
-    }`}
-  >
-    <div className="flex items-start justify-between gap-1">
-      <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
-      {task.status === "doing" && (
-        <Loader2 className="h-3.5 w-3.5 text-yellow-500 animate-spin shrink-0 mt-0.5" />
+const TaskCard = ({ task, assignee, followers, onClick }: { task: AgentTask; assignee: Assignee | undefined; followers: Assignee[]; onClick: () => void }) => {
+  const card = (
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-lg border border-border/60 bg-card p-3 transition-all space-y-2.5 hover:border-primary/40"
+    >
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+        {task.status === "in_progress" && (
+          <Loader2 className="h-3.5 w-3.5 text-ai animate-spin shrink-0 mt-0.5" />
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative shrink-0">
+          <AssigneeAvatar assignee={assignee} size="sm" />
+          {assignee && (
+            <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${STATUS_DOT[assignee.status] ?? "bg-slate-400"}`} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate">{assignee?.name ?? task.assigned_to}</p>
+          {assignee?.subtitle && <p className="text-[10px] text-muted-foreground truncate">{assignee.subtitle}</p>}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <PriorityPill value={task.priority} size="sm" />
+          <span className="shrink-0 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
+            {task.type}
+          </span>
+          {task.repo && (
+            <span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700 dark:text-blue-400 font-mono">
+              {task.repo}
+            </span>
+          )}
+        </div>
+      </div>
+      {(task.due_date || followers.length > 0) && (
+        <div className="flex items-center justify-between">
+          {task.due_date ? (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {format(parseISO(task.due_date), "MMM d")}
+            </div>
+          ) : <span />}
+          {followers.length > 0 && (
+            <div className="flex items-center -space-x-1.5">
+              {followers.slice(0, 3).map(f => (
+                <div key={f.key} className="ring-1 ring-background rounded-full">
+                  <AssigneeAvatar assignee={f} size="sm" />
+                </div>
+              ))}
+              {followers.length > 3 && (
+                <span className="ring-1 ring-background rounded-full flex items-center justify-center h-6 w-6 bg-secondary text-[9px] font-semibold text-muted-foreground">
+                  +{followers.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
-    <div className="flex items-center gap-2">
-      <div className="relative shrink-0">
-        <AssigneeAvatar assignee={assignee} size="sm" />
-        {assignee && (
-          <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background ${STATUS_DOT[assignee.status] ?? "bg-slate-400"}`} />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">{assignee?.name ?? task.assigned_to}</p>
-        {assignee?.subtitle && <p className="text-[10px] text-muted-foreground truncate">{assignee.subtitle}</p>}
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${PRIORITY_BADGE[task.priority]}`}>
-          {task.priority}
-        </span>
-        <span className="shrink-0 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
-          {task.type}
-        </span>
-        {task.repo && (
-          <span className="shrink-0 rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] text-teal-700 font-mono">
-            {task.repo}
-          </span>
-        )}
-      </div>
-    </div>
-    {(task.due_date || followers.length > 0) && (
-      <div className="flex items-center justify-between">
-        {task.due_date ? (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            {format(parseISO(task.due_date), "MMM d")}
-          </div>
-        ) : <span />}
-        {followers.length > 0 && (
-          <div className="flex items-center -space-x-1.5">
-            {followers.slice(0, 3).map(f => (
-              <div key={f.key} className="ring-1 ring-background rounded-full">
-                <AssigneeAvatar assignee={f} size="sm" />
-              </div>
-            ))}
-            {followers.length > 3 && (
-              <span className="ring-1 ring-background rounded-full flex items-center justify-center h-6 w-6 bg-secondary text-[9px] font-semibold text-muted-foreground">
-                +{followers.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-);
+  );
+
+  // "Actively working" affordance — a rotating light traces the card's
+  // edge while an agent is in_progress on it. Agent tasks only ever live
+  // in the AI Hub now, so this never needs to appear anywhere else.
+  if (task.status !== "in_progress") return card;
+  return <div className="agent-active-glow">{card}</div>;
+};
 
 const AssigneeOption = ({ assignee }: { assignee: Assignee }) => (
   <div className="flex items-center gap-2.5 py-0.5">
@@ -684,7 +714,6 @@ const TaskDetailDialog = ({
   };
 
   const assignee = assignees.find(a => a.key === assignedTo);
-  const col = COLUMNS.find(c => c.key === status);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -698,14 +727,10 @@ const TaskDetailDialog = ({
             </div>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE[task.priority]}`}>
-              {task.priority}
-            </span>
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium bg-secondary`}>
-              {col?.icon}<span className="capitalize">{status.replace("_", " ")}</span>
-            </span>
+            <PriorityPill value={task.priority} />
+            <StatusPill kind="task" value={status} />
             {task.repo && (
-              <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-mono text-teal-700">
+              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-mono text-blue-700 dark:text-blue-400">
                 {task.repo}
               </span>
             )}
@@ -877,14 +902,14 @@ const NewTaskDialog = ({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("claude");
-  const [priority, setPriority] = useState<Priority>("normal");
-  const [status, setStatus] = useState<Status>("pending");
+  const [priority, setPriority] = useState<Priority>("medium");
+  const [status, setStatus] = useState<Status>("todo");
   const [type, setType] = useState<TaskType>("general");
   const [repo, setRepo] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("normal"); setStatus("pending"); setType("general"); setRepo(""); setDueDate(""); };
+  const reset = () => { setTitle(""); setDescription(""); setAssignedTo("claude"); setPriority("medium"); setStatus("todo"); setType("general"); setRepo(""); setDueDate(""); };
 
   const create = async () => {
     if (!title.trim()) return;
@@ -953,7 +978,7 @@ const NewTaskDialog = ({
               <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(["urgent", "high", "normal", "low"] as Priority[]).map(p => (
+                  {(["urgent", "high", "medium", "low"] as Priority[]).map(p => (
                     <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
                   ))}
                 </SelectContent>
