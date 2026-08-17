@@ -303,6 +303,20 @@
     animation: timerGlow 2.5s ease-in-out infinite;
   }
 
+  /* A kanban board whose column count varies (per-user stage visibility) —
+     sized to the real number of visible columns instead of a fixed count,
+     so a hidden/shown stage never leaves a column stranded on its own row. */
+  .stage-board-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  @media (max-width: 768px) {
+    .stage-board-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

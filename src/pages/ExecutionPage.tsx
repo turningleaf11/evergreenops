@@ -38,6 +38,7 @@ import TaskTemplateManager from "@/components/TaskTemplateManager";
 import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusPill, PriorityPill } from "@/components/primitives";
+import { resolveStatusTone } from "@/lib/statusTone";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -219,7 +220,14 @@ export default function ExecutionPage() {
     [stageColors]
   );
   const taskKanbanCols = useMemo(
-    () => taskKanbanColsBase.map(c => ({ ...c, color: stageColors[`task:${c.key}`] || c.color })),
+    () => taskKanbanColsBase.map(c => ({
+      ...c,
+      // Admin-customized color wins if set; otherwise fall back to the
+      // canonical status tone (same source StatusPill uses) rather than a
+      // bare color name — several of those ("slate", "violet") aren't
+      // valid CSS colors and rendered as no border at all.
+      color: stageColors[`task:${c.key}`] || `hsl(${resolveStatusTone("task", c.key).hsl})`,
+    })),
     [stageColors]
   );
 
@@ -930,9 +938,10 @@ export default function ExecutionPage() {
             }
 
             if (tv.view === "board") {
+              const cols = taskKanbanCols.filter(col => visibleTaskStages.includes(col.key));
               return (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  {taskKanbanCols.filter(col => visibleTaskStages.includes(col.key)).map(col => {
+                <div className="stage-board-grid" style={{ "--cols": cols.length } as React.CSSProperties}>
+                  {cols.map(col => {
                     const colRows = taskFeed.filter(task => task.status === col.key);
                     return (
                       <div key={col.key} className="flex flex-col gap-2">

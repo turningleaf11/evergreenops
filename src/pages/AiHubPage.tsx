@@ -448,7 +448,10 @@ export default function AiHubPage() {
               <Loader2 className="h-5 w-5 animate-spin" /> Loading…
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div
+              className="stage-board-grid"
+              style={{ "--cols": Math.max(2, COLUMNS.filter(col => visibleStages.includes(col.key)).length) } as React.CSSProperties}
+            >
               {COLUMNS.filter(col => visibleStages.includes(col.key)).map(col => {
                 const colTasks = tasksByStatus(col.key);
                 const tone = resolveStatusTone("task", col.key);
