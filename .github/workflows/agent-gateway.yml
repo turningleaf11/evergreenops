@@ -36,4 +36,4 @@ jobs:
       - name: Test request boundary
         run: deno test supabase/functions/agent-gateway/core_test.ts
       - name: Test MCP adapter boundary
-        run: deno test supabase/functions/agent-gateway-mcp/core_test.ts
+        run: deno test --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp

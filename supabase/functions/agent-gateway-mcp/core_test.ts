@@ -1,6 +1,8 @@
 import {
   authenticateThroughGateway,
+  callGateway,
   GatewayUpstreamError,
+  MCP_TOOL_ACTIONS,
   parseGatewaySuccess,
   resolveGatewayUrl,
   validateAuthorizationHeader,
@@ -52,7 +54,17 @@ Deno.test("accepts only a valid system.whoami Gateway response", () => {
       workspace_id: "workspace-id",
     },
   };
-  assertEquals(parseGatewaySuccess(response), response);
+  assertEquals(parseGatewaySuccess(response, "system.whoami"), response);
+});
+
+Deno.test("exposes exactly the approved Ema MCP action mappings", () => {
+  assertEquals(MCP_TOOL_ACTIONS, {
+    system_whoami: "system.whoami",
+    email_list: "email.list",
+    email_search: "email.search",
+    email_read: "email.read",
+    email_get_attachment: "email.get_attachment",
+  });
 });
 
 Deno.test("forwards the authorization header without exposing it in the result", async () => {
@@ -85,6 +97,49 @@ Deno.test("forwards the authorization header without exposing it in the result",
     input: {},
   });
   assert(!JSON.stringify(result).includes(rawToken));
+});
+
+Deno.test("forwards a read-only email action and input to the existing Gateway", async () => {
+  let observedBody = "";
+  const result = await callGateway({
+    gatewayUrl: "https://example.test/functions/v1/agent-gateway",
+    authorization: "Bearer opaque-token",
+    userAgent: "OpenClaw test",
+    action: "email.search",
+    input: { query: "newer_than:7d", max_results: 10 },
+    fetchImpl: async (_input, init) => {
+      observedBody = String(init?.body);
+      return new Response(JSON.stringify({
+        ok: true,
+        request_id: "request-id",
+        action: "email.search",
+        untrusted_external_content: true,
+        data: { messages: [], next_page_token: null },
+      }));
+    },
+  });
+
+  assertEquals(JSON.parse(observedBody), {
+    action: "email.search",
+    input: { query: "newer_than:7d", max_results: 10 },
+  });
+  assertEquals(result.action, "email.search");
+  assertEquals(result.untrusted_external_content, true);
+});
+
+Deno.test("rejects a Gateway response for the wrong action", () => {
+  try {
+    parseGatewaySuccess({
+      ok: true,
+      request_id: "request-id",
+      action: "email.read",
+      data: {},
+    }, "email.search");
+    throw new Error("Expected mismatched action to fail");
+  } catch (error) {
+    assert(error instanceof Error);
+    assertEquals(error.message, "Invalid Agent Gateway response");
+  }
 });
 
 Deno.test("relays only sanitized Gateway denial fields", async () => {

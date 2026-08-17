@@ -1,6 +1,17 @@
 export const MCP_SERVER_NAME = "evergreen-agent-gateway";
-export const MCP_SERVER_VERSION = "0.1.0";
+export const MCP_SERVER_VERSION = "0.2.0";
 export const WHOAMI_TOOL_NAME = "system_whoami";
+
+export const MCP_TOOL_ACTIONS = {
+  system_whoami: "system.whoami",
+  email_list: "email.list",
+  email_search: "email.search",
+  email_read: "email.read",
+  email_get_attachment: "email.get_attachment",
+} as const;
+
+export type McpToolName = keyof typeof MCP_TOOL_ACTIONS;
+export type GatewayAction = typeof MCP_TOOL_ACTIONS[McpToolName];
 
 export interface GatewayWhoAmI {
   agent: {
@@ -14,8 +25,9 @@ export interface GatewayWhoAmI {
 export interface GatewaySuccess {
   ok: true;
   request_id: string;
-  action: "system.whoami";
-  data: GatewayWhoAmI;
+  action: GatewayAction;
+  untrusted_external_content?: boolean;
+  data: Record<string, unknown>;
 }
 
 export class GatewayUpstreamError extends Error {
@@ -47,22 +59,27 @@ export function validateAuthorizationHeader(value: string | null): string {
   return value;
 }
 
-export function parseGatewaySuccess(value: unknown): GatewaySuccess {
+export function parseGatewaySuccess(
+  value: unknown,
+  expectedAction: GatewayAction,
+): GatewaySuccess {
   if (
-    !isRecord(value) || value.ok !== true || value.action !== "system.whoami"
+    !isRecord(value) || value.ok !== true || value.action !== expectedAction
   ) {
     throw new Error("Invalid Agent Gateway response");
   }
-  if (typeof value.request_id !== "string" || !isWhoAmI(value.data)) {
+  if (typeof value.request_id !== "string" || !isRecord(value.data)) {
     throw new Error("Invalid Agent Gateway response");
   }
   return value as unknown as GatewaySuccess;
 }
 
-export async function authenticateThroughGateway(params: {
+export async function callGateway(params: {
   gatewayUrl: string;
   authorization: string | null;
   userAgent: string | null;
+  action: GatewayAction;
+  input: Record<string, unknown>;
   fetchImpl?: typeof fetch;
 }): Promise<GatewaySuccess> {
   const authorization = validateAuthorizationHeader(params.authorization);
@@ -78,7 +95,7 @@ export async function authenticateThroughGateway(params: {
   const response = await fetchImpl(params.gatewayUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify({ action: "system.whoami", input: {} }),
+    body: JSON.stringify({ action: params.action, input: params.input }),
     signal: AbortSignal.timeout(20_000),
   });
   const body = await response.text();
@@ -92,13 +109,33 @@ export async function authenticateThroughGateway(params: {
   }
 
   try {
-    return parseGatewaySuccess(JSON.parse(body));
+    return parseGatewaySuccess(JSON.parse(body), params.action);
   } catch {
     throw new GatewayUpstreamError(
       502,
       JSON.stringify({ error: "invalid_gateway_response" }),
     );
   }
+}
+
+export async function authenticateThroughGateway(params: {
+  gatewayUrl: string;
+  authorization: string | null;
+  userAgent: string | null;
+  fetchImpl?: typeof fetch;
+}): Promise<GatewayWhoAmI> {
+  const response = await callGateway({
+    ...params,
+    action: "system.whoami",
+    input: {},
+  });
+  if (!isWhoAmI(response.data)) {
+    throw new GatewayUpstreamError(
+      502,
+      JSON.stringify({ error: "invalid_gateway_response" }),
+    );
+  }
+  return response.data;
 }
 
 function sanitizeErrorBody(body: string): string {

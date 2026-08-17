@@ -53,17 +53,23 @@ Ema must never be asked to read, remember, print, or interpolate the credential.
 ## MCP adapter milestone
 
 `agent-gateway-mcp` is a thin Streamable HTTP MCP adapter in front of the JSON
-Gateway. It does not authenticate credentials or reproduce Gateway policy. For
-each MCP request it forwards the caller's `Authorization` header to the
-existing `system.whoami` action and reuses that authenticated result.
+Gateway. It does not authenticate credentials or reproduce Gateway policy. It
+forwards the caller's `Authorization` header to `system.whoami` for the MCP
+protocol request, then forwards each invoked tool's mapped action through the
+same Gateway.
 
-Initially the adapter exposes exactly one MCP tool:
+The Ema MCP adapter exposes exactly these read-only tools:
 
 - `system_whoami` -> `system.whoami`
+- `email_list` -> `email.list`
+- `email_search` -> `email.search`
+- `email_read` -> `email.read`
+- `email_get_attachment` -> `email.get_attachment`
 
-No Gmail or CRM MCP tools are exposed in this milestone. The JSON Gateway
+No sending, Gmail modification, or CRM tools are exposed. The JSON Gateway
 continues to own the credential check, agent kill switch, permission lookup,
-rate limit, operation record, execution, and audit event.
+rate limit, operation record, execution, and audit event. The MCP adapter only
+validates the tool's public input shape and forwards the mapped action.
 
 Production endpoint:
 
@@ -85,7 +91,13 @@ credential:
           "Authorization": "Bearer ${EMA_GATEWAY_TOKEN}"
         },
         "toolFilter": {
-          "include": ["system_whoami"]
+          "include": [
+            "system_whoami",
+            "email_list",
+            "email_search",
+            "email_read",
+            "email_get_attachment"
+          ]
         },
         "supportsParallelToolCalls": false,
         "connectionTimeoutMs": 5000,
