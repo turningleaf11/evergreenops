@@ -23,6 +23,7 @@ import { LauncherMenu } from "@/components/LauncherMenu";
 import { SidebarModeProvider } from "@/contexts/SidebarModeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrbitMemberHub } from "@/components/orbit/OrbitMemberHub";
+import { TeamHubGate } from "@/components/TeamHubGate";
 
 function LayoutInner() {
   return (
@@ -75,10 +76,18 @@ function LayoutInner() {
 }
 
 export function Layout() {
-  const { isOrbitOnly, loading, roleLoaded } = useAuth();
+  const { role, isOrbitOnly, loading, roleLoaded } = useAuth();
+
+  // team_hub accounts are provisioned here (OpsHQ is the only place with user
+  // management) but belong entirely in the standalone Team Hub app — they get
+  // a gate, not the cockpit.
+  if (!loading && roleLoaded && role === "team_hub") {
+    return <TeamHubGate />;
+  }
 
   // Orbit-only members get their own self-contained workbook app — no cockpit
   // sidebar, header, or AI rail. This is their entire experience.
+  // (Legacy path — new field accounts should get the team_hub role above instead.)
   if (!loading && roleLoaded && isOrbitOnly) {
     return <OrbitMemberHub />;
   }
