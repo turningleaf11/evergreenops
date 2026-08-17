@@ -15,8 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { ActivityComposer, type ActivitySubmitPayload } from "@/components/activity/ActivityComposer";
-import RichTextEditor from "@/components/RichTextEditor";
-import { StatusPill, PriorityPill } from "@/components/primitives";
+import { StatusPill, PriorityPill, CollapsibleNotes } from "@/components/primitives";
 import { useReportActiveEntity } from "@/contexts/CompanionContext";
 import { cn } from "@/lib/utils";
 
@@ -311,21 +310,14 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                   </FieldRow>
                 </div>
 
-                {/* Details — transparent by default, subtle fill on focus */}
+                {/* Details — same collapsible-notes pattern as Goal's "Strategy & Notes" */}
                 <section className="mb-7">
-                  <h3 className="text-sm font-semibold text-foreground mb-2">Details</h3>
-                  <div
-                    className="rounded-md transition-colors focus-within:bg-muted/40"
-                    style={{ maxHeight: 180, overflowY: "auto" }}
-                  >
-                    <RichTextEditor
-                      content={row.notes_content || row.description || ""}
-                      onChange={(html) => updateTask({ notes_content: html })}
-                      placeholder="Add a description, plans, context…"
-                      borderless
-                      minHeight="56px"
-                    />
-                  </div>
+                  <CollapsibleNotes
+                    label="Details"
+                    content={row.notes_content || row.description || ""}
+                    onChange={(html) => updateTask({ notes_content: html })}
+                    placeholder="Add a description, plans, context…"
+                  />
                 </section>
 
                 {/* Subtasks — count + + inline with heading */}
