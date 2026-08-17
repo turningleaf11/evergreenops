@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Plus, MoreHorizontal, FileText, Download, Link2, PlayCircle, GripVertical,
-  ChevronUp, ChevronDown, Trash2, Users,
+  ChevronUp, ChevronDown, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFileWithPath, triggerFileInput } from "@/lib/file-upload";
@@ -231,8 +231,6 @@ export function TeamHubManager() {
           ))}
         </div>
       )}
-
-      <PeopleRoleAssignment roles={roles} />
 
       {addSectionOpen && (
         <AddSectionDialog
@@ -512,54 +510,5 @@ function AddResourceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/* ── people → role assignment ─────────────────────────────────────────────── */
-
-function PeopleRoleAssignment({ roles }: { roles: Role[] }) {
-  const [people, setPeople] = useState<{ user_id: string; full_name: string | null; role_key: string | null }[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    sb.from("profiles").select("user_id, full_name, role_key").order("full_name").then(({ data }: any) => {
-      setPeople(data ?? []);
-      setLoading(false);
-    });
-  }, []);
-
-  const setRole = async (userId: string, roleKey: string) => {
-    const value = roleKey === "__none" ? null : roleKey;
-    await sb.from("profiles").update({ role_key: value }).eq("user_id", userId);
-    setPeople((prev) => prev.map((p) => (p.user_id === userId ? { ...p, role_key: value } : p)));
-  };
-
-  return (
-    <div>
-      <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-        <Users className="h-3.5 w-3.5" /> Who's what role
-      </h2>
-      <p className="mt-0.5 mb-3 text-xs text-muted-foreground/70">
-        A person's role controls which shelves they see. Door (DTS/DTA/etc.) still comes from Orbit membership.
-      </p>
-      {loading ? (
-        <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
-      ) : (
-        <div className="rounded-lg border divide-y max-h-72 overflow-y-auto">
-          {people.map((p) => (
-            <div key={p.user_id} className="flex items-center justify-between gap-3 px-3 py-2">
-              <span className="text-sm truncate">{p.full_name || "Unnamed"}</span>
-              <Select value={p.role_key ?? "__none"} onValueChange={(v) => setRole(p.user_id, v)}>
-                <SelectTrigger className="h-7 w-48 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">No role</SelectItem>
-                  {roles.map((r) => <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

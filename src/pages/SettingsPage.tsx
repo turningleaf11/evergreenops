@@ -32,6 +32,7 @@ import { IntegrationCredentials } from "@/components/settings/IntegrationCredent
 import { PersonalProfilePanel } from "@/components/settings/PersonalProfilePanel";
 import { UserAccessGrants } from "@/components/settings/UserAccessGrants";
 import { OrbitMembershipControl } from "@/components/settings/OrbitMembershipControl";
+import { TeamRoleControl } from "@/components/settings/TeamRoleControl";
 import { PAGE_KEYS, PAGE_LABELS } from "@/hooks/usePageAccess";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -1134,6 +1135,7 @@ function UsersTab() {
                 isAdmin={currentRole === "admin"}
               />
 
+              {!u.is_primary && <TeamRoleControl targetUserId={u.user_id} />}
               {!u.is_primary && <OrbitMembershipControl targetUserId={u.user_id} />}
             </CardContent>
           </Card>
