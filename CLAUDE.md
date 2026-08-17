@@ -5,9 +5,16 @@ Do not invent new patterns when existing ones cover the case.
 
 ---
 
-## SESSION START PROTOCOL — DO THIS FIRST, EVERY SESSION
+## SESSION START PROTOCOL
 
-Before writing any code or answering any question about status, run these checks:
+This is two-tier. Figure out which tier you're in before doing anything else.
+
+**Quick/one-off session** (a single question, lookup, or small fix with no
+follow-on work expected): skip this whole protocol. Just do the task.
+
+**Build/planning session** (anything where you're picking up ongoing work —
+writing code, planning a feature, resuming something from a prior session):
+run steps 1-2 first.
 
 ### 1. Check your task queue (AI Hub)
 ```sql
@@ -20,34 +27,35 @@ ORDER BY created_at DESC;
 ### 2. Read shared AI memory
 ```sql
 SELECT agent_id, content, metadata, created_at FROM memories
-ORDER BY created_at DESC LIMIT 15;
+ORDER BY created_at DESC LIMIT 8;
 ```
 
-### 3. Read Miro Task Board (live source of truth for what's pending)
-Miro board: https://miro.com/app/board/o9J_lUDcK7Q=/
-Key frames to read at session start:
+### Miro Task Board — not a default read
+Miro board: https://miro.com/app/board/o9J_lUDcK7Q=/. Do not read any frame at
+session start. Check it only when the user references it directly or a task
+explicitly points there:
 - **Task Board**: https://miro.com/app/board/o9J_lUDcK7Q=/?moveToWidget=3458764674825465445
 - **Notes**: https://miro.com/app/board/o9J_lUDcK7Q=/?moveToWidget=3458764675448531014
-
-Reference frames (read when relevant to the work):
 - Business Map — Birds Eye View: `?moveToWidget=3458764674708214793`
 - AI-First Function Map: `?moveToWidget=3458764674717195454`
 - Evergreen Business Flow: `?moveToWidget=3458764674789723041`
 - GHL Seller Funnel: `?moveToWidget=3458764675448621890`
 
-### 4. Write a memory entry when you learn something new
+### 3. Write a memory entry when you learn something new
 ```sql
 INSERT INTO memories (agent_id, content, metadata)
 VALUES ('claude', '<what you learned>', '{"type": "session_note", "category": "<topic>"}');
 ```
 
-### 5. Write a handoff note at END of session
+### 4. Write a handoff note at END of a build/planning session
 Before the session closes, write one memory entry summarizing:
 - What was built/changed
 - What's open/next
 - Any decisions made
 
-### 6. Update the docs site if the business or system changed
+Skip this for quick/one-off sessions — nothing to hand off.
+
+### 5. Update the docs site if the business or system changed
 
 **Documentation lives in `turningleaf11/evergreen-dev-docs`** → published at
 **https://evergreen-dev-docs.vercel.app**. VitePress, markdown, deploys from `main`.
@@ -86,6 +94,21 @@ Adding a domain page means adding it to the sidebar in
 - Gaps written **into the stage**, not filed separately
 - Every node states whether it's automated, manual, or unmapped. A step that exists
   but isn't documented is drawn dashed, so the hole is visible rather than absent.
+
+---
+
+## Cost & usage discipline
+
+- **One topic per session.** Don't run unrelated work (e.g. a build task and a
+  strategy discussion) in the same thread — close a session out once its task
+  ships rather than leaving it open for unrelated follow-ups days later.
+- **Default to Sonnet.** Only reach for Opus when a task is genuinely stuck on
+  reasoning, not as a standing habit.
+- **Narrow tool calls at the call site.** When pulling from Vercel, Supabase,
+  GitHub, etc., ask for the specific field or a capped/filtered result — don't
+  fetch a full listing and read past what's needed.
+- **Edit, don't republish.** Iterate on artifacts and docs with targeted diffs
+  instead of resending a full file on every round.
 
 ---
 
@@ -148,6 +171,26 @@ spans FL, TX, TN, GA, NC, VA, AL, KY. Don't collapse the two.
 - TipTap rich text editor (`RichTextEditor` component)
 - ReactFlow (`@xyflow/react`) for process map canvases
 - `sonner` for toasts (import from `"sonner"`, not `"@/hooks/use-toast"`)
+
+---
+
+## Design alignment — before generating any visual work
+
+Don't jump straight to a mockup or artifact. Autumn doesn't always know what
+she wants up front, so guessing and iterating round-by-round is expensive and
+usually wrong. Instead, run one short question pass first — via
+`AskUserQuestion` where it fits — covering only what's actually undecided:
+
+- Purpose/audience: what is this for, who sees it
+- Must-have content or functionality
+- Style reference: a link, an existing page in the app, or a couple of
+  adjectives — not a blank "what do you want it to look like"
+- Anything explicitly out of scope for this round
+
+Don't ask about things the design system already answers (colors, spacing,
+card patterns, pill components, etc. — see below) — those aren't open
+questions. One alignment pass, then one full mockup, then one round of
+complete feedback before shipping — not one change per round.
 
 ---
 
