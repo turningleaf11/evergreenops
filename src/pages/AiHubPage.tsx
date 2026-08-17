@@ -31,6 +31,8 @@ import { useStageVisibility } from "@/hooks/useStageVisibility";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { StageColorPicker } from "@/components/execution/StageColorPicker";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Shared with tasks.status — see statusTone.ts TASK registry. Literal,
 // no bucketing: every value here is a real board column.
@@ -217,16 +219,19 @@ export default function AiHubPage() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [avatarUploadingKey, setAvatarUploadingKey] = useState<string | null>(null);
   const [visibleStages, toggleStage] = useStageVisibility("ai-hub:tasks", ALL_STAGES);
+  const [stageColors, setStageColors] = useState<Record<string, string>>({});
+  const { isPrimaryAdmin } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const avatarAgentKeyRef = useRef<string | null>(null);
 
   const fetchAll = async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
-    const [tasksRes, agentsRes, profilesRes, reposRes] = await Promise.all([
+    const [tasksRes, agentsRes, profilesRes, reposRes, colorsRes] = await Promise.all([
       supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }),
       supabase.from("agents").select("id,name,slug,emoji,avatar_url,subtitle,role,status,accent_color").order("position"),
       supabase.from("profiles").select("user_id,full_name,avatar_url"),
       supabase.from("repos").select("slug,name,github_repo").eq("active", true),
+      supabase.from("kanban_stage_colors").select("stage_key, color").eq("board_type", "ai_task"),
     ]);
 
     if (tasksRes.error) toast({ title: "Failed to load tasks", description: tasksRes.error.message, variant: "destructive" });
@@ -242,7 +247,17 @@ export default function AiHubPage() {
     }));
     setAssignees([...agentList, ...humanList]);
     setRepos((reposRes.data ?? []) as Repo[]);
+    if (colorsRes.data) setStageColors(Object.fromEntries(colorsRes.data.map(r => [r.stage_key, r.color])));
     setLoading(false);
+  };
+
+  const setStageColor = async (stageKey: string, hsl: string) => {
+    setStageColors(prev => ({ ...prev, [stageKey]: hsl }));
+    await supabase.from("kanban_stage_colors").delete()
+      .is("workspace_id", null).eq("board_type", "ai_task").eq("stage_key", stageKey);
+    const { error } = await supabase.from("kanban_stage_colors")
+      .insert({ board_type: "ai_task", stage_key: stageKey, color: hsl });
+    if (error) toast({ title: "Could not save column color", description: error.message, variant: "destructive" });
   };
 
   useEffect(() => {
@@ -454,22 +469,25 @@ export default function AiHubPage() {
             >
               {COLUMNS.filter(col => visibleStages.includes(col.key)).map(col => {
                 const colTasks = tasksByStatus(col.key);
-                const tone = resolveStatusTone("task", col.key);
+                const hsl = stageColors[col.key] || resolveStatusTone("task", col.key).hsl;
                 return (
                   <div key={col.key} className="flex flex-col gap-2">
                     <div
-                      className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2"
-                      style={{ borderLeftColor: `hsl(${tone.hsl})`, color: `hsl(${tone.hsl})` }}
+                      className="flex items-center gap-1 rounded-lg px-3 py-2"
+                      style={{ backgroundColor: `hsl(${hsl} / 0.14)`, color: `hsl(${hsl})` }}
                     >
                       {STATUS_ICON[col.key]}
-                      <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                      <span className="text-sm font-semibold">{col.label}</span>
+                      {isPrimaryAdmin && (
+                        <StageColorPicker value={hsl} onChange={next => setStageColor(col.key, next)} />
+                      )}
                       {col.key === "in_progress" && colTasks.length > 0 && (
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ai opacity-75" />
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-ai" />
                         </span>
                       )}
-                      <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colTasks.length}</span>
+                      <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{colTasks.length}</span>
                     </div>
                     <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
                       {colTasks.length === 0 ? (

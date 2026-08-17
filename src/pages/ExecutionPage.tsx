@@ -39,6 +39,7 @@ import { CadencesTab } from "@/components/cadences/CadencesTab";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusPill, PriorityPill } from "@/components/primitives";
 import { resolveStatusTone } from "@/lib/statusTone";
+import { StageColorPicker } from "@/components/execution/StageColorPicker";
 import { FolderKanban } from "lucide-react";
 import { LeadReviewTab } from "@/components/execution/LeadReviewTab";
 import { CouncilPanel } from "@/components/execution/CouncilTab";
@@ -180,7 +181,7 @@ function applyFilters<T extends { title: string; status: string; priority?: stri
 }
 
 export default function ExecutionPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isPrimaryAdmin } = useAuth();
   const { allowed: councilAllowed } = usePageAccess("ai_hub", "primary_admin");
   const { departments } = useDepartments();
   const navigate = useNavigate();
@@ -222,14 +223,22 @@ export default function ExecutionPage() {
   const taskKanbanCols = useMemo(
     () => taskKanbanColsBase.map(c => ({
       ...c,
-      // Admin-customized color wins if set; otherwise fall back to the
-      // canonical status tone (same source StatusPill uses) rather than a
-      // bare color name — several of those ("slate", "violet") aren't
-      // valid CSS colors and rendered as no border at all.
-      color: stageColors[`task:${c.key}`] || `hsl(${resolveStatusTone("task", c.key).hsl})`,
+      // Raw "H S% L%" triplet either way — Autumn's custom pick (from
+      // kanban_stage_colors) wins if set, otherwise the canonical status
+      // tone (same source StatusPill uses). Wrapped in hsl(...) at render.
+      color: stageColors[`task:${c.key}`] || resolveStatusTone("task", c.key).hsl,
     })),
     [stageColors]
   );
+
+  const setStageColor = async (boardType: string, stageKey: string, hsl: string) => {
+    setStageColors(prev => ({ ...prev, [`${boardType}:${stageKey}`]: hsl }));
+    await supabase.from("kanban_stage_colors").delete()
+      .is("workspace_id", null).eq("board_type", boardType).eq("stage_key", stageKey);
+    const { error } = await supabase.from("kanban_stage_colors")
+      .insert({ board_type: boardType, stage_key: stageKey, color: hsl });
+    if (error) toast.error(error.message);
+  };
 
   // Issues state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -248,7 +257,7 @@ export default function ExecutionPage() {
   const tv = useViewState("tasks");
 
   const fetchAll = useCallback(async () => {
-    const [g, p, t, pr, i, ag, rp] = await Promise.all([
+    const [g, p, t, pr, i, ag, rp, sc] = await Promise.all([
       supabase.from("goals").select("*").order("year", { ascending: false }).order("quarter"),
       supabase.from("projects").select("*").eq("archived", false).order("created_at", { ascending: false }),
       supabase.from("tasks").select("*").order("created_at", { ascending: false }),
@@ -256,6 +265,7 @@ export default function ExecutionPage() {
       supabase.from("issues").select("*").order("priority").order("created_at", { ascending: false }),
       supabase.from("agents").select("slug, name, emoji, avatar_url, accent_color"),
       supabase.from("repos").select("slug, name, github_repo").eq("active", true),
+      supabase.from("kanban_stage_colors").select("board_type, stage_key, color"),
     ]);
     if (g.data) setGoals(g.data as any);
     if (p.data) setProjects(p.data as any);
@@ -264,6 +274,7 @@ export default function ExecutionPage() {
     if (i.data) setIssues(i.data as any);
     if (ag.data) setAgentsMeta(ag.data as any);
     if (rp.data) setRepos(rp.data as any);
+    if (sc.data) setStageColors(Object.fromEntries(sc.data.map(r => [`${r.board_type}:${r.stage_key}`, r.color])));
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -945,9 +956,15 @@ export default function ExecutionPage() {
                     const colRows = taskFeed.filter(task => task.status === col.key);
                     return (
                       <div key={col.key} className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 rounded-lg border-l-4 bg-card px-3 py-2" style={{ borderLeftColor: col.color }}>
+                        <div
+                          className="flex items-center gap-1 rounded-lg px-3 py-2"
+                          style={{ backgroundColor: `hsl(${col.color} / 0.14)`, color: `hsl(${col.color})` }}
+                        >
                           <span className="text-sm font-semibold">{col.label}</span>
-                          <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono">{colRows.length}</span>
+                          {isPrimaryAdmin && (
+                            <StageColorPicker value={col.color} onChange={hsl => setStageColor("task", col.key, hsl)} />
+                          )}
+                          <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{colRows.length}</span>
                         </div>
                         <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto">
                           {colRows.length === 0 ? (
