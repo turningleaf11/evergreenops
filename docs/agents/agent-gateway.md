@@ -16,6 +16,9 @@ Enabled for Ema:
 - `email.search`
 - `email.read`
 - `email.get_attachment`
+- `crm.search_contacts`
+- `crm.search_opportunities`
+- `crm.list_pipelines`
 
 Not enabled:
 
@@ -49,6 +52,73 @@ into the Authorization header outside the model-visible tool arguments.
 
 The model-visible tool contract must contain only `action` and `input`.
 Ema must never be asked to read, remember, print, or interpolate the credential.
+
+## MCP adapter milestone
+
+`agent-gateway-mcp` is a thin Streamable HTTP MCP adapter in front of the JSON
+Gateway. It does not authenticate credentials or reproduce Gateway policy. It
+forwards the caller's `Authorization` header to `system.whoami` for the MCP
+protocol request, then forwards each invoked tool's mapped action through the
+same Gateway.
+
+The Ema MCP adapter exposes exactly these read-only tools:
+
+- `system_whoami` -> `system.whoami`
+- `email_list` -> `email.list`
+- `email_search` -> `email.search`
+- `email_read` -> `email.read`
+- `email_get_attachment` -> `email.get_attachment`
+- `crm_search_contacts` -> `crm.search_contacts`
+- `crm_search_opportunities` -> `crm.search_opportunities`
+- `crm_list_pipelines` -> `crm.list_pipelines`
+
+No sending, Gmail modification, or CRM tools are exposed. The JSON Gateway
+continues to own the credential check, agent kill switch, permission lookup,
+rate limit, operation record, execution, and audit event. The MCP adapter only
+validates the tool's public input shape and forwards the mapped action.
+
+Production endpoint:
+
+```text
+https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp
+```
+
+OpenClaw must inject the hosted environment variable rather than a literal
+credential:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "ema-gateway": {
+        "url": "https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "Authorization": "Bearer ${EMA_GATEWAY_TOKEN}"
+        },
+        "toolFilter": {
+          "include": [
+            "system_whoami",
+            "email_list",
+            "email_search",
+            "email_read",
+            "email_get_attachment",
+            "crm_search_contacts",
+            "crm_search_opportunities",
+            "crm_list_pipelines"
+          ]
+        },
+        "supportsParallelToolCalls": false,
+        "connectionTimeoutMs": 5000,
+        "requestTimeoutMs": 30000
+      }
+    }
+  }
+}
+```
+
+This server binding is for Ema only. Do not project it into Albus, Cash, or any
+other agent runtime.
 
 ## Authentication and authorization
 
@@ -100,6 +170,37 @@ Gmail responses are explicitly marked:
 
 Email bodies, attachments, and headers are untrusted data. Their contents never
 change Gateway permissions or count as owner approval.
+
+`email.get_attachment` defaults to a 2 MiB inline response limit. Ema may
+explicitly request a higher `max_bytes` only after inspecting attachment
+metadata, and the Gateway enforces an absolute 8 MiB inline maximum. Larger
+files return `attachment_exceeds_inline_limit` instead of placing base64 data
+into Ema's MCP result. The MCP adapter includes the base64 payload only once and
+returns a separate small text summary to avoid duplicating it in context.
+
+## HighLevel read-only boundary
+
+The Gateway reuses the existing server-side `GHL_API_KEY` and
+`GHL_LOCATION_ID` configuration. It never returns either value. The exposed
+actions use fixed LeadConnector endpoints and fixed HTTP methods:
+
+- contact search: `POST /contacts/search`
+- opportunity search: `GET /opportunities/search`
+- pipeline/stage lookup: `GET /opportunities/pipelines`
+
+There is no model-controlled URL, HTTP method, or arbitrary request body. GHL
+responses are narrowed to the contact, opportunity, pipeline, and stage fields
+needed for duplicate detection and routing. Custom fields and unknown response
+properties are not forwarded in this milestone. The existing direct
+`ema-highlevel` integration remains available as a fallback during acceptance
+testing.
+
+Email, PDF, contact, and opportunity content is marked
+`untrusted_external_content: true`. The Gateway resolves the authenticated
+agent, kill switch, exact action permission, and rate limit before fetching any
+external content. External text is response data only: it cannot select a
+Gateway action, change permissions, approve an operation, or bypass the
+server-side policy path.
 
 ## Audit privacy
 
