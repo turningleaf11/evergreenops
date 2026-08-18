@@ -72,6 +72,9 @@ interface Props {
    * Inline/flow mode — stream grows with content instead of filling remaining height.
    * Shows "Comments | All activity" tab bar + sort toggle. No composer (render externally).
    * Use this when the parent handles scrolling (single-scroll layout like task peek).
+   * Combined with agentTaskId, keeps the Comments/AI Log tab split but drops
+   * the fixed-height wrapper and owns its own composer (needed for the
+   * @mention-agent feedback trigger below).
    */
   inline?: boolean;
 }
@@ -641,6 +644,50 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
       })}
     </div>
   );
+
+  // Tabbed + inline mode — an agent task shown in a single-scroll layout
+  // (like the human task peek) but keeping the Comments/AI Log split: tabs
+  // stay, the fixed-height/internal-scroll wrapper goes, content just flows
+  // with the rest of the page and the parent handles scrolling.
+  if (agentTaskId && inline) {
+    return (
+      <div>
+        <Tabs defaultValue="comments">
+          <TabsList className="w-full justify-start rounded-none border-b border-border/40 bg-transparent px-3 gap-1 h-9">
+            <TabsTrigger
+              value="comments"
+              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
+            >
+              <MessageSquare className="h-3 w-3 mr-1.5" /> Comments
+            </TabsTrigger>
+            <TabsTrigger
+              value="ai-log"
+              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
+            >
+              AI Log
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="comments" className="mt-0">
+            <div className="px-3 py-3">{StreamBody}</div>
+            {!hideComposer && (
+              <div className="px-3 pt-1 pb-3">
+                <ActivityComposer
+                  submitting={submitting}
+                  onSubmit={(p) => handleSubmit(p)}
+                  placeholder="Comment or @mention an agent to activate them…"
+                />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="ai-log" className="mt-0 px-4 py-3">
+            <AgentActivityDrillDown taskId={agentTaskId} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
 
   // Tabbed mode — used when an agentTaskId is provided (agent task drawer).
   if (agentTaskId) {
