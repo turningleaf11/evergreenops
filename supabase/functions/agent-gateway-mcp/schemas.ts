@@ -47,6 +47,10 @@ export const crmSearchOpportunitiesInputSchema = {
 
 export const crmListPipelinesInputSchema = {};
 
+export const dealIntakeToCrmInputSchema = {
+  candidate_id: z.string().uuid(),
+};
+
 export const emailInputValidators = {
   email_list: z.object(emailListInputSchema),
   email_search: z.object(emailSearchInputSchema),
@@ -58,4 +62,5 @@ export const emailInputValidators = {
     { message: "query or contact_id is required" },
   ),
   crm_list_pipelines: z.object(crmListPipelinesInputSchema),
+  deal_intake_to_crm: z.object(dealIntakeToCrmInputSchema).strict(),
 } as const;
