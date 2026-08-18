@@ -104,6 +104,7 @@ export type Database = {
           due_date: string | null
           error: string | null
           followers: string[] | null
+          goal_id: string | null
           id: string
           is_system_task: boolean
           notes: string | null
@@ -129,6 +130,7 @@ export type Database = {
           due_date?: string | null
           error?: string | null
           followers?: string[] | null
+          goal_id?: string | null
           id?: string
           is_system_task?: boolean
           notes?: string | null
@@ -154,6 +156,7 @@ export type Database = {
           due_date?: string | null
           error?: string | null
           followers?: string[] | null
+          goal_id?: string | null
           id?: string
           is_system_task?: boolean
           notes?: string | null
@@ -169,6 +172,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "agent_tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agent_tasks_project_id_fkey"
             columns: ["project_id"]

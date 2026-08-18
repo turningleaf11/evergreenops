@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import DataTableView from "@/components/execution/DataTableView";
 import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
-import { QuickAddPopover } from "@/components/primitives";
+import { AgentTaskDetail } from "@/components/execution/AgentTaskDetail";
+import CreateEntityDialog, { type AgentMeta } from "@/components/execution/CreateEntityDialog";
 
 interface Props {
-  tasks: any[];
+  // Merged tasks + agent_tasks rows, each tagged with _kind by the parent.
+  items: any[];
   profiles: { user_id: string; full_name: string | null }[];
-  onCreate: (title: string) => void;
-  onStatusChange: (taskId: string, status: string) => void;
+  agents: AgentMeta[];
+  repos: { slug: string; name: string; github_repo: string }[];
+  projectId: string;
+  onCreate: (data: any) => void;
+  onStatusChange: (id: string, kind: "task" | "agent_task", status: string) => void;
+  onUpdate: (id: string, kind: "task" | "agent_task", patch: Record<string, any>) => void;
   onChanged?: () => void;
   unreadIds?: Set<string>;
 }
@@ -21,43 +25,72 @@ const TASK_STATUS_OPTIONS = [
   { value: "done", label: "Done" },
 ];
 
-export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusChange, onChanged, unreadIds }: Props) {
-  const [peekTaskId, setPeekTaskId] = useState<string | null>(null);
+export default function ProjectTasksTab({
+  items, profiles, agents, repos, projectId, onCreate, onStatusChange, onUpdate, onChanged, unreadIds,
+}: Props) {
+  const [peek, setPeek] = useState<{ id: string; kind: "task" | "agent_task" } | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const getName = (uid: string | null) =>
-    !uid ? "Unassigned" : profiles.find((p) => p.user_id === uid)?.full_name || "Unknown";
-
-  const updateTask = async (id: string, patch: Record<string, any>) => {
-    const { error } = await supabase.from("tasks").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
-    else onChanged?.();
+  const getName = (uid: string | null) => {
+    if (!uid) return "Unassigned";
+    const agent = agents.find((a) => a.slug === uid);
+    if (agent) return agent.name;
+    return profiles.find((p) => p.user_id === uid)?.full_name || "Unknown";
   };
 
   return (
     <>
       <div className="mb-3">
-        <QuickAddPopover triggerLabel="Add task" placeholder="Task name…" onAdd={onCreate} />
+        <CreateEntityDialog
+          title="Add task"
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onSubmit={(data) => { onCreate(data); setCreateOpen(false); }}
+          type="task"
+          goals={[]}
+          projects={[]}
+          departments={[]}
+          profiles={profiles}
+          agents={agents}
+          repos={repos}
+          lockProjectId={projectId}
+        />
       </div>
 
       {/* Same table component the standalone Tasks page uses — one list
-          implementation, not a parallel, thinner one. */}
+          implementation, not a parallel, thinner one. Rows can be `tasks`
+          or `agent_tasks`; each keeps its own fields, this just merges the
+          columns they share (name/status/priority/assignee/due date). */}
       <DataTableView
-        items={tasks}
+        items={items}
         type="task"
-        onItemClick={(t) => setPeekTaskId(t.id)}
-        onStatusChange={onStatusChange}
-        onUpdate={updateTask}
+        onItemClick={(t) => setPeek({ id: t.id, kind: t._kind })}
+        onStatusChange={(id, status) => {
+          const item = items.find((i) => i.id === id);
+          onStatusChange(id, item?._kind || "task", status);
+        }}
+        onUpdate={(id, patch) => {
+          const item = items.find((i) => i.id === id);
+          onUpdate(id, item?._kind || "task", patch);
+        }}
         getName={getName}
         statusOptions={TASK_STATUS_OPTIONS}
         profiles={profiles}
         unreadIds={unreadIds}
       />
 
-      {peekTaskId && (
+      {peek?.kind === "task" && (
         <TaskPeek
-          id={peekTaskId}
-          open={!!peekTaskId}
-          onClose={() => { setPeekTaskId(null); onChanged?.(); }}
+          id={peek.id}
+          open={true}
+          onClose={() => { setPeek(null); onChanged?.(); }}
+        />
+      )}
+      {peek?.kind === "agent_task" && (
+        <AgentTaskDetail
+          taskId={peek.id}
+          open={true}
+          onClose={() => { setPeek(null); onChanged?.(); }}
         />
       )}
     </>
