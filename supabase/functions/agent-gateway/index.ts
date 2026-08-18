@@ -20,6 +20,7 @@ import {
   sha256Hex,
   summarizeGatewayInput,
 } from './core.ts';
+import { DealIntakeError, intakeCandidateToCrm } from './intake.ts';
 
 const DEFAULT_GMAIL_ACCOUNT = 'office@evergreenhomegroup.com';
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -377,6 +378,16 @@ async function dispatch(
     };
   }
 
+  if (request.action === 'deal.intake_to_crm') {
+    const ghlContext = await resolveGhlContext(admin);
+    return intakeCandidateToCrm(
+      admin,
+      ghlContext,
+      context.workspaceId,
+      String(request.input.candidate_id),
+    );
+  }
+
   if (request.action.startsWith('crm.')) {
     const ghlContext = await resolveGhlContext(admin);
     switch (request.action) {
@@ -481,9 +492,7 @@ async function listMessages(
     (listed.messages ?? []).map(async (item: { id: string }) => {
       const metadata = await google(
         accessToken,
-        `/messages/${
-          encodeURIComponent(item.id)
-        }?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Delivered-To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID`,
+        `/messages/${encodeURIComponent(item.id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Delivered-To&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Message-ID`,
       );
       return summarizeMessage(metadata);
     }),
@@ -643,6 +652,9 @@ async function writeAudit(
 
 function normalizeError(error: unknown): GatewayError {
   if (error instanceof GatewayError) return error;
+  if (error instanceof DealIntakeError) {
+    return new GatewayError(error.status, error.code);
+  }
   if (error instanceof GhlReadError) {
     return new GatewayError(error.status, error.code);
   }
