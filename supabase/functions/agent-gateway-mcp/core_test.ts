@@ -67,6 +67,7 @@ Deno.test("exposes exactly the approved Ema MCP action mappings", () => {
     crm_search_contacts: "crm.search_contacts",
     crm_search_opportunities: "crm.search_opportunities",
     crm_list_pipelines: "crm.list_pipelines",
+    deal_intake_to_crm: "deal.intake_to_crm",
   });
 });
 
@@ -128,6 +129,33 @@ Deno.test("forwards a read-only email action and input to the existing Gateway",
   });
   assertEquals(result.action, "email.search");
   assertEquals(result.untrusted_external_content, true);
+});
+
+Deno.test("forwards deal intake only as candidate identity to the policy Gateway", async () => {
+  let observedBody = "";
+  const candidateId = "123e4567-e89b-42d3-a456-426614174000";
+  const result = await callGateway({
+    gatewayUrl: "https://example.test/functions/v1/agent-gateway",
+    authorization: "Bearer opaque-token",
+    userAgent: "OpenClaw test",
+    action: "deal.intake_to_crm",
+    input: { candidate_id: candidateId },
+    fetchImpl: async (_input, init) => {
+      observedBody = String(init?.body);
+      return new Response(JSON.stringify({
+        ok: true,
+        request_id: "request-id",
+        action: "deal.intake_to_crm",
+        untrusted_external_content: true,
+        data: { candidate_id: candidateId, opportunity: { id: "opp_1" } },
+      }));
+    },
+  });
+  assertEquals(JSON.parse(observedBody), {
+    action: "deal.intake_to_crm",
+    input: { candidate_id: candidateId },
+  });
+  assertEquals(result.action, "deal.intake_to_crm");
 });
 
 Deno.test("rejects a Gateway response for the wrong action", () => {

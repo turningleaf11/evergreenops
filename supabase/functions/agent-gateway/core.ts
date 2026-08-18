@@ -7,6 +7,7 @@ export const ALLOWED_ACTIONS = [
   'crm.search_contacts',
   'crm.search_opportunities',
   'crm.list_pipelines',
+  'deal.intake_to_crm',
 ] as const;
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES = 2 * 1024 * 1024;
@@ -147,11 +148,17 @@ export function parseGatewayRequest(value: unknown): GatewayRequest {
 
     case 'crm.list_pipelines':
       return { action: 'crm.list_pipelines', input: {} };
+
+    case 'deal.intake_to_crm':
+      return {
+        action: 'deal.intake_to_crm',
+        input: { candidate_id: uuid(input.candidate_id, 'candidate_id') },
+      };
   }
 }
 
 export function isUntrustedExternalAction(action: GatewayAction): boolean {
-  return action.startsWith('email.') || action.startsWith('crm.');
+  return action.startsWith('email.') || action.startsWith('crm.') || action.startsWith('deal.');
 }
 
 export function summarizeGatewayInput(request: GatewayRequest): {
@@ -226,6 +233,12 @@ export function summarizeGatewayInput(request: GatewayRequest): {
         inputSummary: {},
         resourceType: 'ghl_pipeline_list',
         resourceId: null,
+      };
+    case 'deal.intake_to_crm':
+      return {
+        inputSummary: { contract: 'v1' },
+        resourceType: 'ema_candidate',
+        resourceId: String(request.input.candidate_id),
       };
   }
 }
@@ -359,6 +372,14 @@ function optionalEnum<const T extends readonly string[]>(
     throw new RequestValidationError(`${field} is invalid`);
   }
   return value as T[number];
+}
+
+function uuid(value: unknown, field: string): string {
+  const result = requiredString(value, field, 36, 36).toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(result)) {
+    throw new RequestValidationError(`${field} is invalid`);
+  }
+  return result;
 }
 
 function requiredString(

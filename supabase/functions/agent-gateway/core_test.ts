@@ -208,6 +208,42 @@ Deno.test('rejects broad or malformed CRM requests', () => {
   );
 });
 
+Deno.test('deal intake accepts only a persisted candidate identity at the gateway boundary', () => {
+  const candidateId = '123e4567-e89b-42d3-a456-426614174000';
+  assertEquals(
+    parseGatewayRequest({
+      action: 'deal.intake_to_crm',
+      input: {
+        candidate_id: candidateId,
+        pipeline_id: 'attacker-chosen-pipeline',
+        note_text: 'model supplied note text',
+        url: 'https://example.invalid',
+      },
+    }),
+    {
+      action: 'deal.intake_to_crm',
+      input: { candidate_id: candidateId },
+    },
+  );
+  assertThrows(
+    () => parseGatewayRequest({ action: 'deal.intake_to_crm', input: { candidate_id: 'not-a-uuid' } }),
+    RequestValidationError,
+  );
+});
+
+Deno.test('deal intake audit summary stores only candidate identity and contract version', () => {
+  const candidateId = '123e4567-e89b-42d3-a456-426614174000';
+  const request = parseGatewayRequest({
+    action: 'deal.intake_to_crm',
+    input: { candidate_id: candidateId },
+  });
+  const summary = summarizeGatewayInput(request);
+  assertEquals(summary.inputSummary, { contract: 'v1' });
+  assertEquals(summary.resourceType, 'ema_candidate');
+  assertEquals(summary.resourceId, candidateId);
+  assert(isUntrustedExternalAction('deal.intake_to_crm'));
+});
+
 Deno.test('CRM audit summaries omit search terms and external data stays untrusted', () => {
   const request = parseGatewayRequest({
     action: 'crm.search_opportunities',

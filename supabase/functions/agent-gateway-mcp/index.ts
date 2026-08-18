@@ -17,6 +17,7 @@ import {
   crmListPipelinesInputSchema,
   crmSearchContactsInputSchema,
   crmSearchOpportunitiesInputSchema,
+  dealIntakeToCrmInputSchema,
   emailGetAttachmentInputSchema,
   emailListInputSchema,
   emailReadInputSchema,
@@ -46,11 +47,6 @@ Deno.serve(async (req) => {
   if (!supabaseUrl) return jsonError("adapter_not_configured", 500);
 
   try {
-    // Authenticate the MCP protocol request through system.whoami. Tool calls
-    // below then send their mapped action through the same Gateway, which owns
-    // the credential check, kill switch, exact permission, rate limit,
-    // operation state, and audit record. The adapter neither stores nor
-    // interprets the raw credential.
     const identity = await authenticateThroughGateway({
       gatewayUrl: resolveGatewayUrl(supabaseUrl),
       authorization: req.headers.get("Authorization"),
@@ -175,6 +171,18 @@ Deno.serve(async (req) => {
       () => execute("crm.list_pipelines", {}),
     );
 
+    server.registerTool(
+      "deal_intake_to_crm",
+      {
+        title: "Intake a Cash-approved deal into HighLevel",
+        description:
+          "Processes one persisted Cash-approved Ema candidate using server-side duplicate checks, fixed pipeline routing, source-backed fields, idempotency, and an audit note. It cannot send messages, create offers, delete records, or advance an existing opportunity stage.",
+        inputSchema: dealIntakeToCrmInputSchema,
+        annotations: controlledWriteAnnotations,
+      },
+      (input) => execute("deal.intake_to_crm", input),
+    );
+
     const transport = new WebStandardStreamableHTTPServerTransport();
     await server.connect(transport);
     return await transport.handleRequest(req);
@@ -203,6 +211,13 @@ Deno.serve(async (req) => {
 
 const readOnlyAnnotations = {
   readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
+const controlledWriteAnnotations = {
+  readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: true,
