@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import DataTableView from "@/components/execution/DataTableView";
-import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
-import { QuickAddPopover } from "@/components/primitives";
+import CreateEntityDialog, { type AgentMeta, type ExistingCandidate } from "@/components/execution/CreateEntityDialog";
 
 interface Props {
-  tasks: any[];
+  // Merged tasks + agent_tasks rows, each tagged with _kind by useProjectWorkItems.
+  items: any[];
   profiles: { user_id: string; full_name: string | null }[];
-  onCreate: (title: string) => void;
-  onStatusChange: (taskId: string, status: string) => void;
-  onChanged?: () => void;
+  agents: AgentMeta[];
+  repos: { slug: string; name: string; github_repo: string }[];
+  projectId: string;
+  getName: (uid: string | null) => string;
+  onCreate: (data: any) => void;
+  onItemClick: (item: any) => void;
+  onStatusChange: (id: string, status: string) => void;
+  onUpdate: (id: string, patch: Record<string, any>) => void;
+  existingCandidates: ExistingCandidate[];
+  onLinkExisting: (candidate: ExistingCandidate) => void;
   unreadIds?: Set<string>;
 }
 
@@ -21,45 +26,48 @@ const TASK_STATUS_OPTIONS = [
   { value: "done", label: "Done" },
 ];
 
-export default function ProjectTasksTab({ tasks, profiles, onCreate, onStatusChange, onChanged, unreadIds }: Props) {
-  const [peekTaskId, setPeekTaskId] = useState<string | null>(null);
-
-  const getName = (uid: string | null) =>
-    !uid ? "Unassigned" : profiles.find((p) => p.user_id === uid)?.full_name || "Unknown";
-
-  const updateTask = async (id: string, patch: Record<string, any>) => {
-    const { error } = await supabase.from("tasks").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
-    else onChanged?.();
-  };
+export default function ProjectTasksTab({
+  items, profiles, agents, repos, projectId, getName, onCreate, onItemClick, onStatusChange, onUpdate,
+  existingCandidates, onLinkExisting, unreadIds,
+}: Props) {
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <>
       <div className="mb-3">
-        <QuickAddPopover triggerLabel="Add task" placeholder="Task name…" onAdd={onCreate} />
+        <CreateEntityDialog
+          title="Add task"
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onSubmit={(data) => { onCreate(data); setCreateOpen(false); }}
+          type="task"
+          goals={[]}
+          projects={[]}
+          departments={[]}
+          profiles={profiles}
+          agents={agents}
+          repos={repos}
+          lockProjectId={projectId}
+          existingCandidates={existingCandidates}
+          onLinkExisting={(c) => { onLinkExisting(c); setCreateOpen(false); }}
+        />
       </div>
 
       {/* Same table component the standalone Tasks page uses — one list
-          implementation, not a parallel, thinner one. */}
+          implementation, not a parallel, thinner one. Rows can be `tasks`
+          or `agent_tasks`; each keeps its own fields, this just merges the
+          columns they share (name/status/priority/assignee/due date). */}
       <DataTableView
-        items={tasks}
+        items={items}
         type="task"
-        onItemClick={(t) => setPeekTaskId(t.id)}
+        onItemClick={onItemClick}
         onStatusChange={onStatusChange}
-        onUpdate={updateTask}
+        onUpdate={onUpdate}
         getName={getName}
         statusOptions={TASK_STATUS_OPTIONS}
         profiles={profiles}
         unreadIds={unreadIds}
       />
-
-      {peekTaskId && (
-        <TaskPeek
-          id={peekTaskId}
-          open={!!peekTaskId}
-          onClose={() => { setPeekTaskId(null); onChanged?.(); }}
-        />
-      )}
     </>
   );
 }

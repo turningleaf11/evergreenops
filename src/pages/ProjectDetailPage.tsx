@@ -29,9 +29,10 @@ import ProjectWhiteboardsTab from "@/components/execution/ProjectWhiteboardsTab"
 import ProjectFilesTab from "@/components/execution/ProjectFilesTab";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import GoalPeek from "@/components/execution/GoalPeek";
-import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
+import WorkItemPeek from "@/components/execution/WorkItemPeek";
 import { ProjectBoardView, ProjectCalendarView, ProjectTimelineView, type ProjectViewType } from "@/components/execution/ProjectTaskViews";
 import { useReportActiveEntity, useCompanion } from "@/contexts/CompanionContext";
+import { useProjectWorkItems, type WorkItemKind } from "@/hooks/useProjectWorkItems";
 
 // List is the built-in first view; Whiteboards/Files are built-in surfaces.
 // Board/Calendar/Timeline are user-added, persisted per-project in project_views.
@@ -58,9 +59,13 @@ export default function ProjectDetailPage() {
   const unreadTaskIds = useUnreadEntityIds("task");
 
   const [project, setProject] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
+  const {
+    items: workItems, tasks, agents: agentsMeta, repos, profiles, existingCandidates,
+    getAssigneeName: getName, updateStatus: updateItemStatus,
+    updateFields: updateItemFields, createItem: createWorkItemRaw, linkExisting,
+    refetch: refetchWorkItems,
+  } = useProjectWorkItems(id);
   const [goals, setGoals] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [commentCount, setCommentCount] = useState(0);
@@ -73,7 +78,7 @@ export default function ProjectDetailPage() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [views, setViews] = useState<any[]>([]);
-  const [peekTaskId, setPeekTaskId] = useState<string | null>(null);
+  const [peekItem, setPeekItem] = useState<{ id: string; kind: WorkItemKind } | null>(null);
 
   const tabKey = id ? `project-view-${id}` : "project-view";
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -90,20 +95,16 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [pRes, tRes, gRes, prRes, dRes, aRes, cRes, vRes] = await Promise.all([
+    const [pRes, gRes, dRes, aRes, cRes, vRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
-      supabase.from("tasks").select("*").eq("project_id", id).order("created_at"),
       supabase.from("goals").select("id, title"),
-      supabase.from("profiles").select("user_id, full_name"),
       supabase.from("documents").select("id, title, updated_at, content").eq("project_id", id).order("updated_at", { ascending: false }),
       supabase.from("project_attachments").select("*").eq("project_id", id).order("created_at", { ascending: false }),
       supabase.from("comments").select("id", { count: "exact", head: true }).eq("entity_type", "project").eq("entity_id", id),
       (supabase as any).from("project_views").select("*").eq("project_id", id).order("position"),
     ]);
     if (pRes.data) { setProject(pRes.data); setTitleDraft(pRes.data.title); }
-    if (tRes.data) setTasks(tRes.data);
     if (gRes.data) setGoals(gRes.data);
-    if (prRes.data) setProfiles(prRes.data);
     if (dRes.data) setLinkedDocs(dRes.data);
     if (aRes.data) setAttachments(aRes.data);
     setCommentCount(cRes.count ?? 0);
@@ -124,14 +125,11 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     const onTasksCreated = (e: Event) => {
       const detail = (e as CustomEvent).detail as { projectId?: string } | undefined;
-      if (detail?.projectId === id) fetchData();
+      if (detail?.projectId === id) { fetchData(); refetchWorkItems(); }
     };
     window.addEventListener("albus-tasks-created", onTasksCreated);
     return () => window.removeEventListener("albus-tasks-created", onTasksCreated);
-  }, [id, fetchData]);
-
-  const getName = (uid: string | null) =>
-    !uid ? "Unassigned" : profiles.find(p => p.user_id === uid)?.full_name || "Unknown";
+  }, [id, fetchData, refetchWorkItems]);
 
   const updateProject = async (updates: Record<string, any>) => {
     const { error } = await supabase.from("projects").update(updates as any).eq("id", id!);
@@ -164,24 +162,11 @@ export default function ProjectDetailPage() {
   const removeTag = (tag: string) =>
     updateProject({ tags: (project.tags || []).filter((t: string) => t !== tag) });
 
-  const createTask = async (title: string) => {
-    const { error } = await supabase.from("tasks").insert({
-      title, project_id: id, created_by: user?.id, assigned_to: user?.id,
-    });
-    if (error) toast.error(error.message);
-    else fetchData();
-  };
-
-  const updateTaskStatus = async (taskId: string, status: string) => {
-    await supabase.from("tasks").update({ status }).eq("id", taskId);
-    fetchData();
-  };
-
-  const updateTaskFields = async (taskId: string, patch: Record<string, any>) => {
-    const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
-    if (error) toast.error(error.message);
-    else fetchData();
-  };
+  // List/Board/Calendar/Timeline all read useProjectWorkItems' merged
+  // `items` and call its create/update/status mutators directly — this page
+  // only needs to supply the creating user.
+  const createWorkItem = (data: Parameters<typeof createWorkItemRaw>[0]) =>
+    createWorkItemRaw(data, user?.id);
 
   const addView = async (type: ProjectViewType, label: string) => {
     const { data, error } = await (supabase as any)
@@ -490,7 +475,7 @@ export default function ProjectDetailPage() {
         {/* List — built-in */}
         <button onClick={() => setActiveTab("list")} className={tabClass(activeTab === "list")}>
           <List className="h-3.5 w-3.5" /> List
-          {tasks.length > 0 && <span className="text-[10px] text-muted-foreground">({tasks.length})</span>}
+          {workItems.length > 0 && <span className="text-[10px] text-muted-foreground">({workItems.length})</span>}
         </button>
 
         {/* Saved views — user-added, removable */}
@@ -541,22 +526,29 @@ export default function ProjectDetailPage() {
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
         {activeTab === "list" && (
           <ProjectTasksTab
-            tasks={tasks}
+            items={workItems}
             profiles={profiles}
-            onCreate={createTask}
-            onStatusChange={updateTaskStatus}
-            onChanged={fetchData}
+            agents={agentsMeta}
+            repos={repos}
+            projectId={id!}
+            getName={getName}
+            onCreate={createWorkItem}
+            onItemClick={(t) => setPeekItem({ id: t.id, kind: t._kind })}
+            onStatusChange={updateItemStatus}
+            onUpdate={updateItemFields}
+            existingCandidates={existingCandidates}
+            onLinkExisting={(c) => linkExisting(c.id, c._kind)}
             unreadIds={unreadTaskIds}
           />
         )}
         {activeView?.type === "board" && (
-          <ProjectBoardView tasks={tasks} profiles={profiles} getName={getName} onItemClick={(t) => setPeekTaskId(t.id)} onStatusChange={updateTaskStatus} onFieldChange={updateTaskFields} unreadIds={unreadTaskIds} />
+          <ProjectBoardView items={workItems} profiles={profiles} getName={getName} onItemClick={(t) => setPeekItem({ id: t.id, kind: t._kind })} onStatusChange={updateItemStatus} onFieldChange={updateItemFields} unreadIds={unreadTaskIds} />
         )}
         {activeView?.type === "calendar" && (
-          <ProjectCalendarView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />
+          <ProjectCalendarView items={workItems} onItemClick={(t) => setPeekItem({ id: t.id, kind: t._kind })} />
         )}
         {activeView?.type === "timeline" && (
-          <ProjectTimelineView tasks={tasks} onItemClick={(t) => setPeekTaskId(t.id)} />
+          <ProjectTimelineView items={workItems} onItemClick={(t) => setPeekItem({ id: t.id, kind: t._kind })} />
         )}
         {activeTab === "whiteboards" && <ProjectWhiteboardsTab />}
         {activeTab === "files" && <ProjectFilesTab attachments={attachments} projectId={project.id} onChanged={fetchData} />}
@@ -634,10 +626,9 @@ export default function ProjectDetailPage() {
         onOpenProject={(pid) => { setPeekGoalId(null); navigate(`/projects/${pid}`); }}
       />
 
-      {/* Task peek for the Board/Calendar/Timeline views (List has its own) */}
-      {peekTaskId && (
-        <TaskPeek id={peekTaskId} open={!!peekTaskId} onClose={() => { setPeekTaskId(null); fetchData(); }} />
-      )}
+      {/* One peek for every view — List, Board, Calendar, Timeline all set
+          peekItem the same way; WorkItemPeek picks TaskPeek vs AgentTaskDetail. */}
+      <WorkItemPeek peek={peekItem} onClose={() => { setPeekItem(null); refetchWorkItems(); }} />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

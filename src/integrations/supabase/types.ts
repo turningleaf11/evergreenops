@@ -94,6 +94,7 @@ export type Database = {
       }
       agent_tasks: {
         Row: {
+          archived: boolean
           assigned_to: string
           completed_at: string | null
           context: Json | null
@@ -104,6 +105,7 @@ export type Database = {
           due_date: string | null
           error: string | null
           followers: string[] | null
+          goal_id: string | null
           id: string
           is_system_task: boolean
           notes: string | null
@@ -119,6 +121,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          archived?: boolean
           assigned_to?: string
           completed_at?: string | null
           context?: Json | null
@@ -129,6 +132,7 @@ export type Database = {
           due_date?: string | null
           error?: string | null
           followers?: string[] | null
+          goal_id?: string | null
           id?: string
           is_system_task?: boolean
           notes?: string | null
@@ -144,6 +148,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          archived?: boolean
           assigned_to?: string
           completed_at?: string | null
           context?: Json | null
@@ -154,6 +159,7 @@ export type Database = {
           due_date?: string | null
           error?: string | null
           followers?: string[] | null
+          goal_id?: string | null
           id?: string
           is_system_task?: boolean
           notes?: string | null
@@ -169,6 +175,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "agent_tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agent_tasks_project_id_fkey"
             columns: ["project_id"]
@@ -7226,6 +7239,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          archived: boolean
           assigned_to: string | null
           cover_url: string | null
           created_at: string
@@ -7249,6 +7263,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          archived?: boolean
           assigned_to?: string | null
           cover_url?: string | null
           created_at?: string
@@ -7272,6 +7287,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          archived?: boolean
           assigned_to?: string | null
           cover_url?: string | null
           created_at?: string

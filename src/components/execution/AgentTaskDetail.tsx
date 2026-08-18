@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import ActivityPanel from "@/components/activity/ActivityPanel";
 import { StatusPill } from "@/components/primitives";
+import WorkItemMenu from "@/components/execution/WorkItemMenu";
 
 type Status = "backlog" | "pending" | "doing" | "review" | "approved" | "needs_input" | "done" | "cancelled";
 
@@ -103,9 +104,20 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
             <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
               {/* Header */}
               <div className="px-6 py-5 border-b border-border/40 shrink-0 space-y-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary/70" />
-                  <span className="font-medium">AI task</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium">AI task</span>
+                  </div>
+                  <WorkItemMenu
+                    id={task.id}
+                    kind="agent_task"
+                    title={task.title}
+                    onDuplicated={onClose}
+                    onArchived={onClose}
+                    onDeleted={onClose}
+                    onMoved={onClose}
+                  />
                 </div>
 
                 <SheetHeader>
