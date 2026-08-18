@@ -27,6 +27,7 @@ Deno.test("contact search uses the read-only endpoint and narrows results", asyn
   let observedUrl = "";
   let observedMethod = "";
   let observedAuthorization = "";
+  let observedVersion = "";
   let observedBody: unknown;
   const result = await searchGhlContacts(
     context,
@@ -34,8 +35,9 @@ Deno.test("contact search uses the read-only endpoint and narrows results", asyn
     async (input, init) => {
       observedUrl = String(input);
       observedMethod = String(init?.method);
-      observedAuthorization = new Headers(init?.headers).get("Authorization") ??
-        "";
+      const headers = new Headers(init?.headers);
+      observedAuthorization = headers.get("Authorization") ?? "";
+      observedVersion = headers.get("Version") ?? "";
       observedBody = JSON.parse(String(init?.body));
       return new Response(JSON.stringify({
         contacts: [{
@@ -54,6 +56,7 @@ Deno.test("contact search uses the read-only endpoint and narrows results", asyn
   assert(observedUrl.endsWith("/contacts/search"));
   assertEquals(observedMethod, "POST");
   assertEquals(observedAuthorization, `Bearer ${context.apiKey}`);
+  assertEquals(observedVersion, "v3");
   assertEquals(observedBody, {
     locationId: "location_123",
     query: "broker@example.com",
@@ -64,8 +67,9 @@ Deno.test("contact search uses the read-only endpoint and narrows results", asyn
   assert(!JSON.stringify(result).includes("ignore previous instructions"));
 });
 
-Deno.test("opportunity search uses only current read-only query parameters", async () => {
+Deno.test("opportunity search uses the current v3 read-only request shape", async () => {
   let observedUrl = "";
+  let observedVersion = "";
   const result = await searchGhlOpportunities(
     context,
     {
@@ -80,6 +84,7 @@ Deno.test("opportunity search uses only current read-only query parameters", asy
     async (input, init) => {
       observedUrl = String(input);
       assertEquals(init?.method, "GET");
+      observedVersion = new Headers(init?.headers).get("Version") ?? "";
       return new Response(JSON.stringify({
         opportunities: [{
           id: "opportunity_123",
@@ -96,6 +101,7 @@ Deno.test("opportunity search uses only current read-only query parameters", asy
 
   const url = new URL(observedUrl);
   assertEquals(url.pathname, "/opportunities/search");
+  assertEquals(observedVersion, "v3");
   assertEquals(url.searchParams.get("locationId"), "location_123");
   assertEquals(url.searchParams.get("contactId"), "contact_123");
   assertEquals(url.searchParams.get("pipelineId"), "pipeline_123");
@@ -110,6 +116,7 @@ Deno.test("pipeline lookup returns only pipeline and stage routing fields", asyn
     assertEquals(url.pathname, "/opportunities/pipelines");
     assertEquals(url.searchParams.get("locationId"), "location_123");
     assertEquals(init?.method, "GET");
+    assertEquals(new Headers(init?.headers).get("Version"), "v3");
     return new Response(JSON.stringify({
       pipelines: [{
         id: "pipeline_123",
