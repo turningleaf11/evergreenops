@@ -206,8 +206,11 @@ function validateCandidate(candidate: CandidateRow): void {
 
 export function looksLikeResolvedAddress(address: string): boolean {
   if (address.length < 8 || address.length > 300) return false;
-  if (!/\d/.test(address) || !/[A-Za-z]{2}/.test(address)) return false;
-  return !SUBJECT_LIKE_ADDRESS.test(address);
+  if (SUBJECT_LIKE_ADDRESS.test(address)) return false;
+  // Fail closed for autonomous writes: a normalized street address must begin
+  // with a street number. Lot/legal-description cases can be resolved by a
+  // human and retried rather than risking a junk or duplicate opportunity.
+  return /^\s*\d{1,8}\s+[A-Za-z0-9]/.test(address);
 }
 
 export function deriveRoute(facts: Record<string, unknown>): Route {
@@ -378,7 +381,6 @@ async function resolveOpportunity(
       name: address,
       status: 'open',
       contactId,
-      source: 'Ema Email Intake',
       customFields,
     });
     const id = requiredId(created.id);
