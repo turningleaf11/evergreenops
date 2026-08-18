@@ -104,7 +104,9 @@ export function AgentTaskDetail({ taskId, open, onClose }: { taskId: string; ope
             <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
               {/* Header */}
               <div className="px-6 py-5 border-b border-border/40 shrink-0 space-y-4">
-                <div className="flex items-center justify-between">
+                {/* Extra right padding clears the Sheet's own absolute-
+                    positioned close X (right-4 top-4, z-20). */}
+                <div className="flex items-center justify-between pr-10">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Sparkles className="h-3.5 w-3.5 text-primary/70" />
                     <span className="font-medium">AI task</span>

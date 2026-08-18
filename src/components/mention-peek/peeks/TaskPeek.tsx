@@ -205,8 +205,10 @@ export default function TaskPeek({ id, open, onClose }: Props) {
             {/* ── Single scroll container ── everything flows, accent section grows with content ── */}
             <div className="flex-1 overflow-y-auto">
 
-              {/* Action bar */}
-              <div className="flex items-center justify-between px-5 pt-4 pb-1">
+              {/* Action bar — extra right padding clears the Sheet's own
+                  absolute-positioned close X (right-4 top-4, z-20) so
+                  WorkItemMenu doesn't render underneath it. */}
+              <div className="flex items-center justify-between px-5 pt-4 pb-1 pr-14">
                 <button
                   onClick={() => updateTask({ status: isDone ? "todo" : "done" })}
                   className={cn(
