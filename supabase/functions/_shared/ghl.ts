@@ -351,9 +351,6 @@ function normalizeOpportunity(opportunity: Record<string, unknown>): Record<stri
     source: safeString(opportunity.source, 200),
     date_added: safeString(opportunity.dateAdded ?? opportunity.createdAt, 64),
     date_updated: safeString(opportunity.dateUpdated ?? opportunity.updatedAt, 64),
-    custom_fields: Array.isArray(opportunity.customFields)
-      ? opportunity.customFields.slice(0, 100)
-      : [],
   };
 }
 
