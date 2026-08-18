@@ -1,8 +1,13 @@
 import {
+  createGhlContact,
+  createGhlContactNote,
+  createGhlOpportunity,
   GhlReadError,
+  listGhlContactNotes,
   listGhlPipelines,
   searchGhlContacts,
   searchGhlOpportunities,
+  updateGhlOpportunity,
 } from "./ghl.ts";
 
 function assert(
@@ -136,12 +141,134 @@ Deno.test("pipeline lookup returns only pipeline and stage routing fields", asyn
   });
 });
 
+Deno.test("contact create is fixed to POST /contacts and injects the server location", async () => {
+  let observedBody: Record<string, unknown> = {};
+  const result = await createGhlContact(
+    context,
+    {
+      name: "Broker Person",
+      email: "broker@example.com",
+      source: "Ema Email Intake",
+      tags: ["email-lead", "ema-qualified"],
+      arbitraryUrl: "https://attacker.invalid",
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      assertEquals(url.pathname, "/contacts/");
+      assertEquals(init?.method, "POST");
+      assertEquals(new Headers(init?.headers).get("Version"), "v3");
+      observedBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ contact: { id: "contact_new", email: "broker@example.com" } }), { status: 201 });
+    },
+  );
+  assertEquals(observedBody, {
+    locationId: "location_123",
+    name: "Broker Person",
+    email: "broker@example.com",
+    source: "Ema Email Intake",
+    tags: ["email-lead", "ema-qualified"],
+  });
+  assertEquals(result.id, "contact_new");
+});
+
+Deno.test("opportunity create is fixed to the chosen initial pipeline and v3 fieldValue shape", async () => {
+  let observedBody: Record<string, unknown> = {};
+  const result = await createGhlOpportunity(
+    context,
+    {
+      pipelineId: "pipeline_fixed",
+      pipelineStageId: "stage_fixed",
+      name: "2627 NW 25th Ave, Miami, FL 33142",
+      status: "open",
+      contactId: "contact_123",
+      customFields: [{ id: "field_1", fieldValue: "SFR" }],
+      url: "https://attacker.invalid",
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      assertEquals(url.pathname, "/opportunities/");
+      assertEquals(init?.method, "POST");
+      assertEquals(new Headers(init?.headers).get("Version"), "v3");
+      observedBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({
+        opportunity: {
+          id: "opp_new",
+          pipelineId: "pipeline_fixed",
+          pipelineStageId: "stage_fixed",
+          contactId: "contact_123",
+        },
+      }), { status: 201 });
+    },
+  );
+  assertEquals(observedBody, {
+    locationId: "location_123",
+    pipelineId: "pipeline_fixed",
+    pipelineStageId: "stage_fixed",
+    name: "2627 NW 25th Ave, Miami, FL 33142",
+    status: "open",
+    contactId: "contact_123",
+    customFields: [{ id: "field_1", fieldValue: "SFR" }],
+  });
+  assertEquals(result.id, "opp_new");
+});
+
+Deno.test("existing opportunity updates cannot change pipeline stage or status through the helper", async () => {
+  let observedBody: Record<string, unknown> = {};
+  await updateGhlOpportunity(
+    context,
+    "opp_123",
+    {
+      customFields: [{ id: "field_1", fieldValue: "SFR" }],
+      pipelineId: "attacker_pipeline",
+      pipelineStageId: "attacker_stage",
+      status: "won",
+      name: "attacker name",
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      assertEquals(url.pathname, "/opportunities/opp_123");
+      assertEquals(init?.method, "PUT");
+      observedBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ opportunity: { id: "opp_123" } }));
+    },
+  );
+  assertEquals(observedBody, {
+    customFields: [{ id: "field_1", fieldValue: "SFR" }],
+  });
+});
+
+Deno.test("contact-note fallback uses only the fixed notes endpoint and capped body", async () => {
+  let observedBody = "";
+  const note = await createGhlContactNote(
+    context,
+    "contact_123",
+    "x".repeat(6000),
+    async (input, init) => {
+      const url = new URL(String(input));
+      assertEquals(url.pathname, "/contacts/contact_123/notes");
+      assertEquals(init?.method, "POST");
+      const parsed = JSON.parse(String(init?.body));
+      observedBody = String(parsed.body);
+      return new Response(JSON.stringify({ note: { id: "note_123", body: parsed.body } }), { status: 201 });
+    },
+  );
+  assertEquals(observedBody.length, 5000);
+  assertEquals(note.id, "note_123");
+
+  const listed = await listGhlContactNotes(context, "contact_123", async (input, init) => {
+    const url = new URL(String(input));
+    assertEquals(url.pathname, "/contacts/contact_123/notes");
+    assertEquals(init?.method, "GET");
+    return new Response(JSON.stringify({ notes: [{ id: "note_123", body: "safe marker" }] }));
+  });
+  assertEquals(listed.notes, [{ id: "note_123", body: "safe marker", date_added: null }]);
+});
+
 Deno.test("GHL failures expose fixed error codes, not upstream bodies", async () => {
   try {
     await listGhlPipelines(
       context,
-      async () =>
-        new Response("credential detail must not escape", { status: 401 }),
+      async () => new Response("credential detail must not escape", { status: 401 }),
     );
     throw new Error("Expected request to fail");
   } catch (error) {
