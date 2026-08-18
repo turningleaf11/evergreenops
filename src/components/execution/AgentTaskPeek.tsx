@@ -133,53 +133,51 @@ export default function AgentTaskPeek({ taskId, open, onClose }: { taskId: strin
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-[1100px] p-0 overflow-hidden flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-[680px] p-0 overflow-hidden flex flex-col">
         {loading || !task ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading task…
           </div>
         ) : (
-          <div className="flex flex-1 min-h-0 overflow-hidden">
-            {/* Left main column */}
-            <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
-              {/* Header — pr-10 clears the Sheet's own absolute close X (right-4 top-4 z-20). */}
-              <div className="px-6 py-5 border-b border-border/40 shrink-0 space-y-4">
-                <div className="flex items-center justify-between pr-10">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium">AI task</span>
-                  </div>
-                  <WorkItemMenu
-                    id={task.id}
-                    kind="agent_task"
-                    title={task.title}
-                    onDuplicated={onClose}
-                    onArchived={onClose}
-                    onDeleted={onClose}
-                    onMoved={onClose}
-                  />
+          <div className="flex-1 overflow-y-auto">
+            {/* Header — pr-10 clears the Sheet's own absolute close X (right-4 top-4 z-20). */}
+            <div className="px-6 py-5 border-b border-border/40 space-y-4">
+              <div className="flex items-center justify-between pr-10">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5 text-primary/70" />
+                  <span className="font-medium">AI task</span>
                 </div>
-
-                <SheetHeader className="text-left">
-                  <SheetTitle className="text-left">
-                    <input
-                      value={titleDraft}
-                      onChange={(e) => setTitleDraft(e.target.value)}
-                      onBlur={() => titleDraft.trim() && titleDraft !== task.title && updateTask({ title: titleDraft.trim() })}
-                      className="w-full text-xl font-bold bg-transparent outline-none border-b-2 border-transparent hover:border-border/30 focus:border-primary/40 pb-1"
-                    />
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StatusPill kind="task" value={task.status} onChange={(v) => updateTask({ status: v })} />
-                  <PriorityPill value={task.priority} size="sm" onChange={() => {}} />
-                  {task.is_system_task && <span className="text-xs text-muted-foreground">· system</span>}
-                </div>
+                <WorkItemMenu
+                  id={task.id}
+                  kind="agent_task"
+                  title={task.title}
+                  onDuplicated={onClose}
+                  onArchived={onClose}
+                  onDeleted={onClose}
+                  onMoved={onClose}
+                />
               </div>
 
-              {/* Body */}
-              <div className="px-6 py-5 space-y-5">
+              <SheetHeader className="text-left">
+                <SheetTitle className="text-left">
+                  <input
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onBlur={() => titleDraft.trim() && titleDraft !== task.title && updateTask({ title: titleDraft.trim() })}
+                    className="w-full text-xl font-bold bg-transparent outline-none border-b-2 border-transparent hover:border-border/30 focus:border-primary/40 pb-1"
+                  />
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <StatusPill kind="task" value={task.status} onChange={(v) => updateTask({ status: v })} />
+                <PriorityPill value={task.priority} size="sm" onChange={() => {}} />
+                {task.is_system_task && <span className="text-xs text-muted-foreground">· system</span>}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Type</Label>
@@ -301,19 +299,19 @@ export default function AgentTaskPeek({ taskId, open, onClose }: { taskId: strin
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
-                  <div>Created · {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
-                  {task.due_date && <div>Due · {format(parseISO(task.due_date), "MMM d")}</div>}
-                  {task.started_at && <div>Started · {format(parseISO(task.started_at), "MMM d, h:mm a")}</div>}
-                  {task.completed_at && <div>Completed · {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
-                </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
+                <div>Created · {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
+                {task.due_date && <div>Due · {format(parseISO(task.due_date), "MMM d")}</div>}
+                {task.started_at && <div>Started · {format(parseISO(task.started_at), "MMM d, h:mm a")}</div>}
+                {task.completed_at && <div>Completed · {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
               </div>
             </div>
 
-            {/* Right rail — Comments + AI Log tabs */}
-            <aside className="w-[400px] shrink-0 border-l border-border/40 bg-card/30 flex flex-col overflow-hidden">
-              <ActivityPanel entityType="agent_task" entityId={task.id} agentTaskId={task.id} hideHeader />
-            </aside>
+            {/* Activity — same flowing, single-scroll placement TaskPeek uses,
+                still split into Comments / AI Log tabs. */}
+            <div className="bg-muted/40 border-t border-border/40 mt-2">
+              <ActivityPanel entityType="agent_task" entityId={task.id} agentTaskId={task.id} inline />
+            </div>
           </div>
         )}
       </SheetContent>
