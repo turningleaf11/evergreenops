@@ -57,27 +57,49 @@ export async function searchGhlContacts(
   const contacts = arrayAt(data, "contacts").slice(0, Number(input.limit));
 
   return {
-    contacts: contacts.map((contact) => ({
-      id: safeString(contact.id, 128),
-      first_name: safeString(contact.firstName, 200),
-      last_name: safeString(contact.lastName, 200),
-      name: safeString(
-        contact.name ??
-          [contact.firstName, contact.lastName].filter(Boolean).join(" "),
-        400,
-      ),
-      email: safeString(contact.email, 320),
-      phone: safeString(contact.phone, 64),
-      company_name: safeString(contact.companyName, 300),
-      source: safeString(contact.source, 200),
-      tags: safeStringArray(contact.tags, 50, 100),
-      date_added: safeString(contact.dateAdded, 64),
-      date_updated: safeString(contact.dateUpdated, 64),
-    })).filter((contact) => contact.id),
+    contacts: contacts.map(normalizeContact).filter((contact) => contact.id),
     total: safeNumber(data.total ?? recordAt(data, "meta").total),
     page: input.page,
     limit: input.limit,
   };
+}
+
+export async function getGhlContact(
+  context: GhlContext,
+  contactId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const data = await ghlJson(
+    context,
+    `/contacts/${encodeURIComponent(contactId)}`,
+    undefined,
+    fetchImpl,
+  );
+  return normalizeContact(recordAt(data, "contact"));
+}
+
+export async function createGhlContact(
+  context: GhlContext,
+  input: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = { locationId: context.locationId };
+  copyDefined(body, "firstName", input.firstName);
+  copyDefined(body, "lastName", input.lastName);
+  copyDefined(body, "name", input.name);
+  copyDefined(body, "email", input.email);
+  copyDefined(body, "phone", input.phone);
+  copyDefined(body, "companyName", input.companyName);
+  copyDefined(body, "source", input.source);
+  if (Array.isArray(input.tags)) {
+    body.tags = input.tags.slice(0, 20).filter((value) => typeof value === "string");
+  }
+
+  const data = await ghlJson(context, "/contacts/", {
+    method: "POST",
+    body,
+  }, fetchImpl);
+  return normalizeContact(recordAt(data, "contact"));
 }
 
 export async function searchGhlOpportunities(
@@ -108,35 +130,112 @@ export async function searchGhlOpportunities(
   );
 
   return {
-    opportunities: opportunities.map((opportunity) => {
-      const contact = isRecord(opportunity.contact) ? opportunity.contact : {};
-      return {
-        id: safeString(opportunity.id, 128),
-        name: safeString(opportunity.name, 500),
-        status: safeString(opportunity.status, 64),
-        monetary_value: safeNumber(opportunity.monetaryValue),
-        pipeline_id: safeString(opportunity.pipelineId, 128),
-        stage_id: safeString(
-          opportunity.pipelineStageId ?? opportunity.stageId,
-          128,
-        ),
-        contact_id: safeString(
-          opportunity.contactId ?? contact.id,
-          128,
-        ),
-        contact_name: safeString(
-          contact.name ?? [contact.firstName, contact.lastName].filter(Boolean)
-            .join(" "),
-          400,
-        ),
-        source: safeString(opportunity.source, 200),
-        date_added: safeString(opportunity.dateAdded, 64),
-        date_updated: safeString(opportunity.dateUpdated, 64),
-      };
-    }).filter((opportunity) => opportunity.id),
+    opportunities: opportunities.map(normalizeOpportunity).filter((opportunity) => opportunity.id),
     total: safeNumber(recordAt(data, "meta").total ?? data.total),
     page: input.page,
     limit: input.limit,
+  };
+}
+
+export async function getGhlOpportunity(
+  context: GhlContext,
+  opportunityId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const data = await ghlJson(
+    context,
+    `/opportunities/${encodeURIComponent(opportunityId)}`,
+    undefined,
+    fetchImpl,
+  );
+  return normalizeOpportunity(recordAt(data, "opportunity"));
+}
+
+export async function createGhlOpportunity(
+  context: GhlContext,
+  input: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = {
+    locationId: context.locationId,
+    pipelineId: input.pipelineId,
+    pipelineStageId: input.pipelineStageId,
+    name: input.name,
+    status: input.status,
+    contactId: input.contactId,
+  };
+  if (Array.isArray(input.customFields) && input.customFields.length) {
+    body.customFields = input.customFields;
+  }
+
+  const data = await ghlJson(context, "/opportunities/", {
+    method: "POST",
+    body,
+  }, fetchImpl);
+  return normalizeOpportunity(recordAt(data, "opportunity"));
+}
+
+export async function updateGhlOpportunity(
+  context: GhlContext,
+  opportunityId: string,
+  input: Record<string, unknown>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = {};
+  if (Array.isArray(input.customFields) && input.customFields.length) {
+    body.customFields = input.customFields;
+  }
+  if (!Object.keys(body).length) {
+    throw new GhlReadError(400, "ghl_empty_update_rejected");
+  }
+
+  const data = await ghlJson(
+    context,
+    `/opportunities/${encodeURIComponent(opportunityId)}`,
+    { method: "PUT", body },
+    fetchImpl,
+  );
+  return normalizeOpportunity(recordAt(data, "opportunity"));
+}
+
+export async function listGhlContactNotes(
+  context: GhlContext,
+  contactId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const data = await ghlJson(
+    context,
+    `/contacts/${encodeURIComponent(contactId)}/notes`,
+    undefined,
+    fetchImpl,
+  );
+  const notes = arrayAt(data, "notes").slice(0, 100);
+  return {
+    notes: notes.map((note) => ({
+      id: safeString(note.id, 128),
+      body: safeString(note.body, 5000),
+      date_added: safeString(note.dateAdded, 64),
+    })).filter((note) => note.id),
+  };
+}
+
+export async function createGhlContactNote(
+  context: GhlContext,
+  contactId: string,
+  bodyText: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, unknown>> {
+  const data = await ghlJson(
+    context,
+    `/contacts/${encodeURIComponent(contactId)}/notes`,
+    { method: "POST", body: { body: bodyText.slice(0, 5000) } },
+    fetchImpl,
+  );
+  const note = recordAt(data, "note");
+  return {
+    id: safeString(note.id, 128),
+    body: safeString(note.body, 5000),
+    date_added: safeString(note.dateAdded, 64),
   };
 }
 
@@ -169,7 +268,7 @@ export async function listGhlPipelines(
 async function ghlJson(
   context: GhlContext,
   path: string,
-  options: { method?: "GET" | "POST"; body?: Record<string, unknown> } = {},
+  options: { method?: "GET" | "POST" | "PUT"; body?: Record<string, unknown> } = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<Record<string, unknown>> {
   const url = new URL(`${GHL_BASE}${path}`);
@@ -214,6 +313,52 @@ async function ghlJson(
     throw new GhlReadError(502, "invalid_ghl_response");
   }
   return value;
+}
+
+function normalizeContact(contact: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: safeString(contact.id, 128),
+    first_name: safeString(contact.firstName, 200),
+    last_name: safeString(contact.lastName, 200),
+    name: safeString(
+      contact.name ?? [contact.firstName, contact.lastName].filter(Boolean).join(" "),
+      400,
+    ),
+    email: safeString(contact.email, 320),
+    phone: safeString(contact.phone, 64),
+    company_name: safeString(contact.companyName, 300),
+    source: safeString(contact.source, 200),
+    tags: safeStringArray(contact.tags, 50, 100),
+    date_added: safeString(contact.dateAdded, 64),
+    date_updated: safeString(contact.dateUpdated, 64),
+  };
+}
+
+function normalizeOpportunity(opportunity: Record<string, unknown>): Record<string, unknown> {
+  const contact = isRecord(opportunity.contact) ? opportunity.contact : {};
+  return {
+    id: safeString(opportunity.id, 128),
+    name: safeString(opportunity.name, 500),
+    status: safeString(opportunity.status, 64),
+    monetary_value: safeNumber(opportunity.monetaryValue),
+    pipeline_id: safeString(opportunity.pipelineId, 128),
+    stage_id: safeString(opportunity.pipelineStageId ?? opportunity.stageId, 128),
+    contact_id: safeString(opportunity.contactId ?? contact.id, 128),
+    contact_name: safeString(
+      contact.name ?? [contact.firstName, contact.lastName].filter(Boolean).join(" "),
+      400,
+    ),
+    source: safeString(opportunity.source, 200),
+    date_added: safeString(opportunity.dateAdded ?? opportunity.createdAt, 64),
+    date_updated: safeString(opportunity.dateUpdated ?? opportunity.updatedAt, 64),
+    custom_fields: Array.isArray(opportunity.customFields)
+      ? opportunity.customFields.slice(0, 100)
+      : [],
+  };
+}
+
+function copyDefined(target: Record<string, unknown>, key: string, value: unknown): void {
+  if (value !== undefined && value !== null && value !== "") target[key] = value;
 }
 
 function setParam(
