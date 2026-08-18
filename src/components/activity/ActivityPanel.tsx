@@ -66,7 +66,7 @@ interface Props {
   hideComposer?: boolean;
   defaultFilter?: FilterMode;
   onReplyEmail?: (info: { threadId: string; subject: string }) => void;
-  /** When set, renders "Comments" and "AI Log" tabs — used by AgentTaskDetail. */
+  /** When set, renders "Comments" and "AI Log" tabs — used by AgentTaskPeek. */
   agentTaskId?: string;
   /**
    * Inline/flow mode — stream grows with content instead of filling remaining height.
