@@ -73,8 +73,7 @@ interface Props {
    * Shows "Comments | All activity" tab bar + sort toggle. No composer (render externally).
    * Use this when the parent handles scrolling (single-scroll layout like task peek).
    * Combined with agentTaskId, keeps the Comments/AI Log tab split but drops
-   * the fixed-height wrapper and owns its own composer (needed for the
-   * @mention-agent feedback trigger below).
+   * the fixed-height wrapper — same "no composer, render externally" contract.
    */
   inline?: boolean;
 }
@@ -670,61 +669,9 @@ export default function ActivityPanel({ entityType, entityId, hideHeader = false
 
           <TabsContent value="comments" className="mt-0">
             <div className="px-3 py-3">{StreamBody}</div>
-            {!hideComposer && (
-              <div className="px-3 pt-1 pb-3">
-                <ActivityComposer
-                  submitting={submitting}
-                  onSubmit={(p) => handleSubmit(p)}
-                  placeholder="Comment or @mention an agent to activate them…"
-                />
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="ai-log" className="mt-0 px-4 py-3">
-            <AgentActivityDrillDown taskId={agentTaskId} />
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
-
-  // Tabbed mode — used when an agentTaskId is provided (agent task drawer).
-  if (agentTaskId) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <Tabs defaultValue="comments" className="flex flex-col h-full min-h-0">
-          <TabsList className="shrink-0 w-full justify-start rounded-none border-b border-border/40 bg-transparent px-3 gap-1 h-9">
-            <TabsTrigger
-              value="comments"
-              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
-            >
-              <MessageSquare className="h-3 w-3 mr-1.5" /> Comments
-            </TabsTrigger>
-            <TabsTrigger
-              value="ai-log"
-              className="text-xs data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-1 h-full"
-            >
-              AI Log
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="comments" className="flex-1 min-h-0 flex flex-col mt-0 overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
-              {StreamBody}
-            </div>
-            {!hideComposer && (
-              <div className="shrink-0 border-t border-border/40 px-4 pt-3 pb-2 bg-background">
-                <ActivityComposer
-                  submitting={submitting}
-                  onSubmit={(p) => handleSubmit(p)}
-                  placeholder="Comment or @mention an agent to activate them…"
-                />
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="ai-log" className="flex-1 min-h-0 overflow-y-auto mt-0 px-4 py-3">
             <AgentActivityDrillDown taskId={agentTaskId} />
           </TabsContent>
         </Tabs>

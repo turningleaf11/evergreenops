@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
-  Calendar, User, CheckCircle2, Loader2, Plus, X, Paperclip, Flag, Folder, Check,
+  Calendar, User, Users, CheckCircle2, Loader2, Plus, X, Paperclip, Flag, Folder, Check,
   FileText, ExternalLink,
 } from "lucide-react";
 import { format, startOfToday, startOfTomorrow, addDays, addMonths } from "date-fns";
@@ -21,6 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { notifyEntityWatchers, markEntityNotificationsRead } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import WorkItemMenu from "@/components/execution/WorkItemMenu";
+import FieldRow from "@/components/execution/FieldRow";
+import { FollowersPicker } from "@/components/crm/PeoplePickers";
 
 const sb = supabase as any;
 
@@ -29,17 +31,6 @@ interface LinkedDoc { id: string; linkId: string; title: string; updated_at: str
 interface ProjectDoc { id: string; title: string; linked: boolean; }
 
 interface Props { id: string; open: boolean; onClose: () => void; }
-
-function FieldRow({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-24 shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </span>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
 
 export default function TaskPeek({ id, open, onClose }: Props) {
   const navigate = useNavigate();
@@ -331,6 +322,14 @@ export default function TaskPeek({ id, open, onClose }: Props) {
 
                   <FieldRow icon={CheckCircle2} label="Status">
                     <StatusPill kind="task" value={row.status || "todo"} onChange={(v) => updateTask({ status: v })} />
+                  </FieldRow>
+
+                  <FieldRow icon={Users} label="Followers">
+                    <FollowersPicker
+                      followerIds={row.followers || []}
+                      onChange={(ids) => updateTask({ followers: ids })}
+                      label=""
+                    />
                   </FieldRow>
                 </div>
 
