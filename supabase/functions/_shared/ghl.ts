@@ -68,14 +68,16 @@ export async function getGhlContact(
   context: GhlContext,
   contactId: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<Record<string, unknown>> {
+): Promise<Record<string, unknown> & { id: string | null }> {
   const data = await ghlJson(
     context,
     `/contacts/${encodeURIComponent(contactId)}`,
     undefined,
     fetchImpl,
   );
-  return normalizeContact(recordAt(data, "contact"));
+  return normalizeContact(recordAt(data, "contact")) as Record<string, unknown> & {
+    id: string | null;
+  };
 }
 
 export async function createGhlContact(
