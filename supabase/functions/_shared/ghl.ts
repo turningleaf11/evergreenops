@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const GHL_BASE = "https://services.leadconnectorhq.com";
-const GHL_VERSION = "2021-07-28";
+const GHL_VERSION = "v3";
 
 export class GhlReadError extends Error {
   constructor(public status: number, public code: string) {
@@ -172,8 +172,10 @@ async function ghlJson(
   options: { method?: "GET" | "POST"; body?: Record<string, unknown> } = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<Record<string, unknown>> {
-  const response = await fetchImpl(`${GHL_BASE}${path}`, {
-    method: options.method ?? "GET",
+  const url = new URL(`${GHL_BASE}${path}`);
+  const method = options.method ?? "GET";
+  const response = await fetchImpl(url, {
+    method,
     headers: {
       Authorization: `Bearer ${context.apiKey}`,
       Version: GHL_VERSION,
@@ -188,6 +190,9 @@ async function ghlJson(
     console.error(JSON.stringify({
       event: "agent_gateway_ghl_error",
       status: response.status,
+      method,
+      endpoint: url.pathname,
+      version: GHL_VERSION,
     }));
     if (response.status === 401 || response.status === 403) {
       throw new GhlReadError(503, "ghl_not_authorized");
