@@ -279,6 +279,14 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                     </Popover>
                   </FieldRow>
 
+                  <FieldRow icon={Users} label="Followers">
+                    <FollowersPicker
+                      followerIds={row.followers || []}
+                      onChange={(ids) => updateTask({ followers: ids })}
+                      label=""
+                    />
+                  </FieldRow>
+
                   <FieldRow icon={Calendar} label="Due date">
                     <Popover>
                       <PopoverTrigger asChild>
@@ -322,14 +330,6 @@ export default function TaskPeek({ id, open, onClose }: Props) {
 
                   <FieldRow icon={CheckCircle2} label="Status">
                     <StatusPill kind="task" value={row.status || "todo"} onChange={(v) => updateTask({ status: v })} />
-                  </FieldRow>
-
-                  <FieldRow icon={Users} label="Followers">
-                    <FollowersPicker
-                      followerIds={row.followers || []}
-                      onChange={(ids) => updateTask({ followers: ids })}
-                      label=""
-                    />
                   </FieldRow>
                 </div>
 
