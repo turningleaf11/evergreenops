@@ -275,18 +275,7 @@ export default function AgentTaskPeek({ taskId, open, onClose }: { taskId: strin
                     </FieldRow>
                   )}
 
-                  <FieldRow icon={Tag} label="Type">
-                    <Select value={task.type} onValueChange={(v) => updateTask({ type: v })}>
-                      <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {(["general", "research", "code", "decision", "communication"] as TaskType[]).map((t) => (
-                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldRow>
-
-                  <FieldRow icon={User} label="Assigned to">
+                  <FieldRow icon={User} label="Assignee">
                     <Select value={task.assigned_to} onValueChange={(v) => updateTask({ assigned_to: v })}>
                       <SelectTrigger className="h-8 text-xs w-auto min-w-[160px]">
                         <div className="flex items-center gap-2">
@@ -310,26 +299,6 @@ export default function AgentTaskPeek({ taskId, open, onClose }: { taskId: strin
                           <SelectItem key={a.key} value={a.key}>
                             <div className="flex items-center gap-2"><AssigneeAvatar assignee={a} size="sm" /><span>{a.name}</span></div>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldRow>
-
-                  <FieldRow icon={CheckCircle2} label="Status">
-                    <StatusPill kind="task" value={task.status} onChange={(v) => updateTask({ status: v })} />
-                  </FieldRow>
-
-                  <FieldRow icon={Flag} label="Priority">
-                    <PriorityPill value={task.priority} size="sm" onChange={(v) => updateTask({ priority: v })} />
-                  </FieldRow>
-
-                  <FieldRow icon={Github} label="Repo">
-                    <Select value={task.repo ?? "none"} onValueChange={(v) => updateTask({ repo: v === "none" ? null : v })}>
-                      <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]"><SelectValue placeholder="None" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {repos.map((r) => (
-                          <SelectItem key={r.slug} value={r.slug}><span className="font-mono text-xs">{r.github_repo}</span></SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -364,6 +333,37 @@ export default function AgentTaskPeek({ taskId, open, onClose }: { taskId: strin
                         </SelectContent>
                       </Select>
                     </div>
+                  </FieldRow>
+
+                  <FieldRow icon={Tag} label="Type">
+                    <Select value={task.type} onValueChange={(v) => updateTask({ type: v })}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(["general", "research", "code", "decision", "communication"] as TaskType[]).map((t) => (
+                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldRow>
+
+                  <FieldRow icon={Flag} label="Priority">
+                    <PriorityPill value={task.priority} size="sm" onChange={(v) => updateTask({ priority: v })} />
+                  </FieldRow>
+
+                  <FieldRow icon={CheckCircle2} label="Status">
+                    <StatusPill kind="task" value={task.status} onChange={(v) => updateTask({ status: v })} />
+                  </FieldRow>
+
+                  <FieldRow icon={Github} label="Repo">
+                    <Select value={task.repo ?? "none"} onValueChange={(v) => updateTask({ repo: v === "none" ? null : v })}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {repos.map((r) => (
+                          <SelectItem key={r.slug} value={r.slug}><span className="font-mono text-xs">{r.github_repo}</span></SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FieldRow>
                 </div>
 
