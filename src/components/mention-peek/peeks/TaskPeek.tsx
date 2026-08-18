@@ -20,6 +20,7 @@ import { useReportActiveEntity } from "@/contexts/CompanionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { notifyEntityWatchers, markEntityNotificationsRead } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
+import WorkItemMenu from "@/components/execution/WorkItemMenu";
 
 const sb = supabase as any;
 
@@ -205,7 +206,7 @@ export default function TaskPeek({ id, open, onClose }: Props) {
             <div className="flex-1 overflow-y-auto">
 
               {/* Action bar */}
-              <div className="flex items-center px-5 pt-4 pb-1">
+              <div className="flex items-center justify-between px-5 pt-4 pb-1">
                 <button
                   onClick={() => updateTask({ status: isDone ? "todo" : "done" })}
                   className={cn(
@@ -218,6 +219,15 @@ export default function TaskPeek({ id, open, onClose }: Props) {
                   <CheckCircle2 className={cn("h-3.5 w-3.5", isDone && "fill-primary/20")} />
                   {isDone ? "Completed" : "Mark complete"}
                 </button>
+                <WorkItemMenu
+                  id={id}
+                  kind="task"
+                  title={row.title}
+                  onDuplicated={onClose}
+                  onArchived={onClose}
+                  onDeleted={onClose}
+                  onMoved={onClose}
+                />
               </div>
 
               {/* Title + fields */}

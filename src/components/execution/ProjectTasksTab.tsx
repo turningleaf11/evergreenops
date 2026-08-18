@@ -1,6 +1,6 @@
 import { useState } from "react";
 import DataTableView from "@/components/execution/DataTableView";
-import CreateEntityDialog, { type AgentMeta } from "@/components/execution/CreateEntityDialog";
+import CreateEntityDialog, { type AgentMeta, type ExistingCandidate } from "@/components/execution/CreateEntityDialog";
 
 interface Props {
   // Merged tasks + agent_tasks rows, each tagged with _kind by useProjectWorkItems.
@@ -14,6 +14,8 @@ interface Props {
   onItemClick: (item: any) => void;
   onStatusChange: (id: string, status: string) => void;
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  existingCandidates: ExistingCandidate[];
+  onLinkExisting: (candidate: ExistingCandidate) => void;
   unreadIds?: Set<string>;
 }
 
@@ -25,7 +27,8 @@ const TASK_STATUS_OPTIONS = [
 ];
 
 export default function ProjectTasksTab({
-  items, profiles, agents, repos, projectId, getName, onCreate, onItemClick, onStatusChange, onUpdate, unreadIds,
+  items, profiles, agents, repos, projectId, getName, onCreate, onItemClick, onStatusChange, onUpdate,
+  existingCandidates, onLinkExisting, unreadIds,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -45,6 +48,8 @@ export default function ProjectTasksTab({
           agents={agents}
           repos={repos}
           lockProjectId={projectId}
+          existingCandidates={existingCandidates}
+          onLinkExisting={(c) => { onLinkExisting(c); setCreateOpen(false); }}
         />
       </div>
 

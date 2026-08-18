@@ -13,6 +13,8 @@ export type WorkItemKind = "task" | "agent_task";
 export function useProjectWorkItems(projectId: string | undefined) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [agentTasks, setAgentTasks] = useState<any[]>([]);
+  const [looseTasks, setLooseTasks] = useState<any[]>([]);
+  const [looseAgentTasks, setLooseAgentTasks] = useState<any[]>([]);
   const [agents, setAgents] = useState<AgentMeta[]>([]);
   const [repos, setRepos] = useState<{ slug: string; name: string; github_repo: string }[]>([]);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string | null }[]>([]);
@@ -20,15 +22,20 @@ export function useProjectWorkItems(projectId: string | undefined) {
 
   const fetchItems = useCallback(async () => {
     if (!projectId) return;
-    const [tRes, atRes, agRes, rRes, prRes] = await Promise.all([
+    const [tRes, atRes, ltRes, latRes, agRes, rRes, prRes] = await Promise.all([
       supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at"),
       supabase.from("agent_tasks").select("*").eq("project_id", projectId).order("created_at"),
+      // Standalone work — no project yet — offered under "Existing" in Add task.
+      supabase.from("tasks").select("id, title").is("project_id", null).order("title").limit(200),
+      supabase.from("agent_tasks").select("id, title").is("project_id", null).order("title").limit(200),
       supabase.from("agents").select("slug, name, emoji, avatar_url, accent_color"),
       supabase.from("repos").select("slug, name, github_repo").eq("active", true),
       supabase.from("profiles").select("user_id, full_name"),
     ]);
     if (tRes.data) setTasks(tRes.data);
     if (atRes.data) setAgentTasks(atRes.data);
+    if (ltRes.data) setLooseTasks(ltRes.data);
+    if (latRes.data) setLooseAgentTasks(latRes.data);
     if (agRes.data) setAgents(agRes.data as AgentMeta[]);
     if (rRes.data) setRepos(rRes.data);
     if (prRes.data) setProfiles(prRes.data);
@@ -41,6 +48,20 @@ export function useProjectWorkItems(projectId: string | undefined) {
     ...tasks.map((t) => ({ ...t, _kind: "task" as const })),
     ...agentTasks.map((a) => ({ ...a, _kind: "agent_task" as const })),
   ];
+
+  // Standalone tasks/agent_tasks that can be attached to this project
+  // instead of creating a new one — the "Existing" tab in Add task.
+  const existingCandidates = [
+    ...looseTasks.map((t) => ({ ...t, _kind: "task" as const })),
+    ...looseAgentTasks.map((t) => ({ ...t, _kind: "agent_task" as const })),
+  ];
+
+  const linkExisting = useCallback(async (candidateId: string, kind: WorkItemKind) => {
+    const table = kind === "agent_task" ? "agent_tasks" : "tasks";
+    const { error } = await supabase.from(table).update({ project_id: projectId }).eq("id", candidateId);
+    if (error) toast.error(error.message);
+    else { toast.success("Added to project"); fetchItems(); }
+  }, [projectId, fetchItems]);
 
   const getAssigneeName = useCallback((uid: string | null) => {
     if (!uid) return "Unassigned";
@@ -96,7 +117,7 @@ export function useProjectWorkItems(projectId: string | undefined) {
   }, [agents, projectId, fetchItems]);
 
   return {
-    items, tasks, agents, repos, profiles, loading,
-    getAssigneeName, updateStatus, updateFields, createItem, refetch: fetchItems,
+    items, tasks, agents, repos, profiles, loading, existingCandidates,
+    getAssigneeName, updateStatus, updateFields, createItem, linkExisting, refetch: fetchItems,
   };
 }

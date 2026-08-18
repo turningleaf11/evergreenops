@@ -94,6 +94,7 @@ export type Database = {
       }
       agent_tasks: {
         Row: {
+          archived: boolean
           assigned_to: string
           completed_at: string | null
           context: Json | null
@@ -120,6 +121,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          archived?: boolean
           assigned_to?: string
           completed_at?: string | null
           context?: Json | null
@@ -146,6 +148,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          archived?: boolean
           assigned_to?: string
           completed_at?: string | null
           context?: Json | null
@@ -7236,6 +7239,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          archived: boolean
           assigned_to: string | null
           cover_url: string | null
           created_at: string
@@ -7259,6 +7263,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          archived?: boolean
           assigned_to?: string | null
           cover_url?: string | null
           created_at?: string
@@ -7282,6 +7287,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          archived?: boolean
           assigned_to?: string | null
           cover_url?: string | null
           created_at?: string

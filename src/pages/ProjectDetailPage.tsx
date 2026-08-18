@@ -60,9 +60,10 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<any>(null);
   const {
-    items: workItems, tasks, agents: agentsMeta, repos, profiles,
+    items: workItems, tasks, agents: agentsMeta, repos, profiles, existingCandidates,
     getAssigneeName: getName, updateStatus: updateItemStatus,
-    updateFields: updateItemFields, createItem: createWorkItemRaw, refetch: refetchWorkItems,
+    updateFields: updateItemFields, createItem: createWorkItemRaw, linkExisting,
+    refetch: refetchWorkItems,
   } = useProjectWorkItems(id);
   const [goals, setGoals] = useState<any[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<any[]>([]);
@@ -535,6 +536,8 @@ export default function ProjectDetailPage() {
             onItemClick={(t) => setPeekItem({ id: t.id, kind: t._kind })}
             onStatusChange={updateItemStatus}
             onUpdate={updateItemFields}
+            existingCandidates={existingCandidates}
+            onLinkExisting={(c) => linkExisting(c.id, c._kind)}
             unreadIds={unreadTaskIds}
           />
         )}
