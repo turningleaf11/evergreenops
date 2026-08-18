@@ -1,8 +1,11 @@
-// ProjectTaskViews — the addable lenses over a project's tasks.
+// ProjectTaskViews — the addable lenses over a project's work.
 //
-// Each is a different rendering of the SAME task list (the List view is the
-// built-in; these are what "+ Add view" creates). They share the project's
-// tasks and the same click-through to the task peek.
+// Each is a different rendering of the SAME work-item list (the List view
+// is the built-in; these are what "+ Add view" creates). `items` is the
+// merged tasks + agent_tasks array from useProjectWorkItems — these views
+// don't care which table a row came from, only the fields they share
+// (title/status/priority/assigned_to/due_date), so they never need updating
+// when a new kind of work item is added.
 
 import { useMemo, useState } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths } from "date-fns";
@@ -14,10 +17,10 @@ import { cn } from "@/lib/utils";
 export type ProjectViewType = "board" | "calendar" | "timeline";
 
 interface CommonProps {
-  tasks: any[];
+  items: any[];
   profiles: { user_id: string; full_name: string | null; avatar_url?: string | null }[];
   getName: (uid: string | null) => string;
-  onItemClick: (task: any) => void;
+  onItemClick: (item: any) => void;
   onStatusChange: (id: string, status: string) => void;
   onFieldChange?: (id: string, patch: Record<string, any>) => void;
   unreadIds?: Set<string>;
@@ -37,11 +40,11 @@ function parseDue(d: string | null | undefined): Date | null {
 }
 
 /** Board — tasks grouped into status columns (reuses the shared KanbanBoard). */
-export function ProjectBoardView({ tasks, profiles, getName, onItemClick, onStatusChange, onFieldChange, unreadIds }: CommonProps) {
+export function ProjectBoardView({ items, profiles, getName, onItemClick, onStatusChange, onFieldChange, unreadIds }: CommonProps) {
   return (
     <KanbanBoard
       columns={TASK_COLUMNS}
-      items={tasks}
+      items={items}
       statusField="status"
       ownerField="assigned_to"
       type="task"
@@ -57,7 +60,7 @@ export function ProjectBoardView({ tasks, profiles, getName, onItemClick, onStat
 }
 
 /** Calendar — a month grid with tasks sitting on their due date. */
-export function ProjectCalendarView({ tasks, onItemClick }: Pick<CommonProps, "tasks" | "onItemClick">) {
+export function ProjectCalendarView({ items, onItemClick }: Pick<CommonProps, "items" | "onItemClick">) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
   const days = useMemo(() => {
@@ -70,16 +73,16 @@ export function ProjectCalendarView({ tasks, onItemClick }: Pick<CommonProps, "t
 
   const byDay = useMemo(() => {
     const map = new Map<string, any[]>();
-    tasks.forEach((t) => {
+    items.forEach((t) => {
       const due = parseDue(t.due_date);
       if (!due) return;
       const key = format(due, "yyyy-MM-dd");
       map.set(key, [...(map.get(key) || []), t]);
     });
     return map;
-  }, [tasks]);
+  }, [items]);
 
-  const undated = tasks.filter((t) => !t.due_date);
+  const undated = items.filter((t) => !t.due_date);
 
   return (
     <div>
@@ -148,7 +151,7 @@ export function ProjectCalendarView({ tasks, onItemClick }: Pick<CommonProps, "t
 }
 
 /** Timeline — the next stretch of days, tasks sitting on their due date. */
-export function ProjectTimelineView({ tasks, onItemClick }: Pick<CommonProps, "tasks" | "onItemClick">) {
+export function ProjectTimelineView({ items, onItemClick }: Pick<CommonProps, "items" | "onItemClick">) {
   const [offset, setOffset] = useState(0);
   const DAYS = 14;
 
@@ -157,16 +160,16 @@ export function ProjectTimelineView({ tasks, onItemClick }: Pick<CommonProps, "t
 
   const byDay = useMemo(() => {
     const map = new Map<string, any[]>();
-    tasks.forEach((t) => {
+    items.forEach((t) => {
       const due = parseDue(t.due_date);
       if (!due) return;
       const key = format(due, "yyyy-MM-dd");
       map.set(key, [...(map.get(key) || []), t]);
     });
     return map;
-  }, [tasks]);
+  }, [items]);
 
-  const undated = tasks.filter((t) => !t.due_date);
+  const undated = items.filter((t) => !t.due_date);
 
   return (
     <div>

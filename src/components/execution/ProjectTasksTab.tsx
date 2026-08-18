@@ -1,20 +1,19 @@
 import { useState } from "react";
 import DataTableView from "@/components/execution/DataTableView";
-import TaskPeek from "@/components/mention-peek/peeks/TaskPeek";
-import { AgentTaskDetail } from "@/components/execution/AgentTaskDetail";
 import CreateEntityDialog, { type AgentMeta } from "@/components/execution/CreateEntityDialog";
 
 interface Props {
-  // Merged tasks + agent_tasks rows, each tagged with _kind by the parent.
+  // Merged tasks + agent_tasks rows, each tagged with _kind by useProjectWorkItems.
   items: any[];
   profiles: { user_id: string; full_name: string | null }[];
   agents: AgentMeta[];
   repos: { slug: string; name: string; github_repo: string }[];
   projectId: string;
+  getName: (uid: string | null) => string;
   onCreate: (data: any) => void;
-  onStatusChange: (id: string, kind: "task" | "agent_task", status: string) => void;
-  onUpdate: (id: string, kind: "task" | "agent_task", patch: Record<string, any>) => void;
-  onChanged?: () => void;
+  onItemClick: (item: any) => void;
+  onStatusChange: (id: string, status: string) => void;
+  onUpdate: (id: string, patch: Record<string, any>) => void;
   unreadIds?: Set<string>;
 }
 
@@ -26,17 +25,9 @@ const TASK_STATUS_OPTIONS = [
 ];
 
 export default function ProjectTasksTab({
-  items, profiles, agents, repos, projectId, onCreate, onStatusChange, onUpdate, onChanged, unreadIds,
+  items, profiles, agents, repos, projectId, getName, onCreate, onItemClick, onStatusChange, onUpdate, unreadIds,
 }: Props) {
-  const [peek, setPeek] = useState<{ id: string; kind: "task" | "agent_task" } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-
-  const getName = (uid: string | null) => {
-    if (!uid) return "Unassigned";
-    const agent = agents.find((a) => a.slug === uid);
-    if (agent) return agent.name;
-    return profiles.find((p) => p.user_id === uid)?.full_name || "Unknown";
-  };
 
   return (
     <>
@@ -64,35 +55,14 @@ export default function ProjectTasksTab({
       <DataTableView
         items={items}
         type="task"
-        onItemClick={(t) => setPeek({ id: t.id, kind: t._kind })}
-        onStatusChange={(id, status) => {
-          const item = items.find((i) => i.id === id);
-          onStatusChange(id, item?._kind || "task", status);
-        }}
-        onUpdate={(id, patch) => {
-          const item = items.find((i) => i.id === id);
-          onUpdate(id, item?._kind || "task", patch);
-        }}
+        onItemClick={onItemClick}
+        onStatusChange={onStatusChange}
+        onUpdate={onUpdate}
         getName={getName}
         statusOptions={TASK_STATUS_OPTIONS}
         profiles={profiles}
         unreadIds={unreadIds}
       />
-
-      {peek?.kind === "task" && (
-        <TaskPeek
-          id={peek.id}
-          open={true}
-          onClose={() => { setPeek(null); onChanged?.(); }}
-        />
-      )}
-      {peek?.kind === "agent_task" && (
-        <AgentTaskDetail
-          taskId={peek.id}
-          open={true}
-          onClose={() => { setPeek(null); onChanged?.(); }}
-        />
-      )}
     </>
   );
 }
