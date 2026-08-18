@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ColumnActionsMenu } from "@/components/execution/ColumnActionsMenu";
 import { useAuth } from "@/contexts/AuthContext";
+import AgentTaskPeek from "@/components/execution/AgentTaskPeek";
 
 // Shared with tasks.status — see statusTone.ts TASK registry. Literal,
 // no bucketing: every value here is a real board column.
@@ -604,12 +605,10 @@ export default function AiHubPage() {
       </Tabs>
 
       {selectedTask && (
-        <TaskDetailDialog
-          task={selectedTask}
-          assignees={assignees}
-          repos={repos}
-          onClose={() => setSelectedTask(null)}
-          onRefresh={fetchAll}
+        <AgentTaskPeek
+          taskId={selectedTask.id}
+          open
+          onClose={() => { setSelectedTask(null); fetchAll(); }}
         />
       )}
 
@@ -700,222 +699,6 @@ const AssigneeOption = ({ assignee }: { assignee: Assignee }) => (
     </div>
   </div>
 );
-
-// Strip raw tool call XML from PM2 worker results
-const cleanResult = (raw: string) =>
-  raw.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
-     .replace(/<tool_response>[\s\S]*?<\/tool_response>/g, "")
-     .replace(/^\s*\n/gm, "")
-     .trim();
-
-const TaskDetailDialog = ({
-  task, assignees, repos, onClose, onRefresh,
-}: { task: AgentTask; assignees: Assignee[]; repos: Repo[]; onClose: () => void; onRefresh: () => void }) => {
-  const [status, setStatus] = useState<Status>(task.status);
-  const [assignedTo, setAssignedTo] = useState(task.assigned_to);
-  const [repo, setRepo] = useState(task.repo ?? "none");
-  const [type, setType] = useState<TaskType>(task.type ?? "general");
-  const [followers, setFollowers] = useState<string[]>(task.followers ?? []);
-  const [saving, setSaving] = useState(false);
-
-  const addFollower = (key: string) => {
-    if (!followers.includes(key)) setFollowers(prev => [...prev, key]);
-  };
-  const removeFollower = (key: string) => setFollowers(prev => prev.filter(f => f !== key));
-
-  const save = async () => {
-    setSaving(true);
-    const { error } = await supabase
-      .from("agent_tasks")
-      .update({ status, assigned_to: assignedTo, repo: (repo && repo !== "none") ? repo : null, type, followers })
-      .eq("id", task.id);
-    if (error) toast({ title: "Save failed", description: error.message, variant: "destructive" });
-    else { toast({ title: "Saved" }); onRefresh(); onClose(); }
-    setSaving(false);
-  };
-
-  const assignee = assignees.find(a => a.key === assignedTo);
-
-  return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0">
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-border">
-          <div className="flex items-start gap-3 pr-8">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{task.type}</p>
-              <h2 className="text-lg font-semibold leading-snug">{task.title}</h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <PriorityPill value={task.priority} />
-            <StatusPill kind="task" value={status} />
-            {task.repo && (
-              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-mono text-blue-700 dark:text-blue-400">
-                {task.repo}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="px-6 py-4 space-y-5">
-          {/* Description */}
-          {task.description && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</p>
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{task.description}</p>
-            </div>
-          )}
-
-          {/* Controls */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Type</Label>
-              <Select value={type} onValueChange={v => setType(v as TaskType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(["general", "research", "code", "decision", "communication"] as TaskType[]).map(t => (
-                    <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Assigned to</Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger>
-                  <div className="flex items-center gap-2">
-                    {assignee && <AssigneeAvatar assignee={assignee} size="sm" />}
-                    <span className="truncate">{assignee?.name ?? assignedTo}</span>
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {assignees.filter(a => a.kind === "agent").length > 0 && (
-                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
-                  )}
-                  {assignees.filter(a => a.kind === "agent").map(a => (
-                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
-                  ))}
-                  {assignees.filter(a => a.kind === "human").length > 0 && (
-                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
-                  )}
-                  {assignees.filter(a => a.kind === "human").map(a => (
-                    <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
-              <Select value={status} onValueChange={v => setStatus(v as Status)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {COLUMNS.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Repo</Label>
-            <Select value={repo} onValueChange={setRepo}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {repos.map(r => (
-                  <SelectItem key={r.slug} value={r.slug}>
-                    <span className="font-mono text-sm">{r.github_repo}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Followers */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Followers</Label>
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {followers.map(key => {
-                const f = assignees.find(a => a.key === key);
-                if (!f) return null;
-                return (
-                  <span key={key} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary pl-1 pr-2 py-0.5 text-xs">
-                    <AssigneeAvatar assignee={f} size="sm" />
-                    <span className="font-medium">{f.name}</span>
-                    <button onClick={() => removeFollower(key)} className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-            <Select value="none" onValueChange={v => v !== "none" && addFollower(v)}>
-              <SelectTrigger>
-                <span className="text-muted-foreground text-sm">Add follower…</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" className="text-muted-foreground">Add follower…</SelectItem>
-                {assignees.filter(a => a.key !== assignedTo && !followers.includes(a.key)).length > 0 && (
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Agents</div>
-                )}
-                {assignees.filter(a => a.kind === "agent" && a.key !== assignedTo && !followers.includes(a.key)).map(a => (
-                  <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
-                ))}
-                {assignees.filter(a => a.kind === "human" && a.key !== assignedTo && !followers.includes(a.key)).length > 0 && (
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">People</div>
-                )}
-                {assignees.filter(a => a.kind === "human" && a.key !== assignedTo && !followers.includes(a.key)).map(a => (
-                  <SelectItem key={a.key} value={a.key}><AssigneeOption assignee={a} /></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Notes */}
-          {task.notes && (
-            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes from Albus</p>
-              <p className="text-sm leading-relaxed">{task.notes}</p>
-            </div>
-          )}
-
-          {/* Result */}
-          {task.result && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Result</p>
-              <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
-                {cleanResult(task.result)}
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {task.error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">Error</p>
-              <p className="text-sm text-red-700">{task.error}</p>
-            </div>
-          )}
-
-          {/* Timestamps */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
-            <div>Created · {format(parseISO(task.created_at), "MMM d, h:mm a")}</div>
-            {task.due_date && <div>Due · {format(parseISO(task.due_date), "MMM d")}</div>}
-            {task.started_at && <div>Started · {format(parseISO(task.started_at), "MMM d, h:mm a")}</div>}
-            {task.completed_at && <div>Completed · {format(parseISO(task.completed_at), "MMM d, h:mm a")}</div>}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save changes
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
 const NewTaskDialog = ({
   open, onOpenChange, assignees, repos, onCreated,

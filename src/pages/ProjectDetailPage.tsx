@@ -627,7 +627,7 @@ export default function ProjectDetailPage() {
       />
 
       {/* One peek for every view — List, Board, Calendar, Timeline all set
-          peekItem the same way; WorkItemPeek picks TaskPeek vs AgentTaskDetail. */}
+          peekItem the same way; WorkItemPeek picks TaskPeek vs AgentTaskPeek. */}
       <WorkItemPeek peek={peekItem} onClose={() => { setPeekItem(null); refetchWorkItems(); }} />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
