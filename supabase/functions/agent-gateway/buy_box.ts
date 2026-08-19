@@ -111,9 +111,9 @@ export async function checkCandidateBuyBoxFit(
     hardUnknownCount: hardUnknown.length,
   });
 
-  // Unknown hard criteria are blocking facts: they require more source-backed
-  // information before Ema may mark a candidate fit or route it into CRM.
-  // Unknown soft criteria remain visible but do not independently block a fit.
+  // Unknown hard criteria block a verified fit, but they do not block CRM intake.
+  // needs_info candidates may enter the initial review stage so the team can
+  // request and verify the missing facts. Unknown soft criteria remain visible.
   const verificationStatus = result === 'fit'
     ? (unknown.length ? 'provisional' : 'verified')
     : 'not_qualified';
@@ -123,7 +123,7 @@ export async function checkCandidateBuyBoxFit(
     candidate_id: candidate.id,
     asset_class: assetClass,
     result,
-    crm_eligible: result === 'fit',
+    crm_eligible: isCrmEligibleBuyBoxResult(result),
     verification_status: verificationStatus,
     passed,
     failed: [...uncoveredHardFailures, ...softFailed],
@@ -161,6 +161,10 @@ export function classifyBuyBoxResult(params: {
     return 'needs_info';
   }
   return 'fit';
+}
+
+export function isCrmEligibleBuyBoxResult(result: string): boolean {
+  return result === 'fit' || result === 'needs_info';
 }
 
 async function loadCandidate(

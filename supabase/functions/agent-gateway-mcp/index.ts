@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       {
         title: "Check a persisted Ema candidate against the buy box",
         description:
-          "Runs a preliminary source-backed qualification screen against active Evergreen buy-box screen rules. Unknown hard-risk fields stay explicitly unknown and return needs_info; pricing rules are not evaluated. Persists the result for later CRM intake when qualified.",
+          "Runs a preliminary source-backed qualification screen against active Evergreen buy-box screen rules. Unknown hard-risk fields stay explicitly unknown and return needs_info; pricing rules are not evaluated. Persists the result; fit and needs_info may enter CRM initial review, while not_fit is blocked from autonomous CRM intake.",
         inputSchema: dealBuyBoxFitInputSchema,
         annotations: controlledWriteAnnotations,
       },
@@ -191,9 +191,9 @@ Deno.serve(async (req) => {
     server.registerTool(
       "deal_intake_to_crm",
       {
-        title: "Intake a qualified Ema deal into HighLevel",
+        title: "Intake an Ema reviewable deal into HighLevel",
         description:
-          "Processes one persisted Ema-qualified or legacy Cash-qualified candidate using server-side duplicate checks, fixed pipeline routing, source-backed fields, idempotency, and an audit note. It cannot send messages, create offers, delete records, or advance an existing opportunity stage.",
+          "Processes one persisted Ema fit/needs_info or legacy Cash-qualified candidate using server-side duplicate checks, fixed initial-stage routing, source-backed fields, idempotency, and an audit note. needs_info remains a team-review state and is not underwriting approval. The tool cannot send messages, create offers, delete records, or advance an existing opportunity stage.",
         inputSchema: dealIntakeToCrmInputSchema,
         annotations: controlledWriteAnnotations,
       },
