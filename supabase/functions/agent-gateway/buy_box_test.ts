@@ -2,6 +2,7 @@ import {
   BuyBoxFitError,
   classifyBuyBoxResult,
   deriveAssetClass,
+  isCrmEligibleBuyBoxResult,
 } from './buy_box.ts';
 
 function assert(
@@ -95,4 +96,11 @@ Deno.test('no hard failure or hard unknown can qualify', () => {
     }),
     'fit',
   );
+});
+
+Deno.test('fit and needs-info candidates are CRM eligible, not-fit is blocked', () => {
+  assert(isCrmEligibleBuyBoxResult('fit'));
+  assert(isCrmEligibleBuyBoxResult('needs_info'));
+  assert(!isCrmEligibleBuyBoxResult('not_fit'));
+  assert(!isCrmEligibleBuyBoxResult('not_checked'));
 });
