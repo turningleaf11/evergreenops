@@ -105,16 +105,17 @@ export async function checkCandidateBuyBoxFit(
     (failure) => !hardFailureFieldsWithException.has(failure.field),
   );
 
-  let result: FitResult;
-  if (uncoveredHardFailures.length) result = 'not_fit';
-  else if (hardFailed.length) result = 'needs_info';
-  else result = 'fit';
+  const result = classifyBuyBoxResult({
+    uncoveredHardFailureCount: uncoveredHardFailures.length,
+    hardFailureCount: hardFailed.length,
+    hardUnknownCount: hardUnknown.length,
+  });
 
-  // A preliminary fit can still contain unresolved risk exclusions. Those rules
-  // remain explicitly UNKNOWN; they are never converted into PASS. CRM intake may
-  // proceed because this action is a qualification screen, not underwriting or DD.
+  // Unknown hard criteria are blocking facts: they require more source-backed
+  // information before Ema may mark a candidate fit or route it into CRM.
+  // Unknown soft criteria remain visible but do not independently block a fit.
   const verificationStatus = result === 'fit'
-    ? (hardUnknown.length ? 'provisional' : 'verified')
+    ? (unknown.length ? 'provisional' : 'verified')
     : 'not_qualified';
 
   const details = {
@@ -148,6 +149,18 @@ export async function checkCandidateBuyBoxFit(
   if (error) throw new BuyBoxFitError(500, 'buy_box_fit_persist_failed');
 
   return details;
+}
+
+export function classifyBuyBoxResult(params: {
+  uncoveredHardFailureCount: number;
+  hardFailureCount: number;
+  hardUnknownCount: number;
+}): FitResult {
+  if (params.uncoveredHardFailureCount > 0) return 'not_fit';
+  if (params.hardFailureCount > 0 || params.hardUnknownCount > 0) {
+    return 'needs_info';
+  }
+  return 'fit';
 }
 
 async function loadCandidate(
