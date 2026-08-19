@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       {
         title: "Check a persisted Ema candidate against the buy box",
         description:
-          "Runs a preliminary source-backed qualification screen against active Evergreen buy-box screen rules. Unknown hard-risk fields stay explicitly unknown and make a fit provisional; pricing rules are not evaluated. Persists the result for later CRM intake.",
+          "Runs a preliminary source-backed qualification screen against active Evergreen buy-box screen rules. Unknown hard-risk fields stay explicitly unknown and return needs_info; pricing rules are not evaluated. Persists the result for later CRM intake when qualified.",
         inputSchema: dealBuyBoxFitInputSchema,
         annotations: controlledWriteAnnotations,
       },
