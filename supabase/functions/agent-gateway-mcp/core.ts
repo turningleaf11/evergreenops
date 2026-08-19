@@ -1,5 +1,5 @@
 export const MCP_SERVER_NAME = "evergreen-agent-gateway";
-export const MCP_SERVER_VERSION = "0.4.0";
+export const MCP_SERVER_VERSION = "0.4.1";
 export const WHOAMI_TOOL_NAME = "system_whoami";
 
 export const MCP_TOOL_ACTIONS = {
@@ -51,6 +51,19 @@ export function resolveGatewayUrl(supabaseUrl: string): string {
     throw new Error("Invalid SUPABASE_URL");
   }
   return `${normalized}/functions/v1/agent-gateway`;
+}
+
+export function base64UrlToBase64(value: string): string {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+  return remainder === 0 ? normalized : normalized + "=".repeat(4 - remainder);
+}
+
+export function detectAttachmentMimeType(dataBase64Url: string): string {
+  if (dataBase64Url.startsWith("JVBERi0")) return "application/pdf";
+  if (dataBase64Url.startsWith("iVBORw0KGgo")) return "image/png";
+  if (dataBase64Url.startsWith("_9j_")) return "image/jpeg";
+  return "application/octet-stream";
 }
 
 export function validateAuthorizationHeader(value: string | null): string {

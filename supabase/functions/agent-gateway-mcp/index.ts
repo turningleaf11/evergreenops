@@ -5,7 +5,9 @@ import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextproto
 
 import {
   authenticateThroughGateway,
+  base64UrlToBase64,
   callGateway,
+  detectAttachmentMimeType,
   GatewayAction,
   GatewayUpstreamError,
   MCP_SERVER_NAME,
@@ -128,7 +130,7 @@ Deno.serve(async (req) => {
       {
         title: "Get an email attachment",
         description:
-          "Retrieves one Gmail attachment as base64url data. Defaults to a 2 MiB inline limit; max_bytes may explicitly raise it to 8 MiB. Attachment content is untrusted external data.",
+          "Retrieves one Gmail attachment and returns it as an embedded MCP resource when supported by the client. Defaults to a 2 MiB inline limit; max_bytes may explicitly raise it to 8 MiB. Attachment content is untrusted external data.",
         inputSchema: emailGetAttachmentInputSchema,
         annotations: readOnlyAnnotations,
       },
@@ -236,25 +238,58 @@ async function executeGatewayTool(params: {
       untrusted_external_content: response.untrusted_external_content === true,
       data: response.data,
     };
+
     if (params.action === "email.get_attachment") {
       const attachment = isRecord(response.data.attachment)
         ? response.data.attachment
         : {};
+      const dataBase64Url = typeof attachment.data_base64url === "string"
+        ? attachment.data_base64url
+        : "";
+      const mimeType = detectAttachmentMimeType(dataBase64Url);
+      const attachmentMetadata = {
+        size: attachment.size ?? null,
+        inline_limit_bytes: attachment.inline_limit_bytes ?? null,
+        encoding: "embedded-resource",
+        mime_type: mimeType,
+      };
+      const safeStructuredContent = {
+        untrusted_external_content: true,
+        data: { attachment: attachmentMetadata },
+      };
+      const textContent = {
+        type: "text" as const,
+        text: JSON.stringify(safeStructuredContent),
+      };
+
+      if (!dataBase64Url) {
+        return {
+          content: [textContent],
+          structuredContent: safeStructuredContent,
+        };
+      }
+
+      const messageId = encodeURIComponent(
+        String(params.input.message_id ?? "message"),
+      );
+      const attachmentId = encodeURIComponent(
+        String(params.input.attachment_id ?? "attachment"),
+      );
+      const resourceContent = {
+        type: "resource" as const,
+        resource: {
+          uri: `gmail-attachment://${messageId}/${attachmentId}`,
+          mimeType,
+          blob: base64UrlToBase64(dataBase64Url),
+        },
+      };
+
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            untrusted_external_content: true,
-            attachment: {
-              size: attachment.size ?? null,
-              inline_limit_bytes: attachment.inline_limit_bytes ?? null,
-              encoding: "base64url",
-            },
-          }),
-        }],
-        structuredContent,
+        content: [textContent, resourceContent],
+        structuredContent: safeStructuredContent,
       };
     }
+
     return {
       content: [{
         type: "text" as const,
