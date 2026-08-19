@@ -1,6 +1,7 @@
 import {
   DealIntakeError,
   deriveRoute,
+  isEmaCrmIntakeEligible,
   looksLikeResolvedAddress,
 } from './intake.ts';
 
@@ -55,4 +56,11 @@ Deno.test('refuses unresolved property types', () => {
     assert(error instanceof DealIntakeError);
     assertEquals(error.code, 'property_type_unresolved');
   }
+});
+
+Deno.test('fit and needs-info Ema results may enter CRM initial review', () => {
+  assert(isEmaCrmIntakeEligible('fit'));
+  assert(isEmaCrmIntakeEligible('needs_info'));
+  assert(!isEmaCrmIntakeEligible('not_fit'));
+  assert(!isEmaCrmIntakeEligible('not_checked'));
 });
