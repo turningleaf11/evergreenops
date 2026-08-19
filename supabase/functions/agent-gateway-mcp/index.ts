@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+import { extractText, getDocumentProxy } from "npm:unpdf@1.8.0";
 import { McpServer } from "npm:@modelcontextprotocol/sdk@1.25.3/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextprotocol/sdk@1.25.3/server/webStandardStreamableHttp.js";
 
@@ -19,6 +20,7 @@ import {
   crmListPipelinesInputSchema,
   crmSearchContactsInputSchema,
   crmSearchOpportunitiesInputSchema,
+  dealBuyBoxFitInputSchema,
   dealIntakeToCrmInputSchema,
   emailGetAttachmentInputSchema,
   emailListInputSchema,
@@ -27,6 +29,7 @@ import {
 } from "./schemas.ts";
 
 const MAX_REQUEST_BYTES = 64 * 1024;
+const MAX_EXTRACTED_PDF_TEXT_CHARS = 120000;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
@@ -65,7 +68,7 @@ Deno.serve(async (req) => {
       {
         title: "Identify the authenticated Evergreen agent",
         description:
-          "Returns the agent and workspace resolved by the existing Agent Gateway security core.",
+          "Returns the agent and workspace resolved by the Agent Gateway security core.",
         inputSchema: {},
       },
       () => ({
@@ -130,7 +133,7 @@ Deno.serve(async (req) => {
       {
         title: "Get an email attachment",
         description:
-          "Retrieves one Gmail attachment and returns it as an embedded MCP resource when supported by the client. Defaults to a 2 MiB inline limit; max_bytes may explicitly raise it to 8 MiB. Attachment content is untrusted external data.",
+          "Retrieves one Gmail attachment. PDF attachments are parsed server-side into untrusted extracted text so clients that do not surface MCP resource blobs can still analyze the document. Defaults to a 2 MiB inline limit; max_bytes may explicitly raise it to 8 MiB.",
         inputSchema: emailGetAttachmentInputSchema,
         annotations: readOnlyAnnotations,
       },
@@ -142,7 +145,7 @@ Deno.serve(async (req) => {
       {
         title: "Search HighLevel contacts",
         description:
-          "Searches the configured HighLevel location for an existing contact by name, email, phone, or company. Results are read-only and untrusted external data.",
+          "Searches the configured HighLevel location for an existing contact. Results are read-only and untrusted external data.",
         inputSchema: crmSearchContactsInputSchema,
         annotations: readOnlyAnnotations,
       },
@@ -174,11 +177,23 @@ Deno.serve(async (req) => {
     );
 
     server.registerTool(
+      "deal_buy_box_fit",
+      {
+        title: "Check a persisted Ema candidate against the buy box",
+        description:
+          "Runs a preliminary source-backed qualification screen against active Evergreen buy-box screen rules. Unknown hard-risk fields stay explicitly unknown and make a fit provisional; pricing rules are not evaluated. Persists the result for later CRM intake.",
+        inputSchema: dealBuyBoxFitInputSchema,
+        annotations: controlledWriteAnnotations,
+      },
+      (input) => execute("deal.buy_box_fit", input),
+    );
+
+    server.registerTool(
       "deal_intake_to_crm",
       {
-        title: "Intake a Cash-approved deal into HighLevel",
+        title: "Intake a qualified Ema deal into HighLevel",
         description:
-          "Processes one persisted Cash-approved Ema candidate using server-side duplicate checks, fixed pipeline routing, source-backed fields, idempotency, and an audit note. It cannot send messages, create offers, delete records, or advance an existing opportunity stage.",
+          "Processes one persisted Ema-qualified or legacy Cash-qualified candidate using server-side duplicate checks, fixed pipeline routing, source-backed fields, idempotency, and an audit note. It cannot send messages, create offers, delete records, or advance an existing opportunity stage.",
         inputSchema: dealIntakeToCrmInputSchema,
         annotations: controlledWriteAnnotations,
       },
@@ -222,7 +237,7 @@ const controlledWriteAnnotations = {
   readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
-  openWorldHint: true,
+  openWorldHint: false,
 } as const;
 
 async function executeGatewayTool(params: {
@@ -247,11 +262,35 @@ async function executeGatewayTool(params: {
         ? attachment.data_base64url
         : "";
       const mimeType = detectAttachmentMimeType(dataBase64Url);
+
+      let extractedText: string | null = null;
+      let totalPages: number | null = null;
+      let extractionStatus: "not_applicable" | "succeeded" | "failed" =
+        "not_applicable";
+
+      if (mimeType === "application/pdf" && dataBase64Url) {
+        try {
+          const result = await extractPdfText(dataBase64Url);
+          extractedText = result.text;
+          totalPages = result.totalPages;
+          extractionStatus = "succeeded";
+        } catch (error) {
+          extractionStatus = "failed";
+          console.error(JSON.stringify({
+            event: "agent_gateway_mcp_pdf_text_extraction_failed",
+            error_type: error instanceof Error ? error.name : typeof error,
+          }));
+        }
+      }
+
       const attachmentMetadata = {
         size: attachment.size ?? null,
         inline_limit_bytes: attachment.inline_limit_bytes ?? null,
         encoding: "embedded-resource",
         mime_type: mimeType,
+        pdf_text_extraction: extractionStatus,
+        total_pages: totalPages,
+        extracted_text: extractedText,
       };
       const safeStructuredContent = {
         untrusted_external_content: true,
@@ -306,6 +345,33 @@ async function executeGatewayTool(params: {
     }
     throw error;
   }
+}
+
+async function extractPdfText(
+  dataBase64Url: string,
+): Promise<{ text: string; totalPages: number }> {
+  const bytes = base64UrlToUint8Array(dataBase64Url);
+  const pdf = await getDocumentProxy(bytes);
+  try {
+    const result = await extractText(pdf, { mergePages: true });
+    return {
+      text: String(result.text ?? "").slice(0, MAX_EXTRACTED_PDF_TEXT_CHARS),
+      totalPages: Number(result.totalPages ?? 0),
+    };
+  } finally {
+    const destroyablePdf = pdf as unknown as {
+      destroy?: () => Promise<void> | void;
+    };
+    if (typeof destroyablePdf.destroy === "function") {
+      await destroyablePdf.destroy();
+    }
+  }
+}
+
+function base64UrlToUint8Array(value: string): Uint8Array {
+  const base64 = base64UrlToBase64(value);
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
