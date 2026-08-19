@@ -1,6 +1,8 @@
 import {
   authenticateThroughGateway,
+  base64UrlToBase64,
   callGateway,
+  detectAttachmentMimeType,
   GatewayUpstreamError,
   MCP_TOOL_ACTIONS,
   parseGatewaySuccess,
@@ -26,6 +28,15 @@ Deno.test("resolves the existing Agent Gateway endpoint", () => {
     resolveGatewayUrl("https://example.supabase.co/"),
     "https://example.supabase.co/functions/v1/agent-gateway",
   );
+});
+
+Deno.test("normalizes Gmail attachment bytes for MCP embedded resources", () => {
+  assertEquals(base64UrlToBase64("SGVsbG8td29ybGQ_"), "SGVsbG8td29ybGQ/");
+  assertEquals(base64UrlToBase64("YQ"), "YQ==");
+  assertEquals(detectAttachmentMimeType("JVBERi0xLjQK"), "application/pdf");
+  assertEquals(detectAttachmentMimeType("iVBORw0KGgoAAA"), "image/png");
+  assertEquals(detectAttachmentMimeType("_9j_4AAQ"), "image/jpeg");
+  assertEquals(detectAttachmentMimeType("dGV4dA"), "application/octet-stream");
 });
 
 Deno.test("requires a bearer authorization header", () => {
