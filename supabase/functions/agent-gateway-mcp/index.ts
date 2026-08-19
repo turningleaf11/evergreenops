@@ -238,6 +238,7 @@ async function executeGatewayTool(params: {
       untrusted_external_content: response.untrusted_external_content === true,
       data: response.data,
     };
+
     if (params.action === "email.get_attachment") {
       const attachment = isRecord(response.data.attachment)
         ? response.data.attachment
@@ -256,29 +257,39 @@ async function executeGatewayTool(params: {
         untrusted_external_content: true,
         data: { attachment: attachmentMetadata },
       };
-      const content: Array<Record<string, unknown>> = [{
-        type: "text",
+      const textContent = {
+        type: "text" as const,
         text: JSON.stringify(safeStructuredContent),
-      }];
+      };
 
-      if (dataBase64Url) {
-        const messageId = encodeURIComponent(String(params.input.message_id ?? "message"));
-        const attachmentId = encodeURIComponent(String(params.input.attachment_id ?? "attachment"));
-        content.push({
-          type: "resource",
-          resource: {
-            uri: `gmail-attachment://${messageId}/${attachmentId}`,
-            mimeType,
-            blob: base64UrlToBase64(dataBase64Url),
-          },
-        });
+      if (!dataBase64Url) {
+        return {
+          content: [textContent],
+          structuredContent: safeStructuredContent,
+        };
       }
 
+      const messageId = encodeURIComponent(
+        String(params.input.message_id ?? "message"),
+      );
+      const attachmentId = encodeURIComponent(
+        String(params.input.attachment_id ?? "attachment"),
+      );
+      const resourceContent = {
+        type: "resource" as const,
+        resource: {
+          uri: `gmail-attachment://${messageId}/${attachmentId}`,
+          mimeType,
+          blob: base64UrlToBase64(dataBase64Url),
+        },
+      };
+
       return {
-        content,
+        content: [textContent, resourceContent],
         structuredContent: safeStructuredContent,
       };
     }
+
     return {
       content: [{
         type: "text" as const,
