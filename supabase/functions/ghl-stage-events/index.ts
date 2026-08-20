@@ -162,14 +162,15 @@ function buildDependencies(admin: SupabaseClient, ghlContext: { apiKey: string; 
         _activated_at: input.activatedAt,
       }).single();
       if (error || !data) throw new ReceiverError(500, 'cash_work_reconciliation_failed');
+      const row = data as unknown as Record<string, unknown>;
       return {
-        work_item_id: String(data.work_item_id),
-        agent_task_id: String(data.agent_task_id),
-        reused_work_item: Boolean(data.reused_work_item),
-        reused_task: Boolean(data.reused_task),
-        reopened: Boolean(data.reopened),
-        legacy_reconciled: Boolean(data.legacy_reconciled),
-        activation_count: Number(data.activation_count),
+        work_item_id: String(row.work_item_id),
+        agent_task_id: String(row.agent_task_id),
+        reused_work_item: Boolean(row.reused_work_item),
+        reused_task: Boolean(row.reused_task),
+        reopened: Boolean(row.reopened),
+        legacy_reconciled: Boolean(row.legacy_reconciled),
+        activation_count: Number(row.activation_count),
       };
     },
   };
