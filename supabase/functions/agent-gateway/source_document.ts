@@ -43,6 +43,13 @@ interface UploadedDocument {
   file_id: string | null;
 }
 
+interface OperationRow {
+  id: string;
+  operation_status: string;
+  external_id: string | null;
+  result_metadata: Record<string, unknown> | null;
+}
+
 export async function attachOriginalPdfDocuments(
   admin: SupabaseClient,
   ghl: GhlContext,
@@ -222,7 +229,11 @@ async function uploadGhlMediaFile(
   bytes: Uint8Array,
 ): Promise<UploadedDocument> {
   const form = new FormData();
-  form.append('file', new Blob([bytes], { type: mimeType }), filename);
+  const fileBuffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  form.append('file', new Blob([fileBuffer], { type: mimeType }), filename);
   form.append('hosted', 'false');
   form.append('name', filename);
 
@@ -278,7 +289,11 @@ export function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
-async function getOperation(admin: SupabaseClient, workspaceId: string, key: string): Promise<Record<string, unknown> | null> {
+async function getOperation(
+  admin: SupabaseClient,
+  workspaceId: string,
+  key: string,
+): Promise<OperationRow | null> {
   const { data, error } = await admin.from('ema_operations')
     .select('id, operation_status, external_id, result_metadata')
     .eq('workspace_id', workspaceId)
@@ -286,7 +301,7 @@ async function getOperation(admin: SupabaseClient, workspaceId: string, key: str
     .eq('idempotency_key', key)
     .maybeSingle();
   if (error) throw new SourceDocumentError(500, 'ema_operation_lookup_failed');
-  return data as Record<string, unknown> | null;
+  return data as OperationRow | null;
 }
 
 async function beginOperation(
