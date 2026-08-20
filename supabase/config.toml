@@ -44,3 +44,9 @@ verify_jwt = false
 # to agent-gateway, which remains the sole authentication and policy engine.
 [functions.agent-gateway-mcp]
 verify_jwt = false
+
+# Public HighLevel webhook endpoint. Supabase JWT verification is intentionally
+# disabled because HighLevel authenticates deliveries with X-GHL-Signature.
+# The function verifies the current Ed25519 signature before parsing or acting.
+[functions.ghl-stage-events]
+verify_jwt = false
