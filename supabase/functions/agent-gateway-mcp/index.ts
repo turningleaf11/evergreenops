@@ -27,6 +27,7 @@ import {
   emailListInputSchema,
   emailReadInputSchema,
   emailSearchInputSchema,
+  underwritingCashValueInputSchema,
 } from "./schemas.ts";
 
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -213,6 +214,20 @@ Deno.serve(async (req) => {
       (input) => execute("deal.reconcile_email_update", input),
     );
 
+    if (identity.agent.slug === "cash") {
+      server.registerTool(
+        "underwriting_cash_value",
+        {
+          title: "Calculate CashValue from verified SFR sold comps",
+          description:
+            "Ranks verified Single Family Residence sold comps using Evergreen CashValue V1 rules, selects the best 3-5, normalizes each sale to the subject using price per square foot, and returns a CashValue, supported range, confidence, scoring breakdown, rejected comps, and any criteria expansion. Standard rules: up to 1 mile, +/-250 sqft, +/-10 years, sold within 6 months; stories/build style are optional ranking signals. If fewer than 3 comps qualify, only recency and year built expand to 12 months and +/-20 years. Never invent comps; input must come from a real data source or human-verified sales.",
+          inputSchema: underwritingCashValueInputSchema,
+          annotations: calculationAnnotations,
+        },
+        (input) => execute("underwriting.cash_value", input),
+      );
+    }
+
     const transport = new WebStandardStreamableHTTPServerTransport();
     await server.connect(transport);
     return await transport.handleRequest(req);
@@ -244,6 +259,13 @@ const readOnlyAnnotations = {
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: true,
+} as const;
+
+const calculationAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
 } as const;
 
 const controlledWriteAnnotations = {
