@@ -10,6 +10,7 @@ export const ALLOWED_ACTIONS = [
   'deal.buy_box_fit',
   'deal.intake_to_crm',
   'deal.reconcile_email_update',
+  'underwriting.cash_value',
 ] as const;
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES = 2 * 1024 * 1024;
@@ -47,10 +48,11 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
       if(Object.keys(factUpdates).length===0&&documents.length===0)throw new RequestValidationError('fact_updates or documents is required');
       return{action:'deal.reconcile_email_update',input:{message_id:gmailId(input.message_id,'message_id'),candidate_id:candidateId,fact_updates:factUpdates,documents}};
     }
+    case 'underwriting.cash_value': return{action:'underwriting.cash_value',input:cashValueInput(input)};
   }
 }
 
-export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')}
+export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')||action==='underwriting.cash_value'}
 export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Record<string,unknown>;resourceType:string|null;resourceId:string|null}{switch(request.action){
   case 'system.whoami':return{inputSummary:{},resourceType:'agent',resourceId:null};
   case 'email.list':return{inputSummary:{max_results:request.input.max_results,has_page_token:Boolean(request.input.page_token),after_epoch_seconds:request.input.after_epoch_seconds},resourceType:'gmail_message_list',resourceId:null};
@@ -63,6 +65,7 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
   case 'deal.buy_box_fit':return{inputSummary:{contract:'v1'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
   case 'deal.intake_to_crm':return{inputSummary:{contract:'v2'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
   case 'deal.reconcile_email_update':return{inputSummary:{contract:'v1',message_id:request.input.message_id,has_candidate_hint:Boolean(request.input.candidate_id),fact_keys:Object.keys(request.input.fact_updates as Record<string,unknown>),document_count:Array.isArray(request.input.documents)?request.input.documents.length:0},resourceType:'gmail_message_reconciliation',resourceId:String(request.input.message_id)};
+  case 'underwriting.cash_value':{const subject=isRecord(request.input.subject)?request.input.subject:{};return{inputSummary:{contract:'cash_value_v1',property_type:subject.property_type??null,comp_count:Array.isArray(request.input.comps)?request.input.comps.length:0,has_valuation_date:Boolean(request.input.valuation_date)},resourceType:'sfr_cash_value',resourceId:typeof subject.address==='string'?subject.address:null}}
 }}
 
 export function selectedHeaders(headers:unknown):Record<string,string>{const allowed=new Set(['from','to','cc','delivered-to','subject','date','message-id']),result:Record<string,string>={};if(!Array.isArray(headers))return result;for(const header of headers){if(!isRecord(header))continue;const name=String(header.name??'').toLowerCase();if(allowed.has(name))result[name]=String(header.value??'')}return result}
@@ -79,6 +82,40 @@ function optionalUuid(value:unknown,field:string):string|null{if(value===undefin
 function uuid(value:unknown,field:string):string{const result=requiredString(value,field,36,36).toLowerCase();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(result))throw new RequestValidationError(`${field} is invalid`);return result}
 function requiredString(value:unknown,field:string,minimum:number,maximum:number):string{if(typeof value!=='string')throw new RequestValidationError(`${field} must be a string`);const result=value.trim();if(result.length<minimum||result.length>maximum)throw new RequestValidationError(`${field} must be between ${minimum} and ${maximum} characters`);return result}
 function optionalInteger(value:unknown,field:string,minimum:number,maximum:number):number|null{if(value===undefined||value===null)return null;if(!Number.isSafeInteger(value)||Number(value)<minimum||Number(value)>maximum)throw new RequestValidationError(`${field} must be an integer between ${minimum} and ${maximum}`);return Number(value)}
+function optionalNumber(value:unknown,field:string,minimum:number,maximum:number):number|null{if(value===undefined||value===null||value==='')return null;if(typeof value!=='number'||!Number.isFinite(value)||value<minimum||value>maximum)throw new RequestValidationError(`${field} must be a number between ${minimum} and ${maximum}`);return value}
+function requiredNumber(value:unknown,field:string,minimum:number,maximum:number):number{const result=optionalNumber(value,field,minimum,maximum);if(result===null)throw new RequestValidationError(`${field} is required`);return result}
 function reconcileFactUpdates(value:unknown):Record<string,string|number|boolean>{if(value===undefined||value===null)return{};if(!isRecord(value))throw new RequestValidationError('fact_updates must be an object');const out:Record<string,string|number|boolean>={};for(const[key,raw]of Object.entries(value)){if(!RECONCILE_FACT_KEYS.has(key))throw new RequestValidationError(`fact_updates.${key} is not allowed`);if(typeof raw==='string'){const v=raw.trim();if(!v||v.length>1000)throw new RequestValidationError(`fact_updates.${key} is invalid`);out[key]=v}else if(typeof raw==='number'&&Number.isFinite(raw)){out[key]=raw}else if(typeof raw==='boolean'){out[key]=raw}else throw new RequestValidationError(`fact_updates.${key} must be a string, number, or boolean`)}return out}
 function reconcileDocuments(value:unknown):Array<{attachment_id:string;document_type:typeof PORTFOLIO_DOCUMENT_TYPES[number]}> {if(value===undefined||value===null)return[];if(!Array.isArray(value)||value.length>8)throw new RequestValidationError('documents must be an array with at most 8 items');return value.map((item,index)=>{if(!isRecord(item))throw new RequestValidationError(`documents[${index}] must be an object`);const attachmentId=gmailId(item.attachment_id,`documents[${index}].attachment_id`),documentType=optionalEnum(item.document_type,`documents[${index}].document_type`,PORTFOLIO_DOCUMENT_TYPES);if(!documentType)throw new RequestValidationError(`documents[${index}].document_type is required`);return{attachment_id:attachmentId,document_type:documentType}})}
+function cashValueInput(input:Record<string,unknown>):Record<string,unknown>{
+  if(!isRecord(input.subject))throw new RequestValidationError('subject must be an object');
+  if(!Array.isArray(input.comps)||input.comps.length>50)throw new RequestValidationError('comps must be an array with at most 50 items');
+  const subject=cashValueProperty(input.subject,'subject',false);
+  const comps=input.comps.map((raw,index)=>{if(!isRecord(raw))throw new RequestValidationError(`comps[${index}] must be an object`);return cashValueProperty(raw,`comps[${index}]`,true)});
+  const valuationDate=optionalString(input.valuation_date,'valuation_date',10,10);
+  if(valuationDate&&!/^\d{4}-\d{2}-\d{2}$/.test(valuationDate))throw new RequestValidationError('valuation_date must be YYYY-MM-DD');
+  return{subject,comps,valuation_date:valuationDate};
+}
+function cashValueProperty(value:Record<string,unknown>,field:string,isComp:boolean):Record<string,unknown>{
+  const result:Record<string,unknown>={
+    address:optionalString(value.address,`${field}.address`,1,300),
+    property_type:requiredString(value.property_type,`${field}.property_type`,1,120),
+    sqft:requiredNumber(value.sqft,`${field}.sqft`,1,50000),
+    year_built:optionalNumber(value.year_built,`${field}.year_built`,1600,2200),
+    beds:optionalNumber(value.beds,`${field}.beds`,0,50),
+    baths:optionalNumber(value.baths,`${field}.baths`,0,50),
+    stories:optionalNumber(value.stories,`${field}.stories`,0,20),
+    build_style:optionalString(value.build_style,`${field}.build_style`,1,120),
+  };
+  if(isComp){
+    result.id=optionalString(value.id,`${field}.id`,1,128);
+    result.condition=optionalString(value.condition,`${field}.condition`,1,120);
+    result.sale_price=requiredNumber(value.sale_price,`${field}.sale_price`,1,1000000000);
+    result.sale_date=requiredString(value.sale_date,`${field}.sale_date`,10,32);
+    if(Number.isNaN(new Date(String(result.sale_date)).getTime()))throw new RequestValidationError(`${field}.sale_date is invalid`);
+    result.distance_miles=requiredNumber(value.distance_miles,`${field}.distance_miles`,0,100);
+    result.source=optionalString(value.source,`${field}.source`,1,120);
+    if(!result.address)throw new RequestValidationError(`${field}.address is required`);
+  }
+  return result;
+}
 function isRecord(value:unknown):value is Record<string,unknown>{return Boolean(value)&&typeof value==='object'&&!Array.isArray(value)}
