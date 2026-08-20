@@ -115,7 +115,9 @@ function buildDependencies(admin: SupabaseClient, ghlContext: { apiKey: string; 
         if (typeof opportunity.id !== 'string' || !opportunity.id) return null;
         return {
           id: opportunity.id,
-          location_id: typeof opportunity.location_id === 'string' ? opportunity.location_id : null,
+          // The server-side HighLevel credential is location-scoped. Binding this
+          // read to the configured location avoids trusting a webhook location field.
+          location_id: ghlContext.locationId,
           pipeline_id: typeof opportunity.pipeline_id === 'string' ? opportunity.pipeline_id : null,
           stage_id: typeof opportunity.stage_id === 'string' ? opportunity.stage_id : null,
           name: typeof opportunity.name === 'string' ? opportunity.name : null,
