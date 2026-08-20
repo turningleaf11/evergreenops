@@ -50,6 +50,8 @@ Deno.test('hard V1 limits reject wrong type, over one mile, over 250 sqft, or be
   ];
   const result = calculateCashValue(subject, bad, valuationDate);
   assertEquals(result.status, 'insufficient_comps');
+  assertEquals(result.selected_comp_count, 0);
+  assertEquals(result.cash_value, null);
   assertEquals(result.rejected_comp_count, 5);
   assert(result.rejected_comps.some((x) => x.reasons.includes('distance_over_1_mile')));
   assert(result.rejected_comps.some((x) => x.reasons.includes('sqft_difference_over_250')));
@@ -69,10 +71,23 @@ Deno.test('expanded pass keeps distance and sqft strict while extending recency 
   assert(result.notes[0].includes('recency expanded to 12 months'));
 });
 
-Deno.test('CashValue is withheld when fewer than three defensible comps remain', () => {
+Deno.test('one or two defensible comps are still submitted with a low-confidence CashValue', () => {
   const result = calculateCashValue(subject, standardComps.slice(0, 2), valuationDate);
-  assertEquals(result.status, 'insufficient_comps');
-  assertEquals(result.cash_value, null);
+  assertEquals(result.status, 'thin_comp_set');
+  assertEquals(result.selected_comp_count, 2);
+  assertEquals(result.cash_value, 527000);
+  assertEquals(result.supported_range, { low: 517000, high: 536000 });
+  assertEquals(result.confidence, 'low');
+  assert(result.selected_comps.length === 2);
+  assert(result.notes.some((n) => n.includes('Cash must still submit')));
+});
+
+Deno.test('a single defensible comp is submitted rather than hidden', () => {
+  const result = calculateCashValue(subject, standardComps.slice(0, 1), valuationDate);
+  assertEquals(result.status, 'thin_comp_set');
+  assertEquals(result.selected_comp_count, 1);
+  assertEquals(result.cash_value, 536000);
+  assertEquals(result.supported_range, { low: 536000, high: 536000 });
   assertEquals(result.confidence, 'low');
 });
 

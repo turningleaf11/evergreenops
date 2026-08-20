@@ -57,7 +57,7 @@ export interface ScoredCashValueComp extends CashValueComp {
 
 export interface CashValueResult {
   contract: 'cash_value_v1';
-  status: 'valued' | 'insufficient_comps' | 'unsupported_subject';
+  status: 'valued' | 'thin_comp_set' | 'insufficient_comps' | 'unsupported_subject';
   subject_property_type: string;
   search_pass: CashValueSearchPass;
   selected_comp_count: number;
@@ -120,22 +120,22 @@ export function calculateCashValue(
     notes.push('Initial criteria produced fewer than 3 comps; recency expanded to 12 months and year-built tolerance expanded to ±20 years. Distance remains capped at 1 mile and sqft remains capped at ±250.');
   }
 
-  if (pool.length < CASH_VALUE_V1.minimumComps) {
+  if (pool.length === 0) {
     return {
       contract: 'cash_value_v1',
       status: 'insufficient_comps',
       subject_property_type: subjectType,
       search_pass: 'insufficient',
-      selected_comp_count: pool.length,
-      eligible_comp_count: pool.length,
+      selected_comp_count: 0,
+      eligible_comp_count: 0,
       rejected_comp_count: rejected.length,
       cash_value: null,
       supported_range: null,
       confidence: 'low',
-      average_comp_score: pool.length ? round1(pool.reduce((s, c) => s + c.score, 0) / pool.length) : null,
-      selected_comps: sortComps(pool).slice(0, CASH_VALUE_V1.preferredComps),
+      average_comp_score: null,
+      selected_comps: [],
       rejected_comps: rejected,
-      notes: [...notes, 'Fewer than 3 eligible comps remain. CashValue is intentionally withheld rather than manufacturing a valuation.'],
+      notes: [...notes, 'No defensible comps remain after the expanded search. CashValue cannot be calculated from verified sold evidence.'],
     };
   }
 
@@ -147,8 +147,30 @@ export function calculateCashValue(
   const high = roundToThousand(Math.max(...impliedValues));
   const averageScore = round1(selected.reduce((sum, c) => sum + c.score, 0) / selected.length);
   const spreadPct = cashValue > 0 ? (high - low) / cashValue : 1;
-  const confidence = confidenceFor(searchPass, selected.length, averageScore, spreadPct);
 
+  if (selected.length < CASH_VALUE_V1.minimumComps) {
+    notes.push(`Only ${selected.length} defensible comp${selected.length === 1 ? '' : 's'} remain after the expanded search. Cash must still submit the available comp evidence and CashValue, but confidence is Low because the sample is thin.`);
+    if (selected.some((c) => !known(c.stories))) notes.push('Story count was missing for one or more selected comps; stories/build style are optional V1 ranking signals, never hard filters.');
+    notes.push('CashValue is the rounded average of each selected comp’s $/sqft-implied value for the subject, not an average of raw sale prices.');
+    return {
+      contract: 'cash_value_v1',
+      status: 'thin_comp_set',
+      subject_property_type: subjectType,
+      search_pass: 'insufficient',
+      selected_comp_count: selected.length,
+      eligible_comp_count: pool.length,
+      rejected_comp_count: rejected.length,
+      cash_value: cashValue,
+      supported_range: { low, high },
+      confidence: 'low',
+      average_comp_score: averageScore,
+      selected_comps: selected,
+      rejected_comps: rejected,
+      notes,
+    };
+  }
+
+  const confidence = confidenceFor(searchPass, selected.length, averageScore, spreadPct);
   if (selected.length < CASH_VALUE_V1.preferredComps) notes.push(`CashValue used ${selected.length} comps; 5 are preferred when equally defensible sales are available.`);
   if (selected.some((c) => !known(c.stories))) notes.push('Story count was missing for one or more selected comps; stories/build style are optional V1 ranking signals, never hard filters.');
   notes.push('CashValue is the rounded average of each selected comp’s $/sqft-implied value for the subject, not an average of raw sale prices.');
