@@ -9,10 +9,17 @@ export const ALLOWED_ACTIONS = [
   'crm.list_pipelines',
   'deal.buy_box_fit',
   'deal.intake_to_crm',
+  'deal.reconcile_email_update',
 ] as const;
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 export const MAX_INLINE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const RECONCILE_FACT_KEYS = new Set([
+  'property_type','units','sites','pads','bedrooms','bathrooms','sqft','asking_price',
+  'arv','occupancy','tenant_rent_monthly','condition','renovation_level','hoa',
+  'post_possession','fire_damage','structural_issues','flood_zone',
+]);
+const PORTFOLIO_DOCUMENT_TYPES = ['om','rent_roll','t12','pnl'] as const;
 export type GatewayAction = typeof ALLOWED_ACTIONS[number];
 export interface GatewayRequest { action: GatewayAction; input: Record<string, unknown> }
 export class RequestValidationError extends Error { constructor(message:string){super(message);this.name='RequestValidationError'} }
@@ -35,6 +42,11 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
     case 'crm.list_pipelines': return{action:'crm.list_pipelines',input:{}};
     case 'deal.buy_box_fit': return{action:'deal.buy_box_fit',input:{candidate_id:uuid(input.candidate_id,'candidate_id')}};
     case 'deal.intake_to_crm': return{action:'deal.intake_to_crm',input:{candidate_id:uuid(input.candidate_id,'candidate_id')}};
+    case 'deal.reconcile_email_update': {
+      const factUpdates=reconcileFactUpdates(input.fact_updates),documents=reconcileDocuments(input.documents),candidateId=optionalUuid(input.candidate_id,'candidate_id');
+      if(Object.keys(factUpdates).length===0&&documents.length===0)throw new RequestValidationError('fact_updates or documents is required');
+      return{action:'deal.reconcile_email_update',input:{message_id:gmailId(input.message_id,'message_id'),candidate_id:candidateId,fact_updates:factUpdates,documents}};
+    }
   }
 }
 
@@ -50,6 +62,7 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
   case 'crm.list_pipelines':return{inputSummary:{},resourceType:'ghl_pipeline_list',resourceId:null};
   case 'deal.buy_box_fit':return{inputSummary:{contract:'v1'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
   case 'deal.intake_to_crm':return{inputSummary:{contract:'v2'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
+  case 'deal.reconcile_email_update':return{inputSummary:{contract:'v1',message_id:request.input.message_id,has_candidate_hint:Boolean(request.input.candidate_id),fact_keys:Object.keys(request.input.fact_updates as Record<string,unknown>),document_count:Array.isArray(request.input.documents)?request.input.documents.length:0},resourceType:'gmail_message_reconciliation',resourceId:String(request.input.message_id)};
 }}
 
 export function selectedHeaders(headers:unknown):Record<string,string>{const allowed=new Set(['from','to','cc','delivered-to','subject','date','message-id']),result:Record<string,string>={};if(!Array.isArray(headers))return result;for(const header of headers){if(!isRecord(header))continue;const name=String(header.name??'').toLowerCase();if(allowed.has(name))result[name]=String(header.value??'')}return result}
@@ -62,7 +75,10 @@ function optionalPageToken(value:unknown):string|null{if(value===undefined||valu
 function optionalGhlId(value:unknown,field:string):string|null{if(value===undefined||value===null||value==='')return null;const result=requiredString(value,field,1,128);if(!/^[A-Za-z0-9_-]+$/.test(result))throw new RequestValidationError(`${field} is invalid`);return result}
 function optionalString(value:unknown,field:string,minimum:number,maximum:number):string|null{if(value===undefined||value===null||value==='')return null;return requiredString(value,field,minimum,maximum)}
 function optionalEnum<const T extends readonly string[]>(value:unknown,field:string,allowed:T):T[number]|null{if(value===undefined||value===null||value==='')return null;if(typeof value!=='string'||!allowed.includes(value))throw new RequestValidationError(`${field} is invalid`);return value as T[number]}
+function optionalUuid(value:unknown,field:string):string|null{if(value===undefined||value===null||value==='')return null;return uuid(value,field)}
 function uuid(value:unknown,field:string):string{const result=requiredString(value,field,36,36).toLowerCase();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(result))throw new RequestValidationError(`${field} is invalid`);return result}
 function requiredString(value:unknown,field:string,minimum:number,maximum:number):string{if(typeof value!=='string')throw new RequestValidationError(`${field} must be a string`);const result=value.trim();if(result.length<minimum||result.length>maximum)throw new RequestValidationError(`${field} must be between ${minimum} and ${maximum} characters`);return result}
 function optionalInteger(value:unknown,field:string,minimum:number,maximum:number):number|null{if(value===undefined||value===null)return null;if(!Number.isSafeInteger(value)||Number(value)<minimum||Number(value)>maximum)throw new RequestValidationError(`${field} must be an integer between ${minimum} and ${maximum}`);return Number(value)}
+function reconcileFactUpdates(value:unknown):Record<string,string|number|boolean>{if(value===undefined||value===null)return{};if(!isRecord(value))throw new RequestValidationError('fact_updates must be an object');const out:Record<string,string|number|boolean>={};for(const[key,raw]of Object.entries(value)){if(!RECONCILE_FACT_KEYS.has(key))throw new RequestValidationError(`fact_updates.${key} is not allowed`);if(typeof raw==='string'){const v=raw.trim();if(!v||v.length>1000)throw new RequestValidationError(`fact_updates.${key} is invalid`);out[key]=v}else if(typeof raw==='number'&&Number.isFinite(raw)){out[key]=raw}else if(typeof raw==='boolean'){out[key]=raw}else throw new RequestValidationError(`fact_updates.${key} must be a string, number, or boolean`)}return out}
+function reconcileDocuments(value:unknown):Array<{attachment_id:string;document_type:typeof PORTFOLIO_DOCUMENT_TYPES[number]}> {if(value===undefined||value===null)return[];if(!Array.isArray(value)||value.length>8)throw new RequestValidationError('documents must be an array with at most 8 items');return value.map((item,index)=>{if(!isRecord(item))throw new RequestValidationError(`documents[${index}] must be an object`);const attachmentId=gmailId(item.attachment_id,`documents[${index}].attachment_id`),documentType=optionalEnum(item.document_type,`documents[${index}].document_type`,PORTFOLIO_DOCUMENT_TYPES);if(!documentType)throw new RequestValidationError(`documents[${index}].document_type is required`);return{attachment_id:attachmentId,document_type:documentType}})}
 function isRecord(value:unknown):value is Record<string,unknown>{return Boolean(value)&&typeof value==='object'&&!Array.isArray(value)}

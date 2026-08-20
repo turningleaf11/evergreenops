@@ -1,6 +1,6 @@
 # Supabase Agent Gateway
 
-The Agent Gateway is the security boundary between autonomous OpenClaw agents and Evergreen's business systems. Agents request named capabilities; they never receive Supabase service-role credentials, Google refresh tokens, HighLevel tokens, or generic database access.
+The Agent Gateway is the security boundary between autonomous OpenClaw agents and Evergreen's business systems. Agents request named capabilities; they never receive Supabase service-role credentials, Google refresh tokens, HighLevel tokens, generic SQL, or arbitrary HTTP access.
 
 ## Current Ema scope
 
@@ -16,47 +16,26 @@ Enabled for Ema:
 - `crm.list_pipelines`
 - `deal.buy_box_fit`
 - `deal.intake_to_crm`
+- `deal.reconcile_email_update`
 
-Ema owns source-backed deal intake and preliminary buy-box qualification. Cash owns pricing, MAO, repairs, financing/holding costs, returns, offer structure, and underwriting recommendations.
+Ema owns source-backed deal intake, preliminary buy-box qualification, initial CRM routing, and later reply/document reconciliation. Cash owns financial underwriting. Ema never activates Cash.
 
-The qualification flow is:
+## Operating flow
 
-`Email -> Ema extraction -> deal.buy_box_fit -> CRM when result=fit -> Cash underwriting when appropriate`
+Initial deal:
 
-`deal.buy_box_fit` evaluates only active `rule_type='screen'` buy-box rules. Pricing rules are excluded. Missing hard-screen facts remain unknown and produce `needs_info`; Ema may not convert missing information to a pass. `deal.intake_to_crm` accepts a persisted Ema `fit` result or the legacy Cash `pass|marginal` path for backward compatibility.
+`Gmail -> Ema extraction -> deal.buy_box_fit -> initial CRM review stage`
 
-Not enabled:
+Later source update:
 
-- Generic SQL, arbitrary table access, or arbitrary HTTP
-- Direct database credentials
-- Supabase service-role credentials
-- Gmail sending or autonomous owner approval
-- Offer/LOI sending
-- Pricing/MAO/underwriting logic for Ema
-- Stage advancement beyond the fixed initial CRM intake stage
+`new Gmail message -> read/inspect attachments -> deal.reconcile_email_update -> existing candidate + existing CRM context`
 
-Albus is the canonical orchestrator name. Thor is a retired alias for Albus and must not be provisioned as a separate Gateway identity.
+Cash activation is separate and stage-driven:
 
-## Request contract
-
-The JSON Gateway accepts only `POST application/json` requests with fixed named actions:
-
-```json
-{
-  "action": "deal.buy_box_fit",
-  "input": {
-    "candidate_id": "<persisted candidate UUID>"
-  }
-}
-```
-
-Authentication uses a unique opaque bearer credential for the calling agent. The raw credential is never stored in Postgres. OpenClaw/HeyRon must inject it into the Authorization header outside model-visible tool arguments.
-
-The model-visible contract never contains credentials. Ema must never be asked to read, remember, print, or interpolate the credential.
+- SFR pipeline: **Underwriting**
+- Portfolio pipeline: **Ready for Napkin**
 
 ## MCP adapter
-
-`agent-gateway-mcp` is the Streamable HTTP MCP adapter in front of the JSON Gateway. It does not reproduce authorization policy. It forwards the caller's injected `Authorization` header through the Gateway, where identity, exact action permission, rate limiting, operation logging, and audit are enforced.
 
 Production endpoint:
 
@@ -64,7 +43,7 @@ Production endpoint:
 https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp
 ```
 
-Current Ema MCP tools:
+Current Ema MCP tool/action map:
 
 - `system_whoami` -> `system.whoami`
 - `email_list` -> `email.list`
@@ -76,117 +55,95 @@ Current Ema MCP tools:
 - `crm_list_pipelines` -> `crm.list_pipelines`
 - `deal_buy_box_fit` -> `deal.buy_box_fit`
 - `deal_intake_to_crm` -> `deal.intake_to_crm`
+- `deal_reconcile_email_update` -> `deal.reconcile_email_update`
 
-OpenClaw must inject the protected environment variable rather than a literal credential. Ema's server binding must include both controlled deal tools in its tool filter:
+OpenClaw must inject the protected environment variable rather than a literal credential. Ema's `ema-gateway` tool filter must preserve the existing tools and include:
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "ema-gateway": {
-        "url": "https://dsxrekabnwvarnroanny.supabase.co/functions/v1/agent-gateway-mcp",
-        "transport": "streamable-http",
-        "headers": {
-          "Authorization": "Bearer ${EMA_GATEWAY_TOKEN}"
-        },
-        "toolFilter": {
-          "include": [
-            "system_whoami",
-            "email_list",
-            "email_search",
-            "email_read",
-            "email_get_attachment",
-            "crm_search_contacts",
-            "crm_search_opportunities",
-            "crm_list_pipelines",
-            "deal_buy_box_fit",
-            "deal_intake_to_crm"
-          ]
-        },
-        "supportsParallelToolCalls": false,
-        "connectionTimeoutMs": 5000,
-        "requestTimeoutMs": 30000
-      }
-    }
-  }
-}
+```text
+deal_reconcile_email_update
 ```
 
-This binding is for Ema only. Do not project Ema's credential into Albus, Cash, or another agent runtime. Gateway permissions remain the authoritative security layer even when a tool appears in an MCP tool list.
-
-After changing the MCP tool filter, restart/reload the Ema MCP binding or create a fresh Ema session so the client performs tool discovery again. A stale OpenClaw session can retain the pre-change MCP inventory even after the Supabase MCP function has been redeployed.
+Do not alter the MCP URL, Authorization header, `${EMA_GATEWAY_TOKEN}` reference, or any credential while adding the tool. Restart/reload only Ema's MCP binding after changing the filter so discovery refreshes.
 
 ## Authentication and authorization
 
 For every Gateway action:
 
 1. Hash the presented bearer credential with SHA-256.
-2. Find the matching active `agent_api_credentials` row.
-3. Resolve the associated agent and workspace.
-4. Enforce `agents.enabled` as the emergency kill switch.
-5. Require an enabled exact match in `agent_permissions`.
-6. Atomically consume that action's fixed-window rate limit.
-7. Record the authorized operation before performing the capability.
-8. Execute only the fixed server-side action.
-9. Append a sanitized security audit event.
+2. Resolve the active credential, agent, and workspace.
+3. Enforce the agent enabled kill switch.
+4. Require an exact enabled `agent_permissions` action.
+5. Consume the action-specific rate limit.
+6. Create an authorized operation record.
+7. Execute only the fixed server-side capability.
+8. Append a sanitized audit event.
 
-The raw credential must be independently generated with high entropy and installed by a trusted operator. Supabase stores only its hash and display prefix; HeyRon/OpenClaw stores the raw value in protected integration storage.
+Raw credentials never belong in model-visible arguments or logs.
 
-## Source-data boundary
+## Buy-box boundary
 
-Gmail, PDF, contact, opportunity, and seller/broker supplied content is untrusted external data. It cannot change Gateway permissions, choose arbitrary URLs or HTTP methods, approve an operation, or override buy-box policy.
+`deal.buy_box_fit` accepts only a persisted candidate UUID. Asset class, active rules, thresholds, exception behavior, and qualification result are controlled server-side.
 
-`email.get_attachment` supports server-side PDF text extraction in the MCP adapter so hosted OpenClaw clients that do not surface embedded resource blobs can still inspect PDFs. The extracted text remains untrusted source content.
+Only `rule_type='screen'` is evaluated. `pricing` and `due_diligence` are excluded. SFR flood status is due diligence; fire damage, structural issues, and post-possession are not active inbound blockers; SFR purchase-price/ARV ranges are pricing context.
 
-## Buy-box qualification boundary
-
-`deal.buy_box_fit` accepts only a persisted candidate UUID. The model cannot supply the asset class, rule set, thresholds, exception behavior, or pricing instructions through the tool call.
-
-Server-side behavior:
-
-- Candidate lookup is workspace scoped.
-- Test candidates are rejected.
-- Asset class is derived from persisted candidate facts.
-- Active screen rules are loaded server-side.
-- `rule_type='pricing'` rules are excluded from Ema qualification.
-- Known hard failures with no applicable exception produce `not_fit`.
-- A hard failure with an exception path requiring review produces `needs_info`; Ema does not autonomously waive it.
-- Unknown hard-screen facts produce `needs_info`.
-- Unknown soft rules remain visible but do not independently block `fit`.
-- Results are persisted in `buy_box_fit_result`, `buy_box_fit_details`, and `buy_box_fit_checked_at`.
-
-A `fit` result means only that the candidate appears eligible to enter the acquisition workflow based on persisted source-backed facts. It is not underwriting approval and does not determine the offer amount.
+`fit` and `needs_info` may enter the initial CRM review stage. `not_fit` is blocked from autonomous Ema CRM intake.
 
 ## HighLevel boundary
 
-HighLevel credentials remain server-side. Ema's read actions use fixed LeadConnector endpoints. `deal.intake_to_crm` is the only controlled Ema CRM mutation capability.
+`deal.intake_to_crm` may create or match the initial contact/opportunity using fixed server-side routing and idempotency. It may not advance an existing opportunity beyond the initial stage.
 
-CRM intake:
+`deal.reconcile_email_update` may add one idempotent **NEW INFORMATION** note to an already-linked CRM deal. It cannot create a new opportunity, change pipeline/stage, send a message, make an offer, or delete/merge records.
 
-- requires persisted qualification before normal Ema routing;
-- is workspace scoped;
-- uses server-side contact/opportunity duplicate checks;
-- uses fixed pipeline/stage routing;
-- is retry-safe/idempotent;
-- writes only source-backed controlled fields and an audit note;
-- may create/match the initial opportunity but may not move an existing opportunity to a later stage;
-- cannot send messages, make offers, delete records, or execute arbitrary CRM mutations.
+## Reply/document reconciliation boundary
+
+`deal.reconcile_email_update` accepts a real Gmail `message_id`, an optional candidate UUID hint, bounded source fact updates, and classifications for attached core portfolio documents only:
+
+- `om`
+- `rent_roll`
+- `t12`
+- `pnl`
+
+Server-side behavior:
+
+- fetch the real Gmail message through the workspace Gmail connection;
+- match the source to an existing candidate by the same Gmail thread or source-backed property address;
+- treat `candidate_id` only as a disambiguation hint, never as an override;
+- reject ambiguous/unmatched sources instead of creating a duplicate candidate;
+- verify every supplied attachment ID belongs to that Gmail message;
+- persist the Gmail message and candidate/source association;
+- persist source-backed document records;
+- merge bounded newer source facts while preserving prior source history in evidence;
+- recompute `portfolio_document_status`, inventory, and missing OM/Rent Roll/T12/P&L;
+- add an idempotent CRM context note when the candidate already has a GHL contact/opportunity;
+- return `rerun_buy_box_required=false` because receiving a reply/document is not itself a qualification event.
+
+Ema separately reruns `deal.buy_box_fit` only when the new source materially changes an active screen fact.
+
+## Durable Phase 2 state
+
+`ema_candidate_sources` records every original/later Gmail source associated with a candidate and how it was matched (`origin`, `thread_reply`, or `address_match`).
+
+`ema_candidate_documents` records verified Gmail attachments classified as OM, Rent Roll, T12, or P&L.
+
+These tables are workspace-scoped, RLS-protected, and service-role writable only behind the Gateway.
 
 ## Audit privacy
 
-The audit trail records agent, action, resource identifier, result, duration, and error metadata. It deliberately excludes authorization headers, token hashes, Google access/refresh tokens, email bodies, attachment contents, raw Gmail search queries, and raw upstream error bodies.
+Audit records include agent, action, resource identifier, result, duration, and sanitized error metadata. They exclude authorization headers, raw credentials, Google tokens, email bodies, attachment contents, raw Gmail search queries, and source fact values supplied to reconciliation.
 
 ## Production acceptance
 
-Before considering a new Ema capability complete, verify:
+Before considering reconciliation complete, verify:
 
-- invalid/revoked/expired credentials are rejected;
-- Ema resolves to the correct workspace;
-- the exact action permission exists only for the intended agent;
-- the MCP tool is present in Ema's live tool inventory and OpenClaw tool filter;
-- the action produces a sanitized Gateway operation and audit row;
-- cross-workspace candidate access is blocked;
-- repeated calls are safe/idempotent where applicable;
-- external source content cannot alter permissions or routing;
-- controlled CRM mutations occur only after persisted qualification;
-- no raw credential appears in logs, prompts, repository files, or agent-visible tool arguments.
+- Ema alone has `deal.reconcile_email_update` permission;
+- the MCP tool appears in Ema's live tool inventory after tool-filter reload;
+- same-thread reply matches the existing candidate without creating another candidate/opportunity;
+- multi-property thread requires address evidence or a valid candidate hint that is itself source-verified;
+- cross-thread update matches only when the property address appears in the source;
+- unrelated email is rejected;
+- attachment IDs not present on the source message are rejected;
+- repeated reconciliation does not duplicate source/document/note records;
+- OM/Rent Roll/T12/P&L inventory and missing list update correctly;
+- CRM stage remains unchanged;
+- buy-box is not rerun solely because a document arrived;
+- no raw credential appears in prompts, logs, repository files, or agent-visible tool arguments.
