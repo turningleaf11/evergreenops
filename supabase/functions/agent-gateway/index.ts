@@ -5,6 +5,7 @@ import { extractAttachments, extractBody, GatewayRequest, isUntrustedExternalAct
 import { BuyBoxFitError, checkCandidateBuyBoxFit } from './buy_box.ts';
 import { DealIntakeError, intakeCandidateToCrm } from './intake.ts';
 import { DealReconcileError, reconcileEmailUpdate } from './reconcile.ts';
+import { calculateCashValue, type CashValueComp, type CashValueSubject } from './cash_value.ts';
 
 const DEFAULT_GMAIL_ACCOUNT='office@evergreenhomegroup.com',MAX_REQUEST_BYTES=64*1024;
 interface AgentContext{credentialId:string;agentId:string;agentName:string;agentSlug:string;agentEnabled:boolean;workspaceId:string}
@@ -19,6 +20,10 @@ async function consumeRateLimit(admin:SupabaseClient,credentialId:string,action:
 
 async function dispatch(admin:SupabaseClient,context:AgentContext,request:GatewayRequest):Promise<Record<string,unknown>>{
   if(request.action==='system.whoami')return{agent:{id:context.agentId,slug:context.agentSlug,name:context.agentName},workspace_id:context.workspaceId};
+  if(request.action==='underwriting.cash_value'){
+    const valuationDate=request.input.valuation_date?new Date(`${String(request.input.valuation_date)}T12:00:00Z`):new Date();
+    return calculateCashValue(request.input.subject as unknown as CashValueSubject,request.input.comps as unknown as CashValueComp[],valuationDate) as unknown as Record<string,unknown>;
+  }
   if(request.action==='deal.buy_box_fit')return checkCandidateBuyBoxFit(admin,context.workspaceId,String(request.input.candidate_id));
   if(request.action==='deal.intake_to_crm'){const ghlContext=await resolveGhlContext(admin);return intakeCandidateToCrm(admin,ghlContext,context.workspaceId,String(request.input.candidate_id))}
   if(request.action==='deal.reconcile_email_update'){
