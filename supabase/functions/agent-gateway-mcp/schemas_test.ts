@@ -141,3 +141,35 @@ Deno.test("deal reconciliation schema accepts only approved fact fields and core
     pipeline_stage: "Underwriting",
   }).success);
 });
+
+Deno.test("CashValue schema accepts bounded SFR subject and verified sold comps", () => {
+  const valid = emailInputValidators.underwriting_cash_value.safeParse({
+    subject: {
+      address: "9510 Ashley Dr, Miramar, FL 33025",
+      property_type: "Single Family Residence",
+      sqft: 1700,
+      year_built: 1990,
+      beds: 3,
+      baths: 2,
+      stories: 1,
+    },
+    comps: [{
+      address: "123 Main St",
+      property_type: "SFR",
+      sqft: 1650,
+      year_built: 1992,
+      beds: 3,
+      baths: 2,
+      sale_price: 520000,
+      sale_date: "2026-07-01",
+      distance_miles: 0.2,
+      condition: "renovated",
+      source: "verified",
+    }],
+    valuation_date: "2026-08-20",
+  });
+  assert(valid.success);
+  assert(!emailInputValidators.underwriting_cash_value.safeParse({ subject:{property_type:"Single Family Residence",sqft:1700}, comps:"nope" }).success);
+  assert(!emailInputValidators.underwriting_cash_value.safeParse({ subject:{property_type:"Single Family Residence",sqft:1700,sql:"delete"}, comps:[] }).success);
+  assert(!emailInputValidators.underwriting_cash_value.safeParse({ subject:{property_type:"Single Family Residence",sqft:1700}, comps:[], valuation_date:"08/20/2026" }).success);
+});
