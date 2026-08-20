@@ -22,6 +22,7 @@ import {
   crmSearchOpportunitiesInputSchema,
   dealBuyBoxFitInputSchema,
   dealIntakeToCrmInputSchema,
+  dealReconcileEmailUpdateInputSchema,
   emailGetAttachmentInputSchema,
   emailListInputSchema,
   emailReadInputSchema,
@@ -198,6 +199,18 @@ Deno.serve(async (req) => {
         annotations: controlledWriteAnnotations,
       },
       (input) => execute("deal.intake_to_crm", input),
+    );
+
+    server.registerTool(
+      "deal_reconcile_email_update",
+      {
+        title: "Reconcile a new Gmail update to an existing deal",
+        description:
+          "After reading the source Gmail message and its attachments, associates that real Gmail message with an existing Ema candidate only when the Gateway can verify the same thread or property address. Persists approved source-fact updates, classifies attached OM/Rent Roll/T12/P&L documents, recomputes the portfolio document checklist, and adds one idempotent CRM context note when the deal already has a CRM opportunity. It never creates a new candidate/opportunity, never changes a pipeline stage, and does not rerun buy-box qualification.",
+        inputSchema: dealReconcileEmailUpdateInputSchema,
+        annotations: controlledWriteAnnotations,
+      },
+      (input) => execute("deal.reconcile_email_update", input),
     );
 
     const transport = new WebStandardStreamableHTTPServerTransport();
