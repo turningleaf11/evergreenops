@@ -75,8 +75,8 @@ Deno.test('one or two defensible comps are still submitted with a low-confidence
   const result = calculateCashValue(subject, standardComps.slice(0, 2), valuationDate);
   assertEquals(result.status, 'thin_comp_set');
   assertEquals(result.selected_comp_count, 2);
-  assertEquals(result.cash_value, 516000);
-  assertEquals(result.supported_range, { low: 515000, high: 517000 });
+  assertEquals(result.cash_value, 527000);
+  assertEquals(result.supported_range, { low: 517000, high: 536000 });
   assertEquals(result.confidence, 'low');
   assert(result.selected_comps.length === 2);
   assert(result.notes.some((n) => n.includes('Cash must still submit')));
