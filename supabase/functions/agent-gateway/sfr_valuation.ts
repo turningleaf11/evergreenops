@@ -1,8 +1,9 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
-import { calculateCashValue, normalizePropertyType, type CashValueComp, type CashValueSubject } from './cash_value.ts';
+import { calculateCashValue, type CashValueComp, type CashValueSubject } from './cash_value.ts';
+import { DealIntakeError, deriveRoute } from './intake.ts';
 
 const RENTCAST_BASE = 'https://api.rentcast.io/v1';
-const MAX_SOURCE_RECORDS = 25;
+const MAX_SOURCE_RECORDS = 50;
 
 export class SfrValuationError extends Error {
   constructor(public status:number, public code:string) { super(code); this.name='SfrValuationError'; }
@@ -19,7 +20,7 @@ interface CandidateRow {
 
 interface ProviderConfig {
   rentcastApiKey:string|null;
-  zillowConfigured:boolean;
+  zillowToken:string|null;
 }
 
 export interface SfrValuationResult {
@@ -33,6 +34,7 @@ export interface SfrValuationResult {
   };
   comp_source:'rentcast'|'none';
   comps_found:number;
+  valuation_reference:{source:'rentcast_avm'|'none';value:number|null;range:{low:number;high:number}|null};
   cash_value:ReturnType<typeof calculateCashValue>;
   notes:string[];
 }
@@ -51,11 +53,12 @@ export async function runSfrValuation(
 
   const providerState:SfrValuationResult['providers']={
     rentcast:{status:'not_configured',comp_count:0,avm:null,avm_range:null,error_code:null},
-    zillow:{status:config.zillowConfigured?'configured_pending_adapter':'not_configured'},
+    zillow:{status:config.zillowToken?'configured_pending_adapter':'not_configured'},
   };
 
   let comps:CashValueComp[]=[];
   let compSource:'rentcast'|'none'='none';
+  let reference:SfrValuationResult['valuation_reference']={source:'none',value:null,range:null};
 
   if(config.rentcastApiKey){
     try{
@@ -64,6 +67,7 @@ export async function runSfrValuation(
       comps=rentcast.comps;
       compSource='rentcast';
       providerState.rentcast={status:'used',comp_count:comps.length,avm:rentcast.avm,avm_range:rentcast.avmRange,error_code:null};
+      if(rentcast.avm!==null)reference={source:'rentcast_avm',value:rentcast.avm,range:rentcast.avmRange};
     }catch(error){
       const code=error instanceof SfrValuationError?error.code:'rentcast_request_failed';
       providerState.rentcast={status:'failed',comp_count:0,avm:null,avm_range:null,error_code:code};
@@ -73,18 +77,19 @@ export async function runSfrValuation(
     notes.push('RentCast is not configured; no RentCast API call was attempted.');
   }
 
-  if(!config.zillowConfigured){
-    notes.push('Zillow Zestimate API access is not configured yet. When approved, Zillow will be added as a valuation reference fallback, not as a substitute for verified sold comps.');
+  if(!config.zillowToken){
+    notes.push('Zillow Zestimate API access is not configured yet. When approved, Zillow will be used as a valuation-reference fallback, not as fabricated sold-comp evidence.');
   }else{
-    notes.push('Zillow credentials are present, but the Zillow adapter is intentionally pending until the approved dataset/auth contract is confirmed.');
+    notes.push('Zillow credentials are present, but the Zillow adapter is intentionally pending until the approved Bridge/Zestimate access contract and response shape are confirmed for this account.');
   }
 
   if(!subject.sqft||subject.sqft<=0)throw new SfrValuationError(409,'subject_sqft_required');
   const cashValue=calculateCashValue(subject,comps);
-  if(cashValue.selected_comp_count>0&&cashValue.selected_comp_count<3){
-    notes.push(`Only ${cashValue.selected_comp_count} defensible comp${cashValue.selected_comp_count===1?'':'s'} were found. Cash must submit them to the team even though the comp set is thin.`);
+  if(cashValue.status==='thin_comp_set'){
+    notes.push(`Only ${cashValue.selected_comp_count} defensible comp${cashValue.selected_comp_count===1?'':'s'} were found. Cash must submit the available comps and low-confidence CashValue to the team rather than hiding the evidence.`);
   }
   if(cashValue.selected_comp_count===0)notes.push('No defensible comps were found from the currently available provider set.');
+  if(cashValue.selected_comp_count===0&&reference.value!==null)notes.push('An external AVM reference is available, but it is not labeled as CashValue because no verified sold comps qualified.');
 
   return{
     contract:'sfr_valuation_v1',
@@ -94,6 +99,7 @@ export async function runSfrValuation(
     providers:providerState,
     comp_source:compSource,
     comps_found:comps.length,
+    valuation_reference:reference,
     cash_value:cashValue,
     notes,
   };
@@ -114,14 +120,19 @@ async function resolveProviderConfig(admin:SupabaseClient):Promise<ProviderConfi
   for(const row of data??[])if(typeof row.key==='string'&&typeof row.value==='string'&&row.value.trim())settings[row.key]=row.value.trim();
   const rentcastApiKey=settings.RENTCAST_API_KEY||Deno.env.get('RENTCAST_API_KEY')||null;
   const zillowToken=settings.ZILLOW_ACCESS_TOKEN||settings.ZILLOW_API_TOKEN||settings.ZILLOW_ZESTIMATE_TOKEN||Deno.env.get('ZILLOW_ACCESS_TOKEN')||Deno.env.get('ZILLOW_API_TOKEN')||Deno.env.get('ZILLOW_ZESTIMATE_TOKEN')||null;
-  return{rentcastApiKey,zillowConfigured:Boolean(zillowToken)};
+  return{rentcastApiKey,zillowToken};
 }
 
 export function subjectFromCandidate(candidate:Pick<CandidateRow,'normalized_address'|'extracted_facts'>):CashValueSubject{
   const facts=candidate.extracted_facts??{};
-  const propertyType=stringValue(first(facts,['property_type','propertyType','asset_class','assetClass','type']))??'Single Family Residence';
-  const normalizedType=normalizePropertyType(propertyType)??propertyType;
-  if(normalizedType!=='Single Family Residence')throw new SfrValuationError(409,'single_family_residence_required');
+  let propertyType:string;
+  try{
+    propertyType=deriveRoute(facts).propertyType;
+  }catch(error){
+    if(error instanceof DealIntakeError)throw new SfrValuationError(409,'property_type_unresolved');
+    throw error;
+  }
+  if(propertyType!=='Single Family Residence')throw new SfrValuationError(409,'single_family_residence_required');
   const address=stringValue(candidate.normalized_address);
   if(!address)throw new SfrValuationError(409,'normalized_address_required');
   return{
@@ -136,7 +147,11 @@ export function subjectFromCandidate(candidate:Pick<CandidateRow,'normalized_add
   };
 }
 
-export async function fetchRentCastValuation(apiKey:string,subject:CashValueSubject,fetchImpl:typeof fetch=fetch):Promise<{subject:Partial<CashValueSubject>;comps:CashValueComp[];avm:number|null;avmRange:{low:number;high:number}|null}>{
+export async function fetchRentCastValuation(
+  apiKey:string,
+  subject:CashValueSubject,
+  fetchImpl:typeof fetch=fetch,
+):Promise<{subject:Partial<CashValueSubject>;comps:CashValueComp[];avm:number|null;avmRange:{low:number;high:number}|null}>{
   if(!subject.address)throw new SfrValuationError(409,'normalized_address_required');
   const subjectRecord=await rentCastJson(`${RENTCAST_BASE}/properties?${new URLSearchParams({address:subject.address,limit:'1'}).toString()}`,apiKey,fetchImpl);
   const subjectRow=Array.isArray(subjectRecord)?record(subjectRecord[0]):record(subjectRecord);
@@ -153,50 +168,22 @@ export async function fetchRentCastValuation(apiKey:string,subject:CashValueSubj
   const yearBuilt=numberValue(resolvedSubject.year_built);
   const beds=numberValue(resolvedSubject.beds);
   const baths=numberValue(resolvedSubject.baths);
-  const params=new URLSearchParams({
-    address:subject.address,
-    radius:'1',
-    propertyType:'Single Family',
-    squareFootage:`${Math.max(1,Math.round(sqft-250))}:${Math.round(sqft+250)}`,
-    saleDateRange:'365',
-    limit:String(MAX_SOURCE_RECORDS),
-  });
-  if(yearBuilt!==null)params.set('yearBuilt',`${Math.max(1600,Math.round(yearBuilt-20))}:${Math.round(yearBuilt+20)}`);
-  if(beds!==null)params.set('bedrooms',`${Math.max(0,beds-1)}:${beds+1}`);
-  if(baths!==null)params.set('bathrooms',`${Math.max(0,baths-1)}:${baths+1}`);
-  const rawComps=await rentCastJson(`${RENTCAST_BASE}/properties?${params.toString()}`,apiKey,fetchImpl);
-  const rows=Array.isArray(rawComps)?rawComps:[];
   const subjectLat=numberValue(subjectRow.latitude),subjectLng=numberValue(subjectRow.longitude);
   const subjectId=stringValue(subjectRow.id);
-  const comps:CashValueComp[]=[];
-  for(const raw of rows){
-    const row=record(raw),id=stringValue(row.id),address=stringValue(row.formattedAddress);
-    if(!address||!numberValue(row.lastSalePrice)||!stringValue(row.lastSaleDate)||!numberValue(row.squareFootage))continue;
-    if((subjectId&&id===subjectId)||address.toLowerCase()===subject.address.toLowerCase())continue;
-    const lat=numberValue(row.latitude),lng=numberValue(row.longitude);
-    const distance=subjectLat!==null&&subjectLng!==null&&lat!==null&&lng!==null?haversineMiles(subjectLat,subjectLng,lat,lng):null;
-    if(distance===null||distance>1)continue;
-    comps.push({
-      id,
-      address,
-      property_type:mapRentCastPropertyType(stringValue(row.propertyType)),
-      sqft:Number(row.squareFootage),
-      year_built:numberValue(row.yearBuilt),
-      beds:numberValue(row.bedrooms),
-      baths:numberValue(row.bathrooms),
-      stories:numberValue(record(row.features).floorCount),
-      build_style:stringValue(record(row.features).architectureType),
-      condition:null,
-      sale_price:Number(row.lastSalePrice),
-      sale_date:String(row.lastSaleDate).slice(0,10),
-      distance_miles:Math.round(distance*100)/100,
-      source:'rentcast_property_record',
-    });
+
+  const standardParams=rentCastCompParams(subject.address,sqft,yearBuilt,beds,baths,180,10);
+  const standardRaw=await rentCastJson(`${RENTCAST_BASE}/properties?${standardParams.toString()}`,apiKey,fetchImpl);
+  let comps=normalizeRentCastComps(standardRaw,subject,subjectId,subjectLat,subjectLng);
+
+  if(comps.length<3){
+    const expandedParams=rentCastCompParams(subject.address,sqft,yearBuilt,beds,baths,365,20);
+    const expandedRaw=await rentCastJson(`${RENTCAST_BASE}/properties?${expandedParams.toString()}`,apiKey,fetchImpl);
+    comps=dedupeComps([...comps,...normalizeRentCastComps(expandedRaw,subject,subjectId,subjectLat,subjectLng)]);
   }
 
   let avm:number|null=null,avmRange:{low:number;high:number}|null=null;
   try{
-    const avmParams=new URLSearchParams({address:subject.address,propertyType:'Single Family',squareFootage:String(Math.round(sqft)),maxRadius:'1',daysOld:'365',compCount:'15',lookupSubjectAttributes:'true'});
+    const avmParams=new URLSearchParams({address:subject.address,propertyType:'Single Family',squareFootage:String(Math.round(sqft)),maxRadius:'1',daysOld:'365',compCount:'20',lookupSubjectAttributes:'true'});
     if(beds!==null)avmParams.set('bedrooms',String(beds));
     if(baths!==null)avmParams.set('bathrooms',String(baths));
     const avmRaw=record(await rentCastJson(`${RENTCAST_BASE}/avm/value?${avmParams.toString()}`,apiKey,fetchImpl));
@@ -207,6 +194,62 @@ export async function fetchRentCastValuation(apiKey:string,subject:CashValueSubj
     // AVM is supporting evidence only; sold-comp retrieval remains usable when AVM fails.
   }
   return{subject:resolvedSubject,comps,avm,avmRange};
+}
+
+function rentCastCompParams(address:string,sqft:number,yearBuilt:number|null,beds:number|null,baths:number|null,saleDateRange:number,yearTolerance:number):URLSearchParams{
+  const params=new URLSearchParams({
+    address,
+    radius:'1',
+    propertyType:'Single Family',
+    squareFootage:`${Math.max(1,Math.round(sqft-250))}:${Math.round(sqft+250)}`,
+    saleDateRange:String(saleDateRange),
+    limit:String(MAX_SOURCE_RECORDS),
+  });
+  if(yearBuilt!==null)params.set('yearBuilt',`${Math.max(1600,Math.round(yearBuilt-yearTolerance))}:${Math.round(yearBuilt+yearTolerance)}`);
+  if(beds!==null)params.set('bedrooms',`${Math.max(0,beds-1)}:${beds+1}`);
+  if(baths!==null)params.set('bathrooms',`${Math.max(0,baths-1)}:${baths+1}`);
+  return params;
+}
+
+function normalizeRentCastComps(raw:unknown,subject:CashValueSubject,subjectId:string|null,subjectLat:number|null,subjectLng:number|null):CashValueComp[]{
+  const rows=Array.isArray(raw)?raw:[];
+  const comps:CashValueComp[]=[];
+  for(const rawRow of rows){
+    const row=record(rawRow),id=stringValue(row.id),address=stringValue(row.formattedAddress);
+    const salePrice=numberValue(row.lastSalePrice),saleDate=stringValue(row.lastSaleDate),squareFootage=numberValue(row.squareFootage);
+    if(!address||salePrice===null||!saleDate||squareFootage===null||squareFootage<=0)continue;
+    if((subjectId&&id===subjectId)||address.toLowerCase()===String(subject.address??'').toLowerCase())continue;
+    const lat=numberValue(row.latitude),lng=numberValue(row.longitude);
+    const distance=subjectLat!==null&&subjectLng!==null&&lat!==null&&lng!==null?haversineMiles(subjectLat,subjectLng,lat,lng):null;
+    if(distance===null||distance>1)continue;
+    comps.push({
+      id,
+      address,
+      property_type:mapRentCastPropertyType(stringValue(row.propertyType)),
+      sqft:squareFootage,
+      year_built:numberValue(row.yearBuilt),
+      beds:numberValue(row.bedrooms),
+      baths:numberValue(row.bathrooms),
+      stories:numberValue(record(row.features).floorCount),
+      build_style:stringValue(record(row.features).architectureType),
+      condition:null,
+      sale_price:salePrice,
+      sale_date:saleDate.slice(0,10),
+      distance_miles:Math.round(distance*100)/100,
+      source:'rentcast_property_record',
+    });
+  }
+  return comps;
+}
+
+function dedupeComps(comps:CashValueComp[]):CashValueComp[]{
+  const seen=new Set<string>(),out:CashValueComp[]=[];
+  for(const comp of comps){
+    const key=(comp.id||comp.address).trim().toLowerCase();
+    if(seen.has(key))continue;
+    seen.add(key);out.push(comp);
+  }
+  return out;
 }
 
 async function rentCastJson(url:string,apiKey:string,fetchImpl:typeof fetch):Promise<unknown>{
