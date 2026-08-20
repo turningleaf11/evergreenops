@@ -27,7 +27,7 @@ interface GmailPart {
   parts?: GmailPart[];
 }
 
-interface DocumentDescriptor {
+export interface DocumentDescriptor {
   filename: string;
   mimeType: string;
   attachmentId: string | null;
@@ -58,7 +58,7 @@ export async function attachOriginalPdfDocuments(
   source: GmailMessageRow,
   opportunityId: string,
 ): Promise<Record<string, unknown>> {
-  const operationKey = `ema:${candidateId}:source-documents:${source.gmailMessageId}:v1`;
+  const operationKey = `ema:${candidateId}:source-documents:${source.gmailMessageId}:v2`;
   const prior = await getOperation(admin, workspaceId, operationKey);
   if (prior?.operation_status === 'succeeded') {
     return {
@@ -71,38 +71,26 @@ export async function attachOriginalPdfDocuments(
     throw new SourceDocumentError(409, 'source_document_requires_reconciliation');
   }
 
+  const normalizedAddress = await loadCandidateAddress(admin, workspaceId, candidateId);
   const accessToken = await resolveGmailAccessToken(admin, workspaceId, source.gmailAccount);
   const gmailMessage = await gmailJson(
     accessToken,
     `/messages/${encodeURIComponent(source.gmailMessageId)}?format=full`,
   );
   const payload = isRecord(gmailMessage.payload) ? gmailMessage.payload as GmailPart : {};
-  const descriptors = collectPdfAttachments(payload).slice(0, MAX_DOCUMENTS);
-  if (!descriptors.length) {
+  const discovered = collectPdfAttachments(payload).slice(0, MAX_DOCUMENTS);
+  if (!discovered.length) {
     return { status: 'not_present', field_id: SOURCE_DOCUMENT_FIELD_ID, files: [] };
   }
 
+  const descriptors = selectPdfAttachmentsForCandidate(discovered, normalizedAddress);
+  const previousKey = `ema:${candidateId}:source-documents:${source.gmailMessageId}:v1`;
+  const previous = await getOperation(admin, workspaceId, previousKey);
+  const reusable = reusableUploads(previous, descriptors);
+
   const op = await beginOperation(admin, workspaceId, candidateId, operationKey);
   try {
-    const uploaded: UploadedDocument[] = [];
-    for (const descriptor of descriptors) {
-      const bytes = descriptor.inlineData
-        ? decodeBase64Url(descriptor.inlineData)
-        : descriptor.attachmentId
-        ? await fetchGmailAttachment(accessToken, source.gmailMessageId, descriptor.attachmentId)
-        : null;
-      if (!bytes) throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
-      if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
-        throw new SourceDocumentError(413, 'source_document_too_large');
-      }
-      uploaded.push(await uploadGhlMediaFile(
-        ghl,
-        descriptor.filename,
-        descriptor.mimeType,
-        bytes,
-      ));
-    }
-
+    const uploaded = reusable ?? await uploadDescriptors(ghl, accessToken, source.gmailMessageId, descriptors);
     const fieldValue = uploaded.map((file) => ({
       url: file.url,
       deleted: false,
@@ -119,7 +107,10 @@ export async function attachOriginalPdfDocuments(
 
     const resultMetadata = {
       field_id: SOURCE_DOCUMENT_FIELD_ID,
+      discovered_file_count: discovered.length,
       file_count: uploaded.length,
+      selection: discovered.length === 1 ? 'single_pdf' : 'candidate_matched',
+      reused_existing_uploads: reusable !== null,
       files: uploaded.map((file) => ({
         name: file.name,
         mimetype: file.mimetype,
@@ -142,6 +133,34 @@ export function collectPdfAttachments(payload: GmailPart): DocumentDescriptor[] 
   return out;
 }
 
+/**
+ * If an email has multiple PDFs, never assume they all belong to one property.
+ * Address-named PDFs are matched to the candidate street address. Explicit
+ * portfolio package documents (OM/Rent Roll/T12/P&L) may travel with that
+ * matched property. If nothing can be associated safely, fail closed.
+ */
+export function selectPdfAttachmentsForCandidate(
+  descriptors: DocumentDescriptor[],
+  normalizedAddress: string,
+): DocumentDescriptor[] {
+  if (descriptors.length <= 1) return descriptors;
+
+  const streetKey = normalizeName(normalizedAddress.split(',')[0] ?? '');
+  if (!streetKey) throw new SourceDocumentError(409, 'source_document_candidate_match_ambiguous');
+
+  const addressMatches = descriptors.filter((doc) => normalizeName(doc.filename).includes(streetKey));
+  const packageDocs = descriptors.filter((doc) => isPortfolioPackageFilename(doc.filename));
+
+  if (addressMatches.length) {
+    const selected = new Map<string, DocumentDescriptor>();
+    for (const doc of [...addressMatches, ...packageDocs]) selected.set(documentIdentity(doc), doc);
+    return [...selected.values()];
+  }
+
+  if (packageDocs.length === descriptors.length) return descriptors;
+  throw new SourceDocumentError(409, 'source_document_candidate_match_ambiguous');
+}
+
 function walk(part: GmailPart, out: DocumentDescriptor[]): void {
   const filename = typeof part.filename === 'string' ? part.filename.trim() : '';
   const mimeType = typeof part.mimeType === 'string' ? part.mimeType : 'application/octet-stream';
@@ -159,6 +178,63 @@ function walk(part: GmailPart, out: DocumentDescriptor[]): void {
     });
   }
   for (const child of part.parts ?? []) walk(child, out);
+}
+
+async function loadCandidateAddress(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string,
+): Promise<string> {
+  const { data, error } = await admin.from('ema_candidates')
+    .select('normalized_address')
+    .eq('workspace_id', workspaceId)
+    .eq('id', candidateId)
+    .maybeSingle();
+  if (error) throw new SourceDocumentError(500, 'candidate_lookup_failed');
+  const address = typeof data?.normalized_address === 'string' ? data.normalized_address.trim() : '';
+  if (!address) throw new SourceDocumentError(409, 'normalized_address_required');
+  return address;
+}
+
+async function uploadDescriptors(
+  ghl: GhlContext,
+  accessToken: string,
+  gmailMessageId: string,
+  descriptors: DocumentDescriptor[],
+): Promise<UploadedDocument[]> {
+  const uploaded: UploadedDocument[] = [];
+  for (const descriptor of descriptors) {
+    const bytes = descriptor.inlineData
+      ? decodeBase64Url(descriptor.inlineData)
+      : descriptor.attachmentId
+      ? await fetchGmailAttachment(accessToken, gmailMessageId, descriptor.attachmentId)
+      : null;
+    if (!bytes) throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
+    if (bytes.byteLength > MAX_DOCUMENT_BYTES) throw new SourceDocumentError(413, 'source_document_too_large');
+    uploaded.push(await uploadGhlMediaFile(ghl, descriptor.filename, descriptor.mimeType, bytes));
+  }
+  return uploaded;
+}
+
+function reusableUploads(
+  prior: OperationRow | null,
+  descriptors: DocumentDescriptor[],
+): UploadedDocument[] | null {
+  if (prior?.operation_status !== 'succeeded' || !isRecord(prior.result_metadata)) return null;
+  const files = recordArray(prior.result_metadata.files);
+  const selected: UploadedDocument[] = [];
+  for (const descriptor of descriptors) {
+    const match = files.find((file) => file.name === descriptor.filename);
+    if (!match || typeof match.url !== 'string' || !match.url.startsWith('https://')) return null;
+    selected.push({
+      url: match.url,
+      name: descriptor.filename,
+      mimetype: typeof match.mimetype === 'string' ? match.mimetype : 'application/pdf',
+      size: typeof match.size === 'number' && Number.isFinite(match.size) ? match.size : descriptor.size ?? 0,
+      file_id: typeof match.file_id === 'string' ? match.file_id : null,
+    });
+  }
+  return selected;
 }
 
 async function resolveGmailAccessToken(
@@ -180,9 +256,7 @@ async function resolveGmailAccessToken(
     .select('refresh_token')
     .eq('id', account.refresh_token_secret_id)
     .maybeSingle();
-  if (tokenError || !token?.refresh_token) {
-    throw new SourceDocumentError(503, 'gmail_token_unavailable');
-  }
+  if (tokenError || !token?.refresh_token) throw new SourceDocumentError(503, 'gmail_token_unavailable');
 
   const accessToken = await refreshAccessToken(token.refresh_token);
   if (!accessToken) throw new SourceDocumentError(503, 'gmail_reauth_required');
@@ -198,9 +272,7 @@ async function fetchGmailAttachment(
     accessToken,
     `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
   );
-  if (typeof data.data !== 'string') {
-    throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
-  }
+  if (typeof data.data !== 'string') throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
   return decodeBase64Url(data.data);
 }
 
@@ -211,9 +283,7 @@ async function gmailJson(accessToken: string, path: string): Promise<Record<stri
   });
   if (!response.ok) {
     if (response.status === 404) throw new SourceDocumentError(404, 'gmail_resource_not_found');
-    if (response.status === 401 || response.status === 403) {
-      throw new SourceDocumentError(503, 'gmail_reauth_required');
-    }
+    if (response.status === 401 || response.status === 403) throw new SourceDocumentError(503, 'gmail_reauth_required');
     if (response.status === 429) throw new SourceDocumentError(503, 'gmail_rate_limited');
     throw new SourceDocumentError(502, 'gmail_request_failed');
   }
@@ -229,10 +299,7 @@ async function uploadGhlMediaFile(
   bytes: Uint8Array,
 ): Promise<UploadedDocument> {
   const form = new FormData();
-  const fileBuffer = bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer;
+  const fileBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   form.append('file', new Blob([fileBuffer], { type: mimeType }), filename);
   form.append('hosted', 'false');
   form.append('name', filename);
@@ -249,18 +316,11 @@ async function uploadGhlMediaFile(
   });
 
   if (!response.ok) {
-    console.error(JSON.stringify({
-      event: 'agent_gateway_ghl_media_upload_error',
-      status: response.status,
-    }));
-    if (response.status === 401 || response.status === 403) {
-      throw new SourceDocumentError(503, 'ghl_media_not_authorized');
-    }
+    console.error(JSON.stringify({ event: 'agent_gateway_ghl_media_upload_error', status: response.status }));
+    if (response.status === 401 || response.status === 403) throw new SourceDocumentError(503, 'ghl_media_not_authorized');
     if (response.status === 413) throw new SourceDocumentError(413, 'source_document_too_large');
     if (response.status === 429) throw new SourceDocumentError(503, 'ghl_rate_limited');
-    if (response.status >= 400 && response.status < 500) {
-      throw new SourceDocumentError(400, 'ghl_media_upload_rejected');
-    }
+    if (response.status >= 400 && response.status < 500) throw new SourceDocumentError(400, 'ghl_media_upload_rejected');
     throw new SourceDocumentError(502, 'ghl_media_upload_failed');
   }
 
@@ -318,7 +378,7 @@ async function beginOperation(
     operation_type: 'ghl_opportunity_source_document_attach',
     idempotency_key: key,
     operation_status: 'executing',
-    request_metadata: { source: 'agent_gateway', contract: 'deal.intake_to_crm.source_documents.v1' },
+    request_metadata: { source: 'agent_gateway', contract: 'deal.intake_to_crm.source_documents.v2' },
     attempt_count: 1,
     is_test: false,
   }).select('id').single();
@@ -346,6 +406,25 @@ async function markOperationUncertain(admin: SupabaseClient, id: string, error: 
     operation_status: 'needs_reconciliation',
     last_error: error instanceof Error ? error.name.slice(0, 120) : 'upstream_error',
   }).eq('id', id);
+}
+
+function isPortfolioPackageFilename(filename: string): boolean {
+  const value = filename.toLowerCase().replace(/[_-]+/g, ' ');
+  return /\b(offering memorandum|om|rent roll|rentroll|t\s*12|trailing\s*12|p\s*&\s*l|profit\s*(and|&)\s*loss)\b/.test(value);
+}
+
+function documentIdentity(doc: DocumentDescriptor): string {
+  return `${doc.attachmentId ?? ''}|${doc.filename.toLowerCase()}`;
+}
+
+function normalizeName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function recordArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => isRecord(item))
+    : [];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
