@@ -1,5 +1,5 @@
 export const MCP_SERVER_NAME = "evergreen-agent-gateway";
-export const MCP_SERVER_VERSION = "0.6.0";
+export const MCP_SERVER_VERSION = "0.7.0";
 export const WHOAMI_TOOL_NAME = "system_whoami";
 
 export const MCP_TOOL_ACTIONS = {
@@ -13,6 +13,7 @@ export const MCP_TOOL_ACTIONS = {
   crm_list_pipelines: "crm.list_pipelines",
   deal_buy_box_fit: "deal.buy_box_fit",
   deal_intake_to_crm: "deal.intake_to_crm",
+  deal_reconcile_email_update: "deal.reconcile_email_update",
 } as const;
 
 export type McpToolName = keyof typeof MCP_TOOL_ACTIONS;
