@@ -114,9 +114,11 @@ export async function verifyHighLevelSignature(
   try {
     const signature = decodeBase64(signatureHeader);
     if (signature.byteLength !== 64) return false;
+    const publicKey = decodeBase64(publicKeySpkiBase64);
+    const message = new TextEncoder().encode(rawBody);
     const key = await crypto.subtle.importKey(
       'spki',
-      decodeBase64(publicKeySpkiBase64),
+      toArrayBuffer(publicKey),
       { name: 'Ed25519' },
       false,
       ['verify'],
@@ -124,8 +126,8 @@ export async function verifyHighLevelSignature(
     return await crypto.subtle.verify(
       { name: 'Ed25519' },
       key,
-      signature,
-      new TextEncoder().encode(rawBody),
+      toArrayBuffer(signature),
+      toArrayBuffer(message),
     );
   } catch {
     return false;
@@ -217,10 +219,12 @@ export async function processAuthenticatedStageEvent(
   }
 
   const trigger = classifyTrigger(envelope.pipelineId, envelope.pipelineStageId);
-  if (trigger.decision !== 'trigger' || !trigger.workKind) {
-    await deps.finalize(eventId, { decision: trigger.decision });
-    return { decision: trigger.decision, eventId };
+  if (trigger.decision === 'ignored_wrong_pipeline' || trigger.decision === 'ignored_wrong_stage') {
+    const decision: StageDecision = trigger.decision;
+    await deps.finalize(eventId, { decision });
+    return { decision, eventId };
   }
+  if (!trigger.workKind) throw new StageEventValidationError('trigger work kind missing');
 
   const live = await deps.getLiveOpportunity(envelope.opportunityId);
   if (!live) {
@@ -344,6 +348,12 @@ function decodeBase64(value: string): Uint8Array {
   const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
