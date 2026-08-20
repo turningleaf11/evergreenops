@@ -1,0 +1,338 @@
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
+import { refreshAccessToken } from '../_shared/gmail.ts';
+import { updateGhlOpportunity, type GhlContext } from '../_shared/ghl.ts';
+
+const GHL_BASE = 'https://services.leadconnectorhq.com';
+const GHL_VERSION = 'v3';
+const SOURCE_DOCUMENT_FIELD_ID = 'smOq4IoCpUby2DBlb21G';
+const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
+const MAX_DOCUMENTS = 8;
+
+export class SourceDocumentError extends Error {
+  constructor(public status: number, public code: string) {
+    super(code);
+    this.name = 'SourceDocumentError';
+  }
+}
+
+interface GmailMessageRow {
+  gmailAccount: string;
+  gmailMessageId: string;
+}
+
+interface GmailPart {
+  filename?: string;
+  mimeType?: string;
+  body?: { attachmentId?: string; data?: string; size?: number };
+  parts?: GmailPart[];
+}
+
+interface DocumentDescriptor {
+  filename: string;
+  mimeType: string;
+  attachmentId: string | null;
+  inlineData: string | null;
+  size: number | null;
+}
+
+interface UploadedDocument {
+  url: string;
+  name: string;
+  mimetype: string;
+  size: number;
+  file_id: string | null;
+}
+
+export async function attachOriginalPdfDocuments(
+  admin: SupabaseClient,
+  ghl: GhlContext,
+  workspaceId: string,
+  candidateId: string,
+  source: GmailMessageRow,
+  opportunityId: string,
+): Promise<Record<string, unknown>> {
+  const operationKey = `ema:${candidateId}:source-documents:${source.gmailMessageId}:v1`;
+  const prior = await getOperation(admin, workspaceId, operationKey);
+  if (prior?.operation_status === 'succeeded') {
+    return {
+      status: 'persisted',
+      field_id: SOURCE_DOCUMENT_FIELD_ID,
+      ...(isRecord(prior.result_metadata) ? prior.result_metadata : {}),
+    };
+  }
+  if (prior && ['executing', 'needs_reconciliation'].includes(prior.operation_status)) {
+    throw new SourceDocumentError(409, 'source_document_requires_reconciliation');
+  }
+
+  const accessToken = await resolveGmailAccessToken(admin, workspaceId, source.gmailAccount);
+  const gmailMessage = await gmailJson(
+    accessToken,
+    `/messages/${encodeURIComponent(source.gmailMessageId)}?format=full`,
+  );
+  const payload = isRecord(gmailMessage.payload) ? gmailMessage.payload as GmailPart : {};
+  const descriptors = collectPdfAttachments(payload).slice(0, MAX_DOCUMENTS);
+  if (!descriptors.length) {
+    return { status: 'not_present', field_id: SOURCE_DOCUMENT_FIELD_ID, files: [] };
+  }
+
+  const op = await beginOperation(admin, workspaceId, candidateId, operationKey);
+  try {
+    const uploaded: UploadedDocument[] = [];
+    for (const descriptor of descriptors) {
+      const bytes = descriptor.inlineData
+        ? decodeBase64Url(descriptor.inlineData)
+        : descriptor.attachmentId
+        ? await fetchGmailAttachment(accessToken, source.gmailMessageId, descriptor.attachmentId)
+        : null;
+      if (!bytes) throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
+      if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
+        throw new SourceDocumentError(413, 'source_document_too_large');
+      }
+      uploaded.push(await uploadGhlMediaFile(
+        ghl,
+        descriptor.filename,
+        descriptor.mimeType,
+        bytes,
+      ));
+    }
+
+    const fieldValue = uploaded.map((file) => ({
+      url: file.url,
+      deleted: false,
+      meta: {
+        size: file.size,
+        name: file.name,
+        mimetype: file.mimetype,
+      },
+    }));
+
+    await updateGhlOpportunity(ghl, opportunityId, {
+      customFields: [{ id: SOURCE_DOCUMENT_FIELD_ID, fieldValue }],
+    });
+
+    const resultMetadata = {
+      field_id: SOURCE_DOCUMENT_FIELD_ID,
+      file_count: uploaded.length,
+      files: uploaded.map((file) => ({
+        name: file.name,
+        mimetype: file.mimetype,
+        size: file.size,
+        url: file.url,
+        file_id: file.file_id,
+      })),
+    };
+    await finishOperation(admin, op.id, opportunityId, resultMetadata);
+    return { status: 'attached', ...resultMetadata };
+  } catch (error) {
+    await markOperationUncertain(admin, op.id, error);
+    throw error;
+  }
+}
+
+export function collectPdfAttachments(payload: GmailPart): DocumentDescriptor[] {
+  const out: DocumentDescriptor[] = [];
+  walk(payload, out);
+  return out;
+}
+
+function walk(part: GmailPart, out: DocumentDescriptor[]): void {
+  const filename = typeof part.filename === 'string' ? part.filename.trim() : '';
+  const mimeType = typeof part.mimeType === 'string' ? part.mimeType : 'application/octet-stream';
+  const isPdf = mimeType.toLowerCase() === 'application/pdf' || /\.pdf$/i.test(filename);
+  if (filename && isPdf && part.body) {
+    const size = typeof part.body.size === 'number' && Number.isFinite(part.body.size)
+      ? part.body.size
+      : null;
+    out.push({
+      filename: filename.slice(0, 500),
+      mimeType: 'application/pdf',
+      attachmentId: typeof part.body.attachmentId === 'string' ? part.body.attachmentId : null,
+      inlineData: typeof part.body.data === 'string' ? part.body.data : null,
+      size,
+    });
+  }
+  for (const child of part.parts ?? []) walk(child, out);
+}
+
+async function resolveGmailAccessToken(
+  admin: SupabaseClient,
+  workspaceId: string,
+  gmailAccount: string,
+): Promise<string> {
+  const { data: account, error: accountError } = await admin.from('gmail_workspace_account')
+    .select('refresh_token_secret_id')
+    .eq('workspace_id', workspaceId)
+    .ilike('email', gmailAccount)
+    .is('revoked_at', null)
+    .maybeSingle();
+  if (accountError || !account?.refresh_token_secret_id) {
+    throw new SourceDocumentError(503, 'gmail_account_not_connected');
+  }
+
+  const { data: token, error: tokenError } = await admin.from('gmail_tokens')
+    .select('refresh_token')
+    .eq('id', account.refresh_token_secret_id)
+    .maybeSingle();
+  if (tokenError || !token?.refresh_token) {
+    throw new SourceDocumentError(503, 'gmail_token_unavailable');
+  }
+
+  const accessToken = await refreshAccessToken(token.refresh_token);
+  if (!accessToken) throw new SourceDocumentError(503, 'gmail_reauth_required');
+  return accessToken;
+}
+
+async function fetchGmailAttachment(
+  accessToken: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<Uint8Array> {
+  const data = await gmailJson(
+    accessToken,
+    `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+  );
+  if (typeof data.data !== 'string') {
+    throw new SourceDocumentError(502, 'gmail_attachment_data_missing');
+  }
+  return decodeBase64Url(data.data);
+}
+
+async function gmailJson(accessToken: string, path: string): Promise<Record<string, unknown>> {
+  const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    if (response.status === 404) throw new SourceDocumentError(404, 'gmail_resource_not_found');
+    if (response.status === 401 || response.status === 403) {
+      throw new SourceDocumentError(503, 'gmail_reauth_required');
+    }
+    if (response.status === 429) throw new SourceDocumentError(503, 'gmail_rate_limited');
+    throw new SourceDocumentError(502, 'gmail_request_failed');
+  }
+  const value: unknown = await response.json();
+  if (!isRecord(value)) throw new SourceDocumentError(502, 'invalid_gmail_response');
+  return value;
+}
+
+async function uploadGhlMediaFile(
+  context: GhlContext,
+  filename: string,
+  mimeType: string,
+  bytes: Uint8Array,
+): Promise<UploadedDocument> {
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: mimeType }), filename);
+  form.append('hosted', 'false');
+  form.append('name', filename);
+
+  const response = await fetch(`${GHL_BASE}/medias/upload-file`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${context.apiKey}`,
+      Version: GHL_VERSION,
+      Accept: 'application/json',
+    },
+    body: form,
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    console.error(JSON.stringify({
+      event: 'agent_gateway_ghl_media_upload_error',
+      status: response.status,
+    }));
+    if (response.status === 401 || response.status === 403) {
+      throw new SourceDocumentError(503, 'ghl_media_not_authorized');
+    }
+    if (response.status === 413) throw new SourceDocumentError(413, 'source_document_too_large');
+    if (response.status === 429) throw new SourceDocumentError(503, 'ghl_rate_limited');
+    if (response.status >= 400 && response.status < 500) {
+      throw new SourceDocumentError(400, 'ghl_media_upload_rejected');
+    }
+    throw new SourceDocumentError(502, 'ghl_media_upload_failed');
+  }
+
+  const value: unknown = await response.json();
+  if (!isRecord(value) || typeof value.url !== 'string' || !value.url.startsWith('https://')) {
+    throw new SourceDocumentError(502, 'invalid_ghl_media_response');
+  }
+  return {
+    url: value.url,
+    name: filename,
+    mimetype: mimeType,
+    size: bytes.byteLength,
+    file_id: typeof value.fileId === 'string' ? value.fileId.slice(0, 500) : null,
+  };
+}
+
+export function decodeBase64Url(value: string): Uint8Array {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  let binary: string;
+  try {
+    binary = atob(padded);
+  } catch {
+    throw new SourceDocumentError(502, 'gmail_attachment_decode_failed');
+  }
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function getOperation(admin: SupabaseClient, workspaceId: string, key: string): Promise<Record<string, unknown> | null> {
+  const { data, error } = await admin.from('ema_operations')
+    .select('id, operation_status, external_id, result_metadata')
+    .eq('workspace_id', workspaceId)
+    .eq('operating_mode', 'autonomous')
+    .eq('idempotency_key', key)
+    .maybeSingle();
+  if (error) throw new SourceDocumentError(500, 'ema_operation_lookup_failed');
+  return data as Record<string, unknown> | null;
+}
+
+async function beginOperation(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string,
+  key: string,
+): Promise<{ id: string }> {
+  const { data, error } = await admin.from('ema_operations').insert({
+    workspace_id: workspaceId,
+    ema_message_id: null,
+    ema_candidate_id: candidateId,
+    operating_mode: 'autonomous',
+    operation_type: 'ghl_opportunity_source_document_attach',
+    idempotency_key: key,
+    operation_status: 'executing',
+    request_metadata: { source: 'agent_gateway', contract: 'deal.intake_to_crm.source_documents.v1' },
+    attempt_count: 1,
+    is_test: false,
+  }).select('id').single();
+  if (error || !data) throw new SourceDocumentError(500, 'ema_operation_create_failed');
+  return { id: String(data.id) };
+}
+
+async function finishOperation(
+  admin: SupabaseClient,
+  id: string,
+  externalId: string,
+  resultMetadata: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await admin.from('ema_operations').update({
+    operation_status: 'succeeded',
+    external_id: externalId,
+    result_metadata: resultMetadata,
+    last_error: null,
+  }).eq('id', id);
+  if (error) throw new SourceDocumentError(500, 'ema_operation_update_failed');
+}
+
+async function markOperationUncertain(admin: SupabaseClient, id: string, error: unknown): Promise<void> {
+  await admin.from('ema_operations').update({
+    operation_status: 'needs_reconciliation',
+    last_error: error instanceof Error ? error.name.slice(0, 120) : 'upstream_error',
+  }).eq('id', id);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
