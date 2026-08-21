@@ -29,6 +29,7 @@ import {
   emailReadInputSchema,
   emailSearchInputSchema,
   underwritingCashValueInputSchema,
+  underwritingNextWorkItemInputSchema,
 } from "./schemas.ts";
 
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -229,11 +230,23 @@ Deno.serve(async (req) => {
 
     if (identity.agent.slug === "cash") {
       server.registerTool(
+        "underwriting_next_work_item",
+        {
+          title: "Claim or resume Cash's next SFR underwriting job",
+          description:
+            "Claims the next queued Single Family Residence underwriting work item created by the human-controlled HighLevel Underwriting stage, or resumes Cash's existing active SFR item after a restart. Returns the durable work item, opportunity and task identifiers plus completed underwriting phases. Portfolio work is intentionally not claimed until the napkin engine is implemented.",
+          inputSchema: underwritingNextWorkItemInputSchema,
+          annotations: controlledWriteAnnotations,
+        },
+        () => execute("underwriting.next_work_item", {}),
+      );
+
+      server.registerTool(
         "underwriting_cash_value",
         {
           title: "Calculate CashValue from verified SFR sold comps",
           description:
-            "Ranks verified Single Family Residence sold comps using Evergreen CashValue V1 rules, selects the best 3-5, normalizes each sale to the subject using price per square foot, and returns a CashValue, supported range, confidence, scoring breakdown, rejected comps, and any criteria expansion. Standard rules: up to 1 mile, +/-250 sqft, +/-10 years, sold within 6 months; stories/build style are optional ranking signals. If fewer than 3 comps qualify, only recency and year built expand to 12 months and +/-20 years. Never invent comps; input must come from a real data source or human-verified sales.",
+            "Ranks verified Single Family Residence sold comps using Evergreen CashValue V1 rules, selects the best 3-5, normalizes each sale to the subject using price per square foot, and returns a CashValue, supported range, confidence, scoring breakdown, rejected comps, and any criteria expansion. When Cash runs this against an active work item, the Gateway also persists the CashValue phase as a durable underwriting step while keeping the full underwriting task active for rehab and pricing. Never invent comps; input must come from a real data source or human-verified sales.",
           inputSchema: underwritingCashValueInputSchema,
           annotations: calculationAnnotations,
         },
