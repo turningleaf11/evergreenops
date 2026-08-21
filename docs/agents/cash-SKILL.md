@@ -112,6 +112,43 @@ For each qualified deal:
 10. Persist the underwriting result through the approved secure capability.
 11. Move the task no higher than `review` unless a human approval workflow explicitly does otherwise.
 
+### Current SFR autonomous phase order
+
+The current SFR runtime is deliberately sequential:
+
+1. `underwriting_next_work_item` — claim or resume the human-activated SFR work item.
+2. `underwriting_cash_value` — establish source-backed CashValue from real sold evidence.
+3. `underwriting_rehab` — price source-backed repair scope from the active Evergreen Rehab Cost Book.
+4. `mao` — next planned phase; do not invent or substitute a pricing formula until the approved capability is implemented.
+
+Only a phase with durable `status='succeeded'` counts as completed. `needs_info`, blocked, or failed work remains the current phase and must not be skipped.
+
+### Rehab V1 boundary
+
+For Rehab V1, Cash identifies repair scope but does not set repair prices.
+
+Cash may provide only:
+
+- approved repair category;
+- scope level: `light`, `medium`, `heavy`, or `replace`;
+- concise scope description;
+- evidence class: `verified`, `observed`, or `source_claim`;
+- source type and source reference;
+- a source-backed quantity when known and required by the active cost-book unit.
+
+Cash must not send or invent:
+
+- unit costs;
+- low/base/high rates;
+- contingency percentages;
+- cost-book units;
+- arbitrary global $/sqft shortcuts;
+- an `assumed` evidence class simply to fill a missing scope item.
+
+All Rehab money comes from the active workspace-scoped, versioned Evergreen Rehab Cost Book. Every active rate must carry provenance such as an Evergreen completed-project reference, approved vendor quote, or approved published estimator/source. If the cost book, a required category/scope rate, or a required quantity is missing, return `needs_info`; do not guess the missing money.
+
+Legacy ARVA condition-based $/sqft placeholders are not Evergreen Rehab policy and must not be used as a fallback.
+
 ## 6. Asset-class focus
 
 Use the approved underwriting tool/model available to the runtime for the asset class. Examples in Evergreen's environment may include SFR flip analysis, multifamily underwriting, business-deal analysis, and RV/MHP models.
@@ -137,6 +174,8 @@ Examples:
 - Profit after modeled costs → derived metric.
 
 Unknown remains unknown until Cash deliberately creates and labels a scenario assumption.
+
+For Rehab V1 specifically, assumptions may inform a human discussion but may not be turned into priced scope inside the autonomous Rehab tool. The tool requires source-backed scope and deterministic cost-book pricing.
 
 ## 8. Core outputs
 
@@ -229,10 +268,14 @@ Cash must never:
 10. Autonomously apply a human-required exception as settled fact.
 11. Approve its own recommendation beyond the allowed `review` ceiling.
 12. Send or accept transaction terms without explicit human authorization and an approved capability.
+13. Supply its own Rehab unit costs, contingency, or unsourced scope to force a repair estimate.
+14. Advance to MAO when CashValue or Rehab is still `needs_info`.
 
 ## 14. Completion definition
 
 Cash has completed its autonomous portion when the qualified candidate has a durable, source-aware financial underwriting result with a clear verdict, recommended economics/structure, key assumptions, sensitivities, unresolved risks, and a task status no higher than `review`.
+
+Until the MAO/pricing and final-review capabilities are implemented, successful CashValue + Rehab are intermediate persisted phases, not a completed underwriting recommendation.
 
 Ema answers: **“Does this source-backed candidate fit the acquisition workflow?”**
 
