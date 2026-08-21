@@ -32,6 +32,7 @@ export async function runAndPersistCashDealCheckPrep(
     work.id,
     work.activation_count,
   );
+  validateFlipAnalysisOutput(flipAnalysis);
   const location = await resolveLocation(admin, workspaceId, work.candidate_id, cashValue);
 
   const standard = normalizeScenario(record(flipAnalysis.standard), false);
@@ -156,6 +157,15 @@ async function loadSuccessfulInputs(
   return { cashValue, flipAnalysis };
 }
 
+function validateFlipAnalysisOutput(flipAnalysis: Record<string, unknown>): void {
+  if (flipAnalysis.contract !== 'flip_analysis_v1') {
+    throw new CashDealCheckError(409, 'flip_analysis_contract_invalid');
+  }
+  if (flipAnalysis.status !== 'calculated') {
+    throw new CashDealCheckError(409, 'successful_flip_analysis_output_required');
+  }
+}
+
 async function resolveLocation(
   admin: SupabaseClient,
   workspaceId: string,
@@ -187,6 +197,14 @@ function normalizeScenario(
   value: Record<string, unknown>,
   requiresHumanApproval: boolean,
 ): DealCheckFlipScenario {
+  if (value.requires_human_approval !== requiresHumanApproval) {
+    throw new CashDealCheckError(
+      409,
+      requiresHumanApproval
+        ? 'persisted_stretch_human_approval_required'
+        : 'persisted_standard_must_not_require_stretch_approval',
+    );
+  }
   const monthly = record(value.monthly_carrying_costs);
   return {
     purchase_price: requiredNonNegativeNumber(value.purchase_price, 'purchase_price'),
