@@ -44,7 +44,7 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
   }
 }
 
-export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')||action.startsWith('underwriting.')}
+export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')||action==='underwriting.cash_value'}
 export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Record<string,unknown>;resourceType:string|null;resourceId:string|null}{switch(request.action){
   case'system.whoami':return{inputSummary:{},resourceType:'agent',resourceId:null};
   case'email.list':return{inputSummary:{max_results:request.input.max_results,has_page_token:Boolean(request.input.page_token),after_epoch_seconds:request.input.after_epoch_seconds},resourceType:'gmail_message_list',resourceId:null};
