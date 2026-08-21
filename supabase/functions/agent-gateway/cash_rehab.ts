@@ -10,6 +10,7 @@ import {
   type RehabSourceType,
   type RehabUnit,
 } from './rehab.ts';
+import { runAndPersistCashMao } from './cash_mao.ts';
 
 export class CashRehabError extends Error {
   constructor(public status: number, public code: string) {
@@ -76,8 +77,29 @@ export async function runAndPersistCashRehab(
     .eq('assigned_to', 'cash');
   if (taskError) throw new CashRehabError(500, 'cash_task_rehab_progress_update_failed');
 
+  if (stepStatus !== 'succeeded') {
+    return {
+      ...estimate,
+      work_step: {
+        persisted: true,
+        work_item_id: work.id,
+        agent_task_id: work.agent_task_id,
+        step_id: step.id,
+        phase: 'rehab',
+        status: stepStatus,
+        next_phase: 'rehab',
+      },
+    };
+  }
+
+  // MAO is deterministic once CashValue and Rehab have succeeded. It is run
+  // server-side here so the agent never receives a model-facing input surface
+  // for ARV, repair dollars, pricing multipliers, formulas, or stretch limits.
+  const mao = await runAndPersistCashMao(admin, workspaceId, agentId, opportunityId);
+
   return {
     ...estimate,
+    mao,
     work_step: {
       persisted: true,
       work_item_id: work.id,
@@ -85,7 +107,8 @@ export async function runAndPersistCashRehab(
       step_id: step.id,
       phase: 'rehab',
       status: stepStatus,
-      next_phase: stepStatus === 'succeeded' ? 'mao' : 'rehab',
+      next_phase: 'flip_analysis',
+      mao_auto_calculated: true,
     },
   };
 }
