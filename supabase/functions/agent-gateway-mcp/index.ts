@@ -30,6 +30,7 @@ import {
   emailSearchInputSchema,
   underwritingCashValueInputSchema,
   underwritingNextWorkItemInputSchema,
+  underwritingRehabInputSchema,
 } from "./schemas.ts";
 
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -234,7 +235,7 @@ Deno.serve(async (req) => {
         {
           title: "Claim or resume Cash's next SFR underwriting job",
           description:
-            "Claims the next queued Single Family Residence underwriting work item created by the human-controlled HighLevel Underwriting stage, or resumes Cash's existing active SFR item after a restart. Returns the durable work item, opportunity and task identifiers plus completed underwriting phases. Portfolio work is intentionally not claimed until the napkin engine is implemented.",
+            "Claims the next queued Single Family Residence underwriting work item created by the human-controlled HighLevel Underwriting stage, or resumes Cash's existing active SFR item after a restart. Returns the durable work item, opportunity and task identifiers plus successfully completed underwriting phases. Portfolio work is intentionally not claimed until the napkin engine is implemented.",
           inputSchema: underwritingNextWorkItemInputSchema,
           annotations: controlledWriteAnnotations,
         },
@@ -251,6 +252,18 @@ Deno.serve(async (req) => {
           annotations: calculationAnnotations,
         },
         (input) => execute("underwriting.cash_value", input),
+      );
+
+      server.registerTool(
+        "underwriting_rehab",
+        {
+          title: "Estimate source-backed SFR rehab scope",
+          description:
+            "Prices a source-backed repair scope for Cash's active SFR underwriting work item using only the active Evergreen Rehab Cost Book. Cash supplies category, scope level, source reference and source-backed quantity when required; Cash cannot supply or override unit costs or contingency. Missing rates or quantities return needs_info instead of guessed repair costs. A successful estimate persists the rehab underwriting phase and advances the work item toward MAO.",
+          inputSchema: underwritingRehabInputSchema,
+          annotations: controlledWriteAnnotations,
+        },
+        (input) => execute("underwriting.rehab", input),
       );
     }
 
