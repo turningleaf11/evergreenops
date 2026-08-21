@@ -22,6 +22,7 @@ import {
   crmSearchOpportunitiesInputSchema,
   dealBuyBoxFitInputSchema,
   dealIntakeToCrmInputSchema,
+  dealPersistEmailIntakeInputSchema,
   dealReconcileEmailUpdateInputSchema,
   emailGetAttachmentInputSchema,
   emailListInputSchema,
@@ -176,6 +177,18 @@ Deno.serve(async (req) => {
         annotations: readOnlyAnnotations,
       },
       () => execute("crm.list_pipelines", {}),
+    );
+
+    server.registerTool(
+      "deal_persist_email_intake",
+      {
+        title: "Persist a new Ema Gmail intake",
+        description:
+          "Persists one real Gmail message as a new source-backed Ema intake after the message/thread and relevant attachments have been read. Supports multiple properties per email, idempotently returns already-persisted candidates, records irrelevant messages as excluded, and returns existing_thread when the Gmail thread already belongs to a persisted deal so Ema can reconcile instead of duplicating it. It cannot write arbitrary database records or create a CRM opportunity.",
+        inputSchema: dealPersistEmailIntakeInputSchema,
+        annotations: controlledWriteAnnotations,
+      },
+      (input) => execute("deal.persist_email_intake", input),
     );
 
     server.registerTool(

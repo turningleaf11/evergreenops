@@ -30,11 +30,32 @@ Primary secure capabilities:
 - `crm_search_contacts`
 - `crm_search_opportunities`
 - `crm_list_pipelines`
+- `deal_persist_email_intake`
 - `deal_buy_box_fit`
 - `deal_intake_to_crm`
 - `deal_reconcile_email_update`
 
 The Gateway is the policy boundary. Do not bypass it with legacy direct Gmail, HighLevel, or Supabase credentials when the Gateway capability exists.
+
+## Runtime cadence — OpenClaw Automation
+
+Ema's recurring inbox duty is an **OpenClaw Automation job**, not a heartbeat task and not a Supabase cron job.
+
+Default production cadence: **once every hour** in an isolated Ema session. Do not also use Ema's generic heartbeat to run inbox intake; that would create two schedulers for the same responsibility.
+
+Each scheduled run:
+
+1. Verify the Ema Gateway identity once with `system_whoami`.
+2. Call `email_list` with a **2-hour lookback** so a delayed/restarted run overlaps the prior window safely.
+3. Process messages newest-to-oldest. Page if necessary, but stop after 4 pages / 200 messages and surface an overflow warning rather than looping indefinitely.
+4. For each plausible deal/update, read the full thread and inspect relevant supported attachments before deciding what it contains.
+5. Use `deal_persist_email_intake` for a genuinely new inbound deal or an irrelevant message that should be durably excluded.
+6. If persistence returns `existing_thread`, treat the message as an existing-deal update and use the reconciliation flow when the source contains supported new facts/documents.
+7. For newly persisted reviewable candidates, run `deal_buy_box_fit`, then `deal_intake_to_crm` only for `fit` or `needs_info` candidates.
+8. Do not rerun underwriting, create Cash tasks, move stages, send offers, or send email.
+9. If nothing needs human attention, finish silently. Surface only material errors, ambiguous source-to-candidate matches, overflow, or another condition that requires a person.
+
+The lookback overlap is intentional. Gateway message/candidate uniqueness and idempotency—not model memory—prevent duplicate processing.
 
 ## 2. New inbound deal
 
@@ -43,9 +64,50 @@ For a possible new deal:
 1. Read the complete relevant Gmail thread.
 2. Inspect supported attachments before deciding information is absent.
 3. For PDFs, use the Gateway attachment tool and its server-side extracted text when available.
-4. Separate multi-property emails into one persisted candidate per property.
+4. Separate multi-property emails into one candidate object per property.
 5. Preserve contradictory source claims instead of silently choosing one.
 6. Capture source-backed facts such as address, property type, units/sites/pads, beds/baths/sqft, asking price, stated ARV, condition, HOA, occupancy/rent, sender identity, links, and attachment references.
+7. Persist the real Gmail source and extracted candidates through `deal_persist_email_intake` before qualification.
+
+Example new-deal persistence shape:
+
+```text
+deal_persist_email_intake({
+  message_id,
+  message_disposition: "deal",
+  candidates: [
+    {
+      normalized_address,
+      candidate_type?,
+      extracted_facts,
+      evidence,
+      missing_information?,
+      source_type: "email" | "attachment" | "mixed",
+      intake_result: "supported" | "needs_classification" | "needs_info" | "excluded"
+    }
+  ]
+})
+```
+
+For a clearly irrelevant message, persist the exclusion so an overlapping hourly run does not keep reconsidering it:
+
+```text
+deal_persist_email_intake({
+  message_id,
+  message_disposition: "excluded",
+  exclusion_reason
+})
+```
+
+The Gateway fetches the real Gmail message itself, bounds the accepted fact/evidence fields, creates the durable `ema_messages` / `ema_candidates` source state, and returns candidate IDs. It does not create a CRM opportunity.
+
+If the tool returns:
+
+- `persisted` or `resumed` — continue with returned candidates.
+- `already_persisted` — resume only unfinished downstream work; do not create another candidate.
+- `already_excluded` — stop for that message.
+- `existing_thread` — do not create a new candidate; use the existing-deal reconciliation path when supported new information is present.
+- `existing_update` — the source was already reconciled; stop unless the returned state explicitly requires recovery.
 
 Flood-zone, fire-damage, structural/foundation, and post-possession claims may be preserved when explicitly provided. Never infer a negative from silence.
 
@@ -191,12 +253,15 @@ Ema never creates Cash tasks merely because a deal was screened, entered CRM, or
 - **SFR Deals:** Cash starts when the team moves the opportunity to **Underwriting**.
 - **Portfolio Deals:** Cash starts when the team moves the opportunity to **Ready for Napkin**.
 
-The future stage-event/orchestration service creates or reuses Cash work. Ema only maintains source-backed intake context.
+The stage-event/orchestration service creates or reuses Cash work. Ema only maintains source-backed intake context.
 
 ## 9. Retry and idempotency
 
 Resume incomplete work rather than restarting it.
 
+- Hourly automation uses an overlapping Gmail lookback; repeated source visibility is normal.
+- Never create a duplicate candidate because the same Gmail message appears again.
+- `deal_persist_email_intake` returns existing durable state for an already-persisted source.
 - Never create a duplicate candidate because an existing deal received a reply.
 - Reconciliation links the later Gmail message to the existing candidate.
 - Repeated reconciliation of the same source message is retry-safe at the source/document/note boundaries.
@@ -223,10 +288,11 @@ Ema must never:
 13. Merge or delete CRM records autonomously.
 14. Send an offer, LOI, IOI, or agree to terms.
 15. Expose or request credentials that should remain behind the Gateway.
+16. Use generic heartbeat execution as a second inbox scheduler while the hourly Automation is enabled.
 
 ## 11. Completion definition
 
-For a new inbound deal, Ema is complete when it is classified and either excluded/not-fit or durably entered the correct initial CRM stage with source-backed context.
+For a new inbound deal, Ema is complete when it is classified and either durably excluded/not-fit or entered the correct initial CRM stage with source-backed context.
 
 For a later reply to an existing deal, Ema is complete when the real Gmail source is linked to the existing candidate, supported fact/document updates are persisted, portfolio document context is recomputed where applicable, and the existing CRM record receives the controlled update note when available.
 
