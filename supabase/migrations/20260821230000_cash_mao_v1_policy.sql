@@ -9,11 +9,19 @@
 
 do $$
 declare
-  _workspace_id uuid := 'a8938ed0-9c4e-4d42-b874-593b4b3c90a9'::uuid;
+  _workspace_id uuid;
 begin
-  if not exists (select 1 from public.workspaces where id = _workspace_id) then
-    raise exception 'evergreen_workspace_not_found';
-  end if;
+  begin
+    select id
+    into strict _workspace_id
+    from public.workspaces
+    where name = 'Evergreen Team';
+  exception
+    when no_data_found then
+      raise exception 'evergreen_workspace_not_found';
+    when too_many_rows then
+      raise exception 'evergreen_workspace_ambiguous';
+  end;
 
   -- Retire any active 70% ARV-less-repairs standard rule, including the
   -- historical global default. Preserve the rows for audit/history.
