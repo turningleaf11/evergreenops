@@ -6,8 +6,9 @@ function assert(condition: unknown, message = 'Assertion failed'): asserts condi
 }
 
 Deno.test('MCP exposes the Cash queue through the Gateway action map', () => {
-  assert(MCP_SERVER_VERSION === '0.10.0');
+  assert(MCP_SERVER_VERSION === '0.11.0');
   assert(MCP_TOOL_ACTIONS.underwriting_next_work_item === 'underwriting.next_work_item');
+  assert(MCP_TOOL_ACTIONS.underwriting_rehab === 'underwriting.rehab');
 });
 
 Deno.test('Cash queue MCP schema accepts no caller-controlled inputs', () => {

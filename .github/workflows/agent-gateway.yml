@@ -15,6 +15,7 @@ on:
       - "supabase/migrations/*cash_value*"
       - "supabase/migrations/*cash_stage_workflow*"
       - "supabase/migrations/*cash_autonomous_work_queue*"
+      - "supabase/migrations/*cash_rehab*"
       - "supabase/config.toml"
       - ".github/workflows/agent-gateway.yml"
   push:
@@ -33,6 +34,7 @@ on:
       - "supabase/migrations/*cash_value*"
       - "supabase/migrations/*cash_stage_workflow*"
       - "supabase/migrations/*cash_autonomous_work_queue*"
+      - "supabase/migrations/*cash_rehab*"
       - "supabase/config.toml"
       - ".github/workflows/agent-gateway.yml"
 
@@ -56,6 +58,6 @@ jobs:
       - name: Type-check MCP adapter
         run: deno check --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp/index.ts
       - name: Test request boundary
-        run: deno test supabase/functions/agent-gateway/core_test.ts supabase/functions/agent-gateway/buy_box_test.ts supabase/functions/agent-gateway/intake_test.ts supabase/functions/agent-gateway/email_intake_test.ts supabase/functions/agent-gateway/portfolio_documents_test.ts supabase/functions/agent-gateway/reconcile_test.ts supabase/functions/agent-gateway/source_document_test.ts supabase/functions/agent-gateway/cash_value_test.ts supabase/functions/agent-gateway/sfr_valuation_test.ts supabase/functions/agent-gateway/cash_work_request_test.ts supabase/functions/ghl-stage-events/core_test.ts supabase/functions/cash-stage-trigger/core_test.ts supabase/functions/_shared/ghl_test.ts
+        run: deno test supabase/functions/agent-gateway/core_test.ts supabase/functions/agent-gateway/buy_box_test.ts supabase/functions/agent-gateway/intake_test.ts supabase/functions/agent-gateway/email_intake_test.ts supabase/functions/agent-gateway/portfolio_documents_test.ts supabase/functions/agent-gateway/reconcile_test.ts supabase/functions/agent-gateway/source_document_test.ts supabase/functions/agent-gateway/cash_value_test.ts supabase/functions/agent-gateway/sfr_valuation_test.ts supabase/functions/agent-gateway/cash_work_request_test.ts supabase/functions/agent-gateway/rehab_test.ts supabase/functions/agent-gateway/rehab_request_test.ts supabase/functions/ghl-stage-events/core_test.ts supabase/functions/cash-stage-trigger/core_test.ts supabase/functions/_shared/ghl_test.ts
       - name: Test MCP adapter boundary
         run: deno test --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp
