@@ -1,8 +1,10 @@
+import { REHAB_CATEGORIES, REHAB_EVIDENCE_CLASSES, REHAB_SCOPE_LEVELS, REHAB_SOURCE_TYPES } from './rehab.ts';
+
 export const ALLOWED_ACTIONS = [
   'system.whoami','email.list','email.search','email.read','email.get_attachment',
   'crm.search_contacts','crm.search_opportunities','crm.list_pipelines',
   'deal.persist_email_intake','deal.buy_box_fit','deal.intake_to_crm','deal.reconcile_email_update',
-  'underwriting.next_work_item','underwriting.cash_value',
+  'underwriting.next_work_item','underwriting.cash_value','underwriting.rehab',
 ] as const;
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES=2*1024*1024;
@@ -41,10 +43,11 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
     case'deal.reconcile_email_update':{const factUpdates=reconcileFactUpdates(input.fact_updates),documents=reconcileDocuments(input.documents),candidateId=optionalUuid(input.candidate_id,'candidate_id');if(Object.keys(factUpdates).length===0&&documents.length===0)throw new RequestValidationError('fact_updates or documents is required');return{action:'deal.reconcile_email_update',input:{message_id:gmailId(input.message_id,'message_id'),candidate_id:candidateId,fact_updates:factUpdates,documents}}}
     case'underwriting.next_work_item':{if(Object.keys(input).length!==0)throw new RequestValidationError('underwriting.next_work_item does not accept input');return{action:'underwriting.next_work_item',input:{}}}
     case'underwriting.cash_value':return{action:'underwriting.cash_value',input:cashValueInput(input)};
+    case'underwriting.rehab':return{action:'underwriting.rehab',input:rehabInput(input)};
   }
 }
 
-export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')||action==='underwriting.cash_value'}
+export function isUntrustedExternalAction(action:GatewayAction):boolean{return action.startsWith('email.')||action.startsWith('crm.')||action.startsWith('deal.')||action==='underwriting.cash_value'||action==='underwriting.rehab'}
 export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Record<string,unknown>;resourceType:string|null;resourceId:string|null}{switch(request.action){
   case'system.whoami':return{inputSummary:{},resourceType:'agent',resourceId:null};
   case'email.list':return{inputSummary:{max_results:request.input.max_results,has_page_token:Boolean(request.input.page_token),after_epoch_seconds:request.input.after_epoch_seconds},resourceType:'gmail_message_list',resourceId:null};
@@ -65,6 +68,10 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
       return{inputSummary:{contract:'sfr_valuation_v2',mode:isCandidate?'candidate_source_lookup':'opportunity_source_lookup',has_subject_evidence:Boolean(request.input.subject_evidence),public_comp_count:Array.isArray(request.input.public_comps)?request.input.public_comps.length:0},resourceType:isCandidate?'ema_candidate':'ghl_opportunity',resourceId:String(isCandidate?request.input.candidate_id:request.input.opportunity_id)};
     }
     const subject=isRecord(request.input.subject)?request.input.subject:{};return{inputSummary:{contract:'cash_value_v1',mode:'verified_comp_calculator',property_type:subject.property_type??null,comp_count:Array.isArray(request.input.comps)?request.input.comps.length:0,has_valuation_date:Boolean(request.input.valuation_date)},resourceType:'sfr_cash_value',resourceId:typeof subject.address==='string'?subject.address:null}
+  }
+  case'underwriting.rehab':{
+    const items=Array.isArray(request.input.scope_items)?request.input.scope_items.filter(isRecord):[];
+    return{inputSummary:{contract:'rehab_v1',scope_item_count:items.length,categories:[...new Set(items.map(item=>String(item.category??'')))],evidence_classes:[...new Set(items.map(item=>String(item.evidence_class??'')))]},resourceType:'ghl_opportunity',resourceId:String(request.input.opportunity_id)};
   }
 }}
 
@@ -103,6 +110,22 @@ function cashValueInput(input:Record<string,unknown>):Record<string,unknown>{
   const valuationDate=optionalString(input.valuation_date,'valuation_date',10,10);if(valuationDate&&!/^\d{4}-\d{2}-\d{2}$/.test(valuationDate))throw new RequestValidationError('valuation_date must be YYYY-MM-DD');
   return{subject,comps,valuation_date:valuationDate};
 }
+function rehabInput(input:Record<string,unknown>):Record<string,unknown>{
+  assertOnlyKeys(input,new Set(['opportunity_id','scope_items']),'underwriting.rehab');
+  const opportunityId=optionalGhlId(input.opportunity_id,'opportunity_id');if(!opportunityId)throw new RequestValidationError('opportunity_id is required');
+  if(!Array.isArray(input.scope_items)||input.scope_items.length<1||input.scope_items.length>50)throw new RequestValidationError('scope_items must contain between 1 and 50 items');
+  const scopeItems=input.scope_items.map((raw,index)=>{
+    if(!isRecord(raw))throw new RequestValidationError(`scope_items[${index}] must be an object`);
+    assertOnlyKeys(raw,new Set(['category','scope_level','description','evidence_class','source_type','source_ref','quantity']),`scope_items[${index}]`);
+    const category=optionalEnum(raw.category,`scope_items[${index}].category`,REHAB_CATEGORIES);if(!category)throw new RequestValidationError(`scope_items[${index}].category is required`);
+    const scopeLevel=optionalEnum(raw.scope_level,`scope_items[${index}].scope_level`,REHAB_SCOPE_LEVELS);if(!scopeLevel)throw new RequestValidationError(`scope_items[${index}].scope_level is required`);
+    const evidenceClass=optionalEnum(raw.evidence_class,`scope_items[${index}].evidence_class`,REHAB_EVIDENCE_CLASSES);if(!evidenceClass)throw new RequestValidationError(`scope_items[${index}].evidence_class is required`);
+    const sourceType=optionalEnum(raw.source_type,`scope_items[${index}].source_type`,REHAB_SOURCE_TYPES);if(!sourceType)throw new RequestValidationError(`scope_items[${index}].source_type is required`);
+    return{category,scope_level:scopeLevel,description:requiredString(raw.description,`scope_items[${index}].description`,1,500),evidence_class:evidenceClass,source_type:sourceType,source_ref:requiredString(raw.source_ref,`scope_items[${index}].source_ref`,1,1000),quantity:optionalNumber(raw.quantity,`scope_items[${index}].quantity`,0.01,1000000)};
+  });
+  return{opportunity_id:opportunityId,scope_items:scopeItems};
+}
+function assertOnlyKeys(value:Record<string,unknown>,allowed:Set<string>,field:string):void{for(const key of Object.keys(value))if(!allowed.has(key))throw new RequestValidationError(`${field}.${key} is not allowed`)}
 function publicSubjectEvidence(value:unknown):Record<string,unknown>|null{
   if(value===undefined||value===null)return null;if(!isRecord(value))throw new RequestValidationError('subject_evidence must be an object');
   const result:Record<string,unknown>={source_url:publicSourceUrl(value.source_url,'subject_evidence.source_url'),source_name:optionalString(value.source_name,'subject_evidence.source_name',1,120),sqft:optionalNumber(value.sqft,'subject_evidence.sqft',1,50000),year_built:optionalNumber(value.year_built,'subject_evidence.year_built',1600,2200),beds:optionalNumber(value.beds,'subject_evidence.beds',0,50),baths:optionalNumber(value.baths,'subject_evidence.baths',0,50),stories:optionalNumber(value.stories,'subject_evidence.stories',0,20),build_style:optionalString(value.build_style,'subject_evidence.build_style',1,120)};
