@@ -50,3 +50,10 @@ verify_jwt = false
 # The function verifies the current Ed25519 signature before parsing or acting.
 [functions.ghl-stage-events]
 verify_jwt = false
+
+# Evergreen-controlled HighLevel workflow webhook. Supabase JWT verification is
+# disabled because the function authenticates a dedicated Bearer token by
+# hashing it and comparing it with CASH_STAGE_WORKFLOW_TOKEN_SHA256.
+# The raw workflow token is never stored in Postgres or exposed to Cash.
+[functions.cash-stage-trigger]
+verify_jwt = false
