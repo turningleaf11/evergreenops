@@ -151,7 +151,9 @@ revoke all on function public.claim_next_cash_sfr_work_item(uuid) from public, a
 grant execute on function public.claim_next_cash_sfr_work_item(uuid) to service_role;
 
 insert into public.agent_permissions (agent_id, action, enabled, rate_limit_per_minute)
-values ('fa88ef77-5d1d-428b-b61b-dbfb397299bc', 'underwriting.next_work_item', true, 12)
+select a.id, 'underwriting.next_work_item', true, 12
+from public.agents a
+where a.slug = 'cash'
 on conflict (agent_id, action) do update
 set enabled = excluded.enabled,
     rate_limit_per_minute = excluded.rate_limit_per_minute,
