@@ -47,7 +47,25 @@ jobs:
         run: deno check supabase/functions/ghl-stage-events/index.ts
       - name: Type-check MCP adapter
         run: deno check --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp/index.ts
-      - name: Test request boundary
-        run: deno test supabase/functions/agent-gateway/core_test.ts supabase/functions/agent-gateway/buy_box_test.ts supabase/functions/agent-gateway/intake_test.ts supabase/functions/agent-gateway/portfolio_documents_test.ts supabase/functions/agent-gateway/reconcile_test.ts supabase/functions/agent-gateway/source_document_test.ts supabase/functions/agent-gateway/cash_value_test.ts supabase/functions/agent-gateway/sfr_valuation_test.ts supabase/functions/ghl-stage-events/core_test.ts supabase/functions/_shared/ghl_test.ts
+      - name: Test SFR valuation boundary
+        run: deno test supabase/functions/agent-gateway/sfr_valuation_test.ts
+      - name: Test HighLevel stage boundary
+        run: deno test supabase/functions/ghl-stage-events/core_test.ts
+      - name: Test Gateway request boundary
+        run: deno test supabase/functions/agent-gateway/core_test.ts
+      - name: Test buy-box boundary
+        run: deno test supabase/functions/agent-gateway/buy_box_test.ts
+      - name: Test intake boundary
+        run: deno test supabase/functions/agent-gateway/intake_test.ts
+      - name: Test portfolio document boundary
+        run: deno test supabase/functions/agent-gateway/portfolio_documents_test.ts
+      - name: Test reconciliation boundary
+        run: deno test supabase/functions/agent-gateway/reconcile_test.ts
+      - name: Test source document boundary
+        run: deno test supabase/functions/agent-gateway/source_document_test.ts
+      - name: Test Cash Value boundary
+        run: deno test supabase/functions/agent-gateway/cash_value_test.ts
+      - name: Test shared HighLevel boundary
+        run: deno test supabase/functions/_shared/ghl_test.ts
       - name: Test MCP adapter boundary
         run: deno test --node-modules-dir=auto --no-lock supabase/functions/agent-gateway-mcp
