@@ -211,7 +211,7 @@ async function subjectFromGhlOpportunity(admin:SupabaseClient,opportunityId:stri
 
 function applySubjectEvidence(subject:CashValueSubject,evidence:PublicSubjectEvidence|null):CashValueSubject{
   if(!evidence)return subject;
-  return mergeSubject(subject,{sqft:numberValue(evidence.sqft),year_built:numberValue(evidence.year_built),beds:numberValue(evidence.beds),baths:numberValue(evidence.baths),stories:numberValue(evidence.stories),build_style:stringValue(evidence.build_style)});
+  return mergeSubject(subject,{sqft:numberValue(evidence.sqft)??undefined,year_built:numberValue(evidence.year_built),beds:numberValue(evidence.beds),baths:numberValue(evidence.baths),stories:numberValue(evidence.stories),build_style:stringValue(evidence.build_style)});
 }
 
 export async function fetchRentCastValuation(
