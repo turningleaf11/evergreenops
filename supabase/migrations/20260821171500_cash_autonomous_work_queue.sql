@@ -42,7 +42,7 @@ returns table (
   completed_phases text[]
 )
 language plpgsql
-security definer
+security invoker
 set search_path = public, pg_temp
 as $$
 declare
