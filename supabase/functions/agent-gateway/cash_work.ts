@@ -19,7 +19,7 @@ export interface CashWorkItem {
   task_description: string;
   resumed: boolean;
   completed_phases: string[];
-  next_phase: 'cash_value' | 'rehab';
+  next_phase: 'cash_value' | 'rehab' | 'mao';
 }
 
 export async function claimNextCashWorkItem(
@@ -51,7 +51,7 @@ export async function claimNextCashWorkItem(
       task_description: requiredString(row.task_description, 'task_description'),
       resumed: Boolean(row.resumed),
       completed_phases: phases,
-      next_phase: phases.includes('cash_value') ? 'rehab' : 'cash_value',
+      next_phase: phases.includes('rehab') ? 'mao' : phases.includes('cash_value') ? 'rehab' : 'cash_value',
     },
   };
 }
@@ -125,7 +125,7 @@ export async function persistActiveCashValueStep(
     supported_range: cashValue.supported_range,
     confidence: cashValue.confidence,
     selected_comp_count: cashValue.selected_comp_count,
-    next_phase: 'rehab',
+    next_phase: stepStatus === 'succeeded' ? 'rehab' : 'cash_value',
     updated_at: step.updated_at,
     run_by_agent_id: agentId,
   };
@@ -148,7 +148,7 @@ export async function persistActiveCashValueStep(
     step_id: step.id,
     phase: 'cash_value',
     status: stepStatus,
-    next_phase: 'rehab',
+    next_phase: stepStatus === 'succeeded' ? 'rehab' : 'cash_value',
   };
 }
 
