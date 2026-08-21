@@ -49,7 +49,8 @@ declare
   error_count integer;
   next_status text;
 begin
-  target_message_id := coalesce(new.ema_message_id, old.ema_message_id);
+  -- This trigger is only installed for INSERT/UPDATE, so NEW is always valid.
+  target_message_id := new.ema_message_id;
 
   select
     count(*)::integer,
@@ -90,9 +91,21 @@ revoke all on function public.ema_rollup_message_processing_status() from authen
 
 drop trigger if exists ema_candidates_rollup_message_processing_status on public.ema_candidates;
 create trigger ema_candidates_rollup_message_processing_status
-after insert or update of processing_status on public.ema_candidates
+after insert or update on public.ema_candidates
 for each row
 execute function public.ema_rollup_message_processing_status();
+
+-- Backfill candidate lifecycle values that predate the automatic buy-box state
+-- derivation. Do not downgrade candidates already in CRM write/completed states.
+update public.ema_candidates
+set processing_status = case buy_box_fit_result
+  when 'fit' then 'screen_passed'
+  when 'needs_info' then 'screen_needs_info'
+  when 'not_fit' then 'screen_failed'
+  else processing_status
+end
+where buy_box_fit_result in ('fit', 'needs_info', 'not_fit')
+  and processing_status in ('extracted', 'screen_pending');
 
 -- Backfill existing message lifecycle state so the first hourly automation run
 -- starts from durable truth rather than stale historical `extracted` values.
