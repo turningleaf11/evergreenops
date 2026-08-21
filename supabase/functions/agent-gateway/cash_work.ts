@@ -19,7 +19,7 @@ export interface CashWorkItem {
   task_description: string;
   resumed: boolean;
   completed_phases: string[];
-  next_phase: 'cash_value' | 'rehab' | 'mao' | 'flip_analysis';
+  next_phase: 'cash_value' | 'rehab' | 'mao' | 'flip_analysis' | 'dealcheck';
 }
 
 export async function claimNextCashWorkItem(
@@ -51,7 +51,9 @@ export async function claimNextCashWorkItem(
       task_description: requiredString(row.task_description, 'task_description'),
       resumed: Boolean(row.resumed),
       completed_phases: phases,
-      next_phase: phases.includes('mao')
+      next_phase: phases.includes('flip_analysis')
+        ? 'dealcheck'
+        : phases.includes('mao')
         ? 'flip_analysis'
         : phases.includes('rehab')
         ? 'mao'

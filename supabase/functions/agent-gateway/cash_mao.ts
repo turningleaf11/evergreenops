@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import { calculateMao, MaoPolicyError, type MaoInputs, type MaoPricingCriterion } from './mao.ts';
+import { runAndPersistCashFlipAnalysis } from './cash_flip_analysis.ts';
 
 export class CashMaoError extends Error {
   constructor(public status: number, public code: string) {
@@ -86,8 +87,23 @@ export async function runAndPersistCashMao(
     .eq('assigned_to', 'cash');
   if (taskError) throw new CashMaoError(500, 'cash_task_mao_progress_update_failed');
 
+  // Flip Analysis has no legitimate model-supplied economic assumptions. It is
+  // run server-side after MAO and either calculates from an approved active
+  // policy or persists needs_info with the exact missing policy fields.
+  const flipAnalysis = await runAndPersistCashFlipAnalysis(
+    admin,
+    workspaceId,
+    agentId,
+    opportunityId,
+  );
+  const flipWorkStep = isRecord(flipAnalysis.work_step) ? flipAnalysis.work_step : {};
+  const nextPhase = typeof flipWorkStep.next_phase === 'string'
+    ? flipWorkStep.next_phase
+    : 'flip_analysis';
+
   return {
     ...mao,
+    flip_analysis: flipAnalysis,
     work_step: {
       persisted: true,
       work_item_id: work.id,
@@ -95,7 +111,8 @@ export async function runAndPersistCashMao(
       step_id: step.id,
       phase: 'mao',
       status: 'succeeded',
-      next_phase: 'flip_analysis',
+      next_phase: nextPhase,
+      flip_analysis_auto_evaluated: true,
     },
   };
 }
