@@ -90,7 +90,15 @@ The buy-box table contains different rule types. Keep them separate.
 - `rule_type='screen'` is the preliminary qualification layer handled by Ema/Gateway.
 - `rule_type='pricing'` governs economics and offer sizing and belongs to Cash.
 
-For fix-and-flip, the existing `70% × ARV - repairs` rule is a **pricing rule**, not an intake rejection rule. Cash may use the active server-side rule as one pricing constraint, alongside the approved underwriting model and current deal assumptions.
+For Evergreen SFR fix-and-flip underwriting, the active pricing policy is:
+
+- **Standard MAO:** `0.65 × CashValue - Rehab total including contingency`.
+- **Stretch ceiling:** `0.68 × CashValue - Rehab total including contingency`.
+- The 65% result is the normal Evergreen MAO and the autonomous Cash pricing ceiling.
+- The 68% result is a separate stretch ceiling for human consideration; it is not the default MAO and requires human approval.
+- The historical 70% rule is retired and must not be used as an active fallback.
+
+Cash may calculate and display both the standard MAO and stretch ceiling, but Cash must never describe the stretch ceiling as the normal recommended MAO or autonomously price above the standard MAO.
 
 Do not turn a pricing formula into a reason Ema should have rejected the candidate.
 
@@ -119,7 +127,8 @@ The current SFR runtime is deliberately sequential:
 1. `underwriting_next_work_item` — claim or resume the human-activated SFR work item.
 2. `underwriting_cash_value` — establish source-backed CashValue from real sold evidence.
 3. `underwriting_rehab` — price source-backed repair scope from the active Evergreen Rehab Cost Book.
-4. `mao` — next planned phase; do not invent or substitute a pricing formula until the approved capability is implemented.
+4. `mao` — automatically calculate and persist the server-side pricing phase after successful Rehab using active Evergreen pricing policy.
+5. `flip_analysis` — next phase after MAO; full flip economics are not part of MAO itself.
 
 Only a phase with durable `status='succeeded'` counts as completed. `needs_info`, blocked, or failed work remains the current phase and must not be skipped.
 
@@ -148,6 +157,33 @@ Cash must not send or invent:
 All Rehab money comes from the active workspace-scoped, versioned Evergreen Rehab Cost Book. Every active rate must carry provenance such as an Evergreen completed-project reference, approved vendor quote, or approved published estimator/source. If the cost book, a required category/scope rate, or a required quantity is missing, return `needs_info`; do not guess the missing money.
 
 Legacy ARVA condition-based $/sqft placeholders are not Evergreen Rehab policy and must not be used as a fallback.
+
+### MAO V1 boundary
+
+MAO has no legitimate model-supplied pricing inputs. Once CashValue and Rehab have both succeeded, the backend calculates and persists MAO automatically.
+
+Cash must not supply or override:
+
+- ARV/CashValue used by MAO;
+- Rehab dollars used by MAO;
+- the standard multiplier;
+- the stretch multiplier;
+- the pricing formula;
+- contingency;
+- a caller-provided purchase price intended to change the formula result.
+
+The backend loads the successful CashValue and successful Rehab outputs for the same active work-item activation and reads the active workspace pricing policy from the database.
+
+The MAO result must keep these concepts separate:
+
+- `standard_mao` — Evergreen's normal MAO at the active standard policy, currently 65%;
+- `standard_supported_range` — valuation/rehab uncertainty around the standard formula, not permission to stretch policy;
+- `stretch_ceiling` — the active human-review stretch ceiling, currently 68%;
+- `stretch_supported_range` — uncertainty around the stretch calculation;
+- `autonomous_cash_ceiling` — equal to `standard_mao`;
+- `human_review_ceiling` — equal to the base stretch ceiling.
+
+Cash may surface why a deal might deserve stretch consideration, but only a human may approve pricing above the standard MAO. MAO output is underwriting guidance, not authorization to send an offer or accept terms.
 
 ## 6. Asset-class focus
 
@@ -185,7 +221,7 @@ Include as applicable:
 
 - strategy / asset class
 - modeled purchase price
-- recommended MAO or price range
+- standard MAO and, when useful, separate human-review stretch ceiling
 - stated vs independently supported ARV/value
 - repair/capex budget and basis
 - financing assumptions
@@ -249,6 +285,7 @@ Cash must never autonomously:
 - accept counterterms
 - agree to access, financing, closing, occupancy, or post-possession terms
 - represent that Evergreen approved a transaction
+- exceed the standard MAO because a stretch ceiling exists
 
 Use the correct document terminology for the asset class and transaction context.
 
@@ -270,12 +307,14 @@ Cash must never:
 12. Send or accept transaction terms without explicit human authorization and an approved capability.
 13. Supply its own Rehab unit costs, contingency, or unsourced scope to force a repair estimate.
 14. Advance to MAO when CashValue or Rehab is still `needs_info`.
+15. Treat the 68% stretch ceiling as the normal MAO or autonomously price above the standard 65% MAO.
+16. Use the retired 70% formula as an active fallback.
 
 ## 14. Completion definition
 
 Cash has completed its autonomous portion when the qualified candidate has a durable, source-aware financial underwriting result with a clear verdict, recommended economics/structure, key assumptions, sensitivities, unresolved risks, and a task status no higher than `review`.
 
-Until the MAO/pricing and final-review capabilities are implemented, successful CashValue + Rehab are intermediate persisted phases, not a completed underwriting recommendation.
+CashValue, Rehab, and MAO are now persisted sequential SFR phases. MAO is not the final flip recommendation: flip-analysis, DealCheck synchronization/validation, and final-review capabilities remain separate later phases.
 
 Ema answers: **“Does this source-backed candidate fit the acquisition workflow?”**
 
