@@ -142,3 +142,9 @@ jobs:
 
       - name: Deploy cadence generator function
         run: supabase functions deploy cadences-generate --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Deploy Agent Gateway function
+        run: supabase functions deploy agent-gateway --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Deploy Agent Gateway MCP adapter
+        run: supabase functions deploy agent-gateway-mcp --project-ref "$SUPABASE_PROJECT_ID"
