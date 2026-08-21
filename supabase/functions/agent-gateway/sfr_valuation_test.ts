@@ -1,10 +1,20 @@
-import { fetchRentCastValuation, haversineMiles, subjectFromCandidate, SfrValuationError } from './sfr_valuation.ts';
+import { fetchRentCastValuation, haversineMiles, subjectFromCandidate, subjectFromOpportunityRecord, SfrValuationError } from './sfr_valuation.ts';
 function assert(condition:unknown,message='Assertion failed'):asserts condition{if(!condition)throw new Error(message)}
 function assertEquals(actual:unknown,expected:unknown){const a=JSON.stringify(actual),e=JSON.stringify(expected);if(a!==e)throw new Error(`Expected ${e}, received ${a}`)}
 
 Deno.test('builds canonical SFR subject using the existing GHL property-type routing vocabulary',()=>{
   const subject=subjectFromCandidate({normalized_address:'9510 Ashley Dr, Miramar, FL 33025',extracted_facts:{property_type:'SFR',sqft:1800,year_built:1994,bedrooms:4,bathrooms:2}});
   assertEquals(subject,{address:'9510 Ashley Dr, Miramar, FL 33025',property_type:'Single Family Residence',sqft:1800,year_built:1994,beds:4,baths:2,stories:null,build_style:null});
+});
+
+Deno.test('builds a manual HighLevel SFR subject from the existing canonical opportunity fields',()=>{
+  const subject=subjectFromOpportunityRecord({id:'5BTfmPQlMolS62aCgIRC',name:'9510 Ashley Dr. Miramar, FL 33025',pipelineId:'w3OtDJjCdN840Hwb1fpt',customFields:[{id:'36WeaPwncmXLzUQhbGHd',fieldValueString:'Single Family Residence'},{id:'hH02pevCKOTpmDYfOTnu',fieldValueString:'9510 Ashley Dr. Miramar, FL 33025'}]});
+  assertEquals(subject,{address:'9510 Ashley Dr. Miramar, FL 33025',property_type:'Single Family Residence',sqft:0,year_built:null,beds:null,baths:null,stories:null,build_style:null});
+});
+
+Deno.test('manual opportunity resolver rejects wrong pipeline or non-SFR property type',()=>{
+  try{subjectFromOpportunityRecord({name:'1 Main St',pipelineId:'wrong',customFields:[]});throw new Error('Expected rejection')}catch(error){assert(error instanceof SfrValuationError);assertEquals(error.code,'sfr_pipeline_required')}
+  try{subjectFromOpportunityRecord({name:'1 Main St',pipelineId:'w3OtDJjCdN840Hwb1fpt',customFields:[{id:'36WeaPwncmXLzUQhbGHd',fieldValueString:'Condo'}]});throw new Error('Expected rejection')}catch(error){assert(error instanceof SfrValuationError);assertEquals(error.code,'single_family_residence_required')}
 });
 
 Deno.test('rejects non-SFR subject before provider lookup',()=>{

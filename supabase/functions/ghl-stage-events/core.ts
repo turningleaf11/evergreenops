@@ -84,8 +84,9 @@ export interface StageEventDependencies {
   findCandidate(opportunityId: string): Promise<CandidateRef | null>;
   reconcile(input: {
     eventId: string;
-    candidateId: string;
+    candidateId: string | null;
     opportunityId: string;
+    opportunityLabel: string | null;
     workKind: WorkKind;
     pipelineId: string;
     stageId: string;
@@ -248,16 +249,15 @@ export async function processAuthenticatedStageEvent(
     return { decision: 'stale_or_mismatched_opportunity', eventId };
   }
 
+  // Ema candidates are useful context, but they are not the identity boundary for
+  // Cash activation. A manually-created HighLevel opportunity is valid once the
+  // signed event and live opportunity both verify the exact trigger pipeline/stage.
   const candidate = await deps.findCandidate(envelope.opportunityId);
-  if (!candidate) {
-    await deps.finalize(eventId, { decision: 'unknown_opportunity' });
-    return { decision: 'unknown_opportunity', eventId };
-  }
-
   const reconciled = await deps.reconcile({
     eventId,
-    candidateId: candidate.id,
+    candidateId: candidate?.id ?? null,
     opportunityId: envelope.opportunityId,
+    opportunityLabel: live.name ?? candidate?.normalized_address ?? null,
     workKind: trigger.workKind,
     pipelineId: envelope.pipelineId,
     stageId: envelope.pipelineStageId,
@@ -268,11 +268,12 @@ export async function processAuthenticatedStageEvent(
     : 'activated';
   await deps.finalize(eventId, {
     decision,
-    candidateId: candidate.id,
+    candidateId: candidate?.id ?? null,
     cashTaskId: reconciled.agent_task_id,
     resultMetadata: {
       work_item_id: reconciled.work_item_id,
       work_kind: trigger.workKind,
+      subject_origin: candidate ? 'ema_candidate' : 'manual_ghl',
       reused_work_item: reconciled.reused_work_item,
       reused_task: reconciled.reused_task,
       reopened: reconciled.reopened,

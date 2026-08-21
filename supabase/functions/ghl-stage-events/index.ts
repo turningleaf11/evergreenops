@@ -135,7 +135,8 @@ function buildDependencies(admin: SupabaseClient, ghlContext: { apiKey: string; 
         .eq('ghl_opportunity_id', opportunityId)
         .limit(2);
       if (error) throw new ReceiverError(500, 'candidate_lookup_failed');
-      if (!data || data.length !== 1) return null;
+      if (!data || data.length === 0) return null;
+      if (data.length !== 1) throw new ReceiverError(409, 'candidate_lookup_ambiguous');
       return {
         id: data[0].id,
         cash_task_id: data[0].cash_task_id ?? null,
@@ -144,17 +145,19 @@ function buildDependencies(admin: SupabaseClient, ghlContext: { apiKey: string; 
     },
     reconcile: async (input: {
       eventId: string;
-      candidateId: string;
+      candidateId: string | null;
       opportunityId: string;
+      opportunityLabel: string | null;
       workKind: WorkKind;
       pipelineId: string;
       stageId: string;
       activatedAt: string;
     }): Promise<ReconcileResult> => {
-      const { data, error } = await admin.rpc('reconcile_cash_stage_trigger', {
+      const { data, error } = await admin.rpc('reconcile_cash_stage_trigger_v2', {
         _workspace_id: WORKSPACE_ID,
         _candidate_id: input.candidateId,
         _ghl_opportunity_id: input.opportunityId,
+        _opportunity_label: input.opportunityLabel,
         _work_kind: input.workKind,
         _pipeline_id: input.pipelineId,
         _stage_id: input.stageId,
