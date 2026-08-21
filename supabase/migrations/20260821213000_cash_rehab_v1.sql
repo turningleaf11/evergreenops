@@ -34,7 +34,7 @@ create table if not exists public.rehab_cost_book_items (
   unit_cost_base numeric(12,2) not null check (unit_cost_base >= unit_cost_low),
   unit_cost_high numeric(12,2) not null check (unit_cost_high >= unit_cost_base),
   notes text,
-  source_reference text,
+  source_reference text not null check (length(btrim(source_reference)) between 1 and 1000),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -51,7 +51,9 @@ grant all on table public.rehab_cost_book_items to service_role;
 comment on table public.rehab_cost_books is
   'Workspace-scoped deterministic repair-cost policy. Cash cannot set rates through MCP.';
 comment on table public.rehab_cost_book_items is
-  'Versioned rehab unit-cost ranges keyed by category and scope. No model-generated rates.';
+  'Versioned rehab unit-cost ranges keyed by category and scope. Every rate requires provenance; no model-generated rates.';
+comment on column public.rehab_cost_book_items.source_reference is
+  'Required provenance for the rate, such as an Evergreen completed-job reference, approved vendor quote, or approved published estimator/source.';
 
 -- A phase is completed only when it actually succeeded. A needs_info CashValue
 -- or Rehab step remains the next phase instead of allowing Cash to advance.
