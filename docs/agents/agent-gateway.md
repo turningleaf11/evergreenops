@@ -14,6 +14,7 @@ Enabled for Ema:
 - `crm.search_contacts`
 - `crm.search_opportunities`
 - `crm.list_pipelines`
+- `deal.persist_email_intake`
 - `deal.buy_box_fit`
 - `deal.intake_to_crm`
 - `deal.reconcile_email_update`
@@ -24,11 +25,13 @@ Ema owns source-backed deal intake, preliminary buy-box qualification, initial C
 
 Initial deal:
 
-`Gmail -> Ema extraction -> deal.buy_box_fit -> initial CRM review stage`
+`Gmail -> Ema extraction -> deal.persist_email_intake -> deal.buy_box_fit -> initial CRM review stage`
 
 Later source update:
 
 `new Gmail message -> read/inspect attachments -> deal.reconcile_email_update -> existing candidate + existing CRM context`
+
+Recurring execution is owned by OpenClaw Automations, not by Supabase Cron. See `docs/agents/ema-hourly-automation.md`.
 
 Cash activation is separate and stage-driven:
 
@@ -53,6 +56,7 @@ Current Ema MCP tool/action map:
 - `crm_search_contacts` -> `crm.search_contacts`
 - `crm_search_opportunities` -> `crm.search_opportunities`
 - `crm_list_pipelines` -> `crm.list_pipelines`
+- `deal_persist_email_intake` -> `deal.persist_email_intake`
 - `deal_buy_box_fit` -> `deal.buy_box_fit`
 - `deal_intake_to_crm` -> `deal.intake_to_crm`
 - `deal_reconcile_email_update` -> `deal.reconcile_email_update`
@@ -60,10 +64,11 @@ Current Ema MCP tool/action map:
 OpenClaw must inject the protected environment variable rather than a literal credential. Ema's `ema-gateway` tool filter must preserve the existing tools and include:
 
 ```text
+deal_persist_email_intake
 deal_reconcile_email_update
 ```
 
-Do not alter the MCP URL, Authorization header, `${EMA_GATEWAY_TOKEN}` reference, or any credential while adding the tool. Restart/reload only Ema's MCP binding after changing the filter so discovery refreshes.
+Do not alter the MCP URL, Authorization header, `${EMA_GATEWAY_TOKEN}` reference, or any credential while adding tools. Restart/reload only Ema's MCP binding after changing the filter so discovery refreshes.
 
 ## Authentication and authorization
 
@@ -79,6 +84,31 @@ For every Gateway action:
 8. Append a sanitized audit event.
 
 Raw credentials never belong in model-visible arguments or logs.
+
+## Initial email persistence boundary
+
+`deal.persist_email_intake` closes the gap between Ema reading a new Gmail message and the candidate-only buy-box/CRM tools.
+
+The action accepts:
+
+- the real Gmail `message_id`;
+- `message_disposition='deal'` with up to 20 extracted candidate objects; or
+- `message_disposition='excluded'` with no candidates;
+- only bounded source-fact, evidence, missing-information, and classification fields.
+
+Server-side behavior:
+
+- fetch the real Gmail message through the workspace Gmail connection;
+- persist the Gmail message in `ema_messages`;
+- persist one `ema_candidates` row per property candidate;
+- create the original `ema_candidate_sources` relationship;
+- derive stable candidate fingerprints server-side;
+- return already-persisted state instead of duplicating the same Gmail message;
+- resume a partial candidate persistence attempt when the stored expected candidate count is incomplete;
+- detect when the Gmail thread already belongs to a persisted deal and return `existing_thread` so Ema uses reconciliation instead of creating another candidate;
+- durably record clearly irrelevant inbox messages as excluded.
+
+The action does **not** create a HighLevel contact/opportunity, choose a pipeline/stage, run buy-box qualification, activate Cash, send email, or accept arbitrary database fields.
 
 ## Buy-box boundary
 
@@ -119,7 +149,11 @@ Server-side behavior:
 
 Ema separately reruns `deal.buy_box_fit` only when the new source materially changes an active screen fact.
 
-## Durable Phase 2 state
+## Durable Ema state
+
+`ema_messages` records processed/excluded Gmail source messages and enforces Gmail message uniqueness per workspace/account.
+
+`ema_candidates` records independent property candidates extracted from a source message.
 
 `ema_candidate_sources` records every original/later Gmail source associated with a candidate and how it was matched (`origin`, `thread_reply`, or `address_match`).
 
@@ -129,21 +163,28 @@ These tables are workspace-scoped, RLS-protected, and service-role writable only
 
 ## Audit privacy
 
-Audit records include agent, action, resource identifier, result, duration, and sanitized error metadata. They exclude authorization headers, raw credentials, Google tokens, email bodies, attachment contents, raw Gmail search queries, and source fact values supplied to reconciliation.
+Audit records include agent, action, resource identifier, result, duration, and sanitized error metadata. They exclude authorization headers, raw credentials, Google tokens, email bodies, attachment contents, raw Gmail search queries, and source fact values supplied to intake/reconciliation.
 
 ## Production acceptance
 
-Before considering reconciliation complete, verify:
+Before considering hourly autonomous intake complete, verify:
 
-- Ema alone has `deal.reconcile_email_update` permission;
-- the MCP tool appears in Ema's live tool inventory after tool-filter reload;
+- Ema alone has `deal.persist_email_intake` and `deal.reconcile_email_update` permissions;
+- both MCP tools appear in Ema's live tool inventory after tool-filter reload;
+- a new single-property email persists exactly one candidate;
+- a multi-property email persists exactly one candidate per source-backed property;
+- replaying the same lookback does not duplicate messages/candidates/opportunities;
+- a same-thread later message is returned as `existing_thread` by the new-intake path and is handled through reconciliation;
+- an explicitly irrelevant message is durably excluded;
+- `fit` / `needs_info` candidates enter only their fixed initial CRM stages;
+- `not_fit` does not autonomously enter CRM;
 - same-thread reply matches the existing candidate without creating another candidate/opportunity;
 - multi-property thread requires address evidence or a valid candidate hint that is itself source-verified;
 - cross-thread update matches only when the property address appears in the source;
-- unrelated email is rejected;
+- unrelated reconciliation source is rejected;
 - attachment IDs not present on the source message are rejected;
 - repeated reconciliation does not duplicate source/document/note records;
 - OM/Rent Roll/T12/P&L inventory and missing list update correctly;
-- CRM stage remains unchanged;
+- CRM stage remains unchanged during reconciliation;
 - buy-box is not rerun solely because a document arrived;
 - no raw credential appears in prompts, logs, repository files, or agent-visible tool arguments.
