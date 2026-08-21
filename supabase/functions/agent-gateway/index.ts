@@ -6,7 +6,7 @@ import { BuyBoxFitError, checkCandidateBuyBoxFit } from './buy_box.ts';
 import { DealIntakeError, intakeCandidateToCrm } from './intake.ts';
 import { DealReconcileError, reconcileEmailUpdate } from './reconcile.ts';
 import { calculateCashValue, type CashValueComp, type CashValueSubject } from './cash_value.ts';
-import { runSfrValuation, SfrValuationError } from './sfr_valuation.ts';
+import { runSfrOpportunityValuation, runSfrValuation, SfrValuationError } from './sfr_valuation.ts';
 
 const DEFAULT_GMAIL_ACCOUNT='office@evergreenhomegroup.com',MAX_REQUEST_BYTES=64*1024;
 interface AgentContext{credentialId:string;agentId:string;agentName:string;agentSlug:string;agentEnabled:boolean;workspaceId:string}
@@ -22,8 +22,10 @@ async function consumeRateLimit(admin:SupabaseClient,credentialId:string,action:
 async function dispatch(admin:SupabaseClient,context:AgentContext,request:GatewayRequest):Promise<Record<string,unknown>>{
   if(request.action==='system.whoami')return{agent:{id:context.agentId,slug:context.agentSlug,name:context.agentName},workspace_id:context.workspaceId};
   if(request.action==='underwriting.cash_value'){
-    if(typeof request.input.candidate_id==='string')return runSfrValuation(admin,context.workspaceId,String(request.input.candidate_id)) as unknown as Record<string,unknown>;
-    if(context.agentSlug==='cash')throw new GatewayError(400,'cash_requires_candidate_source_lookup');
+    const options={subject_evidence:(request.input.subject_evidence??null) as any,public_comps:(request.input.public_comps??[]) as unknown as CashValueComp[]};
+    if(typeof request.input.candidate_id==='string')return runSfrValuation(admin,context.workspaceId,String(request.input.candidate_id),options) as unknown as Record<string,unknown>;
+    if(typeof request.input.opportunity_id==='string')return runSfrOpportunityValuation(admin,context.workspaceId,String(request.input.opportunity_id),options) as unknown as Record<string,unknown>;
+    if(context.agentSlug==='cash')throw new GatewayError(400,'cash_requires_persisted_source_lookup');
     const valuationDate=request.input.valuation_date?new Date(`${String(request.input.valuation_date)}T12:00:00Z`):new Date();
     return calculateCashValue(request.input.subject as unknown as CashValueSubject,request.input.comps as unknown as CashValueComp[],valuationDate) as unknown as Record<string,unknown>;
   }
