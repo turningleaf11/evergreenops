@@ -5,6 +5,7 @@ import {
   type FlipAnalysisInputs,
   type FlipAnalysisPolicy,
 } from './flip_analysis.ts';
+import { runAndPersistCashDealCheckPrep } from './cash_dealcheck.ts';
 
 export class CashFlipAnalysisError extends Error {
   constructor(public status: number, public code: string) {
@@ -99,8 +100,35 @@ export async function runAndPersistCashFlipAnalysis(
     .eq('assigned_to', 'cash');
   if (taskError) throw new CashFlipAnalysisError(500, 'cash_task_flip_analysis_progress_update_failed');
 
+  if (stepStatus !== 'succeeded') {
+    return {
+      ...analysis,
+      work_step: {
+        persisted: true,
+        work_item_id: work.id,
+        agent_task_id: work.agent_task_id,
+        step_id: step.id,
+        phase: 'flip_analysis',
+        status: stepStatus,
+        next_phase: 'flip_analysis',
+      },
+    };
+  }
+
+  const dealcheck = await runAndPersistCashDealCheckPrep(
+    admin,
+    workspaceId,
+    agentId,
+    opportunityId,
+  );
+  const dealcheckWorkStep = isRecord(dealcheck.work_step) ? dealcheck.work_step : {};
+  const nextPhase = typeof dealcheckWorkStep.next_phase === 'string'
+    ? dealcheckWorkStep.next_phase
+    : 'dealcheck';
+
   return {
     ...analysis,
+    dealcheck,
     work_step: {
       persisted: true,
       work_item_id: work.id,
@@ -108,7 +136,8 @@ export async function runAndPersistCashFlipAnalysis(
       step_id: step.id,
       phase: 'flip_analysis',
       status: stepStatus,
-      next_phase: stepStatus === 'succeeded' ? 'dealcheck' : 'flip_analysis',
+      next_phase: nextPhase,
+      dealcheck_auto_prepared: true,
     },
   };
 }
