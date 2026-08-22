@@ -137,7 +137,7 @@ Deno.test('stretch purchase price may not be below standard MAO', () => {
   }
 });
 
-Deno.test('flip analysis rejects invalid percentages policy carry and deal carry', () => {
+Deno.test('flip analysis rejects invalid percentages and policy carry', () => {
   for (const invalidPolicy of [
     { ...policy, sale_cost_pct: 100 },
     { ...policy, acquisition_closing_cost_pct: -1 },
@@ -151,18 +151,44 @@ Deno.test('flip analysis rejects invalid percentages policy carry and deal carry
       assert(error instanceof FlipAnalysisError);
     }
   }
+});
 
+Deno.test('flip analysis rejects negative monthly deal carry independently', () => {
   try {
     calculateFlipAnalysis({
       ...inputs,
       carrying_facts: {
         ...inputs.carrying_facts,
-        insurance: { ...inputs.carrying_facts.insurance, monthly: -1 },
+        insurance: {
+          ...inputs.carrying_facts.insurance,
+          monthly: -1,
+          annual: null,
+        },
       },
     }, policy);
     throw new Error('Expected deal-carry rejection');
   } catch (error) {
     assert(error instanceof FlipAnalysisError);
     assertEquals(error.code, 'invalid_insurance_monthly');
+  }
+});
+
+Deno.test('flip analysis rejects negative annual deal carry independently', () => {
+  try {
+    calculateFlipAnalysis({
+      ...inputs,
+      carrying_facts: {
+        ...inputs.carrying_facts,
+        insurance: {
+          ...inputs.carrying_facts.insurance,
+          monthly: null,
+          annual: -1,
+        },
+      },
+    }, policy);
+    throw new Error('Expected deal-carry rejection');
+  } catch (error) {
+    assert(error instanceof FlipAnalysisError);
+    assertEquals(error.code, 'invalid_insurance_annual');
   }
 });
