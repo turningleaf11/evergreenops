@@ -128,3 +128,17 @@ Deno.test('stretch scenario must retain explicit human approval boundary', () =>
     assert(error.message === 'stretch_human_approval_flag_required');
   }
 });
+
+Deno.test('standard scenario must never be mislabeled as stretch-approved', () => {
+  try {
+    prepareDealCheckHandoff({
+      location: { street: '9510 Ashley Dr', city: 'Miramar', state: 'FL', zip: '33025' },
+      standard: { ...standard, requires_human_approval: true },
+      stretch,
+    });
+    throw new Error('Expected rejection');
+  } catch (error) {
+    assert(error instanceof Error);
+    assert(error.message === 'standard_scenario_must_not_require_stretch_approval');
+  }
+});
