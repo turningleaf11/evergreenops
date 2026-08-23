@@ -22,6 +22,16 @@ interface DocumentInput { attachment_id:string; document_type:PortfolioDocumentT
 interface ReconcileInput { candidate_id?:string|null; fact_updates:Record<string,FactValue>; documents:DocumentInput[] }
 interface CandidateMatch { id:string; normalized_address:string|null; relation_type:'thread_reply'|'address_match' }
 
+const BUY_BOX_RELEVANT_RECONCILE_FACTS=new Set([
+  'property_type','units','sites','pads','bedrooms','bathrooms','sqft','occupancy',
+  'condition','renovation_level','hoa','post_possession','fire_damage',
+  'structural_issues','flood_zone',
+]);
+
+export function requiresBuyBoxRerun(factKeys:string[]):boolean {
+  return factKeys.some(key=>BUY_BOX_RELEVANT_RECONCILE_FACTS.has(key));
+}
+
 export async function reconcileEmailUpdate(
   admin:SupabaseClient,
   workspaceId:string,
@@ -90,10 +100,12 @@ export async function reconcileEmailUpdate(
     .eq('id',candidate.id).eq('workspace_id',workspaceId);
   if (updateError) throw new DealReconcileError(500,'candidate_update_failed');
 
+  const factKeys=Object.keys(input.fact_updates);
+  const rerunBuyBoxRequired=requiresBuyBoxRerun(factKeys);
   let crmNote:Record<string,unknown>|null = null;
   if (candidate.ghl_contact_id && candidate.ghl_opportunity_id) {
     crmNote = await ensureCrmUpdateNote(admin, candidate, source, matched.relation_type,
-      Object.keys(input.fact_updates), verifiedDocuments, documentSummary);
+      factKeys, verifiedDocuments, documentSummary);
   }
 
   return {
@@ -101,13 +113,13 @@ export async function reconcileEmailUpdate(
     disposition:existingSource ? 'updated_existing_source' : 'reconciled',
     matched_by:matched.relation_type,
     gmail_message_id:source.id,
-    fact_keys_updated:Object.keys(input.fact_updates),
+    fact_keys_updated:factKeys,
     documents_received:verifiedDocuments.map(d=>({
       document_type:d.document_type, filename:d.filename, attachment_id:d.attachment_id,
     })),
     portfolio_documents:documentSummary,
     crm_note:crmNote,
-    rerun_buy_box_required:false,
+    rerun_buy_box_required:rerunBuyBoxRequired,
   };
 }
 
