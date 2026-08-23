@@ -48,6 +48,17 @@ Deno.test('candidate no-HOA fact becomes explicit zero but boolean true without 
   assertEquals(unknown.hoa.evidence_class, 'unknown');
 });
 
+Deno.test('boolean tax and insurance values stay unknown instead of coercing to money', () => {
+  const result = extractCandidateCarryingFacts({
+    property_taxes_annual: true,
+    insurance_monthly: false,
+  });
+  assertEquals(result.property_taxes.monthly, null);
+  assertEquals(result.property_taxes.evidence_class, 'unknown');
+  assertEquals(result.insurance.monthly, null);
+  assertEquals(result.insurance.evidence_class, 'unknown');
+});
+
 Deno.test('candidate annual tax and insurance claims are normalized monthly and remain source claims', () => {
   const result = extractCandidateCarryingFacts({
     property_taxes_annual: 7200,
