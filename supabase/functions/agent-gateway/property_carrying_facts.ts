@@ -196,15 +196,23 @@ function firstNumber(recordValue: Record<string, unknown>, keys: string[]): numb
   return null;
 }
 
+function numericValue(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const number = Number(trimmed);
+  return Number.isFinite(number) ? number : null;
+}
+
 function nonNegativeNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : null;
+  const number = numericValue(value);
+  return number !== null && number >= 0 ? number : null;
 }
 
 function integerValue(value: unknown): number | null {
-  const number = Number(value);
-  return Number.isInteger(number) ? number : null;
+  const number = numericValue(value);
+  return number !== null && Number.isInteger(number) ? number : null;
 }
 
 function record(value: unknown): Record<string, unknown> {
