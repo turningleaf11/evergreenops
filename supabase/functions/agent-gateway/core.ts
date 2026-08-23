@@ -9,7 +9,7 @@ export const ALLOWED_ACTIONS = [
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES=2*1024*1024;
 export const MAX_INLINE_ATTACHMENT_BYTES=8*1024*1024;
-const RECONCILE_FACT_KEYS=new Set(['property_type','units','sites','pads','bedrooms','bathrooms','sqft','asking_price','arv','occupancy','tenant_rent_monthly','condition','renovation_level','hoa','post_possession','fire_damage','structural_issues','flood_zone']);
+const RECONCILE_FACT_KEYS=new Set(['property_type','units','sites','pads','bedrooms','bathrooms','sqft','asking_price','arv','repair_estimate','occupancy','tenant_rent_monthly','condition','renovation_level','hoa','post_possession','fire_damage','structural_issues','flood_zone']);
 const INTAKE_FACT_KEYS=new Set([
   ...RECONCILE_FACT_KEYS,
   'asset_class','city','state','zip','county','year_built','lot_size_sqft','hoa_amount','hoa_frequency','hoa_restrictions',
