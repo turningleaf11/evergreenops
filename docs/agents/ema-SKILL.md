@@ -46,15 +46,16 @@ Default production cadence: **once every hour** in an isolated Ema session. Do n
 Each scheduled run:
 
 1. Verify the Ema Gateway identity once with `system_whoami`.
-2. Call `email_list` with a **2-hour lookback** so a delayed/restarted run overlaps the prior window safely.
+2. Call `email_list` with a **2-hour lookback** (`after_epoch_seconds = now - 7200`) so a delayed/restarted run overlaps the prior window safely. If `email_list` fails because of a transient Gmail/rate-limit problem, fall back to `email_search` scoped to the same 2-hour window. Do not default to search when list succeeds.
 3. Process messages newest-to-oldest. Page if necessary, but stop after 4 pages / 200 messages and surface an overflow warning rather than looping indefinitely.
 4. For each plausible deal/update, read the full thread and inspect relevant supported attachments before deciding what it contains.
-5. Use `deal_persist_email_intake` for a genuinely new inbound deal or an irrelevant message that should be durably excluded.
-6. If persistence returns `existing_thread`, treat the message as an existing-deal update. Reconcile supported new facts/documents with `deal_reconcile_email_update` before doing anything else. Do **not** call `deal_buy_box_fit` or `deal_intake_to_crm` merely because an existing thread was found.
-7. For **newly persisted** reviewable candidates only, run `deal_buy_box_fit`, then `deal_intake_to_crm` only for `fit` or `needs_info` candidates.
-8. For an existing-deal reconciliation, obey the returned `rerun_buy_box_required` flag. If false, do not rerun qualification. Never call `deal_intake_to_crm` after a normal existing-deal update; reconciliation maintains the existing CRM record.
-9. Do not rerun underwriting, create Cash tasks, move stages, send offers, or send email.
-10. If nothing needs human attention, finish silently. Surface only material errors, ambiguous source-to-candidate matches, overflow, or another condition that requires a person.
+5. If the newest message is clearly a reply/update to an existing deal thread and contains supported new facts/documents, go directly to `deal_reconcile_email_update`. A `candidate_id` is optional; the Gateway can verify the existing relationship by Gmail thread or address. Do not call new-intake persistence with an empty candidate list merely to discover whether the thread exists.
+6. Otherwise, use `deal_persist_email_intake` for a genuinely new inbound deal or an irrelevant message that should be durably excluded. For `message_disposition: "deal"`, always include at least one source-backed candidate object. **Never call deal persistence with `candidates: []` for a deal message.**
+7. If persistence returns `existing_thread`, treat the message as an existing-deal update. Reconcile supported new facts/documents with `deal_reconcile_email_update` before doing anything else. Do **not** call `deal_buy_box_fit` or `deal_intake_to_crm` merely because an existing thread was found.
+8. For **newly persisted** reviewable candidates only, run `deal_buy_box_fit`, then `deal_intake_to_crm` only for `fit` or `needs_info` candidates.
+9. For an existing-deal reconciliation, obey the returned `rerun_buy_box_required` flag. If false, do not rerun qualification. Never call `deal_intake_to_crm` after a normal existing-deal update; reconciliation maintains the existing CRM record.
+10. Do not rerun underwriting, create Cash tasks, move stages, send offers, or send email.
+11. If nothing needs human attention, finish silently. Surface only material errors, ambiguous source-to-candidate matches, overflow, or another condition that requires a person.
 
 The lookback overlap is intentional. Gateway message/candidate uniqueness and idempotency—not model memory—prevent duplicate processing.
 
@@ -109,6 +110,8 @@ If the tool returns:
 - `already_excluded` — stop for that message.
 - `existing_thread` — do not create a new candidate; use the existing-deal reconciliation path when supported new information is present. **Do not run new-deal CRM intake for this disposition.**
 - `existing_update` — the source was already reconciled; stop unless the returned state explicitly requires recovery.
+
+For a `deal` disposition, `candidates` must never be empty. If Ema cannot produce at least one source-backed candidate for something she believes is a genuinely new deal, she should not submit an invalid persistence request; either classify the message correctly or surface the ambiguity for human review.
 
 Flood-zone, fire-damage, structural/foundation, post-possession, and source-stated repair-estimate claims may be preserved when explicitly provided. Never infer a negative or a repair amount from silence.
 
@@ -186,7 +189,9 @@ This answers **what documents have been received**, not whether Cash may start. 
 
 Before treating a new Gmail message as a new deal, determine whether it is additional information for an existing opportunity.
 
-Use the Gmail message itself as the source. Read the message/thread and inspect relevant attachments first. Then invoke:
+Use the Gmail message itself as the source. Read the message/thread and inspect relevant attachments first. If the newest message is clearly an update/reply to an existing deal thread, **reconcile it directly**; do not call `deal_persist_email_intake` with an empty candidate array as a probe.
+
+Invoke:
 
 ```text
 deal_reconcile_email_update({
@@ -268,8 +273,10 @@ The stage-event/orchestration service creates or reuses Cash work. Ema only main
 Resume incomplete work rather than restarting it.
 
 - Hourly automation uses an overlapping Gmail lookback; repeated source visibility is normal.
+- Prefer `email_list` with the exact 2-hour epoch cutoff; use bounded `email_search` only as a transient fallback.
 - Never create a duplicate candidate because the same Gmail message appears again.
 - `deal_persist_email_intake` returns existing durable state for an already-persisted source.
+- Never submit `message_disposition: "deal"` with an empty `candidates` array.
 - Never create a duplicate candidate because an existing deal received a reply.
 - Reconciliation links the later Gmail message to the existing candidate.
 - Repeated reconciliation of the same source message is retry-safe at the source/document/note boundaries.
@@ -292,14 +299,15 @@ Ema must never:
 9. Create a new candidate/opportunity for a verified reply to an existing deal.
 10. Run `deal_intake_to_crm` as an ordinary existing-deal update step.
 11. Rerun `deal_buy_box_fit` after reconciliation when `rerun_buy_box_required=false`.
-12. Force a candidate match using sender identity alone.
-13. Move an opportunity beyond its fixed initial CRM stage.
-14. Activate Cash or create a Cash task.
-15. Treat document completeness as a hidden gate on the team's HighLevel stage decisions.
-16. Merge or delete CRM records autonomously.
-17. Send an offer, LOI, IOI, or agree to terms.
-18. Expose or request credentials that should remain behind the Gateway.
-19. Use generic heartbeat execution as a second inbox scheduler while the hourly Automation is enabled.
+12. Submit a deal persistence request with zero candidates.
+13. Force a candidate match using sender identity alone.
+14. Move an opportunity beyond its fixed initial CRM stage.
+15. Activate Cash or create a Cash task.
+16. Treat document completeness as a hidden gate on the team's HighLevel stage decisions.
+17. Merge or delete CRM records autonomously.
+18. Send an offer, LOI, IOI, or agree to terms.
+19. Expose or request credentials that should remain behind the Gateway.
+20. Use generic heartbeat execution as a second inbox scheduler while the hourly Automation is enabled.
 
 ## 11. Completion definition
 
