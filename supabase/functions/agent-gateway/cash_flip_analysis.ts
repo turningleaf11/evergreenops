@@ -5,6 +5,7 @@ import {
   type FlipAnalysisInputs,
   type FlipAnalysisPolicy,
 } from './flip_analysis.ts';
+import { resolveSubjectCarryingFacts } from './property_carrying_facts.ts';
 import { runAndPersistCashDealCheckPrep } from './cash_dealcheck.ts';
 
 export class CashFlipAnalysisError extends Error {
@@ -21,6 +22,8 @@ interface WorkItem {
   activation_count: number;
 }
 
+type BaseFlipInputs = Omit<FlipAnalysisInputs, 'carrying_facts'>;
+
 export async function runAndPersistCashFlipAnalysis(
   admin: SupabaseClient,
   workspaceId: string,
@@ -28,7 +31,19 @@ export async function runAndPersistCashFlipAnalysis(
   opportunityId: string,
 ): Promise<Record<string, unknown>> {
   const work = await loadActiveWorkItem(admin, workspaceId, opportunityId);
-  const inputs = await loadSuccessfulInputs(admin, work.id, work.activation_count);
+  const loaded = await loadSuccessfulInputs(admin, work.id, work.activation_count);
+  const subject = record(loaded.cashValueOutput.subject);
+  const address = requiredString(subject.address, 'subject_address');
+  const candidateFacts = await loadCandidateFacts(admin, workspaceId, work.candidate_id);
+  const carrying = await resolveSubjectCarryingFacts(admin, address, candidateFacts);
+  const inputs: FlipAnalysisInputs = {
+    ...loaded.inputs,
+    carrying_facts: {
+      property_taxes: carrying.property_taxes,
+      insurance: carrying.insurance,
+      hoa: carrying.hoa,
+    },
+  };
   const policy = await loadActivePolicy(admin, workspaceId);
 
   let analysis;
@@ -39,6 +54,11 @@ export async function runAndPersistCashFlipAnalysis(
     throw error;
   }
 
+  const persistedOutput = {
+    ...analysis,
+    carrying_facts_provider: carrying.provider,
+    carrying_facts_notes: carrying.notes,
+  };
   const stepStatus = analysis.status === 'calculated' ? 'succeeded' : 'needs_info';
   const { data: step, error: stepError } = await admin
     .from('cash_underwriting_steps')
@@ -51,7 +71,7 @@ export async function runAndPersistCashFlipAnalysis(
       activation_count: work.activation_count,
       phase: 'flip_analysis',
       status: stepStatus,
-      output: analysis,
+      output: persistedOutput,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'cash_work_item_id,activation_count,phase',
@@ -73,6 +93,7 @@ export async function runAndPersistCashFlipAnalysis(
         stretch_profit_compression: analysis.stretch_profit_compression,
         policy_id: analysis.policy.id,
         policy_version: analysis.policy.version,
+        carrying_facts_provider: carrying.provider,
         next_phase: 'dealcheck',
         updated_at: step.updated_at,
         run_by_agent_id: agentId,
@@ -82,8 +103,10 @@ export async function runAndPersistCashFlipAnalysis(
         status: stepStatus,
         step_id: step.id,
         missing_policy_fields: analysis.missing_policy_fields,
+        missing_input_fields: analysis.missing_input_fields,
         policy_id: analysis.policy.id,
         policy_version: analysis.policy.version,
+        carrying_facts_provider: carrying.provider,
         next_phase: 'flip_analysis',
         updated_at: step.updated_at,
         run_by_agent_id: agentId,
@@ -102,7 +125,7 @@ export async function runAndPersistCashFlipAnalysis(
 
   if (stepStatus !== 'succeeded') {
     return {
-      ...analysis,
+      ...persistedOutput,
       work_step: {
         persisted: true,
         work_item_id: work.id,
@@ -127,7 +150,7 @@ export async function runAndPersistCashFlipAnalysis(
     : 'dealcheck';
 
   return {
-    ...analysis,
+    ...persistedOutput,
     dealcheck,
     work_step: {
       persisted: true,
@@ -171,7 +194,7 @@ async function loadSuccessfulInputs(
   admin: SupabaseClient,
   workItemId: string,
   activationCount: number,
-): Promise<FlipAnalysisInputs> {
+): Promise<{ inputs: BaseFlipInputs; cashValueOutput: Record<string, unknown> }> {
   const { data, error } = await admin
     .from('cash_underwriting_steps')
     .select('phase, status, output')
@@ -195,11 +218,30 @@ async function loadSuccessfulInputs(
   const cashValueResult = record(cashValueOutput.cash_value);
   const rehabTotal = record(rehabOutput.total);
   return {
-    cash_value: requiredNonNegativeNumber(cashValueResult.cash_value, 'cash_value'),
-    rehab_total: requiredNonNegativeNumber(rehabTotal.base, 'rehab_total'),
-    standard_mao: requiredNonNegativeNumber(maoOutput.standard_mao, 'standard_mao'),
-    stretch_ceiling: requiredNonNegativeNumber(maoOutput.stretch_ceiling, 'stretch_ceiling'),
+    inputs: {
+      cash_value: requiredNonNegativeNumber(cashValueResult.cash_value, 'cash_value'),
+      rehab_total: requiredNonNegativeNumber(rehabTotal.base, 'rehab_total'),
+      standard_mao: requiredNonNegativeNumber(maoOutput.standard_mao, 'standard_mao'),
+      stretch_ceiling: requiredNonNegativeNumber(maoOutput.stretch_ceiling, 'stretch_ceiling'),
+    },
+    cashValueOutput,
   };
+}
+
+async function loadCandidateFacts(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string | null,
+): Promise<Record<string, unknown>> {
+  if (!candidateId) return {};
+  const { data, error } = await admin
+    .from('ema_candidates')
+    .select('extracted_facts')
+    .eq('id', candidateId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+  if (error) throw new CashFlipAnalysisError(500, 'flip_analysis_candidate_facts_lookup_failed');
+  return isRecord(data?.extracted_facts) ? data.extracted_facts : {};
 }
 
 async function loadActivePolicy(
@@ -209,7 +251,7 @@ async function loadActivePolicy(
   const { data, error } = await admin
     .from('flip_analysis_policies')
     .select(
-      'id, name, market, version, acquisition_closing_cost_pct, sale_cost_pct, hold_months, monthly_property_taxes, monthly_insurance, monthly_utilities, monthly_maintenance, monthly_hoa, monthly_other_carry, source_reference, notes',
+      'id, name, market, version, acquisition_closing_cost_pct, sale_cost_pct, hold_months, monthly_utilities, monthly_maintenance, monthly_other_carry, source_reference, notes',
     )
     .eq('workspace_id', workspaceId)
     .eq('asset_class', 'fix_flip')
@@ -228,11 +270,8 @@ async function loadActivePolicy(
     acquisition_closing_cost_pct: nullableNonNegativeNumber(row.acquisition_closing_cost_pct),
     sale_cost_pct: nullableNonNegativeNumber(row.sale_cost_pct),
     hold_months: nullablePositiveInteger(row.hold_months),
-    monthly_property_taxes: nullableNonNegativeNumber(row.monthly_property_taxes),
-    monthly_insurance: nullableNonNegativeNumber(row.monthly_insurance),
     monthly_utilities: nullableNonNegativeNumber(row.monthly_utilities),
     monthly_maintenance: nullableNonNegativeNumber(row.monthly_maintenance),
-    monthly_hoa: nullableNonNegativeNumber(row.monthly_hoa),
     monthly_other_carry: nullableNonNegativeNumber(row.monthly_other_carry),
     source_reference: typeof row.source_reference === 'string' ? row.source_reference.trim() : '',
     notes: typeof row.notes === 'string' ? row.notes : null,

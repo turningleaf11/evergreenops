@@ -1,3 +1,5 @@
+import type { CarryingFact } from './property_carrying_facts.ts';
+
 export interface FlipAnalysisPolicy {
   id: string;
   name: string;
@@ -6,11 +8,8 @@ export interface FlipAnalysisPolicy {
   acquisition_closing_cost_pct: number | null;
   sale_cost_pct: number | null;
   hold_months: number | null;
-  monthly_property_taxes: number | null;
-  monthly_insurance: number | null;
   monthly_utilities: number | null;
   monthly_maintenance: number | null;
-  monthly_hoa: number | null;
   monthly_other_carry: number | null;
   source_reference: string;
   notes: string | null;
@@ -21,6 +20,11 @@ export interface FlipAnalysisInputs {
   rehab_total: number;
   standard_mao: number;
   stretch_ceiling: number;
+  carrying_facts: {
+    property_taxes: CarryingFact;
+    insurance: CarryingFact;
+    hoa: CarryingFact;
+  };
 }
 
 export interface FlipScenario {
@@ -37,6 +41,11 @@ export interface FlipScenario {
     other: number;
     total: number;
   };
+  carrying_fact_evidence: {
+    property_taxes: Pick<CarryingFact, 'evidence_class' | 'source_ref' | 'as_of_year'>;
+    insurance: Pick<CarryingFact, 'evidence_class' | 'source_ref' | 'as_of_year'>;
+    hoa: Pick<CarryingFact, 'evidence_class' | 'source_ref' | 'as_of_year'>;
+  };
   hold_months: number;
   carrying_costs_total: number;
   sale_price: number;
@@ -52,7 +61,7 @@ export interface FlipScenario {
 }
 
 export interface FlipAnalysisResult {
-  contract: 'flip_analysis_v1';
+  contract: 'flip_analysis_v2';
   status: 'calculated' | 'needs_info';
   basis: {
     financing: 'unlevered';
@@ -60,6 +69,10 @@ export interface FlipAnalysisResult {
     marketing_costs: 'not_modeled';
     sale_value_basis: 'cash_value';
     rehab_basis: 'successful_rehab_total_including_contingency';
+    property_taxes_basis: 'deal_specific';
+    insurance_basis: 'deal_specific';
+    hoa_basis: 'deal_specific';
+    utilities_maintenance_other_basis: 'evergreen_policy';
   };
   inputs: FlipAnalysisInputs;
   policy: {
@@ -70,6 +83,7 @@ export interface FlipAnalysisResult {
     source_reference: string | null;
   };
   missing_policy_fields: string[];
+  missing_input_fields: string[];
   standard: FlipScenario | null;
   stretch: FlipScenario | null;
   stretch_profit_compression: number | null;
@@ -80,11 +94,8 @@ const REQUIRED_POLICY_FIELDS = [
   'acquisition_closing_cost_pct',
   'sale_cost_pct',
   'hold_months',
-  'monthly_property_taxes',
-  'monthly_insurance',
   'monthly_utilities',
   'monthly_maintenance',
-  'monthly_hoa',
   'monthly_other_carry',
 ] as const;
 
@@ -100,7 +111,8 @@ export function calculateFlipAnalysis(
   policy: FlipAnalysisPolicy | null,
 ): FlipAnalysisResult {
   validateInputs(inputs);
-  const missing = missingPolicyFields(policy);
+  const missingPolicy = missingPolicyFields(policy);
+  const missingInputs = missingInputFields(inputs);
   const policySummary = {
     id: policy?.id ?? null,
     name: policy?.name ?? null,
@@ -115,23 +127,29 @@ export function calculateFlipAnalysis(
     marketing_costs: 'not_modeled',
     sale_value_basis: 'cash_value',
     rehab_basis: 'successful_rehab_total_including_contingency',
+    property_taxes_basis: 'deal_specific',
+    insurance_basis: 'deal_specific',
+    hoa_basis: 'deal_specific',
+    utilities_maintenance_other_basis: 'evergreen_policy',
   };
 
-  if (missing.length > 0 || !policy) {
+  if (missingPolicy.length > 0 || missingInputs.length > 0 || !policy) {
     return {
-      contract: 'flip_analysis_v1',
+      contract: 'flip_analysis_v2',
       status: 'needs_info',
       basis,
       inputs,
       policy: policySummary,
-      missing_policy_fields: missing,
+      missing_policy_fields: missingPolicy,
+      missing_input_fields: missingInputs,
       standard: null,
       stretch: null,
       stretch_profit_compression: null,
       notes: [
-        'Flip Analysis will not invent acquisition, sale, hold-period, or carrying-cost assumptions.',
-        'Populate and activate a versioned Evergreen Flip Analysis Policy before project economics are calculated.',
-        'Financing is intentionally excluded from V1 project economics and will be modeled separately as a capital-stack/levered-return layer.',
+        'Flip Analysis will not invent acquisition, sale, hold-period, carrying-cost, or property-specific expense assumptions.',
+        'Property taxes, insurance, and HOA must be resolved for the subject property; they are not market-wide policy defaults.',
+        'Utilities, maintenance, miscellaneous carry, acquisition closing costs, sale costs, and hold period come from the active versioned Evergreen Flip Analysis Policy.',
+        'Financing is intentionally excluded from V2 project economics and will be modeled separately as a capital-stack/levered-return layer.',
       ],
     };
   }
@@ -141,12 +159,13 @@ export function calculateFlipAnalysis(
   const stretch = scenario('stretch_ceiling', inputs.stretch_ceiling, inputs, policy, true);
 
   return {
-    contract: 'flip_analysis_v1',
+    contract: 'flip_analysis_v2',
     status: 'calculated',
     basis,
     inputs,
     policy: policySummary,
     missing_policy_fields: [],
+    missing_input_fields: [],
     standard,
     stretch,
     stretch_profit_compression: roundMoney(standard.net_profit - stretch.net_profit),
@@ -154,8 +173,10 @@ export function calculateFlipAnalysis(
       'The standard scenario uses Evergreen’s 65% MAO purchase price; the stretch scenario uses the separate 68% human-review ceiling.',
       'Stretch economics are informational only and do not authorize Cash to price above the standard MAO.',
       'CashValue is used as the modeled sale value and the successful Rehab total including contingency is used as rehab cost.',
-      'V1 is unlevered project economics. Debt proceeds, interest, points, lender fees, down payment and amortization are intentionally excluded.',
-      'Assignment and marketing fees are not assumed. If a specific deal has a source-backed fee, it must be modeled through an approved later deal-cost input path rather than a hidden default.',
+      'Property taxes, insurance, and HOA are carried from subject-specific evidence/source claims rather than fixed South Florida defaults.',
+      'Current public-record property taxes may change after transfer/reassessment and must be surfaced as a risk where applicable.',
+      'V2 is unlevered project economics. Debt proceeds, interest, points, lender fees, down payment and amortization are intentionally excluded.',
+      'Assignment and marketing fees are not assumed. A source-backed deal-specific fee must use an approved later deal-cost input path.',
     ],
   };
 }
@@ -170,6 +191,14 @@ export function missingPolicyFields(policy: FlipAnalysisPolicy | null): string[]
   return missing;
 }
 
+export function missingInputFields(inputs: FlipAnalysisInputs): string[] {
+  const missing: string[] = [];
+  if (inputs.carrying_facts.property_taxes.monthly === null) missing.push('property_taxes');
+  if (inputs.carrying_facts.insurance.monthly === null) missing.push('insurance');
+  if (inputs.carrying_facts.hoa.monthly === null) missing.push('hoa');
+  return missing;
+}
+
 function scenario(
   label: FlipScenario['label'],
   purchasePrice: number,
@@ -181,11 +210,11 @@ function scenario(
   const salePct = policy.sale_cost_pct as number;
   const holdMonths = policy.hold_months as number;
   const monthly = {
-    property_taxes: policy.monthly_property_taxes as number,
-    insurance: policy.monthly_insurance as number,
+    property_taxes: inputs.carrying_facts.property_taxes.monthly as number,
+    insurance: inputs.carrying_facts.insurance.monthly as number,
     utilities: policy.monthly_utilities as number,
     maintenance: policy.monthly_maintenance as number,
-    hoa: policy.monthly_hoa as number,
+    hoa: inputs.carrying_facts.hoa.monthly as number,
     other: policy.monthly_other_carry as number,
     total: 0,
   };
@@ -213,6 +242,11 @@ function scenario(
     acquisition_closing_costs: acquisitionClosing,
     rehab_total: inputs.rehab_total,
     monthly_carrying_costs: monthly,
+    carrying_fact_evidence: {
+      property_taxes: evidence(inputs.carrying_facts.property_taxes),
+      insurance: evidence(inputs.carrying_facts.insurance),
+      hoa: evidence(inputs.carrying_facts.hoa),
+    },
     hold_months: holdMonths,
     carrying_costs_total: carryTotal,
     sale_price: inputs.cash_value,
@@ -229,11 +263,24 @@ function scenario(
 }
 
 function validateInputs(inputs: FlipAnalysisInputs): void {
-  for (const [field, value] of Object.entries(inputs)) {
+  for (const [field, value] of Object.entries({
+    cash_value: inputs.cash_value,
+    rehab_total: inputs.rehab_total,
+    standard_mao: inputs.standard_mao,
+    stretch_ceiling: inputs.stretch_ceiling,
+  })) {
     if (!Number.isFinite(value) || value < 0) throw new FlipAnalysisError(`invalid_${field}`);
   }
   if (inputs.stretch_ceiling < inputs.standard_mao) {
     throw new FlipAnalysisError('stretch_ceiling_below_standard_mao');
+  }
+  for (const [field, fact] of Object.entries(inputs.carrying_facts)) {
+    if (fact.monthly !== null && (!Number.isFinite(fact.monthly) || fact.monthly < 0)) {
+      throw new FlipAnalysisError(`invalid_${field}_monthly`);
+    }
+    if (fact.annual !== null && (!Number.isFinite(fact.annual) || fact.annual < 0)) {
+      throw new FlipAnalysisError(`invalid_${field}_annual`);
+    }
   }
 }
 
@@ -248,11 +295,8 @@ function validatePolicy(policy: FlipAnalysisPolicy): void {
     throw new FlipAnalysisError('invalid_flip_policy_hold_months');
   }
   for (const field of [
-    policy.monthly_property_taxes,
-    policy.monthly_insurance,
     policy.monthly_utilities,
     policy.monthly_maintenance,
-    policy.monthly_hoa,
     policy.monthly_other_carry,
   ]) {
     if (field === null || !Number.isFinite(field) || field < 0) {
@@ -260,6 +304,14 @@ function validatePolicy(policy: FlipAnalysisPolicy): void {
     }
   }
   if (!policy.source_reference.trim()) throw new FlipAnalysisError('flip_policy_source_reference_required');
+}
+
+function evidence(fact: CarryingFact): Pick<CarryingFact, 'evidence_class' | 'source_ref' | 'as_of_year'> {
+  return {
+    evidence_class: fact.evidence_class,
+    source_ref: fact.source_ref,
+    as_of_year: fact.as_of_year,
+  };
 }
 
 function roundMoney(value: number): number {
