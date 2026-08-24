@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import type { SfrValuationResult } from './sfr_valuation.ts';
+import { enrichCandidateProperty } from './property_enrichment.ts';
 
 export class CashWorkError extends Error {
   constructor(public status: number, public code: string) {
@@ -71,6 +72,7 @@ export async function persistActiveCashValueStep(
   workspaceId: string,
   agentId: string,
   valuation: SfrValuationResult,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<Record<string, unknown>> {
   const opportunityId = valuation.opportunity_id;
   if (!opportunityId) return { persisted: false, reason: 'no_opportunity_id' };
@@ -91,15 +93,42 @@ export async function persistActiveCashValueStep(
   const workItemId = requiredString(item.id, 'work_item_id');
   const taskId = requiredString(item.agent_task_id, 'agent_task_id');
   const activationCount = requiredPositiveInteger(item.activation_count, 'activation_count');
+  const candidateId = typeof item.candidate_id === 'string' ? item.candidate_id : valuation.candidate_id;
   const cashValue = valuation.cash_value;
   const stepStatus = cashValue.status === 'insufficient_comps' || cashValue.status === 'unsupported_subject'
     ? 'needs_info'
     : 'succeeded';
 
+  let propertyEnrichment: Record<string, unknown> = {
+    status: 'skipped',
+    provider: 'dealmachine',
+    reason: candidateId ? 'dealmachine_not_used' : 'candidate_id_unavailable',
+  };
+  const subjectAddress = typeof valuation.subject.address === 'string' ? valuation.subject.address.trim() : '';
+  if (candidateId && subjectAddress && valuation.providers.dealmachine.status === 'used') {
+    const enriched = await enrichCandidateProperty(
+      admin,
+      workspaceId,
+      candidateId,
+      subjectAddress,
+      fetchImpl,
+    );
+    propertyEnrichment = {
+      status: enriched.status,
+      provider: enriched.provider,
+      snapshot_id: enriched.snapshot_id,
+      provider_property_id: enriched.provider_property_id,
+      fetched_at: enriched.fetched_at,
+      credits_used: enriched.credits_used,
+      error_code: enriched.error_code,
+    };
+  }
+
   const output = {
     contract: valuation.contract,
     subject: valuation.subject,
     providers: valuation.providers,
+    property_enrichment: propertyEnrichment,
     comp_source: valuation.comp_source,
     comps_found: valuation.comps_found,
     valuation_reference: valuation.valuation_reference,
@@ -113,7 +142,7 @@ export async function persistActiveCashValueStep(
       workspace_id: workspaceId,
       cash_work_item_id: workItemId,
       agent_task_id: taskId,
-      candidate_id: typeof item.candidate_id === 'string' ? item.candidate_id : valuation.candidate_id,
+      candidate_id: candidateId,
       ghl_opportunity_id: opportunityId,
       activation_count: activationCount,
       phase: 'cash_value',
@@ -135,6 +164,7 @@ export async function persistActiveCashValueStep(
     supported_range: cashValue.supported_range,
     confidence: cashValue.confidence,
     selected_comp_count: cashValue.selected_comp_count,
+    property_enrichment_status: propertyEnrichment.status,
     next_phase: stepStatus === 'succeeded' ? 'rehab' : 'cash_value',
     updated_at: step.updated_at,
     run_by_agent_id: agentId,
@@ -158,6 +188,7 @@ export async function persistActiveCashValueStep(
     step_id: step.id,
     phase: 'cash_value',
     status: stepStatus,
+    property_enrichment: propertyEnrichment,
     next_phase: stepStatus === 'succeeded' ? 'rehab' : 'cash_value',
   };
 }
