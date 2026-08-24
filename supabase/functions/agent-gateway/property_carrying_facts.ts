@@ -1,6 +1,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 
 const RENTCAST_BASE = 'https://api.rentcast.io/v1';
+const SNAPSHOT_FRESHNESS_DAYS = 30;
 
 export type CarryingEvidenceClass = 'verified_public_record' | 'source_claim' | 'verified_none' | 'unknown';
 
@@ -17,7 +18,8 @@ export interface SubjectCarryingFacts {
   insurance: CarryingFact;
   hoa: CarryingFact;
   provider: {
-    rentcast: 'used' | 'not_configured' | 'failed';
+    dealmachine: 'used' | 'not_available';
+    rentcast: 'used' | 'not_configured' | 'failed' | 'skipped_subject_facts_sufficient';
     error_code: string | null;
   };
   notes: string[];
@@ -30,20 +32,79 @@ export class PropertyCarryingFactsError extends Error {
   }
 }
 
+interface CarryingFactContext {
+  workspaceId?: string | null;
+  candidateId?: string | null;
+}
+
+interface DealMachineSnapshot {
+  provider_property_id: string;
+  facts: Record<string, unknown>;
+  fetched_at: string;
+}
+
 export async function resolveSubjectCarryingFacts(
   admin: SupabaseClient,
   address: string,
   candidateFacts: Record<string, unknown> = {},
   fetchImpl: typeof fetch = fetch,
+  context: CarryingFactContext = {},
 ): Promise<SubjectCarryingFacts> {
   const candidate = extractCandidateCarryingFacts(candidateFacts);
+  const snapshot = await loadFreshDealMachineSnapshot(admin, context.workspaceId ?? null, context.candidateId ?? null);
+  const dealMachine = snapshot
+    ? extractDealMachineCarryingFacts(snapshot.facts, snapshot.provider_property_id)
+    : { property_taxes: unknownFact(), hoa: unknownFact() };
+
+  let propertyTaxes = prefer(dealMachine.property_taxes, candidate.property_taxes);
+  let hoa = candidate.hoa;
+  const notes: string[] = [];
+  const dealMachineHoaAmount = snapshot ? nonNegativeNumber(snapshot.facts.hoa_1_fee_amount) : null;
+
+  if (snapshot) {
+    if (dealMachine.property_taxes.monthly !== null) {
+      notes.push('Property taxes use the fresh DealMachine property snapshot when an annual tax amount is available.');
+    } else {
+      notes.push('The fresh DealMachine property snapshot did not contain a usable annual property-tax amount.');
+    }
+    if (dealMachineHoaAmount !== null) {
+      notes.push('DealMachine reported an HOA fee amount, but the published property-field contract does not expose the payment cadence; Cash does not convert that amount into a monthly carrying cost without a documented cadence.');
+    }
+  }
+
+  const subjectFactsSufficient = propertyTaxes.monthly !== null && hoa.monthly !== null;
+  if (subjectFactsSufficient) {
+    return {
+      property_taxes: propertyTaxes,
+      insurance: candidate.insurance,
+      hoa,
+      provider: {
+        dealmachine: snapshot ? 'used' : 'not_available',
+        rentcast: 'skipped_subject_facts_sufficient',
+        error_code: null,
+      },
+      notes: [
+        ...notes,
+        'Property-specific tax and HOA facts were already available, so no RentCast fallback request was needed.',
+        'Insurance remains a deal-specific source/assumption input; no provider-wide insurance default is substituted.',
+      ],
+    };
+  }
+
   const rentcastKey = await resolveRentCastKey(admin);
   if (!rentcastKey) {
     return {
-      ...candidate,
-      provider: { rentcast: 'not_configured', error_code: null },
+      property_taxes: propertyTaxes,
+      insurance: candidate.insurance,
+      hoa,
+      provider: {
+        dealmachine: snapshot ? 'used' : 'not_available',
+        rentcast: 'not_configured',
+        error_code: null,
+      },
       notes: [
-        'RentCast is not configured for property-specific carrying facts.',
+        ...notes,
+        'RentCast is not configured for property-specific carrying-fact fallback.',
         'Property taxes, insurance, and HOA remain deal-specific inputs; no market-wide defaults are substituted.',
       ],
     };
@@ -62,27 +123,64 @@ export async function resolveSubjectCarryingFacts(
     const row = Array.isArray(payload) ? record(payload[0]) : record(payload);
     if (!Object.keys(row).length) throw new PropertyCarryingFactsError('rentcast_property_not_found');
     const publicFacts = extractRentCastCarryingFacts(row);
+    propertyTaxes = prefer(dealMachine.property_taxes, prefer(publicFacts.property_taxes, candidate.property_taxes));
+    hoa = prefer(publicFacts.hoa, candidate.hoa);
     return {
-      property_taxes: prefer(publicFacts.property_taxes, candidate.property_taxes),
+      property_taxes: propertyTaxes,
       insurance: candidate.insurance,
-      hoa: prefer(publicFacts.hoa, candidate.hoa),
-      provider: { rentcast: 'used', error_code: null },
+      hoa,
+      provider: {
+        dealmachine: snapshot ? 'used' : 'not_available',
+        rentcast: 'used',
+        error_code: null,
+      },
       notes: [
-        'Property tax and HOA facts use RentCast public-record data when available; candidate source claims are retained only when public-record data is unavailable.',
-        'Insurance is not supplied by RentCast property records and remains a deal-specific source/assumption input.',
+        ...notes,
+        'DealMachine remains first for annual property tax when a fresh snapshot contains it; RentCast public-record tax is fallback only.',
+        'RentCast HOA is used only when a monthly HOA fee is explicitly available; candidate source claims remain fallback evidence.',
+        'Insurance is not supplied by these property records and remains a deal-specific source/assumption input.',
       ],
     };
   } catch (error) {
     const code = error instanceof PropertyCarryingFactsError ? error.code : 'rentcast_carrying_facts_failed';
     return {
-      ...candidate,
-      provider: { rentcast: 'failed', error_code: code },
+      property_taxes: propertyTaxes,
+      insurance: candidate.insurance,
+      hoa,
+      provider: {
+        dealmachine: snapshot ? 'used' : 'not_available',
+        rentcast: 'failed',
+        error_code: code,
+      },
       notes: [
+        ...notes,
         `RentCast could not provide carrying facts (${code}).`,
         'No fallback property-tax, insurance, or HOA dollar amount was invented.',
       ],
     };
   }
+}
+
+export function extractDealMachineCarryingFacts(
+  facts: Record<string, unknown>,
+  providerPropertyId = 'unknown',
+): Pick<SubjectCarryingFacts, 'property_taxes' | 'hoa'> {
+  const annualTax = nonNegativeNumber(facts.tax_amount);
+  const taxYear = integerValue(facts.tax_year);
+  return {
+    property_taxes: annualTax !== null
+      ? {
+          monthly: roundMoney(annualTax / 12),
+          annual: annualTax,
+          evidence_class: 'verified_public_record',
+          source_ref: `dealmachine:${providerPropertyId}:tax_amount`,
+          as_of_year: taxYear,
+        }
+      : unknownFact(),
+    // The current DealMachine property-field documentation exposes hoa_1_fee_amount but does not
+    // expose a payment-frequency field. Do not guess a monthly cadence from an unlabeled amount.
+    hoa: unknownFact(),
+  };
 }
 
 export function extractRentCastCarryingFacts(row: Record<string, unknown>): Pick<SubjectCarryingFacts, 'property_taxes' | 'hoa'> {
@@ -138,7 +236,7 @@ export function extractCandidateCarryingFacts(facts: Record<string, unknown>): P
     : unknownFact();
 
   let hoa = unknownFact();
-  if (rawHoa === false || rawHoa === 'false' || rawHoa === 'No' || rawHoa === 'no') {
+  if (isExplicitNoHoa(rawHoa)) {
     hoa = {
       monthly: 0,
       annual: 0,
@@ -152,6 +250,32 @@ export function extractCandidateCarryingFacts(facts: Record<string, unknown>): P
   }
 
   return { property_taxes: propertyTaxes, insurance, hoa };
+}
+
+async function loadFreshDealMachineSnapshot(
+  admin: SupabaseClient,
+  workspaceId: string | null,
+  candidateId: string | null,
+): Promise<DealMachineSnapshot | null> {
+  if (!workspaceId || !candidateId) return null;
+  const cutoff = new Date(Date.now() - SNAPSHOT_FRESHNESS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await admin
+    .from('property_enrichment_snapshots')
+    .select('provider_property_id, facts, fetched_at')
+    .eq('workspace_id', workspaceId)
+    .eq('candidate_id', candidateId)
+    .eq('provider', 'dealmachine')
+    .gte('fetched_at', cutoff)
+    .order('fetched_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new PropertyCarryingFactsError('dealmachine_snapshot_lookup_failed');
+  if (!data || typeof data.provider_property_id !== 'string' || !data.provider_property_id.trim()) return null;
+  return {
+    provider_property_id: data.provider_property_id.trim(),
+    facts: record(data.facts),
+    fetched_at: typeof data.fetched_at === 'string' ? data.fetched_at : '',
+  };
 }
 
 async function resolveRentCastKey(admin: SupabaseClient): Promise<string | null> {
@@ -181,6 +305,13 @@ function sourceClaim(monthly: number, annual: number, sourceRef: string): Carryi
 
 function unknownFact(): CarryingFact {
   return { monthly: null, annual: null, evidence_class: 'unknown', source_ref: null, as_of_year: null };
+}
+
+function isExplicitNoHoa(value: unknown): boolean {
+  if (value === false) return true;
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  return normalized === 'false' || normalized === 'no' || normalized === 'none' || normalized === 'no hoa' || normalized === 'no homeowners association';
 }
 
 function first(recordValue: Record<string, unknown>, keys: string[]): unknown {
