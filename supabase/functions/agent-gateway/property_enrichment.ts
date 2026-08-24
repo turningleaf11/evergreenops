@@ -39,7 +39,7 @@ export async function enrichCandidateProperty(
   const cached = await loadFreshSnapshot(admin, workspaceId, candidateId);
   if (cached) return snapshotResult('cached', cached);
 
-  const apiKey = await resolveDealMachineApiKey(admin);
+  const apiKey = resolveDealMachineApiKey();
   if (!apiKey) return emptyResult('not_configured', null);
 
   try {
@@ -112,11 +112,7 @@ async function loadFreshSnapshot(
   return data as SnapshotRow;
 }
 
-async function resolveDealMachineApiKey(admin: SupabaseClient): Promise<string | null> {
-  const { data } = await admin.from('app_settings').select('value')
-    .eq('key', 'DEALMACHINE_API_KEY').maybeSingle();
-  const stored = typeof data?.value === 'string' ? data.value.trim() : '';
-  if (stored) return stored;
+function resolveDealMachineApiKey(): string | null {
   const edgeSecret = Deno.env.get('DEALMACHINE_API_KEY')?.trim() ?? '';
   return edgeSecret || null;
 }
