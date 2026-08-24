@@ -35,7 +35,13 @@ export async function runAndPersistCashFlipAnalysis(
   const subject = record(loaded.cashValueOutput.subject);
   const address = requiredString(subject.address, 'subject_address');
   const candidateFacts = await loadCandidateFacts(admin, workspaceId, work.candidate_id);
-  const carrying = await resolveSubjectCarryingFacts(admin, address, candidateFacts);
+  const carrying = await resolveSubjectCarryingFacts(
+    admin,
+    address,
+    candidateFacts,
+    fetch,
+    { workspaceId, candidateId: work.candidate_id },
+  );
   const inputs: FlipAnalysisInputs = {
     ...loaded.inputs,
     carrying_facts: {
