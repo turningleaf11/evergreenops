@@ -1,3 +1,4 @@
+import { fetchDealMachineValuation } from '../_shared/dealmachine.ts';
 import { fetchRentCastValuation, haversineMiles, subjectFromCandidate, subjectFromOpportunityRecord, SfrValuationError } from './sfr_valuation.ts';
 function assert(condition:unknown,message='Assertion failed'):asserts condition{if(!condition)throw new Error(message)}
 function assertEquals(actual:unknown,expected:unknown){const a=JSON.stringify(actual),e=JSON.stringify(expected);if(a!==e)throw new Error(`Expected ${e}, received ${a}`)}
@@ -19,6 +20,62 @@ Deno.test('manual opportunity resolver rejects wrong pipeline or non-SFR propert
 
 Deno.test('rejects non-SFR subject before provider lookup',()=>{
   try{subjectFromCandidate({normalized_address:'1 Main St, Miami, FL 33101',extracted_facts:{property_type:'Condo',sqft:900}});throw new Error('Expected rejection')}catch(error){assert(error instanceof SfrValuationError);assertEquals(error.code,'single_family_residence_required')}
+});
+
+Deno.test('DealMachine adapter enriches property-only and expands sold comp timeframe only when needed',async()=>{
+  const requests:Array<{url:string;body:Record<string,unknown>;authorization:string|null}>=[];
+  const comp=(id:string,address:string,distance:number,price:number,date:string)=>({
+    dm_property_id:id,
+    full_address:address,
+    property_type:'Single Family Residence',
+    living_area_sqft:1780,
+    year_built:1993,
+    bedrooms:4,
+    bathrooms:2,
+    distance_miles:distance,
+    sale_price:price,
+    sale_date:date,
+  });
+  const fetchImpl=async(input:RequestInfo|URL,init?:RequestInit)=>{
+    const url=String(input);
+    const body=JSON.parse(String(init?.body??'{}')) as Record<string,unknown>;
+    const headers=new Headers(init?.headers);
+    requests.push({url,body,authorization:headers.get('authorization')});
+    if(url.endsWith('/enrichment/address'))return new Response(JSON.stringify({
+      data:[{input:{full_address:'9510 Ashley Dr, Miramar, FL 33025'},matched:true,dm_property_id:'prop-subject',full_address:'9510 Ashley Dr, Miramar, FL 33025',latitude:25.99,longitude:-80.27,estimated_value:530000,living_area_sqft:1800,year_built:1994}],
+      totals:{submitted:1,matched:1,unmatched:0},credits:{used:1,properties:1,people:0,deduplicated:0},
+    }),{headers:{'X-Request-Id':'req-enrich'}});
+    if(url.endsWith('/comps')){
+      const criteria=(body.criteria??{}) as Record<string,unknown>;
+      const comps=criteria.timeframe==='6months'
+        ? [comp('comp-1','9500 Example Ave, Miramar, FL 33025',0.2,510000,'2026-06-15')]
+        : [
+          comp('comp-1','9500 Example Ave, Miramar, FL 33025',0.2,510000,'2026-06-15'),
+          comp('comp-2','9490 Example Ave, Miramar, FL 33025',0.4,520000,'2026-03-15'),
+          comp('comp-3','9480 Example Ave, Miramar, FL 33025',0.6,515000,'2026-01-15'),
+        ];
+      return new Response(JSON.stringify({data:[{subject_property_id:'prop-subject',comps}],credits:{used:1,properties:1,people:0,deduplicated:1}}),{headers:{'X-Request-Id':`req-${String(criteria.timeframe)}`}});
+    }
+    return new Response('{}',{status:404});
+  };
+  const result=await fetchDealMachineValuation('dm_sk_test_secret','9510 Ashley Dr, Miramar, FL 33025',fetchImpl as typeof fetch);
+  assertEquals(result.subject.dm_property_id,'prop-subject');
+  assertEquals(result.subject.sqft,1800);
+  assertEquals(result.subject.estimated_value,530000);
+  assertEquals(result.comps.length,3);
+  assertEquals(result.search_pass,'expanded');
+  assertEquals(result.credits.people,0);
+  assertEquals(result.request_ids,['req-enrich','req-6months','req-12months']);
+  assertEquals(requests.length,3);
+  assertEquals(requests[0].body,{data:[{full_address:'9510 Ashley Dr, Miramar, FL 33025'}],contact_audience:'none',fields:['estimated_value','year_built','living_area_sqft']});
+  const firstCriteria=(requests[1].body.criteria??{}) as Record<string,unknown>;
+  assertEquals(firstCriteria.timeframe,'6months');
+  assertEquals(firstCriteria.include_active_listings,false);
+  assertEquals(firstCriteria.include_pending,false);
+  assertEquals(firstCriteria.include_foreclosures,false);
+  assertEquals(firstCriteria.match_property_type,true);
+  assertEquals((requests[1].body.location as Record<string,unknown>).radius_miles,1);
+  assert(requests.every((request)=>request.authorization==='Bearer dm_sk_test_secret'));
 });
 
 Deno.test('RentCast adapter searches standard rules first then expands only after a thin standard set',async()=>{
