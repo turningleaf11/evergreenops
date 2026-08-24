@@ -12,6 +12,12 @@ import {
   type GhlContext,
 } from '../_shared/ghl.ts';
 import { attachOriginalPdfDocuments, SourceDocumentError } from './source_document.ts';
+import {
+  enrichCandidateProperty,
+  formatDealMachinePropertyDetails,
+  linkPropertyEnrichmentOpportunity,
+  type PropertyEnrichmentResult,
+} from './property_enrichment.ts';
 
 const SFR_PIPELINE_ID = 'w3OtDJjCdN840Hwb1fpt';
 const SFR_STAGE_ID = 'a4842558-034c-4ba7-acf3-ed000673f7d6';
@@ -97,13 +103,17 @@ export async function intakeCandidateToCrm(
   validateCandidate(candidate);
   const address=candidate.normalized_address!.trim();
   const route=deriveRoute(candidate.extracted_facts);
-  const customFields=buildOpportunityCustomFields(candidate,address,route);
+  const propertyEnrichment=await enrichCandidateProperty(admin,workspaceId,candidate.id,address);
+  const customFields=buildOpportunityCustomFields(candidate,address,route,propertyEnrichment);
 
   await admin.from('ema_candidates').update({processing_status:'ghl_pending',last_evaluated_at:new Date().toISOString()})
     .eq('id',candidate.id).eq('workspace_id',workspaceId);
 
   const contact=await resolveContact(admin,ghl,candidate,message);
   const opportunity=await resolveOpportunity(admin,ghl,candidate,address,route,contact.id,customFields);
+  const propertyEnrichmentLinked=await linkPropertyEnrichmentOpportunity(
+    admin,workspaceId,propertyEnrichment.snapshot_id,opportunity.id,
+  );
   const note=await ensureIntakeNote(admin,ghl,candidate,message,address,contact.id,opportunity.id,opportunity.created);
 
   let sourceDocuments:Record<string,unknown>={status:'not_checked'};
@@ -143,6 +153,12 @@ export async function intakeCandidateToCrm(
     opportunity:{
       id:opportunity.id,disposition:opportunity.created?'created':'matched',
       pipeline_id:opportunity.pipelineId,stage_id:opportunity.stageId,property_type:route.propertyType,
+    },
+    property_enrichment:{
+      provider:propertyEnrichment.provider,status:propertyEnrichment.status,
+      provider_property_id:propertyEnrichment.provider_property_id,fetched_at:propertyEnrichment.fetched_at,
+      credits_used:propertyEnrichment.credits_used,error_code:propertyEnrichment.error_code,
+      linked_to_opportunity:propertyEnrichmentLinked,
     },
     source_documents:sourceDocuments,
     note:{id:note.id,target:'contact',opportunity_id:opportunity.id,disposition:note.disposition},
@@ -213,7 +229,7 @@ async function resolveContact(admin:SupabaseClient,ghl:GhlContext,c:CandidateRow
   try{const made=await createGhlContact(ghl,{firstName:firstName(m.sender_name),lastName:lastName(m.sender_name),name:cleanString(m.sender_name,300),email,phone,companyName:cleanString(firstValue(c.extracted_facts,['sender_company','company','broker_company']),300),source:'Ema Email Intake',tags:controlledContactTags(c)}),id=requiredId(made.id);await finishOperation(admin,op.id,id,{created:true});return{id,disposition:'created'}}catch(e){await markOperationUncertain(admin,op.id,e);throw e}
 }
 async function resolveOpportunity(admin:SupabaseClient,ghl:GhlContext,c:CandidateRow,address:string,route:Route,contactId:string,customFields:Array<Record<string,unknown>>):Promise<{id:string;created:boolean;pipelineId:string;stageId:string}>{
-  if(c.ghl_opportunity_id){const x=await getGhlOpportunity(ghl,c.ghl_opportunity_id),id=requiredId(x.id),existingContact=cleanString(x.contact_id,128);if(existingContact&&existingContact!==contactId)throw new DealIntakeError(409,'persisted_opportunity_contact_mismatch');if(customFields.length)await updateExistingOpportunityFields(admin,ghl,c,id,customFields);return{id,created:false,pipelineId:requiredId(x.pipeline_id),stageId:requiredId(x.stage_id)}}
+  if(c.ghl_opportunity_id){const x=await getGhlOpportunity(ghl,c.ghl_opportunity_id),id=requiredId(x.id),existingContact=cleanString(x.contact_id,128);if(existingContact&&existingContact!==contactId)throw new DealIntakeError(409,'persisted_contact_invalid');if(customFields.length)await updateExistingOpportunityFields(admin,ghl,c,id,customFields);return{id,created:false,pipelineId:requiredId(x.pipeline_id),stageId:requiredId(x.stage_id)}}
   const search=await searchGhlOpportunities(ghl,{query:address,page:1,limit:50}),exact=recordArray(search.opportunities).filter(r=>canonicalAddress(cleanString(r.name,500)??'')===canonicalAddress(address));
   if(exact.length>1)throw new DealIntakeError(409,'opportunity_match_ambiguous');
   if(exact.length===1){const r=exact[0],id=requiredId(r.id),foundContact=cleanString(r.contact_id,128);if(foundContact&&foundContact!==contactId)throw new DealIntakeError(409,'opportunity_contact_mismatch');if(customFields.length)await updateExistingOpportunityFields(admin,ghl,c,id,customFields);return{id,created:false,pipelineId:requiredId(r.pipeline_id),stageId:requiredId(r.stage_id)}}
@@ -224,11 +240,11 @@ async function resolveOpportunity(admin:SupabaseClient,ghl:GhlContext,c:Candidat
   try{const made=await createGhlOpportunity(ghl,{pipelineId:route.pipelineId,pipelineStageId:route.stageId,name:address,status:'open',contactId,customFields}),id=requiredId(made.id);await finishOperation(admin,op.id,id,{pipeline_id:route.pipelineId,stage_id:route.stageId});return{id,created:true,pipelineId:route.pipelineId,stageId:route.stageId}}catch(e){await markOperationUncertain(admin,op.id,e);throw e}
 }
 async function updateExistingOpportunityFields(admin:SupabaseClient,ghl:GhlContext,c:CandidateRow,id:string,fields:Array<Record<string,unknown>>):Promise<void>{
-  const key=`ema:${c.id}:opportunity-fields:v2`,prior=await getOperation(admin,c.workspace_id,key);
+  const key=`ema:${c.id}:opportunity-fields:v3`,prior=await getOperation(admin,c.workspace_id,key);
   if(prior?.operation_status==='succeeded')return;
   if(prior&&['executing','needs_reconciliation'].includes(prior.operation_status))throw new DealIntakeError(409,'opportunity_update_requires_reconciliation');
   const op=await beginOperation(admin,c,'ghl_opportunity_update',key);
-  try{await updateGhlOpportunity(ghl,id,{customFields:fields});await finishOperation(admin,op.id,id,{fields_updated:fields.length,contract:'crm_fidelity_v2'})}catch(e){await markOperationUncertain(admin,op.id,e);throw e}
+  try{await updateGhlOpportunity(ghl,id,{customFields:fields});await finishOperation(admin,op.id,id,{fields_updated:fields.length,contract:'crm_fidelity_v3',property_enrichment:'dealmachine_best_effort'})}catch(e){await markOperationUncertain(admin,op.id,e);throw e}
 }
 async function ensureIntakeNote(admin:SupabaseClient,ghl:GhlContext,c:CandidateRow,m:MessageRow,address:string,contactId:string,oppId:string,created:boolean):Promise<{id:string;disposition:'created'|'reconciled'|'persisted'}>{
   const body=buildNoteBody(c,m,address,oppId,created?'INITIAL REVIEW':'NEW INFORMATION'),key=`ema:${m.gmail_message_id}:${oppId}:note:v1`,prior=await getOperation(admin,c.workspace_id,key);
@@ -240,7 +256,12 @@ async function ensureIntakeNote(admin:SupabaseClient,ghl:GhlContext,c:CandidateR
   try{const made=await createGhlContactNote(ghl,contactId,body),id=requiredId(made.id);await finishOperation(admin,op.id,id,{target:'contact',opportunity_id:oppId});return{id,disposition:'created'}}catch(e){await markOperationUncertain(admin,op.id,e);throw e}
 }
 
-export function buildOpportunityCustomFields(c:Pick<CandidateRow,'extracted_facts'|'evidence'>,address:string,route:Route):Array<Record<string,unknown>>{
+export function buildOpportunityCustomFields(
+  c:Pick<CandidateRow,'extracted_facts'|'evidence'>,
+  address:string,
+  route:Route,
+  propertyEnrichment:PropertyEnrichmentResult|null=null,
+):Array<Record<string,unknown>>{
   const f=c.extracted_facts,out:Array<Record<string,unknown>>=[];
   addField(out,FIELD_IDS.property_type,route.propertyType);addField(out,FIELD_IDS.full_address,address);
   const mappings:Array<[string,string[]]>=[
@@ -256,7 +277,12 @@ export function buildOpportunityCustomFields(c:Pick<CandidateRow,'extracted_fact
   ];
   for(const[id,keys]of mappings)addField(out,id,firstValue(f,keys));
   const criteria=firstValue(f,['criteria_met','criteriaMet']);if(Array.isArray(criteria)&&criteria.every(item=>typeof item==='string'))out.push({id:FIELD_IDS.criteria_met,fieldValue:criteria.slice(0,20)});
-  const details=buildDealDetails(f,c.evidence);if(details)addField(out,FIELD_IDS.deal_details,details,5000);return out;
+  const sourceDetails=buildDealDetails(f,c.evidence);
+  const providerDetails=propertyEnrichment&&['cached','fetched'].includes(propertyEnrichment.status)
+    ? formatDealMachinePropertyDetails(propertyEnrichment.facts)
+    : null;
+  const details=mergeDealDetails(sourceDetails,providerDetails);
+  if(details)addField(out,FIELD_IDS.deal_details,details,5000);return out;
 }
 
 /** Any source-backed fact without a dedicated HighLevel field belongs in Deal Details. */
@@ -268,6 +294,13 @@ export function buildDealDetails(facts:Record<string,unknown>,evidence:Record<st
   const conflicts=recordAt(evidence,'source_conflict'),conflictLines=Object.entries(conflicts).flatMap(([key,value])=>{const text=scalarString(value,1000);return text?[`${humanizeKey(key)}: ${text}`]:[]});
   if(conflictLines.length){if(lines.length)lines.push('');lines.push('Source Discrepancies:');lines.push(...conflictLines)}
   return lines.length?lines.join('\n').slice(0,5000):null;
+}
+function mergeDealDetails(source:string|null,provider:string|null):string|null{
+  if(!source&&!provider)return null;
+  if(!provider)return source?.slice(0,5000)??null;
+  if(!source)return provider.slice(0,5000);
+  const providerBlock=provider.slice(0,1800),sourceBudget=Math.max(0,5000-providerBlock.length-2);
+  return `${source.slice(0,sourceBudget)}\n\n${providerBlock}`.slice(0,5000);
 }
 function buildNoteBody(c:CandidateRow,m:MessageRow,address:string,oppId:string,event:string):string{
   const f=c.extracted_facts,lines=[`EMA | ${address} | ${event}`,''];
@@ -282,7 +315,7 @@ function buyBoxUnknownFields(details:Record<string,unknown>):string[]{return rec
 function controlledContactTags(c:CandidateRow):string[]{const status=c.buy_box_fit_result==='needs_info'?'ema-needs-info':(c.buy_box_fit_result==='fit'||c.cash_screen_result==='pass')?'ema-qualified':'ema-marginal',tags=['email-lead',status],source=c.source_type?.toLowerCase()??'';if(source.includes('broker'))tags.push('broker');else if(source.includes('wholesale'))tags.push('wholesaler');else if(source.includes('seller'))tags.push('direct-seller');else if(source.includes('agent'))tags.push('agent');else if(source.includes('lender'))tags.push('lender');return tags}
 
 async function getOperation(admin:SupabaseClient,w:string,key:string):Promise<OperationRow|null>{const{data,error}=await admin.from('ema_operations').select('id, operation_status, external_id').eq('workspace_id',w).eq('operating_mode','autonomous').eq('idempotency_key',key).maybeSingle();if(error)throw new DealIntakeError(500,'ema_operation_lookup_failed');return data as OperationRow|null}
-async function beginOperation(admin:SupabaseClient,c:CandidateRow,type:string,key:string):Promise<OperationRow>{const{data,error}=await admin.from('ema_operations').insert({workspace_id:c.workspace_id,ema_message_id:c.ema_message_id,ema_candidate_id:c.id,operating_mode:'autonomous',operation_type:type,idempotency_key:key,operation_status:'executing',request_metadata:{source:'agent_gateway',contract:'deal.intake_to_crm.v2'},attempt_count:1,is_test:false}).select('id, operation_status, external_id').single();if(error||!data)throw new DealIntakeError(500,'ema_operation_create_failed');return data as OperationRow}
+async function beginOperation(admin:SupabaseClient,c:CandidateRow,type:string,key:string):Promise<OperationRow>{const{data,error}=await admin.from('ema_operations').insert({workspace_id:c.workspace_id,ema_message_id:c.ema_message_id,ema_candidate_id:c.id,operating_mode:'autonomous',operation_type:type,idempotency_key:key,operation_status:'executing',request_metadata:{source:'agent_gateway',contract:'deal.intake_to_crm.v3'},attempt_count:1,is_test:false}).select('id, operation_status, external_id').single();if(error||!data)throw new DealIntakeError(500,'ema_operation_create_failed');return data as OperationRow}
 async function finishOperation(admin:SupabaseClient,id:string,externalId:string,meta:Record<string,unknown>):Promise<void>{const{error}=await admin.from('ema_operations').update({operation_status:'succeeded',external_id:externalId,result_metadata:meta,last_error:null}).eq('id',id);if(error)throw new DealIntakeError(500,'ema_operation_update_failed')}
 async function markOperationUncertain(admin:SupabaseClient,id:string,e:unknown):Promise<void>{await admin.from('ema_operations').update({operation_status:'needs_reconciliation',last_error:e instanceof Error?e.name.slice(0,120):'upstream_error'}).eq('id',id)}
 function addField(target:Array<Record<string,unknown>>,id:string,value:unknown,max=3000):void{const rendered=scalarString(value,max);if(rendered!==null)target.push({id,fieldValue:rendered})}
