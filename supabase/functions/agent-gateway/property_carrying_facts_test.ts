@@ -1,5 +1,6 @@
 import {
   extractCandidateCarryingFacts,
+  extractDealMachineCarryingFacts,
   extractRentCastCarryingFacts,
 } from './property_carrying_facts.ts';
 
@@ -11,6 +12,33 @@ function assertEquals(actual: unknown, expected: unknown) {
   const a = JSON.stringify(actual), e = JSON.stringify(expected);
   if (a !== e) throw new Error(`Expected ${e}, received ${a}`);
 }
+
+Deno.test('DealMachine annual tax becomes a verified public-record carrying fact', () => {
+  const result = extractDealMachineCarryingFacts({
+    tax_amount: 7200,
+    tax_year: 2025,
+    hoa_1_fee_amount: 175,
+  }, 'prop-subject');
+
+  assertEquals(result.property_taxes.monthly, 600);
+  assertEquals(result.property_taxes.annual, 7200);
+  assertEquals(result.property_taxes.as_of_year, 2025);
+  assertEquals(result.property_taxes.evidence_class, 'verified_public_record');
+  assert(result.property_taxes.source_ref?.includes('prop-subject'));
+});
+
+Deno.test('DealMachine HOA amount stays unknown when payment cadence is not documented', () => {
+  const result = extractDealMachineCarryingFacts({ hoa_1_fee_amount: 175 }, 'prop-subject');
+  assertEquals(result.hoa.monthly, null);
+  assertEquals(result.hoa.annual, null);
+  assertEquals(result.hoa.evidence_class, 'unknown');
+});
+
+Deno.test('missing DealMachine tax remains unknown instead of becoming zero', () => {
+  const result = extractDealMachineCarryingFacts({}, 'prop-subject');
+  assertEquals(result.property_taxes.monthly, null);
+  assertEquals(result.property_taxes.evidence_class, 'unknown');
+});
 
 Deno.test('RentCast carrying facts use latest annual property tax and monthly HOA', () => {
   const result = extractRentCastCarryingFacts({
@@ -38,10 +66,13 @@ Deno.test('missing RentCast tax or HOA fields remain unknown instead of becoming
   assertEquals(result.hoa.evidence_class, 'unknown');
 });
 
-Deno.test('candidate no-HOA fact becomes explicit zero but boolean true without fee stays unknown', () => {
-  const none = extractCandidateCarryingFacts({ hoa: false });
-  assertEquals(none.hoa.monthly, 0);
-  assertEquals(none.hoa.evidence_class, 'verified_none');
+Deno.test('candidate no-HOA facts become explicit zero but boolean true without fee stays unknown', () => {
+  for (const value of [false, 'No', 'no', 'No HOA', 'none', 'No Homeowners Association']) {
+    const none = extractCandidateCarryingFacts({ hoa: value });
+    assertEquals(none.hoa.monthly, 0);
+    assertEquals(none.hoa.annual, 0);
+    assertEquals(none.hoa.evidence_class, 'verified_none');
+  }
 
   const unknown = extractCandidateCarryingFacts({ hoa: true });
   assertEquals(unknown.hoa.monthly, null);
