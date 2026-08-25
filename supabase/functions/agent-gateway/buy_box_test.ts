@@ -3,6 +3,8 @@ import {
   classifyBuyBoxResult,
   deriveAssetClass,
   isCrmEligibleBuyBoxResult,
+  isKnownStateOutsideAllowedGeographies,
+  mergeMissingDealMachineFacts,
 } from './buy_box.ts';
 
 function assert(
@@ -35,6 +37,59 @@ Deno.test('classifies source-backed SFR and portfolio property types', () => {
     deriveAssetClass({ property_type: 'Mobile Home Park' }),
     'mhp',
   );
+});
+
+Deno.test('fills missing physical facts from DealMachine without overwriting source facts', () => {
+  const merged = mergeMissingDealMachineFacts(
+    {
+      state: 'TX',
+      asking_price: '$205,000',
+      arv: '$350,000',
+      bedrooms: 4,
+    },
+    {
+      property_type: 'Single Family Residence',
+      num_units: 1,
+      num_bedrooms: 3,
+      num_bathrooms: 2.5,
+      living_area_sqft: 1816,
+      year_built: 1982,
+      estimated_value: 340000,
+      hoa_1_fee_amount: 450,
+    },
+  );
+
+  assertEquals(merged.facts.property_type, 'Single Family Residence');
+  assertEquals(merged.facts.units, 1);
+  assertEquals(merged.facts.bedrooms, 4);
+  assertEquals(merged.facts.bathrooms, 2.5);
+  assertEquals(merged.facts.sqft, 1816);
+  assertEquals(merged.facts.year_built, 1982);
+  assertEquals(merged.facts.arv, '$350,000');
+  assertEquals(merged.facts.estimated_value, undefined);
+  assertEquals(merged.facts.hoa, undefined);
+  assertEquals(
+    merged.filled_fields,
+    ['property_type', 'units', 'bathrooms', 'sqft', 'year_built'],
+  );
+  assertEquals(deriveAssetClass(merged.facts), 'fix_flip');
+});
+
+Deno.test('source property type wins over conflicting provider property type', () => {
+  const merged = mergeMissingDealMachineFacts(
+    { property_type: 'Condo', sqft: 1200 },
+    { property_type: 'Single Family Residence', living_area_sqft: 1800 },
+  );
+  assertEquals(merged.facts.property_type, 'Condo');
+  assertEquals(merged.facts.sqft, 1200);
+  assertEquals(merged.filled_fields, []);
+});
+
+Deno.test('known out-of-state geography can fail without inventing a county', () => {
+  const allowed = ['Miami-Dade, FL', 'Broward, FL'];
+  assert(isKnownStateOutsideAllowedGeographies({ state: 'TX' }, allowed));
+  assert(!isKnownStateOutsideAllowedGeographies({ state: 'FL' }, allowed));
+  assert(!isKnownStateOutsideAllowedGeographies({}, allowed));
 });
 
 Deno.test('honors explicit deal strategy when present', () => {

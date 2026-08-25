@@ -1,4 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
+import { enrichCandidateProperty } from './property_enrichment.ts';
 
 export class BuyBoxFitError extends Error {
   constructor(public status: number, public code: string) {
@@ -55,6 +56,46 @@ interface RuleEvaluation {
   required_value: unknown;
 }
 
+export interface ProviderFactMergeResult {
+  facts: Record<string, unknown>;
+  filled_fields: string[];
+}
+
+/**
+ * Fill only missing physical-property facts from the cached/fetched DealMachine
+ * subject record. Source-stated facts always win. Deliberately excluded here:
+ * ARV/estimated value, HOA, repairs, occupancy, and other facts where a provider
+ * value would either change the evidence class or create an unsafe assumption.
+ */
+export function mergeMissingDealMachineFacts(
+  sourceFacts: Record<string, unknown>,
+  providerFacts: Record<string, unknown>,
+): ProviderFactMergeResult {
+  const facts = { ...sourceFacts };
+  const filledFields: string[] = [];
+  const mappings: Array<{ target: string; aliases: string[]; provider: string }> = [
+    { target: 'property_type', aliases: ['property_type', 'propertyType', 'type'], provider: 'property_type' },
+    { target: 'units', aliases: ['units', 'unit_count', 'unitCount'], provider: 'num_units' },
+    { target: 'bedrooms', aliases: ['beds', 'bedrooms'], provider: 'num_bedrooms' },
+    { target: 'bathrooms', aliases: ['baths', 'bathrooms'], provider: 'num_bathrooms' },
+    { target: 'sqft', aliases: ['sqft', 'square_feet', 'squareFeet'], provider: 'living_area_sqft' },
+    { target: 'year_built', aliases: ['year_built', 'yearBuilt'], provider: 'year_built' },
+    { target: 'city', aliases: ['city', 'property_city'], provider: 'city' },
+    { target: 'state', aliases: ['state', 'property_state'], provider: 'state' },
+    { target: 'zip', aliases: ['zip', 'postal_code', 'property_zip'], provider: 'zip' },
+  ];
+
+  for (const mapping of mappings) {
+    if (hasAnyFact(sourceFacts, mapping.aliases)) continue;
+    const value = providerFacts[mapping.provider];
+    if (value === undefined || value === null || value === '') continue;
+    facts[mapping.target] = value;
+    filledFields.push(mapping.target);
+  }
+
+  return { facts, filled_fields: filledFields };
+}
+
 export async function checkCandidateBuyBoxFit(
   admin: SupabaseClient,
   workspaceId: string,
@@ -63,14 +104,30 @@ export async function checkCandidateBuyBoxFit(
   const candidate = await loadCandidate(admin, workspaceId, candidateId);
   validateCandidate(candidate);
 
-  const assetClass = deriveAssetClass(candidate.extracted_facts);
+  // Enrich before asset-class routing. This is the one comprehensive subject
+  // property fetch that downstream CRM intake and Cash can reuse from cache.
+  // Provider failure does not overwrite source facts or block a source-complete
+  // candidate; it only remains relevant when the missing fact is required.
+  const propertyEnrichment = await enrichCandidateProperty(
+    admin,
+    workspaceId,
+    candidate.id,
+    candidate.normalized_address!.trim(),
+  );
+  const mergedFacts = mergeMissingDealMachineFacts(
+    candidate.extracted_facts,
+    propertyEnrichment.facts,
+  );
+  const evaluationFacts = mergedFacts.facts;
+
+  const assetClass = deriveAssetClass(evaluationFacts);
   const criteria = await loadCriteria(admin, workspaceId, assetClass);
   if (!criteria.length) throw new BuyBoxFitError(409, 'buy_box_not_configured');
   const exceptions = await loadExceptions(admin, workspaceId, assetClass);
 
   const evaluations = criteria
     .filter((criterion) => criterion.rule_type === 'screen')
-    .map((criterion) => evaluateCriterion(criterion, candidate.extracted_facts));
+    .map((criterion) => evaluateCriterion(criterion, evaluationFacts));
 
   if (!evaluations.length) throw new BuyBoxFitError(409, 'buy_box_screen_not_configured');
 
@@ -125,6 +182,16 @@ export async function checkCandidateBuyBoxFit(
     result,
     crm_eligible: isCrmEligibleBuyBoxResult(result),
     verification_status: verificationStatus,
+    property_enrichment: {
+      provider: propertyEnrichment.provider,
+      status: propertyEnrichment.status,
+      snapshot_id: propertyEnrichment.snapshot_id,
+      provider_property_id: propertyEnrichment.provider_property_id,
+      fetched_at: propertyEnrichment.fetched_at,
+      credits_used: propertyEnrichment.credits_used,
+      error_code: propertyEnrichment.error_code,
+      filled_candidate_fields: mergedFacts.filled_fields,
+    },
     passed,
     failed: [...uncoveredHardFailures, ...softFailed],
     unknown,
@@ -141,6 +208,9 @@ export async function checkCandidateBuyBoxFit(
 
   const now = new Date().toISOString();
   const { error } = await admin.from('ema_candidates').update({
+    // These are provider-backed fills only for facts that were absent from the
+    // source. The DealMachine snapshot remains the canonical provenance record.
+    extracted_facts: evaluationFacts,
     buy_box_fit_result: result,
     buy_box_fit_details: details,
     buy_box_fit_checked_at: now,
@@ -261,6 +331,18 @@ function evaluateCriterion(
 ): RuleEvaluation {
   const observed = observedValue(criterion.field, facts);
   if (observed === null || observed === undefined || observed === '') {
+    // If county is missing but state is known and every allowed geography is in
+    // another state, geography is definitively out-of-buy-box rather than unknown.
+    if (
+      criterion.field === 'geography' && criterion.operator === 'in' &&
+      Array.isArray(criterion.value)
+    ) {
+      const state = stateValue(facts);
+      const allowedStates = allowedGeographyStates(criterion.value);
+      if (state && allowedStates.size > 0 && !allowedStates.has(state)) {
+        return ruleResult(criterion, 'fail', state);
+      }
+    }
     return ruleResult(criterion, 'unknown', null);
   }
 
@@ -377,6 +459,31 @@ function geographyValue(facts: Record<string, unknown>): string | null {
   return `${normalizedCounty}, ${state.toUpperCase()}`;
 }
 
+function stateValue(facts: Record<string, unknown>): string | null {
+  const state = scalarString(firstValue(facts, ['state', 'property_state']), 20);
+  return state && /^[A-Za-z]{2}$/.test(state.trim()) ? state.trim().toUpperCase() : null;
+}
+
+export function isKnownStateOutsideAllowedGeographies(
+  facts: Record<string, unknown>,
+  allowedValues: unknown[],
+): boolean {
+  const state = stateValue(facts);
+  const allowedStates = allowedGeographyStates(allowedValues);
+  return Boolean(state && allowedStates.size > 0 && !allowedStates.has(state));
+}
+
+function allowedGeographyStates(values: unknown[]): Set<string> {
+  const states = new Set<string>();
+  for (const value of values) {
+    const text = scalarString(value, 200);
+    if (!text) continue;
+    const match = text.match(/,\s*([A-Za-z]{2})\s*$/);
+    if (match) states.add(match[1].toUpperCase());
+  }
+  return states;
+}
+
 function canonicalPropertyType(value: unknown, units: number | null): string | null {
   const raw = normalizedToken(value) ?? '';
   if (/rv park|recreational vehicle park/.test(raw)) return 'rv_park';
@@ -433,6 +540,13 @@ function firstValue(record: Record<string, unknown>, keys: string[]): unknown {
     if (value !== undefined && value !== null && value !== '') return value;
   }
   return null;
+}
+
+function hasAnyFact(record: Record<string, unknown>, keys: string[]): boolean {
+  return keys.some((key) => {
+    const value = record[key];
+    return value !== undefined && value !== null && value !== '';
+  });
 }
 
 function normalizedToken(value: unknown): string | null {
