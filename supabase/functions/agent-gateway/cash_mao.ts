@@ -1,6 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import { calculateMao, MaoPolicyError, type MaoInputs, type MaoPricingCriterion } from './mao.ts';
-import { runAndPersistCashFlipAnalysis } from './cash_flip_analysis.ts';
 
 export class CashMaoError extends Error {
   constructor(public status: number, public code: string) {
@@ -71,39 +70,32 @@ export async function runAndPersistCashMao(
     standard_pricing_formula: mao.pricing_policy.standard.formula,
     stretch_pricing_rule_id: mao.pricing_policy.stretch.criterion_id,
     stretch_pricing_formula: mao.pricing_policy.stretch.formula,
-    next_phase: 'flip_analysis',
+    acquisition_underwriting_complete: true,
+    next_phase: 'human_review',
     updated_at: step.updated_at,
     run_by_agent_id: agentId,
   };
 
-  const { error: taskError } = await admin
-    .from('agent_tasks')
-    .update({
-      context: await mergedTaskContext(admin, work.agent_task_id, workspaceId, progress),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', work.agent_task_id)
-    .eq('workspace_id', workspaceId)
-    .eq('assigned_to', 'cash');
-  if (taskError) throw new CashMaoError(500, 'cash_task_mao_progress_update_failed');
-
-  // Flip Analysis has no legitimate model-supplied economic assumptions. It is
-  // run server-side after MAO and either calculates from an approved active
-  // policy or persists needs_info with the exact missing policy fields.
-  const flipAnalysis = await runAndPersistCashFlipAnalysis(
-    admin,
-    workspaceId,
-    agentId,
-    opportunityId,
+  const { data: completed, error: completionError } = await admin.rpc(
+    'complete_cash_sfr_acquisition_review',
+    {
+      _workspace_id: workspaceId,
+      _work_item_id: work.id,
+      _task_id: work.agent_task_id,
+      _progress: progress,
+    },
   );
-  const flipWorkStep = isRecord(flipAnalysis.work_step) ? flipAnalysis.work_step : {};
-  const nextPhase = typeof flipWorkStep.next_phase === 'string'
-    ? flipWorkStep.next_phase
-    : 'flip_analysis';
+  if (completionError || completed !== true) {
+    throw new CashMaoError(500, 'cash_acquisition_review_transition_failed');
+  }
 
   return {
     ...mao,
-    flip_analysis: flipAnalysis,
+    acquisition_underwriting_complete: true,
+    later_stage_underwriting: {
+      flip_analysis: 'not_run',
+      reason: 'deferred_until_after_human_review',
+    },
     work_step: {
       persisted: true,
       work_item_id: work.id,
@@ -111,8 +103,9 @@ export async function runAndPersistCashMao(
       step_id: step.id,
       phase: 'mao',
       status: 'succeeded',
-      next_phase: nextPhase,
-      flip_analysis_auto_evaluated: true,
+      next_phase: 'human_review',
+      task_status: 'review',
+      work_item_state: 'review',
     },
   };
 }
@@ -212,28 +205,6 @@ async function loadPricingCriteria(
     label: row.label,
     notes: row.notes,
   }));
-}
-
-async function mergedTaskContext(
-  admin: SupabaseClient,
-  taskId: string,
-  workspaceId: string,
-  progress: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const { data, error } = await admin
-    .from('agent_tasks')
-    .select('context')
-    .eq('id', taskId)
-    .eq('workspace_id', workspaceId)
-    .eq('assigned_to', 'cash')
-    .maybeSingle();
-  if (error || !data) throw new CashMaoError(500, 'cash_task_context_lookup_failed');
-  const current = isRecord(data.context) ? data.context : {};
-  return {
-    ...current,
-    cash_runtime_status: 'active',
-    cash_progress: progress,
-  };
 }
 
 function requiredString(value: unknown, field: string): string {
