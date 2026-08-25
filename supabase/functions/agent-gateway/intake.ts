@@ -204,12 +204,12 @@ export function deriveRoute(f:Record<string,unknown>):Route{
   if(/\bcondo(minium)?\b/.test(raw))return sfrRoute('Condo');
   if(/\bmobile\s*home\b|manufactured\s*home/.test(raw))return sfrRoute('Mobile Home');
   if(/attached/.test(raw)&&!/multi/.test(raw))return sfrRoute('Attached');
-  if(/duplex|triplex|fourplex|2\s*[-–]\s*4|multi[- ]?family\s*2/.test(raw)||(units!==null&&units>=2&&units<=4))return sfrRoute('Multi-family 2-4 Units');
-  if(/multi[- ]?family|apartment/.test(raw)&&(units===null||units>=5))return portfolioRoute('Multi-family 5+');
+  if(/duplex|triplex|fourplex|2\s*[-–]\s*4|multi[_ -]?family\s*2|small[_ -]?multifamily/.test(raw)||(units!==null&&units>=2&&units<=4))return sfrRoute('Multi-family 2-4 Units');
+  if(/multi[_ -]?family|apartment/.test(raw)&&(units===null||units>=5))return portfolioRoute('Multi-family 5+');
   if(/\bland\b|vacant\s*lot|development\s*site/.test(raw))return portfolioRoute('Land');
   if(/commercial|retail|office|industrial|strip\s*center/.test(raw))return portfolioRoute('Commercial');
   if(/portfolio|package|bulk\s*(sale|deal)/.test(raw))return portfolioRoute('Portfolio');
-  if(/single[- ]?family|\bsfr\b|detached/.test(raw)||units===1)return sfrRoute('Single Family Residence');
+  if(/single[_ -]?family|\bsfr\b|detached/.test(raw)||units===1)return sfrRoute('Single Family Residence');
   throw new DealIntakeError(409,'property_type_unresolved');
 }
 function sfrRoute(propertyType:PropertyTypeOption):Route{return{propertyType,pipelineId:SFR_PIPELINE_ID,stageId:SFR_STAGE_ID}}
