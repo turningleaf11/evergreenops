@@ -324,6 +324,8 @@ function base64UrlToBytes(value:string):Uint8Array{
   return Uint8Array.from(binary,c=>c.charCodeAt(0));
 }
 async function sha256Bytes(bytes:Uint8Array):Promise<string>{
-  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  const copy=new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const digest=await crypto.subtle.digest('SHA-256',copy.buffer);
   return[...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
 }
