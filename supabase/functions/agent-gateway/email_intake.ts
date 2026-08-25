@@ -4,6 +4,10 @@ import {
   resolveFreeFloridaCounty,
   type PublicGeographyResolution,
 } from './public_geography.ts';
+import {
+  captureCandidateSourceDocuments,
+  type CandidateDocumentTarget,
+} from './source_documents.ts';
 
 export class EmailIntakeError extends Error {
   constructor(public status:number, public code:string) { super(code); this.name='EmailIntakeError'; }
@@ -84,7 +88,7 @@ export async function persistEmailIntake(
   const existing=await loadExistingMessage(admin,workspaceId,gmailAccount,source.id);
   if(existing){
     if(input.message_disposition==='deal'&&input.candidates.length){
-      return reconcileExistingMessageCandidates(admin,workspaceId,source,existing,input.candidates);
+      return reconcileExistingMessageCandidates(admin,workspaceId,gmailAccount,source,existing,input.candidates);
     }
     const existingSummary=await summarizeExisting(admin,workspaceId,existing.id,existing.processing_status);
     return {message_id:existing.id,gmail_message_id:source.id,...existingSummary};
@@ -120,12 +124,19 @@ export async function persistEmailIntake(
   const candidates=await persistCandidatePlans(
     admin,workspaceId,source,messageId,input.candidates.map((candidate,candidate_index)=>({candidate,candidate_index})),
   );
-  return {disposition:'persisted',message_id:messageId,gmail_message_id:source.id,candidates};
+  const sourceDocuments=await captureDocumentsSafely(
+    admin,workspaceId,gmailAccount,messageId,source,candidates,
+  );
+  return{
+    disposition:'persisted',message_id:messageId,gmail_message_id:source.id,candidates,
+    source_documents:sourceDocuments,
+  };
 }
 
 async function reconcileExistingMessageCandidates(
   admin:SupabaseClient,
   workspaceId:string,
+  gmailAccount:string,
   source:SourceMessage,
   existing:{id:string;processing_status:string;raw_metadata:Record<string,unknown>},
   incoming:CandidateInput[],
@@ -163,6 +174,10 @@ async function reconcileExistingMessageCandidates(
       rerun_buy_box_required:allFilled.some(field=>BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS.has(field)),
     };
   });
+  const candidateRows=[...matched,...added];
+  const sourceDocuments=await captureDocumentsSafely(
+    admin,workspaceId,gmailAccount,existing.id,source,candidateRows,
+  );
   return {
     disposition:added.length?'expanded':'already_persisted',
     processing_status:existing.processing_status,
@@ -172,7 +187,8 @@ async function reconcileExistingMessageCandidates(
     supplemented_candidate_count:[...supplemented.values()].filter(value=>
       value.source_fields.length>0||value.address_fields.length>0
     ).length,
-    candidates:[...matched,...added],
+    candidates:candidateRows,
+    source_documents:sourceDocuments,
   };
 }
 
@@ -389,6 +405,41 @@ async function enrichCandidateAddressFacts(
     filled_fields:[...new Set(localMerge.filled_fields)],
     public_geography:publicGeography,
   };
+}
+
+async function captureDocumentsSafely(
+  admin:SupabaseClient,
+  workspaceId:string,
+  gmailAccount:string,
+  messageId:string,
+  source:SourceMessage,
+  candidateRows:Array<Record<string,unknown>>,
+):Promise<Record<string,unknown>> {
+  const targets:CandidateDocumentTarget[]=candidateRows
+    .map(row=>({
+      candidate_id:typeof row.candidate_id==='string'?row.candidate_id:'',
+      normalized_address:typeof row.normalized_address==='string'?row.normalized_address:null,
+    }))
+    .filter(target=>Boolean(target.candidate_id));
+  try{
+    return await captureCandidateSourceDocuments(
+      admin,workspaceId,gmailAccount,messageId,source,targets,
+    ) as unknown as Record<string,unknown>;
+  }catch(error){
+    console.error(JSON.stringify({
+      event:'ema_source_document_capture_failed',
+      gmail_message_id:source.id,
+      error_type:error instanceof Error?error.name:typeof error,
+    }));
+    return{
+      status:'needs_attention',target_count:targets.length,covered_candidate_count:0,
+      pdf_attachment_count:Array.isArray(source.attachments)
+        ? source.attachments.filter(a=>String(a.mime_type??'').toLowerCase()==='application/pdf'||String(a.filename??'').toLowerCase().endsWith('.pdf')).length
+        : 0,
+      captured_document_count:0,reused_document_count:0,unmatched_pdf_count:0,
+      documents:[],unmatched:[],error_code:'source_document_capture_failed',
+    };
+  }
 }
 
 async function loadExistingMessage(
