@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
         {
           title: "Calculate CashValue from verified SFR sold comps",
           description:
-            "Ranks verified Single Family Residence sold comps using Evergreen CashValue V1 rules, selects the best 3-5, normalizes each sale to the subject using price per square foot, and returns a CashValue, supported range, confidence, scoring breakdown, rejected comps, and any criteria expansion. When Cash runs this against an active work item, the Gateway also persists the CashValue phase as a durable underwriting step while keeping the full underwriting task active for rehab and pricing. Never invent comps; input must come from a real data source or human-verified sales.",
+            "Runs Evergreen CashValue for a persisted SFR. For an active Cash work item, call this tool first with the opportunity_id; the Gateway attempts DealMachine server-side as the primary sold-comp provider, then approved fallbacks. public_comps are optional supplemental evidence, not a prerequisite. The Gateway ranks defensible sold comps, persists every selected comp plus rejected-comp reasons, and returns CashValue, supported range and confidence. Never substitute web estimates or invent comps when the provider path is unavailable.",
           inputSchema: underwritingCashValueInputSchema,
           annotations: calculationAnnotations,
         },
@@ -257,9 +257,9 @@ Deno.serve(async (req) => {
       server.registerTool(
         "underwriting_rehab",
         {
-          title: "Estimate source-backed SFR rehab scope",
+          title: "Estimate acquisition-stage SFR rehab allowance",
           description:
-            "Prices a source-backed repair scope for Cash's active SFR underwriting work item using only the active Evergreen Rehab Cost Book. Cash supplies category, scope level, source reference and source-backed quantity when required; Cash cannot supply or override unit costs or contingency. Missing rates or quantities return needs_info instead of guessed repair costs. A successful estimate persists the rehab underwriting phase and advances the work item toward MAO.",
+            "Runs Evergreen Acquisition Rehab V1 for Cash's active SFR work item. Call with the opportunity_id; detailed itemization is not required. The Gateway loads persisted condition/renovation facts and classifies the property as Lipstick, Light Rehab, Medium Rehab, Heavy Rehab, or Full Reno, then applies the active workspace $/sqft policy, minimum floor and contingency. If condition is unknown, policy defaults to Medium / Low confidence and uses the high side for MAO. scope_items are optional and should be supplied only for specifically known source-backed major repairs such as roof, HVAC, plumbing, electrical panel, windows, water heater or foundation. Cash cannot supply dollar rates or contingency.",
           inputSchema: underwritingRehabInputSchema,
           annotations: controlledWriteAnnotations,
         },
