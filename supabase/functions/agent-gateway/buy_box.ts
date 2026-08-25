@@ -90,11 +90,11 @@ export interface ProviderFactMergeResult {
   filled_fields: string[];
 }
 
-const DEALMACHINE_SCREEN_FIELDS = new Set([
+// Ema should only pay to resolve facts required for asset/property-type routing.
+// Beds, baths, sqft, and HOA remain useful screening facts, but missing values are
+// human-review items rather than a reason to consume a DealMachine property call.
+const DEALMACHINE_REQUIRED_SCREEN_FIELDS = new Set([
   'property_type',
-  'beds',
-  'baths',
-  'sqft',
   'is_condo',
 ]);
 
@@ -162,20 +162,20 @@ export async function checkCandidateBuyBoxFit(
   let publicResolution: PublicPropertyTypeResolution | null = null;
   const lookupPath: string[] = ['source'];
 
-  // Stage 1: source-only pre-screen. If the source already identifies an asset
-  // class/property type and proves a hard exclusion, do not spend any external
-  // lookup at all.
+  // Stage 1: source-only pre-screen. Any known hard failure is enough to stop
+  // paid enrichment. An exception-enabled hard failure remains needs_info for
+  // human review; an uncovered hard failure remains not_fit.
   const sourceAssetClass = tryDeriveAssetClass(evaluationFacts);
   if (sourceAssetClass) {
     const sourceScreen = await evaluateScreen(admin, workspaceId, sourceAssetClass, evaluationFacts);
-    if (sourceScreen.uncovered_hard_failures.length > 0) {
+    if (sourceScreen.hard_failed.length > 0) {
       return persistScreenResult(
         admin,
         workspaceId,
         candidate,
         evaluationFacts,
         sourceScreen,
-        skippedDealMachine('source_hard_reject'),
+        skippedDealMachine('source_hard_gate'),
         publicResolution,
         lookupPath,
       );
@@ -195,29 +195,27 @@ export async function checkCandidateBuyBoxFit(
     evaluationFacts = publicMerge.facts;
   }
 
-  // Stage 3: public/source pre-screen. A free public record can resolve the type
-  // and expose an obvious hard reject (for example SFR in a non-flip geography),
-  // in which case DealMachine is still skipped.
+  // Stage 3: source + free public records. Stop before DealMachine whenever a
+  // known hard failure already requires rejection or human exception review.
   const publicAssetClass = tryDeriveAssetClass(evaluationFacts);
   if (publicAssetClass) {
     const publicScreen = await evaluateScreen(admin, workspaceId, publicAssetClass, evaluationFacts);
-    if (publicScreen.uncovered_hard_failures.length > 0) {
+    if (publicScreen.hard_failed.length > 0) {
       return persistScreenResult(
         admin,
         workspaceId,
         candidate,
         evaluationFacts,
         publicScreen,
-        skippedDealMachine('public_record_hard_reject'),
+        skippedDealMachine('public_record_hard_gate'),
         publicResolution,
         lookupPath,
       );
     }
 
-    // If source + public records already make the screen decision and none of
-    // the remaining hard unknowns are fields DealMachine can safely resolve,
-    // finish without a paid call. This intentionally defers the comprehensive
-    // DealMachine snapshot until Cash if the deal never needs provider data here.
+    // Missing beds/baths/sqft/HOA are not paid-resolution triggers. They stay
+    // visible to the reviewer. DealMachine is justified here only when a routing
+    // fact such as property type / condo status is still a hard unknown.
     if (!hasDealMachineResolvableHardUnknown(publicScreen)) {
       return persistScreenResult(
         admin,
@@ -232,10 +230,9 @@ export async function checkCandidateBuyBoxFit(
     }
   }
 
-  // Stage 4: paid fallback only when routing is still unresolved or a hard
-  // decision field that DealMachine can safely fill remains unknown. Once this
-  // call is justified, request/persist the comprehensive subject snapshot so
-  // downstream CRM/Cash can reuse it.
+  // Stage 4: paid fallback only when asset routing remains unresolved or a
+  // property-type/condo routing fact remains unknown. Once justified, request
+  // and persist the comprehensive subject snapshot for downstream reuse.
   lookupPath.push('dealmachine');
   const propertyEnrichment = await enrichCandidateProperty(
     admin,
@@ -274,8 +271,21 @@ export async function checkCandidateBuyBoxFit(
   );
 }
 
+export function shouldCallDealMachineForScreen(params: {
+  hard_failed_fields: string[];
+  hard_unknown_fields: string[];
+}): boolean {
+  if (params.hard_failed_fields.length > 0) return false;
+  return params.hard_unknown_fields.some((field) =>
+    DEALMACHINE_REQUIRED_SCREEN_FIELDS.has(field)
+  );
+}
+
 function hasDealMachineResolvableHardUnknown(screen: ScreenEvaluation): boolean {
-  return screen.hard_unknown.some((row) => DEALMACHINE_SCREEN_FIELDS.has(row.field));
+  return shouldCallDealMachineForScreen({
+    hard_failed_fields: screen.hard_failed.map((row) => row.field),
+    hard_unknown_fields: screen.hard_unknown.map((row) => row.field),
+  });
 }
 
 function tryDeriveAssetClass(facts: Record<string, unknown>): string | null {
@@ -653,7 +663,7 @@ function observedValue(field: string, facts: Record<string, unknown>): unknown {
       if (parsed !== null) return parsed;
       const propertyType = canonicalPropertyType(firstValue(facts, ['property_type', 'propertyType', 'type']), null);
       if (propertyType === 'condo') return true;
-      if (propertyType === 'single_family') return false;
+      if (propertyType === 'single_family' || propertyType === 'small_multifamily') return false;
       return null;
     }
     case 'flood_zone': return booleanValue(firstValue(facts, ['flood_zone', 'in_flood_zone', 'is_flood_zone']));

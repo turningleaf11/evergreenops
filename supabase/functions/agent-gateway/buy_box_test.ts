@@ -6,6 +6,7 @@ import {
   isKnownStateOutsideAllowedGeographies,
   mergeMissingDealMachineFacts,
   mergeMissingPublicPropertyTypeFact,
+  shouldCallDealMachineForScreen,
 } from './buy_box.ts';
 
 function assert(
@@ -133,6 +134,31 @@ Deno.test('known out-of-state geography can fail without inventing a county', ()
   assert(isKnownStateOutsideAllowedGeographies({ state: 'TX' }, allowed));
   assert(!isKnownStateOutsideAllowedGeographies({ state: 'FL' }, allowed));
   assert(!isKnownStateOutsideAllowedGeographies({}, allowed));
+});
+
+Deno.test('paid lookup is reserved for unresolved routing facts', () => {
+  assert(shouldCallDealMachineForScreen({
+    hard_failed_fields: [],
+    hard_unknown_fields: ['property_type'],
+  }));
+  assert(shouldCallDealMachineForScreen({
+    hard_failed_fields: [],
+    hard_unknown_fields: ['is_condo'],
+  }));
+});
+
+Deno.test('missing beds baths sqft or HOA do not justify DealMachine', () => {
+  assert(!shouldCallDealMachineForScreen({
+    hard_failed_fields: [],
+    hard_unknown_fields: ['beds', 'baths', 'sqft', 'hoa'],
+  }));
+});
+
+Deno.test('known hard failure stops paid enrichment even if another routing fact is unknown', () => {
+  assert(!shouldCallDealMachineForScreen({
+    hard_failed_fields: ['geography'],
+    hard_unknown_fields: ['property_type'],
+  }));
 });
 
 Deno.test('honors explicit deal strategy when present', () => {
