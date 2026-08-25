@@ -5,6 +5,7 @@ import {
   isCrmEligibleBuyBoxResult,
   isKnownStateOutsideAllowedGeographies,
   mergeMissingDealMachineFacts,
+  mergeMissingPublicPropertyTypeFact,
 } from './buy_box.ts';
 
 function assert(
@@ -37,6 +38,11 @@ Deno.test('classifies source-backed SFR and portfolio property types', () => {
     deriveAssetClass({ property_type: 'Mobile Home Park' }),
     'mhp',
   );
+});
+
+Deno.test('routes known condo/manufactured residential types through fix-flip screen so they can be rejected cheaply', () => {
+  assertEquals(deriveAssetClass({ property_type: 'Condo' }), 'fix_flip');
+  assertEquals(deriveAssetClass({ property_type: 'Manufactured Home' }), 'fix_flip');
 });
 
 Deno.test('fills missing physical facts from DealMachine without overwriting source facts', () => {
@@ -75,6 +81,25 @@ Deno.test('fills missing physical facts from DealMachine without overwriting sou
   assertEquals(deriveAssetClass(merged.facts), 'fix_flip');
 });
 
+Deno.test('free public record fills only missing property type and preserves source claims', () => {
+  const merged = mergeMissingPublicPropertyTypeFact(
+    { state: 'TX', asking_price: '$205,000', bedrooms: 4 },
+    {
+      status: 'resolved',
+      provider: 'hcad_arcgis',
+      property_type: 'Single Family Residence',
+      matched_address: '3038 SKYPARK DR',
+      parcel_id: '123',
+      classification_code: 'A1',
+      source_url: 'https://example.test',
+      error_code: null,
+    },
+  );
+  assertEquals(merged.facts.property_type, 'Single Family Residence');
+  assertEquals(merged.facts.asking_price, '$205,000');
+  assertEquals(merged.filled_fields, ['property_type']);
+});
+
 Deno.test('source property type wins over conflicting provider property type', () => {
   const merged = mergeMissingDealMachineFacts(
     { property_type: 'Condo', sqft: 1200 },
@@ -82,6 +107,24 @@ Deno.test('source property type wins over conflicting provider property type', (
   );
   assertEquals(merged.facts.property_type, 'Condo');
   assertEquals(merged.facts.sqft, 1200);
+  assertEquals(merged.filled_fields, []);
+});
+
+Deno.test('public property type also cannot overwrite source property type', () => {
+  const merged = mergeMissingPublicPropertyTypeFact(
+    { property_type: 'Condo' },
+    {
+      status: 'resolved',
+      provider: 'bcpa_arcgis',
+      property_type: 'Single Family Residence',
+      matched_address: '1 OCEAN DR',
+      parcel_id: '123',
+      classification_code: '01',
+      source_url: 'https://example.test',
+      error_code: null,
+    },
+  );
+  assertEquals(merged.facts.property_type, 'Condo');
   assertEquals(merged.filled_fields, []);
 });
 
