@@ -1,5 +1,9 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import { enrichCandidateProperty } from './property_enrichment.ts';
+import {
+  resolvePublicPropertyType,
+  type PublicPropertyTypeResolution,
+} from './public_property_type.ts';
 
 export class BuyBoxFitError extends Error {
   constructor(public status: number, public code: string) {
@@ -56,10 +60,43 @@ interface RuleEvaluation {
   required_value: unknown;
 }
 
+interface ScreenEvaluation {
+  asset_class: string;
+  result: FitResult;
+  verification_status: 'verified' | 'provisional' | 'not_qualified';
+  passed: RuleEvaluation[];
+  failed: RuleEvaluation[];
+  unknown: RuleEvaluation[];
+  hard_failed: RuleEvaluation[];
+  hard_unknown: RuleEvaluation[];
+  soft_failed: RuleEvaluation[];
+  uncovered_hard_failures: RuleEvaluation[];
+  exceptions_available: Array<Record<string, unknown>>;
+}
+
+interface PropertyEnrichmentMetadata {
+  provider: 'dealmachine';
+  status: string;
+  snapshot_id: string | null;
+  provider_property_id: string | null;
+  fetched_at: string | null;
+  credits_used: number;
+  error_code: string | null;
+  filled_candidate_fields: string[];
+}
+
 export interface ProviderFactMergeResult {
   facts: Record<string, unknown>;
   filled_fields: string[];
 }
+
+const DEALMACHINE_SCREEN_FIELDS = new Set([
+  'property_type',
+  'beds',
+  'baths',
+  'sqft',
+  'is_condo',
+]);
 
 /**
  * Fill only missing physical-property facts from the cached/fetched DealMachine
@@ -96,6 +133,23 @@ export function mergeMissingDealMachineFacts(
   return { facts, filled_fields: filledFields };
 }
 
+export function mergeMissingPublicPropertyTypeFact(
+  sourceFacts: Record<string, unknown>,
+  resolution: PublicPropertyTypeResolution,
+): ProviderFactMergeResult {
+  const facts = { ...sourceFacts };
+  const filledFields: string[] = [];
+  if (
+    resolution.status === 'resolved' &&
+    resolution.property_type &&
+    !hasAnyFact(sourceFacts, ['property_type', 'propertyType', 'type'])
+  ) {
+    facts.property_type = resolution.property_type;
+    filledFields.push('property_type');
+  }
+  return { facts, filled_fields: filledFields };
+}
+
 export async function checkCandidateBuyBoxFit(
   admin: SupabaseClient,
   workspaceId: string,
@@ -104,10 +158,85 @@ export async function checkCandidateBuyBoxFit(
   const candidate = await loadCandidate(admin, workspaceId, candidateId);
   validateCandidate(candidate);
 
-  // Enrich before asset-class routing. This is the one comprehensive subject
-  // property fetch that downstream CRM intake and Cash can reuse from cache.
-  // Provider failure does not overwrite source facts or block a source-complete
-  // candidate; it only remains relevant when the missing fact is required.
+  let evaluationFacts = { ...candidate.extracted_facts };
+  let publicResolution: PublicPropertyTypeResolution | null = null;
+  const lookupPath: string[] = ['source'];
+
+  // Stage 1: source-only pre-screen. If the source already identifies an asset
+  // class/property type and proves a hard exclusion, do not spend any external
+  // lookup at all.
+  const sourceAssetClass = tryDeriveAssetClass(evaluationFacts);
+  if (sourceAssetClass) {
+    const sourceScreen = await evaluateScreen(admin, workspaceId, sourceAssetClass, evaluationFacts);
+    if (sourceScreen.uncovered_hard_failures.length > 0) {
+      return persistScreenResult(
+        admin,
+        workspaceId,
+        candidate,
+        evaluationFacts,
+        sourceScreen,
+        skippedDealMachine('source_hard_reject'),
+        publicResolution,
+        lookupPath,
+      );
+    }
+  }
+
+  // Stage 2: if property type is still unresolved, try a bounded free public
+  // record lookup before DealMachine. Public-record failure is non-blocking.
+  if (!canonicalPropertyType(firstValue(evaluationFacts, ['property_type', 'propertyType', 'type']),
+    numberValue(firstValue(evaluationFacts, ['units', 'unit_count', 'unitCount'])))) {
+    publicResolution = await resolvePublicPropertyType(
+      candidate.normalized_address!.trim(),
+      evaluationFacts,
+    );
+    lookupPath.push('public_record');
+    const publicMerge = mergeMissingPublicPropertyTypeFact(evaluationFacts, publicResolution);
+    evaluationFacts = publicMerge.facts;
+  }
+
+  // Stage 3: public/source pre-screen. A free public record can resolve the type
+  // and expose an obvious hard reject (for example SFR in a non-flip geography),
+  // in which case DealMachine is still skipped.
+  const publicAssetClass = tryDeriveAssetClass(evaluationFacts);
+  if (publicAssetClass) {
+    const publicScreen = await evaluateScreen(admin, workspaceId, publicAssetClass, evaluationFacts);
+    if (publicScreen.uncovered_hard_failures.length > 0) {
+      return persistScreenResult(
+        admin,
+        workspaceId,
+        candidate,
+        evaluationFacts,
+        publicScreen,
+        skippedDealMachine('public_record_hard_reject'),
+        publicResolution,
+        lookupPath,
+      );
+    }
+
+    // If source + public records already make the screen decision and none of
+    // the remaining hard unknowns are fields DealMachine can safely resolve,
+    // finish without a paid call. This intentionally defers the comprehensive
+    // DealMachine snapshot until Cash if the deal never needs provider data here.
+    if (!hasDealMachineResolvableHardUnknown(publicScreen)) {
+      return persistScreenResult(
+        admin,
+        workspaceId,
+        candidate,
+        evaluationFacts,
+        publicScreen,
+        skippedDealMachine('screen_decidable_without_dealmachine'),
+        publicResolution,
+        lookupPath,
+      );
+    }
+  }
+
+  // Stage 4: paid fallback only when routing is still unresolved or a hard
+  // decision field that DealMachine can safely fill remains unknown. Once this
+  // call is justified, request/persist the comprehensive subject snapshot so
+  // downstream CRM/Cash can reuse it.
+  lookupPath.push('dealmachine');
   const propertyEnrichment = await enrichCandidateProperty(
     admin,
     workspaceId,
@@ -115,20 +244,62 @@ export async function checkCandidateBuyBoxFit(
     candidate.normalized_address!.trim(),
   );
   const mergedFacts = mergeMissingDealMachineFacts(
-    candidate.extracted_facts,
+    evaluationFacts,
     propertyEnrichment.facts,
   );
-  const evaluationFacts = mergedFacts.facts;
+  evaluationFacts = mergedFacts.facts;
 
   const assetClass = deriveAssetClass(evaluationFacts);
+  const finalScreen = await evaluateScreen(admin, workspaceId, assetClass, evaluationFacts);
+  const metadata: PropertyEnrichmentMetadata = {
+    provider: propertyEnrichment.provider,
+    status: propertyEnrichment.status,
+    snapshot_id: propertyEnrichment.snapshot_id,
+    provider_property_id: propertyEnrichment.provider_property_id,
+    fetched_at: propertyEnrichment.fetched_at,
+    credits_used: propertyEnrichment.credits_used,
+    error_code: propertyEnrichment.error_code,
+    filled_candidate_fields: mergedFacts.filled_fields,
+  };
+
+  return persistScreenResult(
+    admin,
+    workspaceId,
+    candidate,
+    evaluationFacts,
+    finalScreen,
+    metadata,
+    publicResolution,
+    lookupPath,
+  );
+}
+
+function hasDealMachineResolvableHardUnknown(screen: ScreenEvaluation): boolean {
+  return screen.hard_unknown.some((row) => DEALMACHINE_SCREEN_FIELDS.has(row.field));
+}
+
+function tryDeriveAssetClass(facts: Record<string, unknown>): string | null {
+  try {
+    return deriveAssetClass(facts);
+  } catch (error) {
+    if (error instanceof BuyBoxFitError && error.code === 'asset_class_unresolved') return null;
+    throw error;
+  }
+}
+
+async function evaluateScreen(
+  admin: SupabaseClient,
+  workspaceId: string,
+  assetClass: string,
+  facts: Record<string, unknown>,
+): Promise<ScreenEvaluation> {
   const criteria = await loadCriteria(admin, workspaceId, assetClass);
   if (!criteria.length) throw new BuyBoxFitError(409, 'buy_box_not_configured');
   const exceptions = await loadExceptions(admin, workspaceId, assetClass);
 
   const evaluations = criteria
     .filter((criterion) => criterion.rule_type === 'screen')
-    .map((criterion) => evaluateCriterion(criterion, evaluationFacts));
-
+    .map((criterion) => evaluateCriterion(criterion, facts));
   if (!evaluations.length) throw new BuyBoxFitError(409, 'buy_box_screen_not_configured');
 
   const failed = evaluations.filter((row) => row.status === 'fail');
@@ -156,7 +327,7 @@ export async function checkCandidateBuyBoxFit(
   const hardFailureFieldsWithException = new Set(
     exceptionCandidates
       .filter((exception) => hardFailed.some((failure) => failure.field === exception.field))
-      .map((exception) => exception.field),
+      .map((exception) => String(exception.field)),
   );
   const uncoveredHardFailures = hardFailed.filter(
     (failure) => !hardFailureFieldsWithException.has(failure.field),
@@ -167,51 +338,90 @@ export async function checkCandidateBuyBoxFit(
     hardFailureCount: hardFailed.length,
     hardUnknownCount: hardUnknown.length,
   });
-
-  // Unknown hard criteria block a verified fit, but they do not block CRM intake.
-  // needs_info candidates may enter the initial review stage so the team can
-  // request and verify the missing facts. Unknown soft criteria remain visible.
   const verificationStatus = result === 'fit'
     ? (unknown.length ? 'provisional' : 'verified')
     : 'not_qualified';
 
+  return {
+    asset_class: assetClass,
+    result,
+    verification_status: verificationStatus,
+    passed,
+    failed,
+    unknown,
+    hard_failed: hardFailed,
+    hard_unknown: hardUnknown,
+    soft_failed: softFailed,
+    uncovered_hard_failures: uncoveredHardFailures,
+    exceptions_available: exceptionCandidates,
+  };
+}
+
+async function persistScreenResult(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidate: CandidateRow,
+  evaluationFacts: Record<string, unknown>,
+  screen: ScreenEvaluation,
+  propertyEnrichment: PropertyEnrichmentMetadata,
+  publicResolution: PublicPropertyTypeResolution | null,
+  lookupPath: string[],
+): Promise<Record<string, unknown>> {
   const details = {
     contract: 'deal.buy_box_fit.v1',
     candidate_id: candidate.id,
-    asset_class: assetClass,
-    result,
-    crm_eligible: isCrmEligibleBuyBoxResult(result),
-    verification_status: verificationStatus,
-    property_enrichment: {
-      provider: propertyEnrichment.provider,
-      status: propertyEnrichment.status,
-      snapshot_id: propertyEnrichment.snapshot_id,
-      provider_property_id: propertyEnrichment.provider_property_id,
-      fetched_at: propertyEnrichment.fetched_at,
-      credits_used: propertyEnrichment.credits_used,
-      error_code: propertyEnrichment.error_code,
-      filled_candidate_fields: mergedFacts.filled_fields,
+    asset_class: screen.asset_class,
+    result: screen.result,
+    crm_eligible: isCrmEligibleBuyBoxResult(screen.result),
+    verification_status: screen.verification_status,
+    lookup_policy: {
+      path: lookupPath,
+      dealmachine_called: lookupPath.includes('dealmachine'),
+      free_public_record_attempted: lookupPath.includes('public_record'),
     },
-    passed,
-    failed: [...uncoveredHardFailures, ...softFailed],
-    unknown,
-    exceptions_available: exceptionCandidates,
+    public_property_type: publicResolution
+      ? {
+        status: publicResolution.status,
+        provider: publicResolution.provider,
+        property_type: publicResolution.property_type,
+        matched_address: publicResolution.matched_address,
+        parcel_id: publicResolution.parcel_id,
+        classification_code: publicResolution.classification_code,
+        source_url: publicResolution.source_url,
+        error_code: publicResolution.error_code,
+      }
+      : {
+        status: 'not_needed',
+        provider: 'none',
+        property_type: null,
+        matched_address: null,
+        parcel_id: null,
+        classification_code: null,
+        source_url: null,
+        error_code: null,
+      },
+    property_enrichment: propertyEnrichment,
+    passed: screen.passed,
+    failed: [...screen.uncovered_hard_failures, ...screen.soft_failed],
+    unknown: screen.unknown,
+    exceptions_available: screen.exceptions_available,
     summary: {
-      passed_count: passed.length,
-      failed_count: failed.length,
-      unknown_count: unknown.length,
-      hard_failed_count: hardFailed.length,
-      hard_unknown_count: hardUnknown.length,
-      soft_failed_count: softFailed.length,
+      passed_count: screen.passed.length,
+      failed_count: screen.failed.length,
+      unknown_count: screen.unknown.length,
+      hard_failed_count: screen.hard_failed.length,
+      hard_unknown_count: screen.hard_unknown.length,
+      soft_failed_count: screen.soft_failed.length,
     },
   };
 
   const now = new Date().toISOString();
   const { error } = await admin.from('ema_candidates').update({
-    // These are provider-backed fills only for facts that were absent from the
-    // source. The DealMachine snapshot remains the canonical provenance record.
+    // Source facts always win. Public/DealMachine fills are persisted only when
+    // the corresponding fact was absent from the source, and provenance remains
+    // visible in buy_box_fit_details / the DealMachine snapshot.
     extracted_facts: evaluationFacts,
-    buy_box_fit_result: result,
+    buy_box_fit_result: screen.result,
     buy_box_fit_details: details,
     buy_box_fit_checked_at: now,
     last_evaluated_at: now,
@@ -219,6 +429,19 @@ export async function checkCandidateBuyBoxFit(
   if (error) throw new BuyBoxFitError(500, 'buy_box_fit_persist_failed');
 
   return details;
+}
+
+function skippedDealMachine(reason: string): PropertyEnrichmentMetadata {
+  return {
+    provider: 'dealmachine',
+    status: 'skipped',
+    snapshot_id: null,
+    provider_property_id: null,
+    fetched_at: null,
+    credits_used: 0,
+    error_code: reason,
+    filled_candidate_fields: [],
+  };
 }
 
 export function classifyBuyBoxResult(params: {
@@ -318,7 +541,7 @@ export function deriveAssetClass(facts: Record<string, unknown>): string {
   const propertyType = canonicalPropertyType(firstValue(facts, [
     'property_type', 'propertyType', 'type',
   ]), numberValue(firstValue(facts, ['units', 'unit_count', 'unitCount'])));
-  if (['single_family', 'small_multifamily'].includes(propertyType ?? '')) return 'fix_flip';
+  if (['single_family', 'small_multifamily', 'condo', 'mobile_home'].includes(propertyType ?? '')) return 'fix_flip';
   if (propertyType === 'multifamily') return 'multifamily';
   if (propertyType === 'rv_park') return 'rv_park';
   if (propertyType === 'mhp') return 'mhp';
@@ -429,7 +652,9 @@ function observedValue(field: string, facts: Record<string, unknown>): unknown {
       const parsed = booleanValue(explicit);
       if (parsed !== null) return parsed;
       const propertyType = canonicalPropertyType(firstValue(facts, ['property_type', 'propertyType', 'type']), null);
-      return propertyType === 'single_family' ? false : null;
+      if (propertyType === 'condo') return true;
+      if (propertyType === 'single_family') return false;
+      return null;
     }
     case 'flood_zone': return booleanValue(firstValue(facts, ['flood_zone', 'in_flood_zone', 'is_flood_zone']));
     case 'fire_damage': return booleanValue(firstValue(facts, ['fire_damage', 'has_fire_damage']));
@@ -488,6 +713,8 @@ function canonicalPropertyType(value: unknown, units: number | null): string | n
   const raw = normalizedToken(value) ?? '';
   if (/rv park|recreational vehicle park/.test(raw)) return 'rv_park';
   if (/mobile home park|\bmhp\b/.test(raw)) return 'mhp';
+  if (/condo|condominium/.test(raw)) return 'condo';
+  if (/manufactured home|mobile home/.test(raw)) return 'mobile_home';
   if (/duplex|triplex|fourplex|2 4|small multifamily/.test(raw) || (units !== null && units >= 2 && units <= 4)) {
     return 'small_multifamily';
   }
