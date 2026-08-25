@@ -35,7 +35,7 @@ export const dealIntakeToCrmInputSchema={candidate_id:candidateId};
 export const dealReconcileEmailUpdateInputSchema={message_id:gmailId,candidate_id:candidateId.optional(),fact_updates:reconcileFactUpdates.optional(),documents:z.array(reconcileDocument).max(8).optional()};
 export const underwritingNextWorkItemInputSchema={};
 export const underwritingCashValueInputSchema={candidate_id:candidateId.optional(),opportunity_id:ghlId.optional(),subject_evidence:publicSubjectEvidence.optional(),public_comps:z.array(publicCompEvidence).max(25).optional()};
-export const underwritingRehabInputSchema={opportunity_id:ghlId,scope_items:z.array(rehabScopeItem).min(1).max(50)};
+export const underwritingRehabInputSchema={opportunity_id:ghlId,scope_items:z.array(rehabScopeItem).max(50).optional()};
 
 const dealPersistEmailIntakeValidator=z.object(dealPersistEmailIntakeInputSchema).strict().superRefine((v,ctx)=>{const count=v.candidates?.length??0;if(v.message_disposition==="deal"&&count===0)ctx.addIssue({code:z.ZodIssueCode.custom,message:"deal messages require at least one candidate"});if(v.message_disposition==="excluded"&&count>0)ctx.addIssue({code:z.ZodIssueCode.custom,message:"excluded messages cannot include candidates"})});
 const dealReconcileValidator=z.object(dealReconcileEmailUpdateInputSchema).strict().refine(v=>Boolean(v.fact_updates&&Object.keys(v.fact_updates).length)||Boolean(v.documents?.length),{message:"fact_updates or documents is required"});
