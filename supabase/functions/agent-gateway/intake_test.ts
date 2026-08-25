@@ -6,6 +6,7 @@ import {
   isEmaCrmIntakeEligible,
   looksLikeResolvedAddress,
 } from './intake.ts';
+import { getCachedCandidatePropertyEnrichment } from './property_enrichment.ts';
 
 function assert(condition: unknown, message = 'Assertion failed'): asserts condition {
   if (!condition) throw new Error(message);
@@ -114,6 +115,34 @@ Deno.test('unmapped PDF facts and source discrepancies flow into Deal Details', 
   assert(details?.includes('Source Discrepancies:'));
   assert(!details?.includes('Condition: Cosmetic refresh candidate'));
   assert(!details?.includes('Occupancy: Tenant'));
+});
+
+Deno.test('CRM intake defers DealMachine when no fresh snapshot already exists', async () => {
+  const chain = {
+    select() { return this; },
+    eq() { return this; },
+    gte() { return this; },
+    order() { return this; },
+    limit() { return this; },
+    async maybeSingle() { return { data: null, error: null }; },
+  };
+  const admin = {
+    from(table: string) {
+      assertEquals(table, 'property_enrichment_snapshots');
+      return chain;
+    },
+  } as never;
+
+  const result = await getCachedCandidatePropertyEnrichment(
+    admin,
+    'workspace-1',
+    'candidate-1',
+  );
+
+  assertEquals(result.status, 'skipped');
+  assertEquals(result.error_code, 'dealmachine_deferred_until_underwriting');
+  assertEquals(result.credits_used, 0);
+  assertEquals(result.snapshot_id, null);
 });
 
 Deno.test('fit and needs-info Ema results may enter CRM initial review', () => {

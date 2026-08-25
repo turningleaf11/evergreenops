@@ -8,7 +8,7 @@ import {
 const CACHE_DAYS = 30;
 const PROVIDER = 'dealmachine';
 
-export type PropertyEnrichmentStatus = 'cached' | 'fetched' | 'not_configured' | 'failed';
+export type PropertyEnrichmentStatus = 'cached' | 'fetched' | 'skipped' | 'not_configured' | 'failed';
 
 export interface PropertyEnrichmentResult {
   status: PropertyEnrichmentStatus;
@@ -80,6 +80,21 @@ export async function enrichCandidateProperty(
   }
 }
 
+/**
+ * CRM intake must never purchase a new DealMachine property lookup. It may reuse
+ * a fresh snapshot that was already justified by buy-box routing, otherwise the
+ * comprehensive subject lookup is deferred until Cash underwriting.
+ */
+export async function getCachedCandidatePropertyEnrichment(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string,
+): Promise<PropertyEnrichmentResult> {
+  const cached = await loadFreshSnapshot(admin, workspaceId, candidateId);
+  if (cached) return snapshotResult('cached', cached);
+  return emptyResult('skipped', 'dealmachine_deferred_until_underwriting');
+}
+
 export async function linkPropertyEnrichmentOpportunity(
   admin: SupabaseClient,
   workspaceId: string,
@@ -130,7 +145,7 @@ function snapshotResult(status: 'cached' | 'fetched', row: SnapshotRow): Propert
   };
 }
 
-function emptyResult(status: 'not_configured' | 'failed', errorCode: string | null): PropertyEnrichmentResult {
+function emptyResult(status: 'skipped' | 'not_configured' | 'failed', errorCode: string | null): PropertyEnrichmentResult {
   return {
     status,
     provider: PROVIDER,
