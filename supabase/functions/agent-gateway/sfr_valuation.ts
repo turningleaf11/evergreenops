@@ -1,5 +1,10 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
-import { DealMachineError, fetchDealMachineValuation, type DealMachineCompFacts } from '../_shared/dealmachine.ts';
+import {
+  DealMachineError,
+  fetchDealMachineValuation,
+  type DealMachineCachedProperty,
+  type DealMachineCompFacts,
+} from '../_shared/dealmachine.ts';
 import { resolveGhlContext } from '../_shared/ghl.ts';
 import { calculateCashValue, normalizePropertyType, type CashValueComp, type CashValueSubject } from './cash_value.ts';
 import { DealIntakeError, deriveRoute } from './intake.ts';
@@ -12,6 +17,7 @@ const GHL_PROPERTY_TYPE_FIELD_ID = '36WeaPwncmXLzUQhbGHd';
 const GHL_PROPERTY_ADDRESS_FIELD_ID = 'hH02pevCKOTpmDYfOTnu';
 const MAX_SOURCE_RECORDS = 50;
 const MINIMUM_COMPS = 3;
+const PROPERTY_CACHE_DAYS = 30;
 
 export class SfrValuationError extends Error {
   constructor(public status: number, public code: string) {
@@ -33,6 +39,15 @@ interface ProviderConfig {
   dealmachineApiKey: string | null;
   rentcastApiKey: string | null;
   zillowToken: string | null;
+}
+
+interface CachedPropertySnapshot {
+  id: string;
+  provider_property_id: string;
+  normalized_address: string;
+  facts: Record<string, unknown>;
+  credits_used: number;
+  fetched_at: string;
 }
 
 export interface PublicSubjectEvidence {
@@ -76,6 +91,16 @@ export interface SfrValuationResult {
     public_evidence: { status: 'used' | 'not_supplied'; comp_count: number; subject_evidence: boolean };
     zillow: { status: 'not_configured' | 'configured_pending_adapter' };
   };
+  dealmachine_property: {
+    status: 'fetched' | 'cached' | 'not_available';
+    snapshot_id: string | null;
+    provider_property_id: string | null;
+    normalized_address: string | null;
+    facts: Record<string, unknown>;
+    request_id: string | null;
+    credits_used: number;
+    fetched_at: string | null;
+  };
   comp_source: 'dealmachine' | 'rentcast' | 'public_evidence' | 'mixed' | 'none';
   comps_found: number;
   valuation_reference: {
@@ -96,7 +121,7 @@ export async function runSfrValuation(
 ): Promise<SfrValuationResult> {
   const candidate = await loadCandidate(admin, workspaceId, candidateId);
   if (candidate.is_test) throw new SfrValuationError(409, 'test_candidate_not_permitted');
-  return runResolvedSfrValuation(admin, {
+  return runResolvedSfrValuation(admin, workspaceId, {
     targetSource: 'ema_candidate',
     candidateId: candidate.id,
     opportunityId: candidate.ghl_opportunity_id,
@@ -116,7 +141,7 @@ export async function runSfrOpportunityValuation(
     .eq('workspace_id', workspaceId).eq('ghl_opportunity_id', opportunityId).limit(2);
   if (error) throw new SfrValuationError(500, 'candidate_lookup_failed');
   const candidateId = candidates?.length === 1 ? String(candidates[0].id) : null;
-  return runResolvedSfrValuation(admin, {
+  return runResolvedSfrValuation(admin, workspaceId, {
     targetSource: 'ghl_opportunity',
     candidateId,
     opportunityId,
@@ -126,6 +151,7 @@ export async function runSfrOpportunityValuation(
 
 async function runResolvedSfrValuation(
   admin: SupabaseClient,
+  workspaceId: string,
   target: {
     targetSource: 'ema_candidate' | 'ghl_opportunity';
     candidateId: string | null;
@@ -165,14 +191,42 @@ async function runResolvedSfrValuation(
     zillow: { status: config.zillowToken ? 'configured_pending_adapter' : 'not_configured' },
   };
 
+  let dealMachineProperty: SfrValuationResult['dealmachine_property'] = {
+    status: 'not_available',
+    snapshot_id: null,
+    provider_property_id: null,
+    normalized_address: null,
+    facts: {},
+    request_id: null,
+    credits_used: 0,
+    fetched_at: null,
+  };
   let dealMachineComps: CashValueComp[] = [];
   let rentcastComps: CashValueComp[] = [];
   let reference: SfrValuationResult['valuation_reference'] = { source: 'none', value: null, range: null };
 
-  // DealMachine is Evergreen's primary property/comps provider. The credential remains server-side.
+  // DealMachine is Evergreen's primary property/comps provider. If Ema already
+  // persisted a fresh property snapshot, Cash reuses it and makes only the comps
+  // call. Otherwise the valuation run performs one comprehensive subject-property
+  // enrichment call plus one 12-month closed-comps call.
   if (config.dealmachineApiKey) {
     try {
-      const dealMachine = await fetchDealMachineValuation(config.dealmachineApiKey, String(subject.address ?? ''), fetchImpl);
+      const cachedSnapshot = target.candidateId
+        ? await loadFreshDealMachineSnapshot(admin, workspaceId, target.candidateId)
+        : null;
+      const cachedProperty: DealMachineCachedProperty | null = cachedSnapshot
+        ? {
+          dm_property_id: cachedSnapshot.provider_property_id,
+          full_address: cachedSnapshot.normalized_address,
+          facts: cachedSnapshot.facts,
+        }
+        : null;
+      const dealMachine = await fetchDealMachineValuation(
+        config.dealmachineApiKey,
+        String(subject.address ?? ''),
+        fetchImpl,
+        cachedProperty,
+      );
       subject = mergeSubject(subject, {
         sqft: dealMachine.subject.sqft ?? undefined,
         year_built: dealMachine.subject.year_built,
@@ -190,6 +244,16 @@ async function runResolvedSfrValuation(
         credits_used: dealMachine.credits.used,
         error_code: null,
       };
+      dealMachineProperty = {
+        status: dealMachine.property_source,
+        snapshot_id: cachedSnapshot?.id ?? null,
+        provider_property_id: dealMachine.subject.dm_property_id,
+        normalized_address: dealMachine.subject.full_address ?? String(subject.address ?? '').trim() || null,
+        facts: dealMachine.property_facts,
+        request_id: dealMachine.property_request_id,
+        credits_used: dealMachine.property_credits.used,
+        fetched_at: cachedSnapshot?.fetched_at ?? null,
+      };
       if (dealMachine.subject.estimated_value !== null) {
         reference = {
           source: 'dealmachine_estimated_value',
@@ -197,7 +261,12 @@ async function runResolvedSfrValuation(
           range: null,
         };
       }
-      notes.push(`DealMachine resolved the subject as ${dealMachine.subject.dm_property_id} and returned ${dealMachineComps.length} closed sold comp${dealMachineComps.length === 1 ? '' : 's'} for Evergreen filtering.`);
+      notes.push(
+        dealMachine.property_source === 'cached'
+          ? `DealMachine subject property data was reused from Evergreen's fresh cache; one 12-month closed-comps API call returned ${dealMachineComps.length} comp${dealMachineComps.length === 1 ? '' : 's'} for Evergreen filtering.`
+          : `DealMachine fetched comprehensive subject property data once and one 12-month closed-comps pool; ${dealMachineComps.length} comp${dealMachineComps.length === 1 ? '' : 's'} were returned for Evergreen filtering.`,
+      );
+      notes.push('CashValue applies Evergreen’s 6-month standard criteria first and 12-month expanded criteria locally to the single DealMachine comp pool; it does not make a second comps call solely for recency expansion.');
     } catch (error) {
       const code = error instanceof DealMachineError ? error.code : 'dealmachine_request_failed';
       providerState.dealmachine = {
@@ -214,8 +283,8 @@ async function runResolvedSfrValuation(
     notes.push('DealMachine is not configured for the Agent Gateway; no DealMachine API call was attempted.');
   }
 
-  // RentCast is a fallback only. Do not spend a second provider call when DealMachine already supplied
-  // the minimum comp set. Public evidence is still merged below because it may add independently sourced evidence.
+  // RentCast is a fallback only. Do not spend another provider call when
+  // DealMachine already supplied the minimum comp set.
   if (dealMachineComps.length >= MINIMUM_COMPS) {
     providerState.rentcast.status = config.rentcastApiKey ? 'skipped_primary_sufficient' : 'not_configured';
   } else if (config.rentcastApiKey) {
@@ -281,6 +350,7 @@ async function runResolvedSfrValuation(
     opportunity_id: target.opportunityId,
     subject,
     providers: providerState,
+    dealmachine_property: dealMachineProperty,
     comp_source: compSource,
     comps_found: comps.length,
     valuation_reference: reference,
@@ -298,9 +368,38 @@ async function loadCandidate(admin: SupabaseClient, workspaceId: string, candida
   return data as CandidateRow;
 }
 
+async function loadFreshDealMachineSnapshot(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string,
+): Promise<CachedPropertySnapshot | null> {
+  const cutoff = new Date(Date.now() - PROPERTY_CACHE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await admin.from('property_enrichment_snapshots')
+    .select('id, provider_property_id, normalized_address, facts, credits_used, fetched_at')
+    .eq('workspace_id', workspaceId)
+    .eq('candidate_id', candidateId)
+    .eq('provider', 'dealmachine')
+    .gte('fetched_at', cutoff)
+    .order('fetched_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const providerPropertyId = stringValue(data.provider_property_id);
+  const normalizedAddress = stringValue(data.normalized_address);
+  if (!providerPropertyId || !normalizedAddress) return null;
+  return {
+    id: String(data.id),
+    provider_property_id: providerPropertyId,
+    normalized_address: normalizedAddress,
+    facts: record(data.facts),
+    credits_used: numberValue(data.credits_used) ?? 0,
+    fetched_at: String(data.fetched_at),
+  };
+}
+
 async function resolveProviderConfig(admin: SupabaseClient): Promise<ProviderConfig> {
+  // DealMachine is intentionally Edge-secret-only. Never source its raw key from app_settings.
   const keys = [
-    'DEALMACHINE_API_KEY',
     'RENTCAST_API_KEY',
     'ZILLOW_ACCESS_TOKEN',
     'ZILLOW_API_TOKEN',
@@ -312,7 +411,7 @@ async function resolveProviderConfig(admin: SupabaseClient): Promise<ProviderCon
   for (const row of data ?? []) {
     if (typeof row.key === 'string' && typeof row.value === 'string' && row.value.trim()) settings[row.key] = row.value.trim();
   }
-  const dealmachineApiKey = settings.DEALMACHINE_API_KEY || Deno.env.get('DEALMACHINE_API_KEY') || null;
+  const dealmachineApiKey = Deno.env.get('DEALMACHINE_API_KEY')?.trim() || null;
   const rentcastApiKey = settings.RENTCAST_API_KEY || Deno.env.get('RENTCAST_API_KEY') || null;
   const zillowToken = settings.ZILLOW_ACCESS_TOKEN || settings.ZILLOW_API_TOKEN || settings.ZILLOW_ZESTIMATE_TOKEN ||
     Deno.env.get('ZILLOW_ACCESS_TOKEN') || Deno.env.get('ZILLOW_API_TOKEN') || Deno.env.get('ZILLOW_ZESTIMATE_TOKEN') || null;
@@ -595,13 +694,19 @@ function first(recordValue: Record<string, unknown>, keys: string[]): unknown {
 }
 
 function stringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    const firstString = value.find((item) => typeof item === 'string' && item.trim());
+    return typeof firstString === 'string' ? firstString.trim() : null;
+  }
+  return null;
 }
 
 function numberValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value.replace(/[$,]/g, '')))) {
-    return Number(value.replace(/[$,]/g, ''));
+  if (Array.isArray(value) && value.length) return numberValue(value[0]);
+  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value.replace(/[$,%\s,]/g, '')))) {
+    return Number(value.replace(/[$,%\s,]/g, ''));
   }
   return null;
 }
