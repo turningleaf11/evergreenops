@@ -142,8 +142,7 @@ export function planExistingMessageCandidates(
   const matchedIds=new Set<string>();
   let nextIndex=existing.reduce((max,row)=>Math.max(max,row.candidate_index),-1)+1;
 
-  for(let inputIndex=0;inputIndex<incoming.length;inputIndex++){
-    const candidate=incoming[inputIndex];
+  for(const candidate of incoming){
     const address=cleanString(candidate.normalized_address,300);
     if(address){
       const fingerprint=candidateFingerprint(gmailMessageId,0,address);
@@ -156,8 +155,6 @@ export function planExistingMessageCandidates(
       continue;
     }
 
-    const positional=existing.find(row=>row.candidate_index===inputIndex&&!matchedIds.has(row.candidate_id));
-    if(positional){matched.push(positional);matchedIds.add(positional.candidate_id);continue}
     if(existing.length)throw new EmailIntakeError(409,'candidate_identity_required_for_incremental_email');
     additions.push({candidate,candidate_index:nextIndex++});
   }

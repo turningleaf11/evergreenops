@@ -114,7 +114,7 @@ Deno.test("multiple newly discovered properties receive monotonically increasing
   assertEquals(plan.additions.map((entry) => entry.candidate_index), [1, 2]);
 });
 
-Deno.test("incremental addressless candidate fails closed when the email already has a property", () => {
+Deno.test("even one incremental addressless candidate fails closed instead of position-matching index zero", () => {
   const existing = [{
     candidate_id: "candidate-2627",
     candidate_index: 0,
@@ -134,7 +134,7 @@ Deno.test("incremental addressless candidate fails closed when the email already
     planExistingMessageCandidates(
       "1a005aef0b0b18ca",
       existing,
-      [candidate(null), candidate(null)],
+      [candidate(null)],
     )
   );
   assertEquals(error instanceof EmailIntakeError, true);

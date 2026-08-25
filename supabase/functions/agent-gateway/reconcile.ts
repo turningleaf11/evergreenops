@@ -32,6 +32,10 @@ export function requiresBuyBoxRerun(factKeys:string[]):boolean {
   return factKeys.some(key=>BUY_BOX_RELEVANT_RECONCILE_FACTS.has(key));
 }
 
+export function isSameGmailMessage(originGmailMessageId:string|null|undefined,sourceGmailMessageId:string):boolean {
+  return typeof originGmailMessageId==='string'&&originGmailMessageId.length>0&&originGmailMessageId===sourceGmailMessageId;
+}
+
 export async function reconcileEmailUpdate(
   admin:SupabaseClient,
   workspaceId:string,
@@ -43,6 +47,7 @@ export async function reconcileEmailUpdate(
   const matched = await resolveCandidateMatch(admin, workspaceId, source, input.candidate_id ?? null);
   const candidate = await loadCandidate(admin, workspaceId, matched.id);
   if (candidate.is_test) throw new DealReconcileError(409,'test_candidate_not_permitted');
+  await assertReconcileUsesLaterSourceMessage(admin,workspaceId,candidate.ema_message_id,source.id);
 
   const nextFacts = { ...candidate.extracted_facts, ...input.fact_updates };
   const assetClass = safeAssetClass(nextFacts);
@@ -194,6 +199,15 @@ async function loadCandidate(admin:SupabaseClient,w:string,id:string):Promise<Ca
   if(error)throw new DealReconcileError(500,'candidate_lookup_failed');
   if(!data)throw new DealReconcileError(404,'existing_candidate_not_found');
   return data as CandidateRow;
+}
+
+async function assertReconcileUsesLaterSourceMessage(admin:SupabaseClient,w:string,originMessageId:string,sourceGmailMessageId:string):Promise<void>{
+  const {data,error}=await admin.from('ema_messages').select('gmail_message_id').eq('workspace_id',w).eq('id',originMessageId).maybeSingle();
+  if(error)throw new DealReconcileError(500,'ema_message_lookup_failed');
+  if(!data)throw new DealReconcileError(409,'origin_message_missing');
+  if(isSameGmailMessage(typeof data.gmail_message_id==='string'?data.gmail_message_id:null,sourceGmailMessageId)){
+    throw new DealReconcileError(409,'same_message_candidate_discovery_requires_intake');
+  }
 }
 
 async function persistSourceMessage(admin:SupabaseClient,w:string,account:string,originMessageId:string,source:SourceMessage,relationType:string):Promise<string>{
