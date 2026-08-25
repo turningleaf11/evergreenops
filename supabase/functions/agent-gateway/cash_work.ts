@@ -1,6 +1,6 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
+import { DEALMACHINE_PROPERTY_FIELDS } from '../_shared/dealmachine.ts';
 import type { SfrValuationResult } from './sfr_valuation.ts';
-import { enrichCandidateProperty } from './property_enrichment.ts';
 
 export class CashWorkError extends Error {
   constructor(public status: number, public code: string) {
@@ -20,7 +20,7 @@ export interface CashWorkItem {
   task_description: string;
   resumed: boolean;
   completed_phases: string[];
-  next_phase: 'cash_value' | 'rehab' | 'mao' | 'flip_analysis' | 'dealcheck' | 'final';
+  next_phase: 'cash_value' | 'rehab' | 'mao' | 'human_review';
 }
 
 export async function claimNextCashWorkItem(
@@ -52,12 +52,8 @@ export async function claimNextCashWorkItem(
       task_description: requiredString(row.task_description, 'task_description'),
       resumed: Boolean(row.resumed),
       completed_phases: phases,
-      next_phase: phases.includes('dealcheck')
-        ? 'final'
-        : phases.includes('flip_analysis')
-        ? 'dealcheck'
-        : phases.includes('mao')
-        ? 'flip_analysis'
+      next_phase: phases.includes('mao')
+        ? 'human_review'
         : phases.includes('rehab')
         ? 'mao'
         : phases.includes('cash_value')
@@ -72,7 +68,7 @@ export async function persistActiveCashValueStep(
   workspaceId: string,
   agentId: string,
   valuation: SfrValuationResult,
-  fetchImpl: typeof fetch = fetch,
+  _fetchImpl: typeof fetch = fetch,
 ): Promise<Record<string, unknown>> {
   const opportunityId = valuation.opportunity_id;
   if (!opportunityId) return { persisted: false, reason: 'no_opportunity_id' };
@@ -99,30 +95,13 @@ export async function persistActiveCashValueStep(
     ? 'needs_info'
     : 'succeeded';
 
-  let propertyEnrichment: Record<string, unknown> = {
-    status: 'skipped',
-    provider: 'dealmachine',
-    reason: candidateId ? 'dealmachine_not_used' : 'candidate_id_unavailable',
-  };
-  const subjectAddress = typeof valuation.subject.address === 'string' ? valuation.subject.address.trim() : '';
-  if (candidateId && subjectAddress && valuation.providers.dealmachine.status === 'used') {
-    const enriched = await enrichCandidateProperty(
-      admin,
-      workspaceId,
-      candidateId,
-      subjectAddress,
-      fetchImpl,
-    );
-    propertyEnrichment = {
-      status: enriched.status,
-      provider: enriched.provider,
-      snapshot_id: enriched.snapshot_id,
-      provider_property_id: enriched.provider_property_id,
-      fetched_at: enriched.fetched_at,
-      credits_used: enriched.credits_used,
-      error_code: enriched.error_code,
-    };
-  }
+  const propertyEnrichment = await persistValuationPropertySnapshot(
+    admin,
+    workspaceId,
+    candidateId,
+    opportunityId,
+    valuation,
+  );
 
   const output = {
     contract: valuation.contract,
@@ -193,6 +172,93 @@ export async function persistActiveCashValueStep(
   };
 }
 
+async function persistValuationPropertySnapshot(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string | null,
+  opportunityId: string,
+  valuation: SfrValuationResult,
+): Promise<Record<string, unknown>> {
+  const property = valuation.dealmachine_property;
+  if (!candidateId) {
+    return { status: 'skipped', provider: 'dealmachine', reason: 'candidate_id_unavailable' };
+  }
+  if (valuation.providers.dealmachine.status !== 'used' || property.status === 'not_available') {
+    return { status: 'skipped', provider: 'dealmachine', reason: 'dealmachine_not_used' };
+  }
+  if (property.status === 'cached' && property.snapshot_id) {
+    return {
+      status: 'cached',
+      provider: 'dealmachine',
+      snapshot_id: property.snapshot_id,
+      provider_property_id: property.provider_property_id,
+      fetched_at: property.fetched_at,
+      credits_used: 0,
+      error_code: null,
+    };
+  }
+
+  const providerPropertyId = stringValue(property.provider_property_id);
+  const normalizedAddress = stringValue(property.normalized_address) || stringValue(valuation.subject.address);
+  if (!providerPropertyId || !normalizedAddress || Object.keys(property.facts).length === 0) {
+    return {
+      status: 'failed',
+      provider: 'dealmachine',
+      snapshot_id: null,
+      provider_property_id: providerPropertyId,
+      fetched_at: null,
+      credits_used: 0,
+      error_code: 'dealmachine_property_snapshot_incomplete',
+    };
+  }
+
+  const fetchedAt = new Date().toISOString();
+  const provenance = {
+    source: 'dealmachine_v2_address_enrichment',
+    request_id: property.request_id,
+    contact_audience: 'none',
+    requested_fields: [...DEALMACHINE_PROPERTY_FIELDS],
+    reused_from_cash_value_provider_call: true,
+    credits: {
+      used: property.credits_used,
+      people: 0,
+    },
+  };
+  const { data, error } = await admin.from('property_enrichment_snapshots').insert({
+    workspace_id: workspaceId,
+    candidate_id: candidateId,
+    ghl_opportunity_id: opportunityId,
+    provider: 'dealmachine',
+    provider_property_id: providerPropertyId,
+    normalized_address: normalizedAddress,
+    facts: property.facts,
+    provenance,
+    credits_used: Math.max(0, Math.round(property.credits_used)),
+    fetched_at: fetchedAt,
+  }).select('id, provider_property_id, credits_used, fetched_at').single();
+
+  if (error || !data) {
+    return {
+      status: 'failed',
+      provider: 'dealmachine',
+      snapshot_id: null,
+      provider_property_id: providerPropertyId,
+      fetched_at: null,
+      credits_used: 0,
+      error_code: 'property_enrichment_persist_failed',
+    };
+  }
+  return {
+    status: 'fetched',
+    provider: 'dealmachine',
+    snapshot_id: String(data.id),
+    provider_property_id: String(data.provider_property_id),
+    fetched_at: String(data.fetched_at),
+    credits_used: Number(data.credits_used ?? property.credits_used),
+    error_code: null,
+  };
+}
+
 async function mergedTaskContext(
   admin: SupabaseClient,
   taskId: string,
@@ -213,6 +279,10 @@ async function mergedTaskContext(
     cash_runtime_status: 'active',
     cash_progress: progress,
   };
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function requiredString(value: unknown, field: string): string {
