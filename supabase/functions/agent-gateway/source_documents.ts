@@ -1,5 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
-import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.0';
+import { extractText, getDocumentProxy } from 'https://esm.sh/unpdf@1.8.0';
 import { refreshAccessToken } from '../_shared/gmail.ts';
 
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
