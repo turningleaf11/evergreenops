@@ -1,4 +1,4 @@
-import { messageMentionsAddress, requiresBuyBoxRerun, selectCandidateFromMatches } from './reconcile.ts';
+import { isSameGmailMessage, messageMentionsAddress, requiresBuyBoxRerun, selectCandidateFromMatches } from './reconcile.ts';
 function assert(condition:unknown,message='Assertion failed'):asserts condition{if(!condition)throw new Error(message)}
 function assertEquals(actual:unknown,expected:unknown){const a=JSON.stringify(actual),e=JSON.stringify(expected);if(a!==e)throw new Error(`Expected ${e}, received ${a}`)}
 const candidates=[
@@ -11,3 +11,4 @@ Deno.test('candidate hint cannot override contradictory source matching',()=>{co
 Deno.test('single same-thread candidate does not require the address repeated in every reply',()=>{const source={id:'m1',thread_id:'same',headers:{subject:'Re: requested files'},body_text:'Attached.'};assertEquals(selectCandidateFromMatches([candidates[0]],source,null),candidates[0])});
 Deno.test('pricing-only source updates do not require buy-box rerun',()=>{assert(!requiresBuyBoxRerun(['arv','repair_estimate','asking_price']));assert(!requiresBuyBoxRerun(['tenant_rent_monthly']));});
 Deno.test('screen-relevant source updates require buy-box rerun',()=>{assert(requiresBuyBoxRerun(['property_type']));assert(requiresBuyBoxRerun(['sqft']));assert(requiresBuyBoxRerun(['hoa']));});
+Deno.test('the original Gmail message is never a reconciliation update source',()=>{assert(isSameGmailMessage('1a005aef0b0b18ca','1a005aef0b0b18ca'));assert(!isSameGmailMessage('1a005aef0b0b18ca','1a038d3d3abea864'));assert(!isSameGmailMessage(null,'1a005aef0b0b18ca'));});
