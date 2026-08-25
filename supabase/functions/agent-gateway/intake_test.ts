@@ -48,7 +48,17 @@ Deno.test('routes SFR and 2-4 unit assets only to the SFR intake stage', () => {
     pipelineId: 'w3OtDJjCdN840Hwb1fpt',
     stageId: 'a4842558-034c-4ba7-acf3-ed000673f7d6',
   });
+  assertEquals(deriveRoute({ property_type: 'single_family' }), {
+    propertyType: 'Single Family Residence',
+    pipelineId: 'w3OtDJjCdN840Hwb1fpt',
+    stageId: 'a4842558-034c-4ba7-acf3-ed000673f7d6',
+  });
   assertEquals(deriveRoute({ property_type: 'Duplex', units: 2 }), {
+    propertyType: 'Multi-family 2-4 Units',
+    pipelineId: 'w3OtDJjCdN840Hwb1fpt',
+    stageId: 'a4842558-034c-4ba7-acf3-ed000673f7d6',
+  });
+  assertEquals(deriveRoute({ property_type: 'small_multifamily' }), {
     propertyType: 'Multi-family 2-4 Units',
     pipelineId: 'w3OtDJjCdN840Hwb1fpt',
     stageId: 'a4842558-034c-4ba7-acf3-ed000673f7d6',
