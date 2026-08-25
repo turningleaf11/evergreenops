@@ -112,15 +112,16 @@ export async function runAndPersistCashRehab(
   }
 
   // MAO remains deterministic. Acquisition Rehab supplies the server-approved
-  // whole-property range; for default-unknown condition total.base is
-  // deliberately the high side so MAO stays conservative until better evidence
-  // replaces the assumption.
+  // whole-property range; for default-unknown condition total.base is deliberately
+  // the high side so MAO stays conservative until better evidence replaces it.
+  // Successful MAO is the acquisition-underwriting completion point and moves
+  // the durable Cash task/work item to human review; Flip Analysis is later DD.
   const mao = await runAndPersistCashMao(admin, workspaceId, agentId, opportunityId);
 
   // The underwriting note is best-effort CRM presentation, not an authorization
   // boundary. It includes the exact selected sold comps persisted by CashValue,
-  // rehab classification/range and pricing outputs so the acquisition team can
-  // audit Cash's reasoning directly in HighLevel.
+  // rehab classification/range and MAO so the acquisition team can audit Cash's
+  // reasoning directly in HighLevel.
   const crmNote = await ensureCashUnderwritingNote(
     admin,
     workspaceId,
@@ -133,6 +134,7 @@ export async function runAndPersistCashRehab(
     ...estimate,
     mao,
     crm_note: crmNote,
+    acquisition_underwriting_complete: true,
     work_step: {
       persisted: true,
       work_item_id: work.id,
@@ -140,7 +142,7 @@ export async function runAndPersistCashRehab(
       step_id: step.id,
       phase: 'rehab',
       status: stepStatus,
-      next_phase: 'flip_analysis',
+      next_phase: 'human_review',
       mao_auto_calculated: true,
       cash_underwriting_note_status: crmNote.status,
     },
