@@ -1,4 +1,9 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
+import {
+  parseNormalizedAddressFacts,
+  resolveFreeFloridaCounty,
+  type PublicGeographyResolution,
+} from './public_geography.ts';
 
 export class EmailIntakeError extends Error {
   constructor(public status:number, public code:string) { super(code); this.name='EmailIntakeError'; }
@@ -32,6 +37,7 @@ interface ExistingCandidateRow {
   normalized_address:string|null;
   candidate_fingerprint:string|null;
   extracted_facts:Record<string,FactValue>;
+  evidence:Record<string,unknown>;
   intake_result:string|null;
   buy_box_fit_result:string|null;
   processing_status:string;
@@ -40,6 +46,17 @@ interface ExistingCandidateRow {
 interface CandidatePlan {
   candidate:CandidateInput;
   candidate_index:number;
+}
+interface CandidateSupplementResult {
+  source_fields:string[];
+  address_fields:string[];
+  public_geography:PublicGeographyResolution|null;
+}
+interface AddressFactEnrichment {
+  facts:Record<string,FactValue>;
+  evidence:Record<string,unknown>;
+  filled_fields:string[];
+  public_geography:PublicGeographyResolution|null;
 }
 
 const BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS=new Set([
@@ -111,7 +128,7 @@ async function reconcileExistingMessageCandidates(
   const plan=planExistingMessageCandidates(source.id,current,incoming);
   const supplemented=plan.matched.length
     ? await supplementMatchedCandidateFacts(admin,workspaceId,plan.matched,incoming)
-    : new Map<string,string[]>();
+    : new Map<string,CandidateSupplementResult>();
   const added=plan.additions.length
     ? await persistCandidatePlans(admin,workspaceId,source,existing.id,plan.additions)
     : [];
@@ -121,14 +138,20 @@ async function reconcileExistingMessageCandidates(
     );
   }
   const matched=plan.matched.map(row=>{
-    const filled=supplemented.get(row.candidate_id)??[];
+    const supplement=supplemented.get(row.candidate_id)??{
+      source_fields:[],address_fields:[],public_geography:null,
+    };
+    const allFilled=[...new Set([...supplement.source_fields,...supplement.address_fields])];
     return {
       candidate_id:row.candidate_id,candidate_index:row.candidate_index,
       normalized_address:row.normalized_address,intake_result:row.intake_result,
       buy_box_fit_result:row.buy_box_fit_result,processing_status:row.processing_status,
       has_crm_opportunity:Boolean(row.ghl_opportunity_id),disposition:'matched_existing',
-      source_facts_supplemented:filled.length>0,filled_source_fact_fields:filled,
-      rerun_buy_box_required:filled.some(field=>BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS.has(field)),
+      source_facts_supplemented:supplement.source_fields.length>0,
+      filled_source_fact_fields:supplement.source_fields,
+      filled_address_fact_fields:supplement.address_fields,
+      public_geography:safePublicGeography(supplement.public_geography),
+      rerun_buy_box_required:allFilled.some(field=>BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS.has(field)),
     };
   });
   return {
@@ -137,7 +160,9 @@ async function reconcileExistingMessageCandidates(
     message_id:existing.id,
     gmail_message_id:source.id,
     added_candidate_count:added.length,
-    supplemented_candidate_count:[...supplemented.values()].filter(fields=>fields.length>0).length,
+    supplemented_candidate_count:[...supplemented.values()].filter(value=>
+      value.source_fields.length>0||value.address_fields.length>0
+    ).length,
     candidates:[...matched,...added],
   };
 }
@@ -197,8 +222,8 @@ async function supplementMatchedCandidateFacts(
   workspaceId:string,
   matched:ExistingCandidateRow[],
   incoming:CandidateInput[],
-):Promise<Map<string,string[]>> {
-  const result=new Map<string,string[]>();
+):Promise<Map<string,CandidateSupplementResult>> {
+  const result=new Map<string,CandidateSupplementResult>();
   const incomingByAddress=new Map<string,CandidateInput>();
   for(const candidate of incoming){
     const key=canonicalAddress(cleanString(candidate.normalized_address,300)??'');
@@ -207,16 +232,88 @@ async function supplementMatchedCandidateFacts(
   for(const row of matched){
     const key=canonicalAddress(row.normalized_address??'');
     const candidate=incomingByAddress.get(key);
-    if(!candidate){result.set(row.candidate_id,[]);continue}
-    const merged=mergeMissingSourceFacts(row.extracted_facts,candidate.extracted_facts);
-    result.set(row.candidate_id,merged.filled_fields);
-    if(!merged.filled_fields.length)continue;
-    const {error}=await admin.from('ema_candidates').update({extracted_facts:merged.facts})
-      .eq('id',row.candidate_id).eq('workspace_id',workspaceId);
+    if(!candidate){
+      result.set(row.candidate_id,{source_fields:[],address_fields:[],public_geography:null});
+      continue;
+    }
+    const sourceMerged=mergeMissingSourceFacts(row.extracted_facts,candidate.extracted_facts);
+    const addressEnriched=await enrichCandidateAddressFacts(
+      row.normalized_address,
+      sourceMerged.facts,
+      row.evidence,
+    );
+    result.set(row.candidate_id,{
+      source_fields:sourceMerged.filled_fields,
+      address_fields:addressEnriched.filled_fields,
+      public_geography:addressEnriched.public_geography,
+    });
+    const changed=sourceMerged.filled_fields.length>0||addressEnriched.filled_fields.length>0||
+      addressEnriched.evidence!==row.evidence;
+    if(!changed)continue;
+    const {error}=await admin.from('ema_candidates').update({
+      extracted_facts:addressEnriched.facts,
+      evidence:addressEnriched.evidence,
+    }).eq('id',row.candidate_id).eq('workspace_id',workspaceId);
     if(error)throw new EmailIntakeError(500,'candidate_source_fact_supplement_failed');
-    row.extracted_facts=merged.facts;
+    row.extracted_facts=addressEnriched.facts;
+    row.evidence=addressEnriched.evidence;
   }
   return result;
+}
+
+async function enrichCandidateAddressFacts(
+  address:string|null,
+  facts:Record<string,FactValue>,
+  evidence:Record<string,unknown>,
+):Promise<AddressFactEnrichment> {
+  if(!address)return{facts:{...facts},evidence,filled_fields:[],public_geography:null};
+
+  const parsed=parseNormalizedAddressFacts(address);
+  const localMerge=mergeMissingSourceFacts(facts,{
+    city:parsed.city,
+    state:parsed.state,
+    zip:parsed.zip,
+  });
+  let nextFacts=localMerge.facts;
+  let nextEvidence=evidence;
+  let publicGeography:PublicGeographyResolution|null=null;
+  const countyMissing=isMissingFact(nextFacts.county)&&isMissingFact(nextFacts.property_county);
+  const state=cleanString(nextFacts.state,20)?.toUpperCase()??null;
+
+  if(countyMissing&&state==='FL'){
+    publicGeography=await resolveFreeFloridaCounty(address,nextFacts);
+    if(publicGeography.status==='resolved'&&publicGeography.county){
+      const geographyMerge=mergeMissingSourceFacts(nextFacts,{
+        county:publicGeography.county,
+        city:publicGeography.city,
+        state:publicGeography.state,
+        zip:publicGeography.zip,
+      });
+      nextFacts=geographyMerge.facts;
+      localMerge.filled_fields.push(...geographyMerge.filled_fields);
+    }
+    nextEvidence={
+      ...evidence,
+      public_geography:{
+        provider:publicGeography.provider,
+        status:publicGeography.status,
+        county:publicGeography.county,
+        state:publicGeography.state,
+        city:publicGeography.city,
+        zip:publicGeography.zip,
+        matched_address:publicGeography.matched_address,
+        source_url:publicGeography.source_url,
+        error_code:publicGeography.error_code,
+      },
+    };
+  }
+
+  return{
+    facts:nextFacts,
+    evidence:nextEvidence,
+    filled_fields:[...new Set(localMerge.filled_fields)],
+    public_geography:publicGeography,
+  };
 }
 
 async function loadExistingMessage(
@@ -230,7 +327,7 @@ async function loadExistingMessage(
 
 async function loadExistingCandidateRows(admin:SupabaseClient,w:string,messageId:string):Promise<ExistingCandidateRow[]>{
   const {data,error}=await admin.from('ema_candidates')
-    .select('id, candidate_index, normalized_address, candidate_fingerprint, extracted_facts, intake_result, buy_box_fit_result, processing_status, ghl_opportunity_id')
+    .select('id, candidate_index, normalized_address, candidate_fingerprint, extracted_facts, evidence, intake_result, buy_box_fit_result, processing_status, ghl_opportunity_id')
     .eq('workspace_id',w).eq('ema_message_id',messageId).order('candidate_index',{ascending:true});
   if(error)throw new EmailIntakeError(500,'candidate_lookup_failed');
   return (data??[]).map(row=>({
@@ -238,6 +335,8 @@ async function loadExistingCandidateRows(admin:SupabaseClient,w:string,messageId
     candidate_fingerprint:row.candidate_fingerprint??null,
     extracted_facts:(row.extracted_facts&&typeof row.extracted_facts==='object'&&!Array.isArray(row.extracted_facts))
       ? row.extracted_facts as Record<string,FactValue>: {},
+    evidence:(row.evidence&&typeof row.evidence==='object'&&!Array.isArray(row.evidence))
+      ? row.evidence as Record<string,unknown>: {},
     intake_result:row.intake_result??null,
     buy_box_fit_result:row.buy_box_fit_result??null,processing_status:String(row.processing_status),
     ghl_opportunity_id:row.ghl_opportunity_id??null,
@@ -304,10 +403,11 @@ async function persistCandidatePlans(
   for(const plan of plans){
     const candidate=plan.candidate,index=plan.candidate_index,address=cleanString(candidate.normalized_address,300);
     const intakeResult=candidate.intake_result;
+    const addressEnriched=await enrichCandidateAddressFacts(address,candidate.extracted_facts,candidate.evidence);
     const row={
       workspace_id:w,ema_message_id:messageId,candidate_index:index,candidate_type:cleanString(candidate.candidate_type,120),
       normalized_address:address,candidate_fingerprint:candidateFingerprint(source.id,index,address),
-      extracted_facts:candidate.extracted_facts,evidence:candidate.evidence,missing_information:candidate.missing_information,
+      extracted_facts:addressEnriched.facts,evidence:addressEnriched.evidence,missing_information:candidate.missing_information,
       source_type:candidate.source_type,intake_result:intakeResult,
       ghl_readiness:intakeResult==='excluded'?'excluded':'not_evaluated',
       processing_status:intakeResult==='excluded'?'intake_excluded':'extracted',is_test:false,test_run_id:null,
@@ -321,9 +421,29 @@ async function persistCandidatePlans(
       reconciliation_metadata:{gmail_message_id:source.id,gmail_thread_id:source.thread_id,source:'agent_gateway_email_intake'},
     },{onConflict:'ema_candidate_id,ema_message_id'});
     if(sourceError)throw new EmailIntakeError(500,'candidate_source_persist_failed');
-    output.push({candidate_id:candidateId,candidate_index:index,normalized_address:data.normalized_address??null,intake_result:data.intake_result,processing_status:data.processing_status,disposition:'created'});
+    output.push({
+      candidate_id:candidateId,candidate_index:index,normalized_address:data.normalized_address??null,
+      intake_result:data.intake_result,processing_status:data.processing_status,disposition:'created',
+      filled_address_fact_fields:addressEnriched.filled_fields,
+      public_geography:safePublicGeography(addressEnriched.public_geography),
+    });
   }
   return output;
+}
+
+function safePublicGeography(resolution:PublicGeographyResolution|null):Record<string,unknown>|null{
+  if(!resolution)return null;
+  return{
+    status:resolution.status,
+    provider:resolution.provider,
+    county:resolution.county,
+    state:resolution.state,
+    city:resolution.city,
+    zip:resolution.zip,
+    matched_address:resolution.matched_address,
+    source_url:resolution.source_url,
+    error_code:resolution.error_code,
+  };
 }
 
 export function candidateFingerprint(gmailMessageId:string,index:number,address:string|null):string{
