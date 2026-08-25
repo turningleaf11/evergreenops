@@ -13,7 +13,7 @@ import {
 } from '../_shared/ghl.ts';
 import { attachOriginalPdfDocuments, SourceDocumentError } from './source_document.ts';
 import {
-  enrichCandidateProperty,
+  getCachedCandidatePropertyEnrichment,
   formatDealMachinePropertyDetails,
   linkPropertyEnrichmentOpportunity,
   type PropertyEnrichmentResult,
@@ -103,7 +103,7 @@ export async function intakeCandidateToCrm(
   validateCandidate(candidate);
   const address=candidate.normalized_address!.trim();
   const route=deriveRoute(candidate.extracted_facts);
-  const propertyEnrichment=await enrichCandidateProperty(admin,workspaceId,candidate.id,address);
+  const propertyEnrichment=await getCachedCandidatePropertyEnrichment(admin,workspaceId,candidate.id);
   const customFields=buildOpportunityCustomFields(candidate,address,route,propertyEnrichment);
 
   await admin.from('ema_candidates').update({processing_status:'ghl_pending',last_evaluated_at:new Date().toISOString()})
