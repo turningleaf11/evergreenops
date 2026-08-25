@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   EmailIntakeError,
+  buildSourceFactContract,
   candidateFingerprint,
   mergeMissingSourceFacts,
   planExistingMessageCandidates,
@@ -47,6 +48,7 @@ function existingCandidate(params: {
     candidate_fingerprint: candidateFingerprint("1a005aef0b0b18ca", index, address),
     extracted_facts: params.facts ?? {},
     evidence: {},
+    source_type: "attachment" as const,
     intake_result: "supported",
     buy_box_fit_result: "needs_info",
     processing_status: "completed",
@@ -141,4 +143,43 @@ Deno.test("same-source rerun fills only missing facts and never overwrites known
   assertEquals(result.facts.hoa, "No");
   assertEquals(result.facts.occupancy, "vacant");
   assertEquals(result.filled_fields, ["bedrooms", "bathrooms", "sqft", "hoa", "occupancy"]);
+});
+
+Deno.test("attachment source fact contract flags a one-fact property sheet as sparse", () => {
+  const contract = buildSourceFactContract(
+    { property_type: "single_family" },
+    { property_type: "single_family", city: "Homestead", state: "FL", zip: "33033" },
+    "attachment",
+    "supported",
+  );
+  assertEquals(contract.status, "sparse");
+  assertEquals(contract.core_source_fact_count, 1);
+  assertEquals(contract.warning, "attachment_fact_bundle_suspiciously_sparse");
+  assertEquals(
+    contract.next_action,
+    "review_extracted_pdf_text_and_resubmit_same_candidate_address_with_all_source_backed_facts_before_buy_box",
+  );
+});
+
+Deno.test("attachment source fact contract is ready when PDF facts are carried through", () => {
+  const sourceFacts = {
+    property_type: "single_family",
+    bedrooms: 3,
+    bathrooms: 2,
+    sqft: 1726,
+    asking_price: 420000,
+    arv: 550000,
+    occupancy: "vacant",
+    hoa: "No",
+  };
+  const contract = buildSourceFactContract(
+    sourceFacts,
+    { ...sourceFacts, city: "Homestead", state: "FL", zip: "33033", county: "Miami-Dade" },
+    "attachment",
+    "supported",
+  );
+  assertEquals(contract.status, "ready");
+  assertEquals(contract.core_source_fact_count, 8);
+  assertEquals(contract.warning, null);
+  assertEquals(contract.next_action, null);
 });

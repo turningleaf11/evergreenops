@@ -38,6 +38,7 @@ interface ExistingCandidateRow {
   candidate_fingerprint:string|null;
   extracted_facts:Record<string,FactValue>;
   evidence:Record<string,unknown>;
+  source_type:'email'|'attachment'|'mixed';
   intake_result:string|null;
   buy_box_fit_result:string|null;
   processing_status:string;
@@ -64,6 +65,11 @@ const BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS=new Set([
   'beds','bedrooms','baths','bathrooms','sqft','square_feet','squareFeet','city','property_city',
   'state','property_state','zip','postal_code','property_zip','county','property_county','hoa','has_hoa',
   'hoa_exists','condition','renovation_level','rehab_level','is_condo','condo',
+]);
+const CORE_ATTACHMENT_FACT_FIELDS=new Set([
+  'property_type','asset_class','units','bedrooms','bathrooms','sqft','asking_price','arv',
+  'repair_estimate','occupancy','tenant_rent_monthly','condition','renovation_level','hoa',
+  'year_built','lot_size_sqft',
 ]);
 
 export async function persistEmailIntake(
@@ -127,7 +133,7 @@ async function reconcileExistingMessageCandidates(
   const current=await loadExistingCandidateRows(admin,workspaceId,existing.id);
   const plan=planExistingMessageCandidates(source.id,current,incoming);
   const supplemented=plan.matched.length
-    ? await supplementMatchedCandidateFacts(admin,workspaceId,plan.matched,incoming)
+    ? await supplementMatchedCandidateFacts(admin,workspaceId,existing.id,plan.matched,incoming)
     : new Map<string,CandidateSupplementResult>();
   const added=plan.additions.length
     ? await persistCandidatePlans(admin,workspaceId,source,existing.id,plan.additions)
@@ -151,6 +157,9 @@ async function reconcileExistingMessageCandidates(
       filled_source_fact_fields:supplement.source_fields,
       filled_address_fact_fields:supplement.address_fields,
       public_geography:safePublicGeography(supplement.public_geography),
+      source_fact_contract:buildSourceFactContract(
+        row.extracted_facts,row.extracted_facts,row.source_type,row.intake_result,
+      ),
       rerun_buy_box_required:allFilled.some(field=>BUY_BOX_RELEVANT_SUPPLEMENT_FIELDS.has(field)),
     };
   });
@@ -217,9 +226,38 @@ export function mergeMissingSourceFacts(
   return{facts,filled_fields};
 }
 
+export function buildSourceFactContract(
+  sourceFacts:Record<string,FactValue>,
+  persistedFacts:Record<string,FactValue>,
+  sourceType:'email'|'attachment'|'mixed',
+  intakeResult:string|null,
+):Record<string,unknown> {
+  const sourceFactKeys=nonMissingFactKeys(sourceFacts);
+  const persistedFactKeys=nonMissingFactKeys(persistedFacts);
+  const coreSourceFactKeys=sourceFactKeys.filter(key=>CORE_ATTACHMENT_FACT_FIELDS.has(key));
+  const attachmentBased=sourceType==='attachment'||sourceType==='mixed';
+  const reviewable=intakeResult==='supported'||intakeResult==='needs_info';
+  const sparse=attachmentBased&&reviewable&&coreSourceFactKeys.length<2;
+  return{
+    status:sparse?'sparse':'ready',
+    source_type:sourceType,
+    source_fact_keys:sourceFactKeys,
+    source_fact_count:sourceFactKeys.length,
+    persisted_fact_keys:persistedFactKeys,
+    persisted_fact_count:persistedFactKeys.length,
+    core_source_fact_keys:coreSourceFactKeys,
+    core_source_fact_count:coreSourceFactKeys.length,
+    warning:sparse?'attachment_fact_bundle_suspiciously_sparse':null,
+    next_action:sparse
+      ? 'review_extracted_pdf_text_and_resubmit_same_candidate_address_with_all_source_backed_facts_before_buy_box'
+      : null,
+  };
+}
+
 async function supplementMatchedCandidateFacts(
   admin:SupabaseClient,
   workspaceId:string,
+  messageId:string,
   matched:ExistingCandidateRow[],
   incoming:CandidateInput[],
 ):Promise<Map<string,CandidateSupplementResult>> {
@@ -255,10 +293,47 @@ async function supplementMatchedCandidateFacts(
       evidence:addressEnriched.evidence,
     }).eq('id',row.candidate_id).eq('workspace_id',workspaceId);
     if(error)throw new EmailIntakeError(500,'candidate_source_fact_supplement_failed');
+    if(sourceMerged.filled_fields.length){
+      await supplementOriginSourceFacts(
+        admin,workspaceId,row.candidate_id,messageId,candidate.extracted_facts,candidate.source_type,
+      );
+    }
     row.extracted_facts=addressEnriched.facts;
     row.evidence=addressEnriched.evidence;
   }
   return result;
+}
+
+async function supplementOriginSourceFacts(
+  admin:SupabaseClient,
+  workspaceId:string,
+  candidateId:string,
+  messageId:string,
+  incomingFacts:Record<string,FactValue>,
+  sourceType:'email'|'attachment'|'mixed',
+):Promise<void> {
+  const {data,error}=await admin.from('ema_candidate_sources')
+    .select('fact_updates, reconciliation_metadata')
+    .eq('workspace_id',workspaceId).eq('ema_candidate_id',candidateId).eq('ema_message_id',messageId)
+    .maybeSingle();
+  if(error)throw new EmailIntakeError(500,'candidate_source_lookup_failed');
+  const existingFacts=factRecord(data?.fact_updates);
+  const merged=mergeMissingSourceFacts(existingFacts,incomingFacts).facts;
+  const metadata=recordValue(data?.reconciliation_metadata);
+  const {error:updateError}=await admin.from('ema_candidate_sources').upsert({
+    workspace_id:workspaceId,
+    ema_candidate_id:candidateId,
+    ema_message_id:messageId,
+    relation_type:'origin',
+    fact_updates:merged,
+    reconciliation_metadata:{
+      ...metadata,
+      source:'agent_gateway_email_intake',
+      source_type:sourceType,
+      source_fact_keys:nonMissingFactKeys(merged),
+    },
+  },{onConflict:'ema_candidate_id,ema_message_id'});
+  if(updateError)throw new EmailIntakeError(500,'candidate_source_persist_failed');
 }
 
 async function enrichCandidateAddressFacts(
@@ -327,7 +402,7 @@ async function loadExistingMessage(
 
 async function loadExistingCandidateRows(admin:SupabaseClient,w:string,messageId:string):Promise<ExistingCandidateRow[]>{
   const {data,error}=await admin.from('ema_candidates')
-    .select('id, candidate_index, normalized_address, candidate_fingerprint, extracted_facts, evidence, intake_result, buy_box_fit_result, processing_status, ghl_opportunity_id')
+    .select('id, candidate_index, normalized_address, candidate_fingerprint, extracted_facts, evidence, source_type, intake_result, buy_box_fit_result, processing_status, ghl_opportunity_id')
     .eq('workspace_id',w).eq('ema_message_id',messageId).order('candidate_index',{ascending:true});
   if(error)throw new EmailIntakeError(500,'candidate_lookup_failed');
   return (data??[]).map(row=>({
@@ -337,6 +412,7 @@ async function loadExistingCandidateRows(admin:SupabaseClient,w:string,messageId
       ? row.extracted_facts as Record<string,FactValue>: {},
     evidence:(row.evidence&&typeof row.evidence==='object'&&!Array.isArray(row.evidence))
       ? row.evidence as Record<string,unknown>: {},
+    source_type:row.source_type==='attachment'||row.source_type==='mixed'?'attachment'===row.source_type?'attachment':'mixed':'email',
     intake_result:row.intake_result??null,
     buy_box_fit_result:row.buy_box_fit_result??null,processing_status:String(row.processing_status),
     ghl_opportunity_id:row.ghl_opportunity_id??null,
@@ -349,6 +425,9 @@ async function summarizeExisting(admin:SupabaseClient,w:string,messageId:string,
     candidate_id:row.candidate_id,candidate_index:row.candidate_index,normalized_address:row.normalized_address,
     intake_result:row.intake_result,buy_box_fit_result:row.buy_box_fit_result,
     processing_status:row.processing_status,has_crm_opportunity:Boolean(row.ghl_opportunity_id),
+    source_fact_contract:buildSourceFactContract(
+      row.extracted_facts,row.extracted_facts,row.source_type,row.intake_result,
+    ),
   }))};
 
   const {data:sources,error:sourceError}=await admin.from('ema_candidate_sources')
@@ -416,9 +495,16 @@ async function persistCandidatePlans(
       .select('id, candidate_index, normalized_address, intake_result, processing_status').single();
     if(error||!data)throw new EmailIntakeError(500,'candidate_persist_failed');
     const candidateId=String(data.id);
+    const sourceFacts=cleanFactRecord(candidate.extracted_facts);
     const {error:sourceError}=await admin.from('ema_candidate_sources').upsert({
-      workspace_id:w,ema_candidate_id:candidateId,ema_message_id:messageId,relation_type:'origin',fact_updates:{},
-      reconciliation_metadata:{gmail_message_id:source.id,gmail_thread_id:source.thread_id,source:'agent_gateway_email_intake'},
+      workspace_id:w,ema_candidate_id:candidateId,ema_message_id:messageId,relation_type:'origin',fact_updates:sourceFacts,
+      reconciliation_metadata:{
+        gmail_message_id:source.id,
+        gmail_thread_id:source.thread_id,
+        source:'agent_gateway_email_intake',
+        source_type:candidate.source_type,
+        source_fact_keys:nonMissingFactKeys(sourceFacts),
+      },
     },{onConflict:'ema_candidate_id,ema_message_id'});
     if(sourceError)throw new EmailIntakeError(500,'candidate_source_persist_failed');
     output.push({
@@ -426,6 +512,9 @@ async function persistCandidatePlans(
       intake_result:data.intake_result,processing_status:data.processing_status,disposition:'created',
       filled_address_fact_fields:addressEnriched.filled_fields,
       public_geography:safePublicGeography(addressEnriched.public_geography),
+      source_fact_contract:buildSourceFactContract(
+        sourceFacts,addressEnriched.facts,candidate.source_type,intakeResult,
+      ),
     });
   }
   return output;
@@ -451,6 +540,25 @@ export function candidateFingerprint(gmailMessageId:string,index:number,address:
   return `prod:${gmailMessageId}:${slug||`candidate-${index}`}`;
 }
 
+function nonMissingFactKeys(facts:Record<string,FactValue>):string[]{
+  return Object.entries(facts).filter(([,value])=>!isMissingFact(value)).map(([key])=>key).sort();
+}
+function cleanFactRecord(value:Record<string,FactValue>):Record<string,FactValue>{
+  const result:Record<string,FactValue>={};
+  for(const [key,fact] of Object.entries(value))if(!isMissingFact(fact))result[key]=fact;
+  return result;
+}
+function factRecord(value:unknown):Record<string,FactValue>{
+  if(!value||typeof value!=='object'||Array.isArray(value))return{};
+  const result:Record<string,FactValue>={};
+  for(const [key,fact] of Object.entries(value as Record<string,unknown>)){
+    if(typeof fact==='string'||typeof fact==='number'||typeof fact==='boolean'||fact===null)result[key]=fact;
+  }
+  return result;
+}
+function recordValue(value:unknown):Record<string,unknown>{
+  return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
+}
 function isMissingFact(value:unknown):boolean{
   return value===undefined||value===null||(typeof value==='string'&&!value.trim());
 }
@@ -462,7 +570,7 @@ function parseInternalDate(value:string|null|undefined):string|null{
 }
 function parseMailbox(value:string):{email:string|null;name:string|null}{
   const match=value.match(/^(.*?)\s*<([^>]+)>\s*$/),email=(match?.[2]??value).trim().toLowerCase();
-  const name=(match?.[1]??'').replace(/^"|"$/g,'').trim();
+  const name=(match?.[1]??'').replace(/^\"|\"$/g,'').trim();
   return{email:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null,name:name||null};
 }
 function parseRecipients(value:string):string[]{return [...new Set(value.split(',').map(part=>parseMailbox(part).email).filter((email):email is string=>Boolean(email)))].slice(0,50)}
