@@ -46,6 +46,7 @@ function existingCandidate(params: {
     normalized_address: address,
     candidate_fingerprint: candidateFingerprint("1a005aef0b0b18ca", index, address),
     extracted_facts: params.facts ?? {},
+    evidence: {},
     intake_result: "supported",
     buy_box_fit_result: "needs_info",
     processing_status: "completed",
