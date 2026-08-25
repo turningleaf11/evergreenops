@@ -248,7 +248,7 @@ async function runResolvedSfrValuation(
         status: dealMachine.property_source,
         snapshot_id: cachedSnapshot?.id ?? null,
         provider_property_id: dealMachine.subject.dm_property_id,
-        normalized_address: dealMachine.subject.full_address ?? String(subject.address ?? '').trim() || null,
+        normalized_address: dealMachine.subject.full_address ?? (String(subject.address ?? '').trim() || null),
         facts: dealMachine.property_facts,
         request_id: dealMachine.property_request_id,
         credits_used: dealMachine.property_credits.used,
