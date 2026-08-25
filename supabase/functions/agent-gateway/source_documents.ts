@@ -34,6 +34,8 @@ interface PdfExtraction {
 
 export interface SourceDocumentCaptureSummary {
   status:'not_applicable'|'complete'|'partial'|'needs_attention';
+  target_count:number;
+  covered_candidate_count:number;
   pdf_attachment_count:number;
   captured_document_count:number;
   reused_document_count:number;
@@ -53,16 +55,18 @@ export async function captureCandidateSourceDocuments(
   const pdfs=pdfAttachments(source);
   if(!pdfs.length||!targets.length){
     return{
-      status:'not_applicable',pdf_attachment_count:pdfs.length,captured_document_count:0,
-      reused_document_count:0,unmatched_pdf_count:pdfs.length,documents:[],unmatched:[],
+      status:'not_applicable',target_count:targets.length,covered_candidate_count:0,
+      pdf_attachment_count:pdfs.length,captured_document_count:0,reused_document_count:0,
+      unmatched_pdf_count:pdfs.length,documents:[],unmatched:[],
     };
   }
 
   const usableTargets=targets.filter(target=>Boolean(clean(target.normalized_address)));
   if(!usableTargets.length){
     return{
-      status:'needs_attention',pdf_attachment_count:pdfs.length,captured_document_count:0,
-      reused_document_count:0,unmatched_pdf_count:pdfs.length,documents:[],
+      status:'needs_attention',target_count:targets.length,covered_candidate_count:0,
+      pdf_attachment_count:pdfs.length,captured_document_count:0,reused_document_count:0,
+      unmatched_pdf_count:pdfs.length,documents:[],
       unmatched:pdfs.map(pdf=>({attachment_id:pdf.attachment_id,filename:pdf.filename,error_code:'candidate_address_required_for_document_match'})),
     };
   }
@@ -131,14 +135,19 @@ export async function captureCandidateSourceDocuments(
 
   const captured=documents.filter(row=>row.disposition==='captured'||row.disposition==='updated').length;
   const reused=documents.filter(row=>row.disposition==='reused').length;
-  const attention=unmatched.length>0||documents.some(row=>row.extraction_status!=='succeeded');
+  const coveredCandidateIds=new Set(
+    documents.filter(row=>row.extraction_status==='succeeded').map(row=>String(row.candidate_id)),
+  );
+  const covered=usableTargets.filter(target=>coveredCandidateIds.has(target.candidate_id)).length;
+  const matchedExtractionProblem=documents.some(row=>row.extraction_status!=='succeeded');
+  const allTargetsCovered=covered===usableTargets.length;
+  const status:SourceDocumentCaptureSummary['status']=allTargetsCovered
+    ? (matchedExtractionProblem?'partial':'complete')
+    : (documents.length?'partial':'needs_attention');
   return{
-    status:attention?(documents.length?'partial':'needs_attention'):'complete',
-    pdf_attachment_count:pdfs.length,
-    captured_document_count:captured,
-    reused_document_count:reused,
-    unmatched_pdf_count:unmatched.length,
-    documents,unmatched,
+    status,target_count:usableTargets.length,covered_candidate_count:covered,
+    pdf_attachment_count:pdfs.length,captured_document_count:captured,reused_document_count:reused,
+    unmatched_pdf_count:unmatched.length,documents,unmatched,
   };
 }
 
