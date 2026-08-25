@@ -71,7 +71,7 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
   }
   case'underwriting.rehab':{
     const items=Array.isArray(request.input.scope_items)?request.input.scope_items.filter(isRecord):[];
-    return{inputSummary:{contract:'rehab_v1',scope_item_count:items.length,categories:[...new Set(items.map(item=>String(item.category??'')))],evidence_classes:[...new Set(items.map(item=>String(item.evidence_class??'')))]},resourceType:'ghl_opportunity',resourceId:String(request.input.opportunity_id)};
+    return{inputSummary:{contract:'acquisition_rehab_v1',optional_known_repair_count:items.length,categories:[...new Set(items.map(item=>String(item.category??'')))],evidence_classes:[...new Set(items.map(item=>String(item.evidence_class??'')))]},resourceType:'ghl_opportunity',resourceId:String(request.input.opportunity_id)};
   }
 }}
 
@@ -113,8 +113,9 @@ function cashValueInput(input:Record<string,unknown>):Record<string,unknown>{
 function rehabInput(input:Record<string,unknown>):Record<string,unknown>{
   assertOnlyKeys(input,new Set(['opportunity_id','scope_items']),'underwriting.rehab');
   const opportunityId=optionalGhlId(input.opportunity_id,'opportunity_id');if(!opportunityId)throw new RequestValidationError('opportunity_id is required');
-  if(!Array.isArray(input.scope_items)||input.scope_items.length<1||input.scope_items.length>50)throw new RequestValidationError('scope_items must contain between 1 and 50 items');
-  const scopeItems=input.scope_items.map((raw,index)=>{
+  const rawScopeItems=input.scope_items??[];
+  if(!Array.isArray(rawScopeItems)||rawScopeItems.length>50)throw new RequestValidationError('scope_items must be an array with at most 50 items');
+  const scopeItems=rawScopeItems.map((raw,index)=>{
     if(!isRecord(raw))throw new RequestValidationError(`scope_items[${index}] must be an object`);
     assertOnlyKeys(raw,new Set(['category','scope_level','description','evidence_class','source_type','source_ref','quantity']),`scope_items[${index}]`);
     const category=optionalEnum(raw.category,`scope_items[${index}].category`,REHAB_CATEGORIES);if(!category)throw new RequestValidationError(`scope_items[${index}].category is required`);
