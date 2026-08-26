@@ -4,6 +4,7 @@ export const ALLOWED_ACTIONS = [
   'system.whoami','email.list','email.search','email.read','email.get_attachment',
   'crm.search_contacts','crm.search_opportunities','crm.list_pipelines',
   'deal.persist_email_intake','deal.buy_box_fit','deal.intake_to_crm','deal.reconcile_email_update',
+  'deal.list_source_documents','deal.read_source_document',
   'underwriting.next_work_item','underwriting.cash_value','underwriting.rehab',
 ] as const;
 
@@ -41,6 +42,8 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
     case'deal.buy_box_fit':return{action:'deal.buy_box_fit',input:{candidate_id:uuid(input.candidate_id,'candidate_id')}};
     case'deal.intake_to_crm':return{action:'deal.intake_to_crm',input:{candidate_id:uuid(input.candidate_id,'candidate_id')}};
     case'deal.reconcile_email_update':{const factUpdates=reconcileFactUpdates(input.fact_updates),documents=reconcileDocuments(input.documents),candidateId=optionalUuid(input.candidate_id,'candidate_id');if(Object.keys(factUpdates).length===0&&documents.length===0)throw new RequestValidationError('fact_updates or documents is required');return{action:'deal.reconcile_email_update',input:{message_id:gmailId(input.message_id,'message_id'),candidate_id:candidateId,fact_updates:factUpdates,documents}}}
+    case'deal.list_source_documents':return{action:'deal.list_source_documents',input:{candidate_id:uuid(input.candidate_id,'candidate_id')}};
+    case'deal.read_source_document':return{action:'deal.read_source_document',input:{candidate_id:uuid(input.candidate_id,'candidate_id'),document_id:uuid(input.document_id,'document_id')}};
     case'underwriting.next_work_item':{if(Object.keys(input).length!==0)throw new RequestValidationError('underwriting.next_work_item does not accept input');return{action:'underwriting.next_work_item',input:{}}}
     case'underwriting.cash_value':return{action:'underwriting.cash_value',input:cashValueInput(input)};
     case'underwriting.rehab':return{action:'underwriting.rehab',input:rehabInput(input)};
@@ -61,6 +64,8 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
   case'deal.buy_box_fit':return{inputSummary:{contract:'v1'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
   case'deal.intake_to_crm':return{inputSummary:{contract:'v2'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
   case'deal.reconcile_email_update':return{inputSummary:{contract:'v1',message_id:request.input.message_id,has_candidate_hint:Boolean(request.input.candidate_id),fact_keys:Object.keys(request.input.fact_updates as Record<string,unknown>),document_count:Array.isArray(request.input.documents)?request.input.documents.length:0},resourceType:'gmail_message_reconciliation',resourceId:String(request.input.message_id)};
+  case'deal.list_source_documents':return{inputSummary:{contract:'source_document_read_v1'},resourceType:'ema_candidate',resourceId:String(request.input.candidate_id)};
+  case'deal.read_source_document':return{inputSummary:{contract:'source_document_read_v1',candidate_id:request.input.candidate_id},resourceType:'ema_candidate_document',resourceId:String(request.input.document_id)};
   case'underwriting.next_work_item':return{inputSummary:{contract:'cash_work_queue_v1',work_kind:'sfr_underwriting'},resourceType:'cash_work_queue',resourceId:null};
   case'underwriting.cash_value':{
     if(typeof request.input.candidate_id==='string'||typeof request.input.opportunity_id==='string'){
