@@ -2,6 +2,9 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0
 import { DEALMACHINE_PROPERTY_FIELDS } from '../_shared/dealmachine.ts';
 import type { SfrValuationResult } from './sfr_valuation.ts';
 
+const MAX_WORK_ITEM_SOURCE_TEXT_CHARS = 120_000;
+const MAX_WORK_ITEM_SOURCE_DOCUMENTS = 5;
+
 export class CashWorkError extends Error {
   constructor(public status: number, public code: string) {
     super(code);
@@ -21,6 +24,7 @@ export interface CashWorkItem {
   resumed: boolean;
   completed_phases: string[];
   next_phase: 'cash_value' | 'rehab' | 'mao' | 'human_review';
+  source_documents: Record<string, unknown>;
 }
 
 export async function claimNextCashWorkItem(
@@ -39,12 +43,14 @@ export async function claimNextCashWorkItem(
   const phases = Array.isArray(row.completed_phases)
     ? row.completed_phases.filter((value): value is string => typeof value === 'string')
     : [];
+  const candidateId = typeof row.candidate_id === 'string' ? row.candidate_id : null;
+  const sourceDocuments = await loadCashSourceDocuments(admin, workspaceId, candidateId);
 
   return {
     work_item: {
       work_item_id: requiredString(row.work_item_id, 'work_item_id'),
       agent_task_id: requiredString(row.agent_task_id, 'agent_task_id'),
-      candidate_id: typeof row.candidate_id === 'string' ? row.candidate_id : null,
+      candidate_id: candidateId,
       ghl_opportunity_id: requiredString(row.ghl_opportunity_id, 'ghl_opportunity_id'),
       work_kind: 'sfr_underwriting',
       activation_count: requiredPositiveInteger(row.activation_count, 'activation_count'),
@@ -59,6 +65,7 @@ export async function claimNextCashWorkItem(
         : phases.includes('cash_value')
         ? 'rehab'
         : 'cash_value',
+      source_documents: sourceDocuments,
     },
   };
 }
@@ -172,6 +179,76 @@ export async function persistActiveCashValueStep(
   };
 }
 
+async function loadCashSourceDocuments(
+  admin: SupabaseClient,
+  workspaceId: string,
+  candidateId: string | null,
+): Promise<Record<string, unknown>> {
+  if (!candidateId) {
+    return {
+      status: 'unavailable',
+      reason: 'candidate_id_unavailable',
+      document_count: 0,
+      included_document_count: 0,
+      documents: [],
+    };
+  }
+
+  const { data, error, count } = await admin
+    .from('ema_candidate_documents')
+    .select(
+      'id, ema_candidate_id, filename, mime_type, document_type, extraction_status, extraction_method, extracted_text, extracted_text_chars, total_pages, content_sha256, source_metadata, created_at',
+      { count: 'exact' },
+    )
+    .eq('workspace_id', workspaceId)
+    .eq('ema_candidate_id', candidateId)
+    .eq('extraction_status', 'succeeded')
+    .not('extracted_text', 'is', null)
+    .order('created_at', { ascending: true })
+    .limit(MAX_WORK_ITEM_SOURCE_DOCUMENTS);
+  if (error) throw new CashWorkError(500, 'cash_source_document_lookup_failed');
+
+  let remainingChars = MAX_WORK_ITEM_SOURCE_TEXT_CHARS;
+  const documents: Array<Record<string, unknown>> = [];
+  for (const row of data ?? []) {
+    if (remainingChars <= 0) break;
+    const storedText = typeof row.extracted_text === 'string' ? row.extracted_text : '';
+    if (!storedText) continue;
+    const returnedText = storedText.slice(0, remainingChars);
+    documents.push({
+      document_id: row.id,
+      candidate_id: row.ema_candidate_id,
+      filename: row.filename,
+      mime_type: row.mime_type,
+      document_type: row.document_type,
+      extraction_status: row.extraction_status,
+      extraction_method: row.extraction_method,
+      extracted_text_chars: row.extracted_text_chars,
+      total_pages: row.total_pages,
+      content_sha256: row.content_sha256,
+      source_metadata: safeSourceMetadata(row.source_metadata),
+      text_is_untrusted_external_content: true,
+      extracted_text: returnedText,
+      text_truncated: returnedText.length < storedText.length,
+      created_at: row.created_at,
+    });
+    remainingChars -= returnedText.length;
+  }
+
+  const totalCount = typeof count === 'number' ? count : documents.length;
+  const bounded = totalCount > documents.length || documents.some((document) => document.text_truncated === true);
+  return {
+    status: documents.length === 0 ? 'none' : bounded ? 'bounded' : 'complete',
+    document_count: totalCount,
+    included_document_count: documents.length,
+    max_document_count: MAX_WORK_ITEM_SOURCE_DOCUMENTS,
+    max_text_chars: MAX_WORK_ITEM_SOURCE_TEXT_CHARS,
+    returned_text_chars: MAX_WORK_ITEM_SOURCE_TEXT_CHARS - remainingChars,
+    text_is_untrusted_external_content: true,
+    documents,
+  };
+}
+
 async function persistValuationPropertySnapshot(
   admin: SupabaseClient,
   workspaceId: string,
@@ -279,6 +356,23 @@ async function mergedTaskContext(
     cash_runtime_status: 'active',
     cash_progress: progress,
   };
+}
+
+function safeSourceMetadata(value: unknown): Record<string, unknown> {
+  const source = isRecord(value) ? value : {};
+  const result: Record<string, unknown> = {};
+  for (const key of [
+    'source',
+    'gmail_message_id',
+    'gmail_thread_id',
+    'size_bytes',
+    'matched_by',
+    'extraction_error_code',
+    'text_is_untrusted_external_content',
+  ]) {
+    if (source[key] !== undefined) result[key] = source[key];
+  }
+  return result;
 }
 
 function stringValue(value: unknown): string | null {
