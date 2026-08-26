@@ -61,6 +61,6 @@ The durable source-document path intentionally does **not** expose:
 
 The document table remains RLS-protected. `agent-gateway` uses the server service role only after authenticating a scoped agent credential and enforcing the applicable Gateway action boundary.
 
-## Temporary standalone reader
+## Retired standalone reader
 
-`agent-source-documents-mcp` was an isolated first implementation and is not part of the canonical operating path. It should have no OpenClaw/HeyRon binding. The single Agent Gateway remains the production boundary.
+`agent-source-documents-mcp` was an isolated first implementation and is **retired**. It must have no OpenClaw/HeyRon binding and must not be used by agents. Its deployed endpoint is intentionally fail-closed with HTTP `410 Gone` so accidental callers cannot depend on the duplicate architecture. The single Agent Gateway remains the production boundary.
