@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Trash2, Plus, ExternalLink, Briefcase, TrendingUp, MapPin } from "lucide-react";
+import { Loader2, Trash2, Plus, ExternalLink, Briefcase, TrendingUp, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { MarketScorecard } from "./MarketScorecard";
 
 interface Market {
   id: string;
@@ -19,6 +20,10 @@ interface Market {
   criteria: string | null;
   notes_html: string | null;
   links: { label: string; url: string }[];
+  decision: string | null;
+  decision_why: string;
+  decision_next_step: string;
+  last_scored_at: string | null;
 }
 
 interface Analysis {
@@ -179,14 +184,29 @@ export function MarketWorkspace({ marketId, open, onOpenChange, onChanged }: Pro
               <SheetTitle className="sr-only">{market.name}</SheetTitle>
             </SheetHeader>
 
-            <Tabs defaultValue="overview" className="mt-4">
+            <Tabs defaultValue="scorecard" className="mt-4">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="ai">AI Analysis {analyses.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">{analyses.length}</Badge>}</TabsTrigger>
+                <TabsTrigger value="scorecard">Scorecard</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="links">Links</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-4 mt-4">
+              <TabsContent value="scorecard" className="mt-4">
+                <MarketScorecard
+                  marketId={market.id}
+                  market={{
+                    decision: market.decision,
+                    decision_why: market.decision_why,
+                    decision_next_step: market.decision_next_step,
+                    last_scored_at: market.last_scored_at,
+                  }}
+                  onMarketChanged={load}
+                  analyzing={analyzing}
+                  onRunAnalysis={runAnalysis}
+                />
+              </TabsContent>
+
+              <TabsContent value="notes" className="space-y-4 mt-4">
                 <div>
                   <label className="text-xs text-muted-foreground">Strategy</label>
                   <Input
@@ -216,24 +236,13 @@ export function MarketWorkspace({ marketId, open, onOpenChange, onChanged }: Pro
                     className="min-h-[160px]"
                   />
                 </div>
-              </TabsContent>
 
-              <TabsContent value="ai" className="space-y-4 mt-4">
-                <Button onClick={runAnalysis} disabled={analyzing} className="gap-2">
-                  {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Run new analysis
-                </Button>
-
-                {latest?.ai_analysis ? <AnalysisView analysis={latest.ai_analysis} /> : (
-                  <p className="text-sm text-muted-foreground italic">No analyses yet. Run one to get an AI-powered market breakdown.</p>
-                )}
-
-                {analyses.length > 1 && (
+                {analyses.length > 0 && (
                   <Accordion type="single" collapsible>
-                    <AccordionItem value="past">
-                      <AccordionTrigger className="text-xs text-muted-foreground">Past analyses ({analyses.length - 1})</AccordionTrigger>
+                    <AccordionItem value="legacy">
+                      <AccordionTrigger className="text-xs text-muted-foreground">Analysis run history ({analyses.length})</AccordionTrigger>
                       <AccordionContent className="space-y-3">
-                        {analyses.slice(1).map((a) => (
+                        {analyses.map((a) => (
                           <div key={a.id} className="rounded-lg border bg-card p-3">
                             <p className="text-[10px] text-muted-foreground mb-2">{new Date(a.created_at).toLocaleString()}</p>
                             <AnalysisView analysis={a.ai_analysis} compact />

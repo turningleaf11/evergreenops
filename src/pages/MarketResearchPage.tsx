@@ -19,7 +19,7 @@ export default function MarketResearchPage() {
     // Fetch markets + their latest analysis date
     const { data: ms } = await supabase
       .from("markets")
-      .select("id, name, location, strategy, updated_at")
+      .select("id, name, location, strategy, updated_at, decision")
       .order("updated_at", { ascending: false });
     const { data: latestByMarket } = await supabase
       .from("market_research")

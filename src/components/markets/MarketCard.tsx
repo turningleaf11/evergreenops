@@ -1,5 +1,6 @@
 import { MapPin, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { StatusPill } from "@/components/primitives/StatusPill";
 
 export interface MarketSummary {
   id: string;
@@ -8,6 +9,7 @@ export interface MarketSummary {
   strategy: string | null;
   updated_at: string;
   last_analyzed_at?: string | null;
+  decision?: string | null;
 }
 
 interface Props {
@@ -30,6 +32,7 @@ export function MarketCard({ market, onClick }: Props) {
             </p>
           )}
         </div>
+        <StatusPill kind="market" value={market.decision} size="sm" />
       </div>
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         {market.strategy && (

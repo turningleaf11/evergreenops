@@ -22,7 +22,8 @@ const TONE = {
 export type EntityKind =
   | "goal" | "project" | "task" | "issue"
   | "deal" | "lead" | "transaction" | "contact"
-  | "thread" | "buyer_interest" | "deal_stage" | "business_plan";
+  | "thread" | "buyer_interest" | "deal_stage" | "business_plan"
+  | "market" | "market_rating";
 
 interface Tone { hsl: string; label: string; }
 
@@ -148,11 +149,26 @@ const BUSINESS_PLAN: Record<string, Tone> = {
   paused:   tone("warning", "Paused"),
 };
 
+// A market's overall Go/Watch/No-go call from the market scorecard rubric.
+const MARKET: Record<string, Tone> = {
+  go:     tone("success", "Go"),
+  watch:  tone("warning", "Watch"),
+  no_go:  tone("danger",  "No-go"),
+};
+
+// A single scorecard row's rating (market_scorecard_rows.rating) — the
+// green/yellow/red rubric grade, not a lifecycle status.
+const MARKET_RATING: Record<string, Tone> = {
+  green:  tone("success", "Green"),
+  yellow: tone("warning", "Yellow"),
+  red:    tone("danger",  "Red"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
   thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
-  business_plan: BUSINESS_PLAN,
+  business_plan: BUSINESS_PLAN, market: MARKET, market_rating: MARKET_RATING,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
