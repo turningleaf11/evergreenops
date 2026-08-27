@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { StatusPill } from "@/components/primitives/StatusPill";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, AlertTriangle, Bot, User, ChevronRight } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Bot, User, ChevronRight, Pencil } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +49,26 @@ const RATING_HSL: Record<string, string> = {
   red: "0 72% 52%",
 };
 
+/** A textarea that grows to fit its content instead of scrolling internally. */
+function AutoGrowTextarea({ className, ...props }: React.ComponentProps<typeof Textarea>) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const resize = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useLayoutEffect(resize, []);
+  return (
+    <Textarea
+      ref={ref}
+      onInput={resize}
+      className={cn("resize-none overflow-hidden", className)}
+      {...props}
+    />
+  );
+}
+
 interface Props {
   marketId: string;
   market: MarketDecisionFields;
@@ -64,6 +84,7 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<"why" | "next" | null>(null);
   const layerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const load = useCallback(async () => {
@@ -148,20 +169,47 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
             Run analysis
           </Button>
         </div>
-        <Textarea
-          key={`why-${market.decision_why}`}
-          defaultValue={market.decision_why}
-          onBlur={(e) => { if (e.target.value !== market.decision_why) saveDecisionField({ decision_why: e.target.value }); }}
-          placeholder="Why this decision — one or two sentences."
-          className="min-h-[44px] text-sm border-0 px-0 shadow-none focus-visible:ring-0 resize-none"
-        />
-        <Input
-          key={`next-${market.decision_next_step}`}
-          defaultValue={market.decision_next_step}
-          onBlur={(e) => { if (e.target.value !== market.decision_next_step) saveDecisionField({ decision_next_step: e.target.value }); }}
-          placeholder="Next step — one concrete action."
-          className="h-8 text-sm border-0 px-0 shadow-none focus-visible:ring-0"
-        />
+
+        {editingField === "why" ? (
+          <AutoGrowTextarea
+            autoFocus
+            defaultValue={market.decision_why}
+            onBlur={(e) => { setEditingField(null); if (e.target.value !== market.decision_why) saveDecisionField({ decision_why: e.target.value }); }}
+            placeholder="Why this decision — one or two sentences."
+            className="text-sm border-0 px-0 shadow-none focus-visible:ring-0"
+          />
+        ) : (
+          <button
+            onClick={() => setEditingField("why")}
+            className="group flex items-start gap-1.5 text-left w-full"
+          >
+            <p className={cn("text-sm flex-1", !market.decision_why && "text-muted-foreground italic")}>
+              {market.decision_why || "Why this decision — click to add."}
+            </p>
+            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 mt-1" />
+          </button>
+        )}
+
+        {editingField === "next" ? (
+          <Input
+            autoFocus
+            defaultValue={market.decision_next_step}
+            onBlur={(e) => { setEditingField(null); if (e.target.value !== market.decision_next_step) saveDecisionField({ decision_next_step: e.target.value }); }}
+            placeholder="Next step — one concrete action."
+            className="h-8 text-sm border-0 px-0 shadow-none focus-visible:ring-0"
+          />
+        ) : (
+          <button
+            onClick={() => setEditingField("next")}
+            className="group flex items-center gap-1.5 text-left w-full"
+          >
+            <span className="text-[11px] font-semibold text-primary uppercase tracking-wide shrink-0">Next</span>
+            <p className={cn("text-sm flex-1 truncate", !market.decision_next_step && "text-muted-foreground italic")}>
+              {market.decision_next_step || "Click to add a next step."}
+            </p>
+            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -212,18 +260,18 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
                   <div key={cat.key}>
                     <button
                       onClick={() => setExpanded(isOpen ? null : cat.key)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors"
+                      className="w-full flex items-start gap-3 px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors"
                     >
-                      <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform", isOpen && "rotate-90")} />
-                      <span className="text-[13px] font-medium w-[190px] shrink-0 truncate">{cat.label}</span>
-                      <StatusPill kind="market_rating" value={row?.rating} size="sm" />
+                      <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform mt-1", isOpen && "rotate-90")} />
+                      <span className="text-[13px] font-medium w-[180px] shrink-0 pt-0.5">{cat.label}</span>
+                      <span className="shrink-0 pt-0.5"><StatusPill kind="market_rating" value={row?.rating} size="sm" /></span>
                       {row?.is_core_red && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive bg-destructive/10 rounded px-1.5 py-0.5 shrink-0">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive bg-destructive/10 rounded px-1.5 py-0.5 shrink-0 mt-1">
                           <AlertTriangle className="h-3 w-3" /> Core red
                         </span>
                       )}
                       {!isOpen && (
-                        <span className="text-xs text-muted-foreground truncate flex-1">{row?.note || "Not yet scored."}</span>
+                        <span className="text-xs text-muted-foreground flex-1 pt-0.5 line-clamp-2">{row?.note || "Not yet scored."}</span>
                       )}
                     </button>
 
@@ -239,12 +287,12 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
                             onChange={(v) => upsertRow(cat.key, { rating: v })}
                           />
                         </div>
-                        <Textarea
+                        <AutoGrowTextarea
                           key={`note-${cat.key}-${row?.updated_at ?? ""}`}
                           defaultValue={row?.note ?? ""}
                           onBlur={(e) => { if (e.target.value !== (row?.note ?? "")) upsertRow(cat.key, { note: e.target.value }); }}
                           placeholder="Note — the why, not just the number."
-                          className="min-h-[44px] text-xs"
+                          className="text-xs min-h-[36px]"
                         />
                         <Input
                           key={`source-${cat.key}-${row?.updated_at ?? ""}`}
