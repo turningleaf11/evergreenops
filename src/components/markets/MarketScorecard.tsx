@@ -6,7 +6,7 @@ import { StatusPill } from "@/components/primitives/StatusPill";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, AlertTriangle, Bot, User, ChevronRight, Pencil } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Bot, User, ChevronRight, Pencil, History } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,14 @@ interface Row {
   updated_by_kind: "ai" | "human";
   updated_by: string | null;
   updated_at: string;
+}
+
+interface HistoryEntry {
+  rating: string | null;
+  note: string;
+  updated_by_kind: "ai" | "human";
+  updated_by: string | null;
+  changed_at: string;
 }
 
 interface MarketDecisionFields {
@@ -85,7 +93,36 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<"why" | "next" | null>(null);
+  const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null);
+  const [historyByCategory, setHistoryByCategory] = useState<Record<string, HistoryEntry[]>>({});
+  const [historyLoading, setHistoryLoading] = useState<string | null>(null);
   const layerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const toggleHistory = async (category: string) => {
+    if (historyOpenFor === category) { setHistoryOpenFor(null); return; }
+    setHistoryOpenFor(category);
+    if (historyByCategory[category]) return;
+    setHistoryLoading(category);
+    const { data, error } = await supabase
+      .from("market_scorecard_row_history")
+      .select("rating, note, updated_by_kind, updated_by, changed_at")
+      .eq("market_id", marketId)
+      .eq("category", category)
+      .order("changed_at", { ascending: false })
+      .limit(25);
+    setHistoryLoading(null);
+    if (error) { toast.error(`Couldn't load history: ${error.message}`); return; }
+    const entries = (data as HistoryEntry[]) || [];
+    setHistoryByCategory((prev) => ({ ...prev, [category]: entries }));
+    const userIds = Array.from(new Set(entries.map((e) => e.updated_by).filter(Boolean))) as string[];
+    const missing = userIds.filter((id) => !names[id]);
+    if (missing.length) {
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", missing);
+      const nameMap: Record<string, string> = {};
+      for (const p of (profiles as any[]) || []) nameMap[p.user_id] = p.full_name || "Teammate";
+      setNames((prev) => ({ ...prev, ...nameMap }));
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -308,12 +345,46 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
                           </div>
                         )}
                         {row && (
-                          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                            {row.updated_by_kind === "ai" ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                            {row.updated_by_kind === "ai" ? "AI" : names[row.updated_by ?? ""] ?? "Teammate"}
-                            {" · "}
-                            {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              {row.updated_by_kind === "ai" ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                              {row.updated_by_kind === "ai" ? "AI" : names[row.updated_by ?? ""] ?? "Teammate"}
+                              {" · "}
+                              {formatDistanceToNow(new Date(row.updated_at), { addSuffix: true })}
+                            </p>
+                            <button
+                              onClick={() => toggleHistory(cat.key)}
+                              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
+                            >
+                              <History className="h-3 w-3" />
+                              {historyOpenFor === cat.key ? "Hide history" : "History"}
+                            </button>
+                          </div>
+                        )}
+
+                        {historyOpenFor === cat.key && (
+                          <div className="rounded-lg border bg-muted/30 divide-y">
+                            {historyLoading === cat.key ? (
+                              <div className="flex items-center justify-center py-4"><Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /></div>
+                            ) : (historyByCategory[cat.key]?.length ?? 0) === 0 ? (
+                              <p className="text-[11px] text-muted-foreground px-3 py-2.5">No history yet.</p>
+                            ) : (
+                              historyByCategory[cat.key].map((h, i) => (
+                                <div key={i} className="flex items-start gap-2 px-3 py-2">
+                                  <StatusPill kind="market_rating" value={h.rating} size="sm" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] text-foreground/90">{h.note || <span className="italic text-muted-foreground">No note</span>}</p>
+                                    <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                                      {h.updated_by_kind === "ai" ? <Bot className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
+                                      {h.updated_by_kind === "ai" ? "AI" : names[h.updated_by ?? ""] ?? "Teammate"}
+                                      {" · "}
+                                      {formatDistanceToNow(new Date(h.changed_at), { addSuffix: true })}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
