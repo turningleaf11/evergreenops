@@ -14,6 +14,7 @@ import {
 
 const WORKSPACE_ID = 'a8938ed0-9c4e-4d42-b874-593b4b3c90a9';
 const LOCATION_ID = 'P1eXkPmyGMQD6hHTIQiC';
+const SFR_OPPORTUNITY_ID = 'opp_123';
 
 function assertEquals(actual: unknown, expected: unknown): void {
   const a = JSON.stringify(actual);
@@ -25,7 +26,7 @@ function event(overrides: Partial<HighLevelEnvelope> = {}): HighLevelEnvelope {
   return {
     type: 'OpportunityStageUpdate',
     locationId: LOCATION_ID,
-    opportunityId: 'opp_123',
+    opportunityId: SFR_OPPORTUNITY_ID,
     pipelineId: SFR_PIPELINE_ID,
     pipelineStageId: SFR_UNDERWRITING_STAGE_ID,
     webhookId: 'wh_123',
@@ -48,6 +49,7 @@ function context() {
 function deps(options: {
   duplicate?: boolean;
   candidate?: null | { id: string; cash_task_id: string | null; normalized_address: string | null };
+  livePipeline?: string;
   liveStage?: string;
   signal?: ActivationSignalResult;
   portfolio?: ReconcileResult;
@@ -59,10 +61,10 @@ function deps(options: {
     reserve: async () => ({ eventId: 'event_123', duplicate: options.duplicate ?? false }),
     finalize: async (_eventId, input) => { finalizations.push(input as unknown as Record<string, unknown>); },
     getLiveOpportunity: async () => ({
-      id: 'opp_123',
+      id: SFR_OPPORTUNITY_ID,
       location_id: LOCATION_ID,
-      pipeline_id: event().pipelineId,
-      stage_id: options.liveStage ?? event().pipelineStageId,
+      pipeline_id: options.livePipeline ?? SFR_PIPELINE_ID,
+      stage_id: options.liveStage ?? SFR_UNDERWRITING_STAGE_ID,
       name: '123 Main St',
     }),
     findCandidate: async () => options.candidate === null
@@ -94,7 +96,19 @@ function deps(options: {
 
 Deno.test('SFR Underwriting stage creates an activation signal without a Cash task or work item', async () => {
   const fake = deps();
-  const result = await processAuthenticatedStageActivation(event(), context(), fake.value);
+  const input = event();
+  const live = await fake.value.getLiveOpportunity(SFR_OPPORTUNITY_ID);
+  assertEquals(live, {
+    id: SFR_OPPORTUNITY_ID,
+    location_id: LOCATION_ID,
+    pipeline_id: SFR_PIPELINE_ID,
+    stage_id: SFR_UNDERWRITING_STAGE_ID,
+    name: '123 Main St',
+  });
+  assertEquals(input.pipelineId, SFR_PIPELINE_ID);
+  assertEquals(input.pipelineStageId, SFR_UNDERWRITING_STAGE_ID);
+
+  const result = await processAuthenticatedStageActivation(input, context(), fake.value);
   assertEquals(result, { decision: 'activated', eventId: 'event_123', activationSignalId: 'signal_123' });
   assertEquals(fake.activations.length, 1);
   assertEquals(fake.portfolios.length, 0);
@@ -115,13 +129,9 @@ Deno.test('Portfolio Ready for Napkin keeps the existing durable work-envelope p
     pipelineId: PORTFOLIO_PIPELINE_ID,
     pipelineStageId: PORTFOLIO_READY_FOR_NAPKIN_STAGE_ID,
   });
-  const fake = deps();
-  fake.value.getLiveOpportunity = async () => ({
-    id: 'opp_123',
-    location_id: LOCATION_ID,
-    pipeline_id: PORTFOLIO_PIPELINE_ID,
-    stage_id: PORTFOLIO_READY_FOR_NAPKIN_STAGE_ID,
-    name: 'Portfolio Opportunity',
+  const fake = deps({
+    livePipeline: PORTFOLIO_PIPELINE_ID,
+    liveStage: PORTFOLIO_READY_FOR_NAPKIN_STAGE_ID,
   });
   const result = await processAuthenticatedStageActivation(portfolioEvent, context(), fake.value);
   assertEquals(result.workItemId, 'portfolio_work_123');
