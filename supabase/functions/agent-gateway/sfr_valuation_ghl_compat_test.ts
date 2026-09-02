@@ -41,9 +41,10 @@ Deno.test('manual GHL SFR subject accepts the live opportunity-detail response s
 });
 
 Deno.test('compat fetch rewrites only opportunity JSON responses', async () => {
-  const wrapped = ghlOpportunityCompatFetch(async () => new Response(JSON.stringify({
+  const fakeFetch = (async () => new Response(JSON.stringify({
     opportunity: live10470Shape,
-  }), { headers: { 'content-type': 'application/json' } }) as typeof fetch);
+  }), { headers: { 'content-type': 'application/json' } })) as typeof fetch;
+  const wrapped = ghlOpportunityCompatFetch(fakeFetch);
 
   const response = await wrapped('https://services.leadconnectorhq.com/opportunities/zi5RRKWioTVioH0UckIB');
   const payload = await response.json() as Record<string, unknown>;
