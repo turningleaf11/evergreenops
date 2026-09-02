@@ -30,6 +30,8 @@ import NotesPage from "./pages/NotesPage";
 import TimeClockPage from "./pages/TimeClockPage";
 import MarketResearchPage from "./pages/MarketResearchPage";
 import ContentStudioPage from "./pages/ContentStudioPage";
+import DealRoomsPage from "./pages/DealRoomsPage";
+import DealRoomDetailPage from "./pages/DealRoomDetailPage";
 import AiWorkshopPage from "./pages/AiWorkshopPage";
 import AiHubPage from "./pages/AiHubPage";
 import AiHubAgentTasksPage from "./pages/AiHubAgentTasksPage";
@@ -246,6 +248,10 @@ const App = () => (
                 </Route>
                 <Route element={<PageRoute pageKey="ai_workshop" minRole="admin" />}>
                   <Route path="/ai-workshop" element={<AiWorkshopPage />} />
+                </Route>
+                <Route element={<PageRoute pageKey="deal_rooms" minRole="admin" />}>
+                  <Route path="/deal-rooms" element={<DealRoomsPage />} />
+                  <Route path="/deal-rooms/:id" element={<DealRoomDetailPage />} />
                 </Route>
 
                 {/* Leader baseline + per-user grants */}

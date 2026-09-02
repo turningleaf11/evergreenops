@@ -23,7 +23,8 @@ export type EntityKind =
   | "goal" | "project" | "task" | "issue"
   | "deal" | "lead" | "transaction" | "contact"
   | "thread" | "buyer_interest" | "deal_stage" | "business_plan"
-  | "market" | "market_rating";
+  | "market" | "market_rating"
+  | "deal_room" | "dd_item" | "deal_room_risk" | "deal_room_investor";
 
 interface Tone { hsl: string; label: string; }
 
@@ -164,11 +165,49 @@ const MARKET_RATING: Record<string, Tone> = {
   red:    tone("danger",  "Red"),
 };
 
+// A deal room's own lifecycle — separate from DEAL (the sales-pipeline
+// CRM object) and separate from a single DD item's status.
+const DEAL_ROOM: Record<string, Tone> = {
+  active:         tone("info",    "Active"),
+  under_contract: tone("accent",  "Under Contract"),
+  closed:         tone("success", "Closed"),
+  dead:           tone("danger",  "Dead"),
+};
+
+// A single due-diligence checklist item (deal_room_dd_items.status).
+const DD_ITEM: Record<string, Tone> = {
+  not_started:       tone("neutral", "Not Started"),
+  requested:         tone("info",    "Requested"),
+  in_review:         tone("accent",  "In Review"),
+  waiting_on_seller: tone("warning", "Waiting on Seller"),
+  issue:             tone("danger",  "Issue"),
+  complete:          tone("success", "Complete"),
+};
+
+// A risk register entry's severity (deal_room_risks.severity) — not a
+// lifecycle status, so it uses its own tone mapping rather than PRIORITY.
+const DEAL_ROOM_RISK: Record<string, Tone> = {
+  critical:   tone("danger",  "Critical"),
+  material:   tone("warning", "Material"),
+  manageable: tone("accent",  "Manageable"),
+  cleared:    tone("success", "Cleared"),
+};
+
+// Capital-raise investor pipeline (deal_room_investors.status).
+const DEAL_ROOM_INVESTOR: Record<string, Tone> = {
+  interested: tone("info",    "Interested"),
+  reviewing:  tone("warning", "Reviewing"),
+  committed:  tone("accent",  "Committed"),
+  funded:     tone("success", "Funded"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
   thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
   business_plan: BUSINESS_PLAN, market: MARKET, market_rating: MARKET_RATING,
+  deal_room: DEAL_ROOM, dd_item: DD_ITEM, deal_room_risk: DEAL_ROOM_RISK,
+  deal_room_investor: DEAL_ROOM_INVESTOR,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
