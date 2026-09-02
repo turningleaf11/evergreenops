@@ -171,7 +171,11 @@ export function MarketScorecard({ marketId, market, onMarketChanged, analyzing, 
   };
 
   const saveDecisionField = async (patch: Partial<MarketDecisionFields>) => {
-    const { error } = await supabase.from("markets").update(patch as any).eq("id", marketId);
+    const { error } = await supabase.from("markets").update({
+      ...patch,
+      decision_updated_by_kind: "human",
+      decision_updated_by: user?.id ?? null,
+    } as any).eq("id", marketId);
     if (error) { toast.error(`Save failed: ${error.message}`); return; }
     onMarketChanged();
   };

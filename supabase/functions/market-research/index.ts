@@ -54,9 +54,11 @@ serve(async (req) => {
     const { market, strategy, customCriteria, recordId, marketId } = await req.json();
     if (!marketId) return jsonErr("marketId is required", 400);
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
 
-    const [{ data: categories, error: catErr }, { data: existingRows, error: rowsErr }] = await Promise.all([
+    const [{ data: categories, error: catErr }, { data: existingRows, error: rowsErr }, { data: marketRow, error: marketErr }] = await Promise.all([
       supabase
         .from("market_scorecard_categories")
         .select("key, layer, label, guidance")
@@ -66,9 +68,16 @@ serve(async (req) => {
         .from("market_scorecard_rows")
         .select("category, rating, note, updated_by_kind")
         .eq("market_id", marketId),
+      supabase
+        .from("markets")
+        .select("decision_updated_by_kind")
+        .eq("id", marketId)
+        .maybeSingle(),
     ]);
     if (catErr) throw catErr;
     if (rowsErr) throw rowsErr;
+    if (marketErr) throw marketErr;
+    const decisionIsHumanOwned = marketRow?.decision_updated_by_kind === "human";
 
     const humanOwned = new Map<string, { rating: string | null; note: string | null }>();
     for (const r of (existingRows ?? [])) {
@@ -169,12 +178,20 @@ serve(async (req) => {
     }
 
     const decision = ["go", "watch", "no_go"].includes(parsed.decision) ? parsed.decision : "watch";
-    await supabase.from("markets").update({
-      decision,
-      decision_why: parsed.decision_why || "",
-      decision_next_step: parsed.decision_next_step || "",
-      last_scored_at: now,
-    }).eq("id", marketId);
+    // A human-set decision is never silently overwritten by a re-score --
+    // only last_scored_at moves, so the workspace still knows a run happened.
+    await supabase.from("markets").update(
+      decisionIsHumanOwned
+        ? { last_scored_at: now }
+        : {
+            decision,
+            decision_why: parsed.decision_why || "",
+            decision_next_step: parsed.decision_next_step || "",
+            decision_updated_by_kind: "ai",
+            decision_updated_by: null,
+            last_scored_at: now,
+          }
+    ).eq("id", marketId);
 
     // Keep the legacy market_research record populated so the existing
     // AI Analysis tab still shows something coherent until Phase 4 reworks the UI.
