@@ -19,7 +19,7 @@ import {
   Home, FileText, Database as DbIcon, Users,
   Settings, Building2, Compass, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket, ClipboardList,
-  HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown, Activity,
+  HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown, Activity, KeyRound,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsDeveloperWorkspace } from "@/lib/developer";
@@ -63,6 +63,7 @@ export function AppSidebar() {
   const marketResearchEnabled = useAddonEnabled("real-estate-research");
   const contentStudioEnabled = useAddonEnabled("content-studio");
   const aiWorkshopEnabled = useAddonEnabled("ai-workshop");
+  const dealRoomsEnabled = useAddonEnabled("deal-rooms");
   const userTimeClockEnabled = profile?.time_clock_enabled || false;
   const { hasAccess: gmailAccess } = useGmailAccess();
 
@@ -133,6 +134,7 @@ export function AppSidebar() {
     ...(marketResearchEnabled && (isAdmin || can("market_research")) ? [{ title: "Market Research", url: "/market-research", icon: Building }] : []),
     ...(contentStudioEnabled && (isAdmin || can("content_studio")) ? [{ title: "Content Studio", url: "/content-studio", icon: Sparkles }] : []),
     ...(aiWorkshopEnabled && (isAdmin || can("ai_workshop")) ? [{ title: "AI Workshop", url: "/ai-workshop", icon: Sparkles }] : []),
+    ...(dealRoomsEnabled && (isAdmin || can("deal_rooms")) ? [{ title: "Deal Rooms", url: "/deal-rooms", icon: KeyRound }] : []),
   ];
 
   const aiHubNav = (!isOrbitOnly && (isPrimaryAdmin || can("ai_hub"))) ? [
