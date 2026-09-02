@@ -166,12 +166,13 @@ function sanitizeEvidenceValue(value: unknown): unknown {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'boolean') return value;
   if (Array.isArray(value)) {
-    return value.slice(0, 20).flatMap((item) => {
-      if (typeof item === 'string') return [item.slice(0, 500)];
-      if (typeof item === 'number' && Number.isFinite(item)) return [item];
-      if (typeof item === 'boolean') return [item];
-      return [];
-    });
+    const bounded: unknown[] = [];
+    for (const item of value.slice(0, 20)) {
+      if (typeof item === 'string') bounded.push(item.slice(0, 500));
+      else if (typeof item === 'number' && Number.isFinite(item)) bounded.push(item);
+      else if (typeof item === 'boolean') bounded.push(item);
+    }
+    return bounded;
   }
   return null;
 }
