@@ -251,6 +251,64 @@ function StatTile({ label, value, sub, primary }: { label: string; value: string
   );
 }
 
+// Click-to-edit text cell — used for owner fields across DD items / risks.
+function EditableText({ value, placeholder, onSave, className }: { value: string | null; placeholder?: string; onSave: (v: string | null) => void; className?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { onSave(draft.trim() || null); setEditing(false); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); }
+        }}
+        className={`h-7 text-xs px-1.5 ${className ?? ""}`}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => { setDraft(value ?? ""); setEditing(true); }}
+      className={`text-left hover:underline underline-offset-2 decoration-dashed decoration-muted-foreground/50 ${className ?? ""}`}
+    >
+      {value || <span className="text-muted-foreground/60">{placeholder ?? "Set"}</span>}
+    </button>
+  );
+}
+
+// Click-to-edit date cell.
+function EditableDate({ value, onSave }: { value: string | null; onSave: (v: string | null) => void }) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <Input
+        type="date"
+        autoFocus
+        defaultValue={value ?? ""}
+        onBlur={(e) => { onSave(e.target.value || null); setEditing(false); }}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        className="h-7 text-xs px-1.5 w-36"
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="text-left hover:underline underline-offset-2 decoration-dashed decoration-muted-foreground/50"
+    >
+      {value ? fmtDate(value) : <span className="text-muted-foreground/60">Set date</span>}
+    </button>
+  );
+}
+
 // ── DD Tracker ───────────────────────────────────────────────────────────
 function DdTrackerTab({ items, onAdd, onUpdate, onDelete }: any) {
   const [open, setOpen] = useState(false);
@@ -328,14 +386,32 @@ function DdTrackerTab({ items, onAdd, onUpdate, onDelete }: any) {
                     <div className="font-semibold text-[13px]">{item.title}</div>
                     <div className="text-[11px] text-muted-foreground">{DD_CATEGORY_LABELS[item.category as DdCategory] ?? item.category}</div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.owner_name || "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{fmtDate(item.due_date)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <EditableText value={item.owner_name} placeholder="Set owner" onSave={(v) => onUpdate(item.id, { owner_name: v })} />
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <EditableDate value={item.due_date} onSave={(v) => onUpdate(item.id, { due_date: v })} />
+                  </td>
                   <td className="px-4 py-3"><StatusPill kind="dd_item" value={item.status} size="sm" onChange={(v) => onUpdate(item.id, { status: v })} /></td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: RISK_DOT[item.risk] }} />
-                      <span className="capitalize">{item.risk}</span>
-                    </span>
+                    <Select value={item.risk} onValueChange={(v) => onUpdate(item.id, { risk: v })}>
+                      <SelectTrigger className="h-7 w-[92px] text-xs border-none shadow-none px-1.5 gap-1 hover:bg-muted focus:ring-1">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: RISK_DOT[item.risk] }} />
+                          <span className="capitalize">{item.risk}</span>
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RISK_LEVELS.map((r) => (
+                          <SelectItem key={r} value={r} className="capitalize">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: RISK_DOT[r] }} />
+                              {r}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="px-4 py-3">
                     {item.doc_url ? <a href={item.doc_url} target="_blank" rel="noreferrer" className="text-primary text-xs font-medium hover:underline">Drive →</a> : <span className="text-muted-foreground text-xs">—</span>}
@@ -412,7 +488,7 @@ function RiskTab({ risks, onAdd, onUpdate, onDelete }: any) {
                         {r.description && <div className="text-xs text-muted-foreground mt-0.5">{r.description}</div>}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        {r.owner_name && <span className="text-[11px] text-muted-foreground">{r.owner_name}</span>}
+                        <EditableText value={r.owner_name} placeholder="Set owner" onSave={(v) => onUpdate(r.id, { owner_name: v })} className="text-[11px] text-muted-foreground" />
                         <StatusPill kind="deal_room_risk" value={r.severity} size="sm" onChange={(v) => onUpdate(r.id, { severity: v })} />
                         <button onClick={() => onDelete(r.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
