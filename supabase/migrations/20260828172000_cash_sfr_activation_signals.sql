@@ -153,6 +153,59 @@ revoke all on function public.create_cash_sfr_activation_signal(uuid, uuid, text
 grant execute on function public.create_cash_sfr_activation_signal(uuid, uuid, text, text, text, uuid, timestamptz)
   to service_role;
 
+-- Transition safety: until the receivers are switched to signal-only mode, they
+-- still finalize the historical durable-work path with decision=activated or
+-- reconciled. Dual-write those successful SFR activations into the signal table
+-- so no event can fall into the migration-to-receiver-cutover window. Once the
+-- signal-only receiver is deployed, it creates the same signal before finalize;
+-- this trigger then becomes an idempotent no-op for that source stage event.
+create or replace function public.dual_write_cash_sfr_activation_signal()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  _signal_id uuid;
+begin
+  if new.authenticated = true
+    and new.opportunity_id is not null
+    and new.pipeline_id = 'w3OtDJjCdN840Hwb1fpt'
+    and new.stage_id = '1c3468f6-1a5d-4025-bf20-2bc4bd195708'
+    and new.decision in ('activated','reconciled') then
+    select activation_signal_id
+      into _signal_id
+    from public.create_cash_sfr_activation_signal(
+      new.workspace_id,
+      new.candidate_id,
+      new.opportunity_id,
+      new.pipeline_id,
+      new.stage_id,
+      new.id,
+      coalesce(new.event_timestamp, new.created_at, now())
+    )
+    limit 1;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.dual_write_cash_sfr_activation_signal()
+  from public, anon, authenticated;
+
+drop trigger if exists trg_dual_write_cash_sfr_activation_signal on public.ghl_stage_events;
+create trigger trg_dual_write_cash_sfr_activation_signal
+  after insert or update of decision, candidate_id on public.ghl_stage_events
+  for each row
+  when (
+    new.authenticated = true
+    and new.opportunity_id is not null
+    and new.pipeline_id = 'w3OtDJjCdN840Hwb1fpt'
+    and new.stage_id = '1c3468f6-1a5d-4025-bf20-2bc4bd195708'
+    and new.decision in ('activated','reconciled')
+  )
+  execute function public.dual_write_cash_sfr_activation_signal();
+
 -- Seed activation signals from already-authenticated historical SFR stage-entry
 -- events. Live GHL validation at claim time will discard entries that are now
 -- DEAD, moved, abandoned, or otherwise no longer eligible.
