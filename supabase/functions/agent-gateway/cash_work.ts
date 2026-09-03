@@ -1,6 +1,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 import { DEALMACHINE_PROPERTY_FIELDS } from '../_shared/dealmachine.ts';
 import type { SfrValuationResult } from './sfr_valuation.ts';
+import { CashJitClaimError, claimNextCashWorkItemJit } from './cash_work_jit.ts';
 
 const MAX_WORK_ITEM_SOURCE_TEXT_CHARS = 120_000;
 const MAX_WORK_ITEM_SOURCE_DOCUMENTS = 5;
@@ -24,6 +25,8 @@ export interface CashWorkItem {
   resumed: boolean;
   completed_phases: string[];
   next_phase: 'cash_value' | 'rehab' | 'mao' | 'human_review';
+  live_eligibility?: Record<string, unknown>;
+  ghl_evidence?: Record<string, unknown>;
   source_documents: Record<string, unknown>;
 }
 
@@ -31,43 +34,12 @@ export async function claimNextCashWorkItem(
   admin: SupabaseClient,
   workspaceId: string,
 ): Promise<{ work_item: CashWorkItem | null }> {
-  const { data, error } = await admin.rpc('claim_next_cash_sfr_work_item', {
-    _workspace_id: workspaceId,
-  });
-  if (error) throw new CashWorkError(500, 'cash_work_claim_failed');
-  const rows = Array.isArray(data) ? data : [];
-  if (rows.length === 0) return { work_item: null };
-  if (rows.length !== 1) throw new CashWorkError(500, 'cash_work_claim_ambiguous');
-
-  const row = rows[0] as Record<string, unknown>;
-  const phases = Array.isArray(row.completed_phases)
-    ? row.completed_phases.filter((value): value is string => typeof value === 'string')
-    : [];
-  const candidateId = typeof row.candidate_id === 'string' ? row.candidate_id : null;
-  const sourceDocuments = await loadCashSourceDocuments(admin, workspaceId, candidateId);
-
-  return {
-    work_item: {
-      work_item_id: requiredString(row.work_item_id, 'work_item_id'),
-      agent_task_id: requiredString(row.agent_task_id, 'agent_task_id'),
-      candidate_id: candidateId,
-      ghl_opportunity_id: requiredString(row.ghl_opportunity_id, 'ghl_opportunity_id'),
-      work_kind: 'sfr_underwriting',
-      activation_count: requiredPositiveInteger(row.activation_count, 'activation_count'),
-      task_title: requiredString(row.task_title, 'task_title'),
-      task_description: requiredString(row.task_description, 'task_description'),
-      resumed: Boolean(row.resumed),
-      completed_phases: phases,
-      next_phase: phases.includes('mao')
-        ? 'human_review'
-        : phases.includes('rehab')
-        ? 'mao'
-        : phases.includes('cash_value')
-        ? 'rehab'
-        : 'cash_value',
-      source_documents: sourceDocuments,
-    },
-  };
+  try {
+    return await claimNextCashWorkItemJit(admin, workspaceId) as { work_item: CashWorkItem | null };
+  } catch (error) {
+    if (error instanceof CashJitClaimError) throw new CashWorkError(error.status, error.code);
+    throw error;
+  }
 }
 
 export async function persistActiveCashValueStep(

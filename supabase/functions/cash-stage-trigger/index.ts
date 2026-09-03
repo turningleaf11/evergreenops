@@ -9,7 +9,7 @@ import {
   type ReconcileResult,
   type ReservationResult,
   type WorkKind,
-} from '../ghl-stage-events/core.ts';
+} from '../ghl-stage-events/core_signal_compat.ts';
 import {
   buildWorkflowEnvelope,
   CashStageWorkflowValidationError,

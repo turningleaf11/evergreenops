@@ -15,7 +15,7 @@ import {
   type ReconcileResult,
   type ReservationResult,
   type WorkKind,
-} from './core.ts';
+} from './core_signal_compat.ts';
 
 const WORKSPACE_ID = 'a8938ed0-9c4e-4d42-b874-593b4b3c90a9';
 

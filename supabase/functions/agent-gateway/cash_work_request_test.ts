@@ -4,7 +4,7 @@ import {
   RequestValidationError,
   summarizeGatewayInput,
 } from './core.ts';
-import { claimNextCashWorkItem } from './cash_work.ts';
+import { claimNextCashWorkItemJit } from './cash_work_jit.ts';
 
 function assert(condition: unknown, message = 'Assertion failed'): asserts condition {
   if (!condition) throw new Error(message);
@@ -43,10 +43,48 @@ Deno.test('Cash work queue rejects caller-supplied pipeline, stage, work kind, o
   }
 });
 
-Deno.test('Cash work item includes durable candidate source text without any Gmail read', async () => {
+Deno.test('JIT Cash claim live-validates activation and includes durable candidate source text without Gmail', async () => {
   const candidateId = '6075f34e-686a-49c1-95c8-198899ccd7db';
   const documentId = '8f11a57a-679a-4155-bc84-42fb648f454f';
-  const query = {
+  const opportunityId = 'opp-1';
+  const activationSignalId = 'signal-1';
+  let gmailTouched = false;
+  const rpcCalls: string[] = [];
+
+  const activeQuery = {
+    select() { return this; },
+    eq() { return this; },
+    order() { return this; },
+    async limit() { return { data: [], error: null }; },
+  };
+  const signalQuery = {
+    select() { return this; },
+    eq() { return this; },
+    order() { return this; },
+    async limit() {
+      return {
+        data: [{
+          id: activationSignalId,
+          ghl_opportunity_id: opportunityId,
+          activated_at: '2026-09-02T17:00:00.000Z',
+        }],
+        error: null,
+      };
+    },
+  };
+  const settingsQuery = {
+    select() { return this; },
+    async in() {
+      return {
+        data: [
+          { key: 'GHL_API_KEY', value: 'test-ghl-key' },
+          { key: 'GHL_LOCATION_ID', value: 'test-location' },
+        ],
+        error: null,
+      };
+    },
+  };
+  const documentQuery = {
     select() { return this; },
     eq() { return this; },
     not() { return this; },
@@ -79,19 +117,21 @@ Deno.test('Cash work item includes durable candidate source text without any Gma
       };
     },
   };
-  let gmailTouched = false;
+
   const admin = {
     async rpc(name: string) {
-      assertEquals(name, 'claim_next_cash_sfr_work_item');
+      rpcCalls.push(name);
+      assertEquals(name, 'claim_cash_sfr_activation_signal');
       return {
         data: [{
           work_item_id: 'work-1',
           agent_task_id: 'task-1',
           candidate_id: candidateId,
-          ghl_opportunity_id: 'opp-1',
+          ghl_opportunity_id: opportunityId,
+          work_kind: 'sfr_underwriting',
           activation_count: 1,
-          task_title: 'Underwrite 29910 SW 149th Ave',
-          task_description: 'Run SFR underwriting',
+          task_title: 'Underwrite: 29910 SW 149th Ave',
+          task_description: 'Cash full SFR underwriting claimed just-in-time after live HighLevel eligibility verification.',
           resumed: false,
           completed_phases: [],
         }],
@@ -100,14 +140,37 @@ Deno.test('Cash work item includes durable candidate source text without any Gma
     },
     from(table: string) {
       if (table.toLowerCase().includes('gmail')) gmailTouched = true;
-      assertEquals(table, 'ema_candidate_documents');
-      return query;
+      if (table === 'cash_work_items') return activeQuery;
+      if (table === 'cash_activation_signals') return signalQuery;
+      if (table === 'app_settings') return settingsQuery;
+      if (table === 'ema_candidate_documents') return documentQuery;
+      throw new Error(`Unexpected table: ${table}`);
     },
   };
 
-  const result = await claimNextCashWorkItem(admin as never, 'workspace-1');
+  const fakeFetch = (async (input: RequestInfo | URL) => {
+    assert(String(input).endsWith(`/opportunities/${opportunityId}`));
+    return new Response(JSON.stringify({
+      opportunity: {
+        id: opportunityId,
+        name: '29910 SW 149th Ave, Homestead, FL 33033',
+        pipelineId: 'w3OtDJjCdN840Hwb1fpt',
+        pipelineStageId: '1c3468f6-1a5d-4025-bf20-2bc4bd195708',
+        status: 'open',
+        customFields: [
+          { id: '36WeaPwncmXLzUQhbGHd', fieldValue: 'Single Family Residence' },
+          { id: 'hH02pevCKOTpmDYfOTnu', fieldValue: '29910 SW 149th Ave, Homestead, FL 33033' },
+        ],
+      },
+    }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  const result = await claimNextCashWorkItemJit(admin as never, 'workspace-1', fakeFetch);
   assert(result.work_item !== null);
+  assertEquals(rpcCalls, ['claim_cash_sfr_activation_signal']);
   assertEquals(gmailTouched, false);
+  assertEquals(result.work_item.live_eligibility.eligible, true);
+  assertEquals(result.work_item.live_eligibility.status, 'open');
   const source = result.work_item.source_documents as Record<string, unknown>;
   assertEquals(source.status, 'complete');
   assertEquals(source.document_count, 1);

@@ -663,7 +663,7 @@ async function rentCastJson(url: string, apiKey: string, fetchImpl: typeof fetch
 function customFieldValue(fields: Record<string, unknown>[], fieldId: string): unknown {
   const field = fields.find((item) => stringValue(item.id) === fieldId);
   if (!field) return null;
-  for (const key of ['fieldValueString', 'fieldValueNumber', 'fieldValueDate', 'fieldValueArray', 'value']) {
+  for (const key of ['fieldValue', 'fieldValueString', 'fieldValueNumber', 'fieldValueDate', 'fieldValueArray', 'value']) {
     if (field[key] !== undefined && field[key] !== null) return field[key];
   }
   return null;
