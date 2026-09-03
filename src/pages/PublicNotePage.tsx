@@ -9,6 +9,7 @@ interface PublicNote {
   title: string;
   content: string;
   updated_at: string;
+  full_width: boolean;
 }
 
 export default function PublicNotePage() {
@@ -22,7 +23,7 @@ export default function PublicNotePage() {
     (async () => {
       const { data, error } = await supabase
         .from("notes")
-        .select("id, title, content, updated_at")
+        .select("id, title, content, updated_at, full_width")
         .eq("share_token", token)
         .eq("is_public", true)
         .maybeSingle();
@@ -60,7 +61,7 @@ export default function PublicNotePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 lg:px-16 py-12">
+      <div className={`py-12 ${note.full_width ? "px-6 lg:px-16" : "max-w-[840px] mx-auto px-6"}`}>
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Shared note</div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">{note.title}</h1>
         <div className="text-xs text-muted-foreground mb-8">

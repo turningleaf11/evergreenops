@@ -7465,6 +7465,7 @@ export type Database = {
           cover_url: string | null
           created_at: string
           folder: string | null
+          full_width: boolean
           icon: string | null
           id: string
           is_public: boolean
@@ -7483,6 +7484,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           folder?: string | null
+          full_width?: boolean
           icon?: string | null
           id?: string
           is_public?: boolean
@@ -7501,6 +7503,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           folder?: string | null
+          full_width?: boolean
           icon?: string | null
           id?: string
           is_public?: boolean

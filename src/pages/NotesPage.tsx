@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, FileText, ArrowRight, Trash2, BookOpen, MoreHorizontal, Pencil, X, Share2, Globe, Pin, PinOff, Palette, Info, ImageIcon, Smile } from "lucide-react";
+import { Plus, FileText, ArrowRight, Trash2, BookOpen, MoreHorizontal, Pencil, X, Share2, Globe, Pin, PinOff, Palette, Info, ImageIcon, Smile, Maximize2, Minimize2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/hooks/use-toast";
@@ -32,6 +32,7 @@ interface Note {
   cover_url?: string | null;
   icon?: string | null;
   cover_position?: number | null;
+  full_width?: boolean;
 }
 
 interface Notebook {
@@ -155,7 +156,7 @@ export default function NotesPage() {
       .from("notes")
       .update(payload as any)
       .eq("id", id)
-      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon, cover_position")
+      .select("id, title, content, folder, notebook_id, pinned, converted_doc_id, created_at, updated_at, is_public, share_token, shared_with, cover_url, icon, cover_position, full_width")
       .single();
 
     if (data) {
@@ -276,6 +277,11 @@ export default function NotesPage() {
   const togglePin = async (note: Note) => {
     await supabase.from("notes").update({ pinned: !note.pinned } as any).eq("id", note.id);
     fetchNotes();
+  };
+
+  const toggleFullWidth = async (note: Note) => {
+    mergeNoteLocally(note.id, { full_width: !note.full_width });
+    await supabase.from("notes").update({ full_width: !note.full_width } as any).eq("id", note.id);
   };
 
   const moveToNotebook = async (noteId: string, notebookId: string | null) => {
@@ -643,6 +649,16 @@ export default function NotesPage() {
                 </Button>
 
                 <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-7 w-7 ${selectedNote?.full_width ? "text-primary" : "text-muted-foreground"}`}
+                  onClick={() => selectedNote && toggleFullWidth(selectedNote)}
+                  title={selectedNote?.full_width ? "Switch to standard width" : "Switch to full width"}
+                >
+                  {selectedNote?.full_width ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </Button>
+
+                <Button
                   variant="outline"
                   size="sm"
                   className={`h-7 text-xs gap-1 ${selectedNote?.is_public ? "border-primary/50 text-primary" : ""}`}
@@ -729,7 +745,7 @@ export default function NotesPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-white dark:bg-card">
-              <div className="px-6 lg:px-16 py-6">
+              <div className={`py-6 ${selectedNote?.full_width ? "px-6 lg:px-16" : "max-w-[840px] mx-auto px-6"}`}>
                 <DocCover
                   coverUrl={selectedNote?.cover_url ?? null}
                   icon={selectedNote?.icon ?? null}
