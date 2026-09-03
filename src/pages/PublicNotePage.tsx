@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Loader2 } from "lucide-react";
+import "@/components/RichTextEditor.css";
 
 interface PublicNote {
   id: string;
@@ -65,10 +66,12 @@ export default function PublicNotePage() {
         <div className="text-xs text-muted-foreground mb-8">
           Last updated {new Date(note.updated_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
         </div>
-        <div
-          className="prose prose-sm dark:prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: note.content || "<p class='text-muted-foreground'>This note is empty.</p>" }}
-        />
+        <div className="rich-editor">
+          <div
+            className="tiptap prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: note.content || "<p class='text-muted-foreground'>This note is empty.</p>" }}
+          />
+        </div>
         <div className="mt-16 pt-6 border-t border-border/50 text-center">
           <a href="/" className="text-xs text-muted-foreground hover:text-foreground">Powered by your workspace</a>
         </div>
