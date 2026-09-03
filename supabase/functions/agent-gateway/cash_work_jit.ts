@@ -36,12 +36,18 @@ export interface CashJitWorkItem {
   source_documents: Record<string, unknown>;
 }
 
+export interface CollapsedActivationSignals {
+  latest: Array<Record<string, unknown>>;
+  superseded: Array<Record<string, unknown>>;
+}
+
 export async function claimNextCashWorkItemJit(
   admin: SupabaseClient,
   workspaceId: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ work_item: CashJitWorkItem | null }> {
   const leaseToken = crypto.randomUUID();
+  const deferredOpportunityIds = new Set<string>();
   let scanCount = 0;
 
   // Restart safety comes first. Existing active work is eligible for resumption
@@ -58,10 +64,16 @@ export async function claimNextCashWorkItemJit(
 
   for (const active of activeItems ?? []) {
     if (++scanCount > MAX_SCAN_COUNT) return { work_item: null };
-    const leaseExpiresAt = stringValue(active.claim_lease_expires_at);
-    if (leaseExpiresAt && new Date(leaseExpiresAt).getTime() > Date.now()) continue;
     const workItemId = requiredString(active.id, 'work_item_id');
     const opportunityId = requiredString(active.ghl_opportunity_id, 'ghl_opportunity_id');
+    const leaseExpiresAt = stringValue(active.claim_lease_expires_at);
+    if (leaseExpiresAt && new Date(leaseExpiresAt).getTime() > Date.now()) {
+      // A newer activation signal for the same opportunity must not jump a live
+      // lease. The database also fences activation-identity changes so a race
+      // after this read fails closed rather than mixing activations.
+      deferredOpportunityIds.add(opportunityId);
+      continue;
+    }
     const eligibility = await liveEligibility(admin, opportunityId, fetchImpl);
 
     if (!eligibility.eligible) {
@@ -90,20 +102,44 @@ export async function claimNextCashWorkItemJit(
   while (scanCount < MAX_SCAN_COUNT) {
     const { data: signals, error: signalError } = await admin
       .from('cash_activation_signals')
-      .select('id, ghl_opportunity_id, activated_at')
+      .select('id, ghl_opportunity_id, activation_count, activated_at, created_at')
       .eq('workspace_id', workspaceId)
       .eq('state', 'pending')
-      .order('activated_at', { ascending: true })
-      .order('created_at', { ascending: true })
+      .order('activated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(MAX_PENDING_SIGNALS);
     if (signalError) throw new CashJitClaimError(500, 'cash_activation_signal_lookup_failed');
     if (!signals || signals.length === 0) return { work_item: null };
 
+    const collapsed = collapsePendingActivationSignals(signals);
     let madeProgress = false;
-    for (const signal of signals) {
+
+    // Collapse duplicate pending stage entries before doing a live GHL read.
+    // The DB trigger enforces the same invariant for newly-created signals; this
+    // loop also cleans any legacy/raced duplicates that were already visible.
+    for (const signal of collapsed.superseded) {
+      if (++scanCount > MAX_SCAN_COUNT) return { work_item: null };
+      const signalId = requiredString(signal.id, 'activation_signal_id');
+      const { error } = await admin.rpc('stale_cash_sfr_activation_signal', {
+        _workspace_id: workspaceId,
+        _activation_signal_id: signalId,
+        _reason: 'superseded_activation',
+        _live_snapshot: {
+          eligible: false,
+          reason: 'superseded_activation',
+          verified_at: new Date().toISOString(),
+        },
+      });
+      if (error) throw new CashJitClaimError(500, 'cash_activation_signal_stale_failed');
+      madeProgress = true;
+    }
+
+    for (const signal of collapsed.latest) {
       if (++scanCount > MAX_SCAN_COUNT) return { work_item: null };
       const signalId = requiredString(signal.id, 'activation_signal_id');
       const opportunityId = requiredString(signal.ghl_opportunity_id, 'ghl_opportunity_id');
+      if (deferredOpportunityIds.has(opportunityId)) continue;
+
       const eligibility = await liveEligibility(admin, opportunityId, fetchImpl);
 
       if (!eligibility.eligible) {
@@ -125,12 +161,17 @@ export async function claimNextCashWorkItemJit(
         _live_snapshot: eligibility.snapshot,
         _lease_seconds: CLAIM_LEASE_SECONDS,
       });
-      if (error) throw new CashJitClaimError(500, 'cash_activation_signal_claim_failed');
-      const row = singleRpcRow(data);
-      if (!row) {
-        madeProgress = true; // raced, superseded, or already completed
-        continue;
+      if (error) {
+        if (isActivationLeaseConflict(error)) {
+          // A concurrent/older Cash run still owns the opportunity. Leave the
+          // newer signal pending and let a later poll retry after the lease.
+          deferredOpportunityIds.add(opportunityId);
+          continue;
+        }
+        throw new CashJitClaimError(500, 'cash_activation_signal_claim_failed');
       }
+      const row = singleRpcRow(data);
+      if (!row) continue; // raced, superseded, or already completed
       return {
         work_item: await buildWorkItem(admin, workspaceId, row, eligibility),
       };
@@ -140,6 +181,67 @@ export async function claimNextCashWorkItemJit(
   }
 
   return { work_item: null };
+}
+
+export function collapsePendingActivationSignals(
+  signals: Array<Record<string, unknown>>,
+): CollapsedActivationSignals {
+  const latestByOpportunity = new Map<string, Record<string, unknown>>();
+  const superseded: Array<Record<string, unknown>> = [];
+
+  for (const signal of signals) {
+    const opportunityId = requiredString(signal.ghl_opportunity_id, 'ghl_opportunity_id');
+    const current = latestByOpportunity.get(opportunityId);
+    if (!current) {
+      latestByOpportunity.set(opportunityId, signal);
+      continue;
+    }
+
+    if (compareActivationRecency(signal, current) > 0) {
+      superseded.push(current);
+      latestByOpportunity.set(opportunityId, signal);
+    } else {
+      superseded.push(signal);
+    }
+  }
+
+  const latest = [...latestByOpportunity.values()].sort((a, b) => {
+    const activated = timestampValue(a.activated_at) - timestampValue(b.activated_at);
+    if (activated !== 0) return activated;
+    const created = timestampValue(a.created_at) - timestampValue(b.created_at);
+    if (created !== 0) return created;
+    return requiredString(a.id, 'activation_signal_id').localeCompare(
+      requiredString(b.id, 'activation_signal_id'),
+    );
+  });
+
+  return { latest, superseded };
+}
+
+export function isActivationLeaseConflict(error: unknown): boolean {
+  if (!isRecord(error)) return false;
+  const code = stringValue(error.code);
+  const message = stringValue(error.message);
+  return code === 'P0001' && message?.includes('cash_work_item_activation_lease_active') === true;
+}
+
+function compareActivationRecency(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+): number {
+  const leftCount = integerValue(left.activation_count);
+  const rightCount = integerValue(right.activation_count);
+  if (leftCount !== rightCount) return leftCount - rightCount;
+
+  const activated = timestampValue(left.activated_at) - timestampValue(right.activated_at);
+  if (activated !== 0) return activated;
+
+  const created = timestampValue(left.created_at) - timestampValue(right.created_at);
+  if (created !== 0) return created;
+
+  return requiredString(left.id, 'activation_signal_id').localeCompare(
+    requiredString(right.id, 'activation_signal_id'),
+  );
 }
 
 async function liveEligibility(
@@ -313,6 +415,18 @@ function safeSourceMetadata(value: unknown): Record<string, unknown> {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function integerValue(value: unknown): number {
+  const number = Number(value);
+  return Number.isInteger(number) ? number : 0;
+}
+
+function timestampValue(value: unknown): number {
+  const text = stringValue(value);
+  if (!text) return 0;
+  const timestamp = Date.parse(text);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function requiredString(value: unknown, field: string): string {
