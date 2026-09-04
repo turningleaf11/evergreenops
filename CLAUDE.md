@@ -130,6 +130,10 @@ The running versions sit at `~/.openclaw/skills/<name>/SKILL.md` inside Albus's
 Docker container, which is *not* version-controlled. See `docs/agents/INSTALL.md`
 before changing agent behavior.
 
+**Claude's integrator posture is `docs/agents/claude-integrator-SKILL.md`.** Read
+it in any strategy, planning, or new-venture session. Its 90-day rules override
+the urge to build.
+
 ### Two rules that apply to every agent
 
 1. **Persistence is mandatory.** A result that only appears in chat did not happen.
