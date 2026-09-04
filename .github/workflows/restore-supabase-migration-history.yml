@@ -53,7 +53,7 @@ jobs:
           mkdir -p supabase/migrations
           printf 'y\n' | supabase migration fetch --linked
 
-      - name: Merge remote history with canonical main migrations
+      - name: Merge remote history and archive untracked local files
         shell: bash
         run: |
           python3 - <<'PY'
@@ -65,6 +65,10 @@ jobs:
 
           original = Path('/tmp/repo-migrations')
           target = Path('supabase/migrations')
+          archive = Path('supabase/migration_archive/untracked')
+          if archive.exists():
+              shutil.rmtree(archive)
+          archive.mkdir(parents=True, exist_ok=True)
 
           def version_of(path: Path):
               match = re.match(r'^(\d{14})_.*\.sql$', path.name)
@@ -89,7 +93,8 @@ jobs:
 
           exact_aliases = []
           name_aliases = []
-          unmatched_local = []
+          archived_local = []
+          nonconforming = []
           same_version_preserved = 0
 
           for src in sorted(original.iterdir()):
@@ -97,7 +102,8 @@ jobs:
                   continue
               version = version_of(src)
               if not version:
-                  shutil.copy2(src, target / src.name)
+                  shutil.copy2(src, archive / src.name)
+                  nonconforming.append(src.name)
                   continue
 
               if version in remote_by_version:
@@ -115,15 +121,15 @@ jobs:
 
               name_matches = remote_by_name.get(logical_name(src), [])
               if len(name_matches) == 1:
-                  # Same logical migration name, but production recorded the actual
-                  # application under a different timestamp. Keep the production-
-                  # tracked version so Supabase history remains reproducible.
                   name_aliases.append((src.name, name_matches[0].name))
                   continue
 
-              # No unique equivalence has been established. Preserve for review.
-              shutil.copy2(src, target / src.name)
-              unmatched_local.append(src.name)
+              # The file exists in Git history but its timestamp was never tracked
+              # by production and no unique remote equivalent was proven. Preserve
+              # it outside the deployable migrations directory. Never silently
+              # apply old SQL out of order or falsely mark it as applied.
+              shutil.copy2(src, archive / src.name)
+              archived_local.append(src.name)
 
           versions = {}
           duplicates = []
@@ -138,40 +144,49 @@ jobs:
           if duplicates:
               raise SystemExit(f'duplicate migration versions after merge: {duplicates}')
 
+          readme = archive.parent / 'README.md'
+          readme.write_text(
+              '# Supabase migration archive\n\n'
+              'The files under `untracked/` are historical repository SQL files whose '
+              'migration versions were never recorded in the production Supabase '
+              '`schema_migrations` history and for which no unique production-tracked '
+              'equivalent could be proven during the 2026-09-04 history repair.\n\n'
+              'They are intentionally excluded from `supabase/migrations` so normal '
+              '`supabase db push` cannot back-apply old SQL out of order. If an archived '
+              'change is still desired, reintroduce it as a new timestamped migration '
+              'after verifying current production state. Do not history-mark these files '
+              'as applied merely to silence the CLI.\n',
+              encoding='utf-8',
+          )
+
           print(f'Remote migration versions fetched: {len(remote_by_version)}')
-          print(f'Canonical migration versions after merge: {len(versions)}')
+          print(f'Canonical deployable migration versions: {len(versions)}')
           print(f'Same-version repository files preserved: {same_version_preserved}')
           print(f'Exact SQL aliases removed: {len(exact_aliases)}')
-          for local_name, remote_name in exact_aliases:
-              print(f'EXACT_ALIAS {local_name} -> {remote_name}')
           print(f'Same-name alternate-timestamp aliases removed: {len(name_aliases)}')
-          for local_name, remote_name in name_aliases:
-              print(f'NAME_ALIAS {local_name} -> {remote_name}')
-          print(f'Unmatched local-only migrations retained for review: {len(unmatched_local)}')
-          for name in unmatched_local:
-              print(f'LOCAL_ONLY {name}')
+          print(f'Untracked timestamped files archived: {len(archived_local)}')
+          for name in archived_local:
+              print(f'ARCHIVED {name}')
+          print(f'Nonconforming SQL files archived: {len(nonconforming)}')
+          for name in nonconforming:
+              print(f'ARCHIVED_NONCONFORMING {name}')
           PY
 
-      - name: Inspect migration parity without applying SQL
+      - name: Require exact migration parity without applying SQL
         shell: bash
         run: |
           supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
-          set +e
           supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --dry-run
-          dry_run_status=$?
-          set -e
-          echo "Supabase dry-run exit status: $dry_run_status"
-          exit 0
 
-      - name: Commit reconciled migration files
+      - name: Commit reconciled migration history
         shell: bash
         run: |
-          if git diff --quiet -- supabase/migrations && [ -z "$(git ls-files --others --exclude-standard supabase/migrations)" ]; then
-            echo "No migration files changed."
+          if git diff --quiet -- supabase/migrations supabase/migration_archive && [ -z "$(git ls-files --others --exclude-standard supabase/migrations supabase/migration_archive)" ]; then
+            echo "No migration history files changed."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A supabase/migrations
-          git commit -m "Reconcile Supabase migration history"
+          git add -A supabase/migrations supabase/migration_archive
+          git commit -m "Canonicalize Supabase migration history"
           git push origin HEAD:fix/supabase-migration-history-fetch
