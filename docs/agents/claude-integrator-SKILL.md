@@ -18,12 +18,11 @@ the ideas, force one priority, say no to the rest, and keep the week small.
   options?" Give a recommendation, not a survey.
 - **Ideas go to the parking lot, not to a branch.** Write them down with a
   review date. Do not open a repo, agent, tool, or artifact for them.
-- **Protect the calendar, not just the hours.** The scarce resource is not time,
-  it is *synchronous* time — hours somebody else gets to schedule. A plan that
-  needs Autumn in meetings is a plan that fails, however few hours it claims.
-- **Sell knowledge, deliver async.** Bounded deliverables with an end date, no
-  live sessions. Retainers, cohorts, and communities are recurring live
-  commitments wearing a product costume.
+- **Keep the work bounded.** Fixed scope, fixed price, a defined end date. How
+  a thing gets delivered — recorded, written, or live — is a per-client detail
+  and not a matter of principle; open-ended commitments are the actual risk.
+  Retainers, cohorts, and communities are ongoing obligations wearing a
+  product costume.
 - **Human review before anything reaches a buyer.** Same ceiling as the internal
   fleet: fleet output stops at review, never ships on its own.
 
@@ -37,14 +36,14 @@ not a services audience — so the teaching product leads.
 breakdown, the real files with client data scrubbed, and a short screen
 recording. $97–$197, one drop a month. First three all exist in the repos
 today — the overnight deal screener, the agent security model, and the
-process-map method. Autumn's cost is about an hour per drop: talk it through
-once on a recording, then one review pass.
+process-map method. Autumn talks each one through once on a recording and
+reviews the finished draft; the Producer does the rest.
 
-**The Async Audit (back door).** For the few who read a teardown and want it
-done for them. Two weeks, $4,500, and zero calls: written intake, read-only
-access, team and fleet observe, Autumn does one judgment pass on the map and
-records a 15-minute walkthrough alone, then one written Q&A round. Her cost is
-2–3 hours. Client's is about 45 minutes.
+**The Bottleneck Audit (back door).** For the few who read a teardown and want
+it done for them. Two weeks, $4,500: intake, read-only access, team and fleet
+observe, Autumn does one judgment pass on the map and delivers a 15-minute
+walkthrough, then one follow-up question round. Delivery format is the
+client's preference — recorded so their team can watch it, or live.
 
 **Implementation.** Only if someone insists. Fully team-delivered, quoted
 separately, never marketed.
@@ -59,11 +58,9 @@ Only two things cannot be delegated: **judgment on a map** and **voice on a
 teardown**. Everything else belongs to somebody else.
 
 - **Principal** — the source. Records each teardown once, one judgment pass per
-  audit, records the walkthrough alone, final review. ~4 hrs/month, zero meetings.
+  audit, delivers the walkthrough, final review before anything ships.
 - **Producer** — owns Build Notes end to end: recording into written product,
-  scrubbing, storefront, publishing, buyer questions, ships monthly unchased.
-  **This role is load-bearing.** Unnamed, the model collapses back onto the
-  Principal within three weeks.
+  scrubbing, storefront, publishing, buyer questions, one drop a month.
 - **Delivery Lead** — owns audit delivery: intake, access, observation, fleet
   direction, assembly, written Q&A.
 - **AI fleet** — drafts maps, teardown copy, fix lists, intake forms. Ships
@@ -73,8 +70,8 @@ teardown**. Everything else belongs to somebody else.
 
 Active until both revenue lines have earned. Then revisit.
 
-1. **No calls, discovery sessions, or "quick chats."** On either product. A
-   buyer who insists is a separate paid engagement. This is rule one.
+1. **Fixed scope, fixed price, defined end date** on every engagement. Delivery
+   format is a per-client detail; open-ended commitments are the real risk.
 2. **No new repo, agent, tool, or product** until both lines earn.
 3. **Sold under Autumn's own name.** Company name, brand, and website stay parked.
 4. **Every shipped file gets scrubbed** of client data, workspace IDs, and deal
@@ -93,14 +90,15 @@ retainers, courses, cohorts, communities, company naming exercises.
 
 ## Scoreboard
 
-Both revenue lines earning by day 45 — one paid teardown shipped, one async
-audit sold. Not repos, not features, not tools.
+Both revenue lines earning by day 45 — one paid teardown shipped, one audit
+sold. Not repos, not features, not tools.
 
 ## Working documents
 
 - The Bottleneck Audit — the offer, the outreach DMs, internal delivery budget:
   https://claude.ai/code/artifact/65010aa9-1781-4e76-ae2d-407a75084756
-- First Two Clients — team brief: both products, roles, delivery sequence, fence:
+- Selling What We Know — team brief, written for someone with no context:
+  both products, roles, how each gets delivered, what we're not doing:
   https://claude.ai/code/artifact/f0bb21fb-5384-4383-a1af-19b22e5132d5
 - Launch Blueprint — long-form reference, largely superseded by the above:
   https://claude.ai/code/artifact/65fab6d2-6843-42d1-b74d-98203131c45d
