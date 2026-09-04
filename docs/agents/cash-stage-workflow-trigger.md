@@ -2,29 +2,39 @@
 
 ## Purpose
 
-Cash underwriting is activated only after a human moves a HighLevel opportunity into an approved Cash trigger stage.
+HighLevel stage movement remains the human/business-state activation authority for Cash, but the SFR webhook no longer creates durable underwriting work immediately.
 
-Primary production trigger:
+For SFR the production path is:
 
-- HighLevel `Pipeline Stage Changed` workflow
-- authenticated outbound `Custom Webhook`
-- `cash-stage-trigger` Supabase Edge Function
-- live HighLevel opportunity verification
-- `reconcile_cash_stage_trigger_v2`
-- persistent Cash work item / Agent Task Board task
+```text
+HighLevel Pipeline Stage Changed
+        ↓
+authenticated cash-stage-trigger / signed ghl-stage-events receiver
+        ↓
+ghl_stage_events audit row
+        ↓
+cash_activation_signals pending
+        ↓
+Cash later calls underwriting_next_work_item
+        ↓
+Gateway verifies the opportunity against LIVE HighLevel
+        ↓
+JIT durable Cash work/task only if still eligible
+```
 
-The existing Marketplace `ghl-stage-events` Ed25519 receiver remains available as a fallback, but it is not required for the workflow-based activation path.
+The webhook says **“this opportunity entered Underwriting.”** Live HighLevel later answers **“is it still eligible right now?”** Supabase/OpsHQ records **“Cash actually started work.”**
 
-## Approved trigger stages
+Portfolio/Napkin behavior is separate and is not changed by the SFR JIT design.
 
-| Pipeline | Pipeline ID | Cash trigger stage | Stage ID | Work kind |
+## Approved SFR trigger
+
+| Pipeline | Pipeline ID | Trigger stage | Stage ID | Work kind |
 | --- | --- | --- | --- | --- |
 | SFR | `w3OtDJjCdN840Hwb1fpt` | Underwriting | `1c3468f6-1a5d-4025-bf20-2bc4bd195708` | `sfr_underwriting` |
-| Portfolio | `K6YsnZw6qhYLvXSvuixD` | Ready for Napkin | `a4c70dff-3832-427f-adb7-a3945a175783` | `portfolio_napkin` |
 
 ## Security boundary
 
-The workflow webhook is notification, not authority.
+The workflow webhook is notification, not underwriting authority.
 
 The request payload accepts only:
 
@@ -36,63 +46,67 @@ The request payload accepts only:
 
 Client-supplied pipeline IDs, stage IDs, workspace IDs, candidate IDs, agent IDs, URLs, or work kinds are rejected.
 
-After authentication, the receiver rereads the opportunity from HighLevel using Evergreen's server-side HighLevel credential. Cash is activated only when the live opportunity is currently in one of the approved pipeline/stage pairs above.
+After authentication, the receiver rereads the opportunity from HighLevel using Evergreen's server-side HighLevel credential. The SFR receiver records an activation signal only for the exact approved pipeline/stage route.
 
-The workflow uses a dedicated credential. Do not reuse `CASH_GATEWAY_TOKEN`, `EMA_GATEWAY_TOKEN`, a HighLevel PIT, or any Supabase service-role credential.
+Cash itself does **not** receive generic HighLevel access. The later JIT eligibility read remains server-side behind Agent Gateway.
 
-- Raw workflow token: stored only in HighLevel's Custom Webhook configuration / protected secret location.
-- SHA-256 token hash: stored in `public.app_settings` under `CASH_STAGE_WORKFLOW_TOKEN_SHA256`.
+The workflow credential is separate from the Cash Gateway credential. Do not reuse `CASH_GATEWAY_TOKEN`, `EMA_GATEWAY_TOKEN`, a HighLevel PIT, or any Supabase service-role credential.
+
+- Raw workflow token: stored only in HighLevel's protected Custom Webhook configuration.
+- SHA-256 token hash: stored server-side for authentication.
 - The raw token is never stored in Postgres.
 - Invalid requests are audited without storing the Authorization header.
 
 ## HighLevel workflow configuration
 
-Create one workflow named:
+The existing `Cash - Underwriting Stage Trigger` workflow remains the SFR activation front door.
 
-`Cash - Underwriting Stage Trigger`
-
-Add two `Pipeline Stage Changed` triggers:
-
-1. SFR pipeline -> `Underwriting`
-2. Portfolio pipeline -> `Ready for Napkin`
-
-Workflow settings:
+Settings:
 
 - `Allow Re-entry`: ON
 - `Allow Multiple Opportunities`: ON
+- opportunity-based workflow context
 
-The workflow must be opportunity-based so the webhook action retains the triggering opportunity context.
-
-Add one `Custom Webhook` action:
+Custom Webhook:
 
 - Method: `POST`
 - URL: `https://dsxrekabnwvarnroanny.supabase.co/functions/v1/cash-stage-trigger`
 - Header: `Authorization: Bearer <CASH_STAGE_WORKFLOW_TOKEN>`
 - Header: `Content-Type: application/json`
-- JSON body: one field only, `opportunity_id`, populated from the workflow's Opportunity ID dynamic-value picker.
+- Body: only the triggering `opportunity_id`
 
-Do not manually type a guessed merge-field token when the HighLevel variable picker is available. Select the triggering Opportunity ID from the picker and verify the workflow's test payload before publishing.
+Use HighLevel's Opportunity ID dynamic-value picker rather than guessing a merge token.
 
-## Idempotency and re-entry
+## SFR idempotency and re-entry
 
-The receiver derives its event identity from:
+A retry of the same authenticated stage event reuses the same activation signal. A genuine later re-entry into Underwriting creates a newer `activation_count`.
 
-- live HighLevel opportunity ID
-- live pipeline ID
-- live stage ID
-- live HighLevel `date_updated`
+`cash_work_items` remains unique by `(workspace_id, ghl_opportunity_id, work_kind)`. A later activation may reopen/reuse that same durable envelope rather than creating a duplicate task.
 
-A retry of the same stage-change delivery reuses the same audit event. A later stage re-entry has a new HighLevel update timestamp and can reopen/reuse the existing Cash work item without creating a duplicate task.
+The current activation is never sufficient by itself to authorize work. Before JIT claim the Gateway requires live HighLevel to show all of:
 
-`cash_work_items` remains unique by `(workspace_id, ghl_opportunity_id, work_kind)`.
+- pipeline `w3OtDJjCdN840Hwb1fpt`;
+- stage `1c3468f6-1a5d-4025-bf20-2bc4bd195708`;
+- status `open`;
+- property type `Single Family Residence`.
+
+If the deal moved to DEAD, was abandoned, left Underwriting, entered another pipeline, or is not SFR, the pending signal is made stale and no new underwriting work is created.
+
+## `needs_info` and later re-entry
+
+If CashValue or Acquisition Rehab returns durable `needs_info`, the current activation is blocked/released and its signal is made stale with a phase-specific reason. Cash may continue to another activation.
+
+If a human later moves that opportunity out of and back into Underwriting after the missing information is resolved, the new webhook event receives a higher activation count and can reopen the existing envelope.
 
 ## Acceptance test
 
-1. Publish the HighLevel workflow.
-2. Move a controlled SFR opportunity into `Underwriting`.
-3. Confirm `ghl_stage_events` records an authenticated `ghl_workflow_bearer` event.
-4. Confirm `cash_work_items` contains the matching `sfr_underwriting` envelope.
-5. Confirm Agent Task Board contains the Cash task.
-6. Move the opportunity out of the trigger stage and back in.
-7. Confirm the same work item/task is reused or reopened and `activation_count` increments.
-8. Do not use Ema completeness or buy-box fit as a Cash activation trigger.
+1. Move a controlled SFR opportunity into Underwriting.
+2. Confirm `ghl_stage_events` records an authenticated event.
+3. Confirm exactly one pending `cash_activation_signal` exists for that activation.
+4. Confirm stage entry alone does **not** create a new Cash work item/task.
+5. Move one test opportunity out of Underwriting before Cash runs; verify JIT polling makes its signal stale without underwriting it.
+6. Leave another valid SFR open in Underwriting; let the real hosted Cash agent poll and verify the work item/task is created only at JIT claim.
+7. Verify repeated/concurrent polling cannot duplicate the claim.
+8. Verify a `needs_info` result blocks/releases only that activation and Cash can continue to another deal.
+9. Move the opportunity out and genuinely back into Underwriting; verify a new activation count reopens/reuses the same durable envelope.
+10. Do not use Ema completeness or buy-box fit as a substitute Cash activation trigger.

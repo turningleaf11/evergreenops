@@ -2,168 +2,149 @@
 
 ## Decision
 
-Cash's recurring underwriting pickup belongs in **OpenClaw Automations**, not Supabase Cron and not a generic free-form heartbeat.
+Cash's recurring SFR underwriting pickup belongs in **OpenClaw Automations**. HighLevel remains the human/business-state authority; Agent Gateway / Supabase remains the execution, persistence, policy, rate-limit, and audit authority.
 
-- **HighLevel stage change** is the human activation authority and creates/reopens the durable Cash work item.
-- **OpenClaw Automation** owns *when Cash gets an agent turn* to claim pending work.
-- **Agent Gateway / Supabase** owns authentication, queue claiming, persistence, idempotency, exact action permissions, rate limits, underwriting policy, and audit history.
+The SFR flow is now **activation-signal driven and just-in-time**:
 
-The automation is a recovery/pickup mechanism. It must not create a second underwriting authority or bypass the HighLevel stage trigger.
+```text
+HighLevel opportunity enters SFR / Underwriting
+        ↓
+signed/authenticated stage webhook
+        ↓
+pending cash_activation_signal
+        ↓
+Cash calls underwriting_next_work_item
+        ↓
+Gateway re-reads LIVE HighLevel
+        ↓
+exact SFR pipeline + exact Underwriting stage + open + Single Family Residence?
+        ↓
+NO → signal stale; continue
+YES → create/reuse durable Cash work item + task, lease it, persist live evidence
+        ↓
+CashValue → Acquisition Rehab → server MAO → Human Review
+```
 
-## Cadence
+A stage webhook is an **activation signal**, not proof that a deal should still be underwritten later. The live HighLevel read immediately before claim is the final eligibility check.
 
-Production default: **every 1 hour**, 24/7.
+## Cadence and runtime
 
-Use an isolated Cash session. Do not configure a second generic Cash heartbeat to poll the same underwriting queue while this automation is enabled.
+The automation may wake on the existing recurring cadence, but the cadence is **not a one-deal throughput limit**.
+
+Use an isolated Cash session and one recurring Cash worker. Do not configure a second generic Cash heartbeat that polls the same work source.
+
+A production run should drain eligible work until one of these stop conditions is reached:
+
+- `underwriting_next_work_item` returns no work;
+- the run is approaching its configured runtime limit;
+- a server-side provider/rate/credit budget is exhausted;
+- an unexpected infrastructure/provider failure makes continued execution unsafe.
+
+A deal-specific `needs_info` result blocks only that activation and must **not** stop Cash from asking for the next work item.
 
 ## Hosted MCP namespace policy
 
 Cash keeps one stable authenticated MCP connection: `cash-gateway` using Cash's own credential.
 
-Preferred hosted filtering:
-
-- allow `cash-gateway__*` for the existing Cash agent;
-- do not attach or reuse Ema's credential;
-- rely on Supabase `agent_permissions` as the authoritative exact action allowlist.
-
-A hosted namespace wildcard does **not** grant backend authorization. Every Gateway request still resolves Cash's authenticated identity and must pass exact action permission, rate limit, validation, and audit boundaries.
-
-Current Cash underwriting tools exposed through the Gateway are:
+Current Cash underwriting tools are:
 
 - `cash-gateway__system_whoami`
 - `cash-gateway__underwriting_next_work_item`
 - `cash-gateway__underwriting_cash_value`
 - `cash-gateway__underwriting_rehab`
 
-MAO is calculated automatically server-side after successful Acquisition Rehab; Cash does not receive a caller-controlled MAO tool or pricing-input surface.
+MAO is calculated automatically server-side after successful Acquisition Rehab. Cash does not receive a caller-controlled MAO tool or broad HighLevel/database capability.
 
-## Recommended OpenClaw job
+## Production duty cycle
 
-Conceptually:
-
-```bash
-openclaw automations create "every 1h" \
-  --name "Cash Hourly Underwriting" \
-  --agent cash \
-  --session isolated \
-  --message "Run Cash's hourly acquisition-underwriting duty exactly as defined in the Cash skill. Verify identity, claim or resume the next approved SFR work item, establish CashValue from source-backed sold comps, run Acquisition Rehab using persisted condition evidence and approved policy, allow the Gateway to calculate MAO, and stop when the work item reaches human review. Never fabricate comps, repair facts, rates, or assumptions. Return NO_REPLY when there is no queued work or no human attention is required."
-```
-
-During burn-in, no-delivery is acceptable while run history is inspected. In production, route exception-only output to the owner/operator and return `NO_REPLY` for clean/no-work runs.
-
-## Current SFR duty cycle
-
-Each hourly run should:
+Each automation turn should:
 
 1. Call `system_whoami` and require agent slug `cash`.
-2. Call `underwriting_next_work_item` with no arguments.
-3. If no SFR work item is available, return `NO_REPLY`.
-4. If a work item is returned, use only its server-issued opportunity/candidate identity and successfully completed phases. Do not substitute a caller-selected deal.
-5. If `cash_value` has not succeeded, call `underwriting_cash_value` using the persisted opportunity identity.
-6. Let the Gateway use DealMachine first. Do not web-search for replacement comps before the approved provider capability is attempted, and never invent comps to satisfy sample count.
-7. When a fresh DealMachine subject-property snapshot already exists, Cash should reuse it; the valuation path should normally require only the DealMachine comps call. If no snapshot exists, the Gateway may perform one comprehensive property-enrichment request plus one comps request and then cache the property result.
-8. If CashValue returns `needs_info`, stop on that work item. Do not advance to Rehab.
-9. After successful CashValue, call `underwriting_rehab` using the active opportunity ID. Detailed repair itemization is not required.
-10. Pass optional `scope_items` only for specifically known source-backed major repairs. Cash never supplies Rehab rates, $/sf bands, minimums, or contingency.
-11. If condition is absent, allow the approved Acquisition Rehab policy to use the conservative Medium / Low-confidence default rather than manufacturing repair facts.
-12. If Rehab returns `needs_info`, stop on that work item.
-13. When Rehab succeeds, the Gateway automatically calculates and persists MAO using the active 65% standard / 68% human-review stretch policy.
-14. A successful MAO is the **current acquisition-underwriting completion point**. The backend moves the durable Cash work item and task to `review` and sets `next_phase='human_review'`.
-15. Do **not** automatically run Flip Analysis, DealCheck, detailed insurance/carrying-cost modeling, or financing after MAO. Those are later-stage due-diligence workflows.
-16. Do not send offers, move HighLevel stages, approve the deal, or price above Standard MAO.
+2. Call `underwriting_next_work_item` with no routing arguments.
+3. If no work item is returned, end with `NO_REPLY`.
+4. Use only the server-issued opportunity/candidate/work identity and completed phases.
+5. If CashValue has not succeeded, call `underwriting_cash_value` using the persisted opportunity identity.
+6. Never fabricate comps or substitute an AVM for sold-comp CashValue.
+7. If CashValue returns `needs_info`, do not advance that deal to Rehab. The backend blocks/releases the current activation; immediately ask for the next work item.
+8. After successful CashValue, call `underwriting_rehab` using the active opportunity ID. Pass optional scope items only for specifically known source-backed major repairs.
+9. If condition is absent, allow the approved Medium / Low-confidence policy default. Do not invent repair facts.
+10. If Rehab returns `needs_info`, do not advance that deal. The backend blocks/releases the current activation; immediately ask for the next work item.
+11. When Rehab succeeds, the Gateway automatically calculates and persists Standard MAO and the human-review stretch ceiling.
+12. Successful MAO moves the durable Cash work item/task to `review` with `next_phase='human_review'`.
+13. Ask `underwriting_next_work_item` again and continue while runtime/provider budgets allow.
+14. Do **not** automatically run Flip Analysis, DealCheck, financing, detailed carrying-cost modeling, or contractor-grade Rehab after MAO.
+15. Do not send offers, move HighLevel stages, approve a deal, or autonomously price above Standard MAO.
 
-## DealMachine call-efficiency boundary
+## `needs_info` disposition
 
-Evergreen wants the most reusable subject information with the fewest practical provider calls.
-
-### Fresh property snapshot already exists
-
-Normal Cash provider pattern:
+For the current SFR activation, durable `needs_info` in either `cash_value` or `rehab` is a blocking disposition:
 
 ```text
-Evergreen cached DealMachine subject facts
-                  +
-        one DealMachine comps call
+cash_underwriting_steps.status = needs_info
+        ↓
+cash_work_items.state = blocked
+lease cleared
+Cash task = blocked
+current activation signal = stale with phase-specific reason
+        ↓
+next Cash poll continues to another activation
 ```
 
-Cash should reuse the persisted subject facts rather than refetching property data solely for valuation.
+This prevents queue-draining runs from spinning on the same incomplete deal. A genuine later HighLevel re-entry into Underwriting creates a newer `activation_count` and may reopen the same durable envelope.
 
-### No fresh property snapshot exists
+## DealMachine efficiency boundary
 
-Normal maximum provider pattern for a new subject:
+When a fresh DealMachine subject-property snapshot exists, reuse it and normally make only the comps request. If no fresh snapshot exists, the normal maximum for a new subject is one comprehensive property enrichment plus one closed-comps request. Property enrichment remains property-only (`contact_audience='none'`).
 
-```text
-one comprehensive DealMachine property enrichment
-                       +
-one 12-month closed-comps request
-```
-
-The property request should retrieve supported property-only facts together, including useful tax/assessor data, property basics, last sale, MLS, mortgage/equity, liens, HOA amount when available, lot/zoning, systems/materials, flood, and condition fields. It uses `contact_audience='none'`; no people/contact enrichment belongs in CashValue.
-
-The comps request returns one 12-month provider pool. Evergreen applies its normal 6-month criteria first and its 12-month expanded criteria locally, avoiding a second comps request just to widen recency.
-
-DealMachine estimated value remains reference-only and must never substitute for CashValue sold comps.
+DealMachine estimated value is reference-only and must never substitute for CashValue sold comps.
 
 ## Acquisition Rehab boundary
 
-Cash's current Rehab phase is **Acquisition Rehab**, not contractor-grade scope pricing.
+Acquisition Rehab is a preliminary whole-property underwriting allowance, not contractor-grade scope pricing. The approved classes remain Lipstick, Light Rehab, Medium Rehab, Heavy Rehab, and Full Reno.
 
-Whole-property classes are:
+The Gateway owns class $/sf bands, minimum floors, known-system adders, and contingency. If usable condition information is absent, policy defaults to Medium Rehab / Low confidence and uses the conservative high side for MAO.
 
-- Lipstick
-- Light Rehab
-- Medium Rehab
-- Heavy Rehab
-- Full Reno
-
-The Gateway owns the approved class $/sf bands, minimum floors, system adders, and contingency. Cash provides no pricing overrides.
-
-If no usable condition information exists, the active policy defaults to **Medium Rehab / Low confidence** and uses the high side for MAO. This is clearly labeled as an underwriting assumption.
-
-Detailed itemized rehab/cost-book analysis remains a later due-diligence workflow for photos, inspection, measurements, walkthrough, or contractor quotes.
-
-## Queue behavior
+## Queue / discovery behavior
 
 `underwriting_next_work_item` is deliberately narrow:
 
-- accepts no caller-controlled routing fields;
-- resumes an already-active SFR item after an agent restart before claiming another;
-- otherwise claims the oldest/highest-priority queued SFR item;
-- does not claim Portfolio work until the Portfolio/Napkin engine exists;
-- uses row locking so concurrent Cash turns cannot independently claim the same queued item;
-- returns only successfully completed acquisition phases.
+- accepts no caller-controlled deal routing;
+- first heals or disposes any prior active `needs_info` activation;
+- revalidates resumable active work against live HighLevel before leasing it;
+- otherwise reads pending SFR activation signals;
+- collapses superseded activations;
+- re-reads the exact opportunity from live HighLevel;
+- requires exact SFR pipeline, exact Underwriting stage, `open` status, and `Single Family Residence`;
+- creates/reuses durable work only after that live check;
+- uses leases/advisory locking so concurrent Cash turns cannot work the same opportunity;
+- ignores legacy queued rows as a discovery source.
 
-A work item already moved to `review` after MAO is no longer an active pickup target. The HighLevel stage trigger remains the normal way to create/reopen the work envelope.
+Manual-GHL SFRs may legitimately have `candidate_id = null`. Ema-originated SFRs retain candidate/source-document provenance.
 
 ## Current completion boundary
 
-The autonomous SFR acquisition runtime implements:
+Cash's autonomous SFR acquisition runtime is complete at:
 
-1. work claim/resume;
-2. source-backed DealMachine-first CashValue;
-3. reusable DealMachine property snapshot persistence/caching;
-4. Acquisition Rehab classification and deterministic pricing;
-5. automatic Standard MAO and human-review stretch calculation;
-6. CRM underwriting note with exact selected sold comps;
-7. atomic transition of Cash task/work item to `review` after successful MAO.
+1. source-backed CashValue;
+2. Acquisition Rehab;
+3. automatic Standard MAO plus human-review stretch ceiling;
+4. CRM underwriting note with exact selected comps;
+5. durable work/task transition to `review` / Human Review.
 
-Insurance, detailed property carrying costs, full Flip Analysis, financing, DealCheck, and contractor-grade rehab are **not required** before this acquisition-stage handoff.
+Flip Analysis, detailed insurance/carrying costs, financing, DealCheck, and contractor-grade Rehab remain later-stage workflows.
 
-## Production acceptance sequence
+## Production acceptance
 
-Do not perform synthetic underwriting smoke tests with fake comps or invented repair facts.
+Acceptance must use the **real hosted Cash agent**, not an assistant-side queue claim.
 
-For a controlled real SFR deal:
+Verify all of the following:
 
-1. confirm Cash resolves as slug `cash` through its existing credential;
-2. move the opportunity into the approved HighLevel `Underwriting` stage;
-3. verify exactly one Cash work item / Agent Task is created or reopened;
-4. let Cash claim/resume that durable item;
-5. verify CashValue uses real sold comps and persists the exact selected comps;
-6. verify the DealMachine subject snapshot is either reused or fetched/persisted with zero people credits;
-7. verify Acquisition Rehab uses source-backed condition when available or the explicit Medium/Low policy default when unknown;
-8. verify MAO is calculated server-side from successful CashValue + Rehab;
-9. verify Standard MAO remains the autonomous ceiling and the 68% stretch remains human-only;
-10. verify the work item and Cash task end in `review` with `next_phase='human_review'`;
-11. confirm no automatic Flip/DealCheck run is required to complete Cash's acquisition stage;
-12. on a subsequent/new deal, verify the expected DealMachine call pattern: one comps call when a fresh property snapshot exists, otherwise one property call plus one comps call.
+- an old activation whose opportunity is no longer live/eligible is made stale without DealMachine underwriting;
+- a current open SFR opportunity in the exact Underwriting stage is JIT-claimed;
+- no duplicate claim occurs under concurrent/repeated polling;
+- CashValue uses real sold comps and persists exact selected comps;
+- Rehab and server-side MAO complete to Human Review;
+- a `needs_info` deal becomes blocked/released and does not prevent the worker from continuing;
+- repeated polling does not repeat an already completed activation;
+- a genuine later stage re-entry receives a new activation count;
+- no automatic Flip/DealCheck run, offer send, or CRM stage move occurs.
