@@ -50,11 +50,13 @@ jobs:
         run: |
           printf 'y\n' | supabase migration fetch --linked
 
-      - name: Prefer canonical repository files on overlapping versions
+      - name: Merge canonical history and remove exact alternate-timestamp copies
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          from collections import defaultdict
+          import hashlib
           import re
           import shutil
 
@@ -62,37 +64,92 @@ jobs:
           target = Path('supabase/migrations')
           target.mkdir(parents=True, exist_ok=True)
 
+          def version_of(path: Path):
+              match = re.match(r'^(\d{14})_.*\.sql$', path.name)
+              return match.group(1) if match else None
+
+          def normalized_bytes(path: Path):
+              text = path.read_text(encoding='utf-8').replace('\r\n', '\n')
+              text = '\n'.join(line.rstrip() for line in text.split('\n')).strip() + '\n'
+              return text.encode('utf-8')
+
+          remote_files = [p for p in target.glob('*.sql') if version_of(p)]
+          remote_by_version = {version_of(p): p for p in remote_files}
+          remote_by_hash = defaultdict(list)
+          for path in remote_files:
+              remote_by_hash[hashlib.sha256(normalized_bytes(path)).hexdigest()].append(path)
+
+          aliases = []
+          unmatched_local = []
+          same_version_preserved = 0
+
           for src in sorted(original.iterdir()):
               if not src.is_file():
                   continue
-              match = re.match(r'^(\d{14})_.*\.sql$', src.name)
-              if match:
-                  version = match.group(1)
+              version = version_of(src)
+              if not version:
+                  # Preserve legacy nonconforming files for now; they are outside
+                  # Supabase migration-version comparison and can be handled separately.
+                  shutil.copy2(src, target / src.name)
+                  continue
+
+              if version in remote_by_version:
+                  # The repository is authoritative when the exact migration version
+                  # already exists on both sides. This preserves source comments and
+                  # historical files that were once history-repaired without statements.
                   for fetched in target.glob(f'{version}_*.sql'):
                       fetched.unlink()
+                  shutil.copy2(src, target / src.name)
+                  same_version_preserved += 1
+                  continue
+
+              digest = hashlib.sha256(normalized_bytes(src)).hexdigest()
+              matches = remote_by_hash.get(digest, [])
+              if matches:
+                  aliases.append((src.name, matches[0].name))
+                  continue
+
+              # This is a genuinely local-only migration by version and normalized
+              # SQL content. Keep it temporarily so the dry-run can tell us exactly
+              # which remaining versions need investigation instead of deleting it.
               shutil.copy2(src, target / src.name)
+              unmatched_local.append(src.name)
 
           versions = {}
           duplicates = []
           for path in sorted(target.glob('*.sql')):
-              match = re.match(r'^(\d{14})_.*\.sql$', path.name)
-              if not match:
+              version = version_of(path)
+              if not version:
                   continue
-              version = match.group(1)
               if version in versions:
                   duplicates.append((version, versions[version], path.name))
               versions[version] = path.name
 
           if duplicates:
               raise SystemExit(f'duplicate migration versions after merge: {duplicates}')
-          print(f'Canonical migration files: {len(versions)}')
+
+          print(f'Canonical migration versions: {len(versions)}')
+          print(f'Same-version repository files preserved: {same_version_preserved}')
+          print(f'Exact alternate-timestamp aliases removed: {len(aliases)}')
+          for local_name, remote_name in aliases:
+              print(f'ALIAS {local_name} -> {remote_name}')
+          print(f'Unmatched local-only migrations retained for review: {len(unmatched_local)}')
+          for name in unmatched_local:
+              print(f'LOCAL_ONLY {name}')
           PY
 
-      - name: Verify migration history parity without applying SQL
+      - name: Inspect migration parity without applying SQL
         shell: bash
         run: |
           supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
+          set +e
           supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --dry-run
+          dry_run_status=$?
+          set -e
+          echo "Supabase dry-run exit status: $dry_run_status"
+          # Do not apply or repair any remaining local-only versions in this
+          # one-time extraction workflow. The branch is committed for review first.
+          exit 0
 
       - name: Commit restored migration files
         shell: bash
@@ -103,6 +160,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add supabase/migrations
+          git add -A supabase/migrations
           git commit -m "Restore production Supabase migration history"
           git push origin HEAD:fix/supabase-migration-history-fetch
