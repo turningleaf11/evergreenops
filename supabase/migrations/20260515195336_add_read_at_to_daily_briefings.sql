@@ -1,0 +1,3 @@
+
+ALTER TABLE public.daily_briefings ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
+;
