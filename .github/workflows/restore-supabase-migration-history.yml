@@ -70,6 +70,10 @@ jobs:
               match = re.match(r'^(\d{14})_.*\.sql$', path.name)
               return match.group(1) if match else None
 
+          def logical_name(path: Path):
+              match = re.match(r'^\d{14}_(.+\.sql)$', path.name)
+              return match.group(1) if match else None
+
           def normalized_bytes(path: Path):
               text = path.read_text(encoding='utf-8').replace('\r\n', '\n')
               text = '\n'.join(line.rstrip() for line in text.split('\n')).strip() + '\n'
@@ -78,10 +82,13 @@ jobs:
           remote_files = [p for p in target.glob('*.sql') if version_of(p)]
           remote_by_version = {version_of(p): p for p in remote_files}
           remote_by_hash = defaultdict(list)
+          remote_by_name = defaultdict(list)
           for path in remote_files:
               remote_by_hash[hashlib.sha256(normalized_bytes(path)).hexdigest()].append(path)
+              remote_by_name[logical_name(path)].append(path)
 
-          aliases = []
+          exact_aliases = []
+          name_aliases = []
           unmatched_local = []
           same_version_preserved = 0
 
@@ -90,14 +97,10 @@ jobs:
                   continue
               version = version_of(src)
               if not version:
-                  # Preserve legacy nonconforming files. Supabase ignores them for
-                  # migration-version parity, so they are not part of this repair.
                   shutil.copy2(src, target / src.name)
                   continue
 
               if version in remote_by_version:
-                  # Keep the repository-authored source when the exact version is
-                  # already tracked remotely. Version parity is what the CLI uses.
                   for fetched in target.glob(f'{version}_*.sql'):
                       fetched.unlink()
                   shutil.copy2(src, target / src.name)
@@ -105,13 +108,20 @@ jobs:
                   continue
 
               digest = hashlib.sha256(normalized_bytes(src)).hexdigest()
-              matches = remote_by_hash.get(digest, [])
-              if matches:
-                  aliases.append((src.name, matches[0].name))
+              hash_matches = remote_by_hash.get(digest, [])
+              if hash_matches:
+                  exact_aliases.append((src.name, hash_matches[0].name))
                   continue
 
-              # Not proven equivalent yet. Keep it for explicit investigation;
-              # never silently drop a unique migration from Git history.
+              name_matches = remote_by_name.get(logical_name(src), [])
+              if len(name_matches) == 1:
+                  # Same logical migration name, but production recorded the actual
+                  # application under a different timestamp. Keep the production-
+                  # tracked version so Supabase history remains reproducible.
+                  name_aliases.append((src.name, name_matches[0].name))
+                  continue
+
+              # No unique equivalence has been established. Preserve for review.
               shutil.copy2(src, target / src.name)
               unmatched_local.append(src.name)
 
@@ -131,9 +141,12 @@ jobs:
           print(f'Remote migration versions fetched: {len(remote_by_version)}')
           print(f'Canonical migration versions after merge: {len(versions)}')
           print(f'Same-version repository files preserved: {same_version_preserved}')
-          print(f'Exact alternate-timestamp aliases removed: {len(aliases)}')
-          for local_name, remote_name in aliases:
-              print(f'ALIAS {local_name} -> {remote_name}')
+          print(f'Exact SQL aliases removed: {len(exact_aliases)}')
+          for local_name, remote_name in exact_aliases:
+              print(f'EXACT_ALIAS {local_name} -> {remote_name}')
+          print(f'Same-name alternate-timestamp aliases removed: {len(name_aliases)}')
+          for local_name, remote_name in name_aliases:
+              print(f'NAME_ALIAS {local_name} -> {remote_name}')
           print(f'Unmatched local-only migrations retained for review: {len(unmatched_local)}')
           for name in unmatched_local:
               print(f'LOCAL_ONLY {name}')
