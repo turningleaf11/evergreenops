@@ -37,61 +37,94 @@ jobs:
       - name: Link Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Reconcile legacy remote migration history
+      - name: Reconcile frozen legacy migration baseline
         shell: bash
         run: |
           set -euo pipefail
 
-          # Before migration history was consistently source-controlled, opshq
-          # accumulated remote-only migration versions. Some historical SQL also
-          # contains credential-like literals, so do not export those statements
-          # into this public repository just to satisfy the CLI history check.
+          # Migration history before this boundary was created by multiple deploy
+          # paths and was not consistently source-controlled. Freeze that cohort
+          # as an already-applied baseline without replaying its SQL.
           #
-          # Materialize no-op local markers only for that frozen legacy cohort.
-          # Any remote-only migration newer than this cutoff is unexpected drift
-          # and fails the deployment instead of being silently accepted.
+          # Some historical production records contain credential-like literals,
+          # so their raw statements must not be exported into this public repo.
+          # Any mismatch NEWER than this cutoff is a real deployment error and
+          # fails closed instead of being normalized.
           legacy_cutoff="20260903223617"
-          migration_list="$(supabase migration list --linked --password "$SUPABASE_DB_PASSWORD")"
-          printf '%s\n' "$migration_list"
 
-          mapfile -t remote_only < <(
-            printf '%s\n' "$migration_list" | awk -F'|' '
-              function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+          list_mismatches() {
+            supabase migration list --linked --password "$SUPABASE_DB_PASSWORD" | awk -F'|' '
+              function clean(s) {
+                gsub(/[`[:space:]]/, "", s)
+                return s
+              }
               NF >= 2 {
-                local = trim($1)
-                remote = trim($2)
-                if (local == "" && remote ~ /^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$/) print remote
+                local_version = clean($1)
+                remote_version = clean($2)
+                version_re = "^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$"
+                if (local_version ~ version_re && remote_version == "") print "local " local_version
+                if (local_version == "" && remote_version ~ version_re) print "remote " remote_version
               }
             '
-          )
+          }
 
-          for version in "${remote_only[@]}"; do
+          mapfile -t mismatches < <(list_mismatches)
+          legacy_local_only=()
+          legacy_remote_only=()
+
+          for mismatch in "${mismatches[@]}"; do
+            side="${mismatch%% *}"
+            version="${mismatch##* }"
+
             if [[ "$version" > "$legacy_cutoff" ]]; then
-              echo "ERROR: unexpected remote-only migration $version is newer than legacy cutoff $legacy_cutoff"
-              echo "Add the real migration file to GitHub or repair the remote history explicitly."
+              echo "ERROR: $side-only migration $version is newer than frozen legacy cutoff $legacy_cutoff"
+              echo "Fix the migration at the source; post-cutoff history must match GitHub exactly."
               exit 1
             fi
 
+            case "$side" in
+              local) legacy_local_only+=("$version") ;;
+              remote) legacy_remote_only+=("$version") ;;
+              *) echo "ERROR: unrecognized migration mismatch: $mismatch"; exit 1 ;;
+            esac
+          done
+
+          # Local-only legacy files describe schema changes that production has
+          # already absorbed through the pre-canonical deploy history. Record the
+          # versions as applied; do not execute those historical migrations now.
+          if (( ${#legacy_local_only[@]} > 0 )); then
+            echo "Freezing ${#legacy_local_only[@]} legacy local-only migration versions as applied."
+            supabase migration repair "${legacy_local_only[@]}" \
+              --linked --password "$SUPABASE_DB_PASSWORD" --status applied
+          fi
+
+          # Remote-only legacy versions remain authoritative in production. Add
+          # ephemeral no-op files so the CLI can compare the frozen histories
+          # without publishing old SQL or credential-like literals.
+          for version in "${legacy_remote_only[@]}"; do
             if compgen -G "supabase/migrations/${version}_*.sql" > /dev/null; then
               continue
             fi
 
             marker="supabase/migrations/${version}_legacy_remote_history.sql"
             cat > "$marker" <<EOF
-          -- Historical migration-history marker for opshq production version ${version}.
-          --
-          -- This version predates canonical migration source control. Its production
-          -- migration record remains authoritative. The historical SQL is intentionally
-          -- not exported here because legacy records may contain credential-like literals.
-          -- This marker is a no-op and exists only to make local/remote version history
-          -- comparable for Supabase CLI deployments.
+          -- Frozen historical migration marker for opshq production version ${version}.
+          -- This no-op file exists only during CI deployment history reconciliation.
+          -- Historical SQL is intentionally not exported to the public repository.
           EOF
-            echo "Materialized legacy migration marker: $marker"
+            echo "Materialized legacy remote marker: $marker"
           done
 
-          # Re-list after reconciliation. From this point forward, any new remote-only
-          # migration must fail above and be fixed at the source rather than normalized.
-          supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
+          # After the one-time baseline reconciliation there must be zero local /
+          # remote version mismatches. This is the invariant for all future work.
+          mapfile -t remaining < <(list_mismatches)
+          if (( ${#remaining[@]} > 0 )); then
+            printf 'ERROR: migration history still differs after legacy reconciliation:\n'
+            printf '  %s\n' "${remaining[@]}"
+            exit 1
+          fi
+
+          echo "Supabase migration history is aligned at the canonical boundary."
 
       - name: Apply database migrations
         run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
