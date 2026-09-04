@@ -38,19 +38,22 @@ jobs:
       - name: Link Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Preserve repository migrations
+      - name: Preserve canonical migrations from main
         shell: bash
         run: |
-          rm -rf /tmp/repo-migrations
-          mkdir -p /tmp/repo-migrations
-          cp -a supabase/migrations/. /tmp/repo-migrations/
+          rm -rf /tmp/main-tree /tmp/repo-migrations
+          mkdir -p /tmp/main-tree
+          git archive origin/main supabase/migrations | tar -x -C /tmp/main-tree
+          cp -a /tmp/main-tree/supabase/migrations /tmp/repo-migrations
 
-      - name: Fetch remote migration history
+      - name: Fetch remote migration history into a clean directory
         shell: bash
         run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
           printf 'y\n' | supabase migration fetch --linked
 
-      - name: Merge canonical history and remove exact alternate-timestamp copies
+      - name: Merge remote history with canonical main migrations
         shell: bash
         run: |
           python3 - <<'PY'
@@ -62,7 +65,6 @@ jobs:
 
           original = Path('/tmp/repo-migrations')
           target = Path('supabase/migrations')
-          target.mkdir(parents=True, exist_ok=True)
 
           def version_of(path: Path):
               match = re.match(r'^(\d{14})_.*\.sql$', path.name)
@@ -88,15 +90,14 @@ jobs:
                   continue
               version = version_of(src)
               if not version:
-                  # Preserve legacy nonconforming files for now; they are outside
-                  # Supabase migration-version comparison and can be handled separately.
+                  # Preserve legacy nonconforming files. Supabase ignores them for
+                  # migration-version parity, so they are not part of this repair.
                   shutil.copy2(src, target / src.name)
                   continue
 
               if version in remote_by_version:
-                  # The repository is authoritative when the exact migration version
-                  # already exists on both sides. This preserves source comments and
-                  # historical files that were once history-repaired without statements.
+                  # Keep the repository-authored source when the exact version is
+                  # already tracked remotely. Version parity is what the CLI uses.
                   for fetched in target.glob(f'{version}_*.sql'):
                       fetched.unlink()
                   shutil.copy2(src, target / src.name)
@@ -109,9 +110,8 @@ jobs:
                   aliases.append((src.name, matches[0].name))
                   continue
 
-              # This is a genuinely local-only migration by version and normalized
-              # SQL content. Keep it temporarily so the dry-run can tell us exactly
-              # which remaining versions need investigation instead of deleting it.
+              # Not proven equivalent yet. Keep it for explicit investigation;
+              # never silently drop a unique migration from Git history.
               shutil.copy2(src, target / src.name)
               unmatched_local.append(src.name)
 
@@ -128,7 +128,8 @@ jobs:
           if duplicates:
               raise SystemExit(f'duplicate migration versions after merge: {duplicates}')
 
-          print(f'Canonical migration versions: {len(versions)}')
+          print(f'Remote migration versions fetched: {len(remote_by_version)}')
+          print(f'Canonical migration versions after merge: {len(versions)}')
           print(f'Same-version repository files preserved: {same_version_preserved}')
           print(f'Exact alternate-timestamp aliases removed: {len(aliases)}')
           for local_name, remote_name in aliases:
@@ -147,11 +148,9 @@ jobs:
           dry_run_status=$?
           set -e
           echo "Supabase dry-run exit status: $dry_run_status"
-          # Do not apply or repair any remaining local-only versions in this
-          # one-time extraction workflow. The branch is committed for review first.
           exit 0
 
-      - name: Commit restored migration files
+      - name: Commit reconciled migration files
         shell: bash
         run: |
           if git diff --quiet -- supabase/migrations && [ -z "$(git ls-files --others --exclude-standard supabase/migrations)" ]; then
@@ -161,5 +160,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A supabase/migrations
-          git commit -m "Restore production Supabase migration history"
+          git commit -m "Reconcile Supabase migration history"
           git push origin HEAD:fix/supabase-migration-history-fetch
