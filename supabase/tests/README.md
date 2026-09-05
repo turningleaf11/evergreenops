@@ -40,3 +40,37 @@ Guard 3 is the one to re-check if the dedupe is ever re-run: the surviving rows
 belong to a single user, so **the dedupe and the RLS change must ship together**.
 Deduping alone would leave every other member of the workspace with an empty
 Content Studio.
+
+---
+
+## Content capture leak guards
+
+`content_capture_fixture.sql` + `content_capture_leak_guards.sql` test the two
+capture projections in `20260905203000_content_capture_projections.sql`.
+
+```bash
+psql -h /var/tmp -p 55434 -U postgres -q -c "drop schema public cascade; create schema public;"
+psql -h /var/tmp -p 55434 -U postgres -q -f supabase/tests/content_capture_fixture.sql
+psql -h /var/tmp -p 55434 -U postgres -q -f supabase/migrations/20260905203000_content_capture_projections.sql
+psql -h /var/tmp -p 55434 -U postgres -f supabase/tests/content_capture_leak_guards.sql
+```
+
+The fixture seeds values a content agent must never receive — a street address,
+MAO and spread, "Seller is desperate, will take 290k", a contact id, a lost
+deal, a raw result containing a service-role key, and a credential-rotation task
+that was never flagged for capture. The guard scans the whole projection output
+as text, so a column added carelessly to the RETURNS TABLE fails here instead of
+shipping.
+
+It also asserts the projections still return something usable, otherwise the
+leak checks would pass trivially on an empty result.
+
+Verified to fail correctly: swapping `property_city` for `property_address` in
+the projection makes the guard report `LEAK: deal projection exposed 1109
+Riviera Dr` and exit non-zero.
+
+## Agent task RPCs
+
+`./run-agent-task-rpc-tests.sh` — twelve behavioral guards plus a concurrency
+test that fires eight simultaneous claims at eight queued tasks and requires
+eight distinct results.

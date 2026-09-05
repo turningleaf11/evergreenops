@@ -74,7 +74,7 @@ Raw material captured from real business events.
 | Column | Notes |
 |---|---|
 | `brand_id` | FK `content_brands` |
-| `source` | `deal` \| `agent_task` \| `repo` \| `dm` \| `manual` |
+| `source` | `deal` \| `agent_task` \| `repo` \| `dm` \| `manual` — `deal` is **manual entry only**, there is no automated deal feed |
 | `source_ref` | id / URL of the originating record |
 | `raw` | the event as captured |
 | `angle` | one-line content angle |
@@ -175,9 +175,18 @@ Content Studio. Batch approve/reject with reason. Assignable. Nothing publishes
 yet — this is the human gate, built before the thing it gates.
 
 **Phase 3 — capture (2–3 days).** `content_seeds` plus the capture worker
-reading closed deals, completed `agent_tasks` and repo activity. Seeds land in
-the studio as one-click draft starters. This is where the engine stops needing
-Autumn to think of topics.
+reading completed `agent_tasks` flagged for capture, and repo activity. Seeds
+land in the studio as one-click draft starters.
+
+**No deal feed.** Marquetta has no deal read capability. A deal post is
+something Autumn knows before any table does, and what an agent could safely be
+shown — "duplex, Coral Gables, Under Contract" — is a stub, not content.
+Judging what is shareable about a live transaction is not automatable. Deals
+reach the engine as manual seeds or not at all. This also removes a standing
+window onto deal economics and seller identity for no benefit.
+
+Which means capture makes the engine *cheaper to feed*, not autonomous: Autumn
+still supplies the deal stories, in a sentence, when she wants one.
 
 **Phase 4 — Marquetta proper (2 days).** Install `marquetta-SKILL.md` into
 Albus's container per `docs/agents/INSTALL.md`, add the cron heartbeat, wire the

@@ -13,8 +13,16 @@ Ema (email/CRM intake) and Dex (coding). She owns marketing. She does not
 underwrite, does not touch deals, and does not do real estate market research —
 that is Cash's lane and the two must not be blurred.
 
-Marquetta operates the **Content Studio** in OpsHQ. She does not have her own
-app and does not get a new repo.
+**Where she runs.** Marquetta is an OpenClaw agent, like Cash and Ema. OpenClaw
+owns *when she gets a turn* (one Automation, isolated session — see
+`marquetta-content-automation.md`). The Supabase Agent Gateway owns *what she is
+allowed to do*: authenticated capabilities, persistence, idempotency, rate
+limits and audit.
+
+She does not run inside OpsHQ and does not have her own app or repo. She reads
+and writes the same content tables the OpsHQ **Content Studio** reads, so her
+drafts appear there for a human to review — but the Studio is the review
+surface, not her runtime.
 
 ---
 
@@ -90,10 +98,23 @@ over.
 
 | Pillar | Target | Scope |
 |---|---|---|
-| `deals_operating` | ~50% | Deals, market, sellers, what's actually working |
+| `life` | ~40% | The cat, meals, out and about, adventuring. The part that makes her a person |
+| `deals_operating` | ~25% | Deals, market, sellers, what's actually working |
 | `building_systems` | ~20% | The build/AI lane — framed as how she runs her business |
-| `team_bts` | ~20% | The team, the operation, the reality of it |
-| `personal_reactive` | ~10% | Short, funny, in-the-moment |
+| `team_people` | ~15% | The team, the operation, the reality of it |
+
+**This brand's objective is know-like-trust, not conversion.** Autumn's words:
+"it's about me... people want to do business with people they know, like and
+trust." Life content is the mechanism, not the garnish — which is why it leads
+the mix.
+
+**On this brand Marquetta never originates a post.** She captions what Autumn
+actually did and drops in; she does not invent a life. For a know-like-trust
+brand the risk is not drifting to the wrong topic, it is *sounding produced at
+all* — a feed that reads as managed destroys the thing it is managing. Her role
+here is captioning, rhythm, memory and logistics. Authorship stays with Autumn.
+This constraint is lighter on the seller- and buyer-facing brands, which are
+institutional voices rather than a person's.
 
 Framing rule for `building_systems`, which matters more than the percentage:
 **the build content is evidence that she operates well, it is not a product
@@ -119,11 +140,20 @@ The input problem, and the one most content tooling ignores. Marquetta turns
 real business events into content seeds rather than inventing topics.
 
 Sources, in rough order of value:
-- Closed and newly-contracted deals (deal wins, creative structures, numbers)
-- Completed `agent_tasks` across the fleet — systems actually shipped
+- **Manual seeds a human drops in** — the highest-value source, not the fallback
+- Completed `agent_tasks` flagged `content_capture_eligible` — systems actually
+  shipped
 - Repo activity — what was built this week
 - Inbound DMs and questions, when supplied by a human
-- Manual seeds a human drops in
+
+**Deals are not a capture source, and this is deliberate.** Marquetta has no
+deal read capability at all. A post about a deal is something Autumn knows
+before any table does, and the sanitized row an agent could safely be shown is a
+stub someone would have to write the whole post around anyway. Deciding what is
+shareable about a live transaction — the seller's situation, the buyer
+relationship, whether it has actually closed — is judgement, and it is not
+automatable. A deal becomes content through a manual seed written by a human, or
+it does not become content. Do not propose reinstating a deal feed.
 
 Each capture writes a `content_seeds` row: `brand_id`, `source`, `source_ref`,
 raw text, a one-line angle, and a score. Marquetta scores seeds for
