@@ -3,9 +3,9 @@
   "rules": [
     {
       "match": "CERTIFIED PROPER",
-      "account": "** NO WAVE ACCOUNT ** Rental Income (must be created)",
+      "account": "Rental Income - Net",
       "treatment": "pl",
-      "note": "Property-manager remittance. NET of PM fees - the CPA needs Certified Proper's annual statement to gross up rent and deduct management fees separately."
+      "note": "Posts to Rental Income - Net because this is what the PM remitted. Wave also has Rental Income - Gross plus a Property Manager Clearing asset account and a Property Management Fees expense - that gross-up is the correct presentation and needs Certified Proper's annual statement. Gross reporting matters: the PM fee is a deduction you lose entirely if you only book net."
     },
     {
       "match": "MARINA TITLE",
@@ -17,7 +17,7 @@
       "match": "TITLE GUARANTY",
       "account": "PROPERTY DISPOSITION",
       "treatment": "exception",
-      "note": "SALE PROCEEDS, NOT REVENUE. Mercury tagged this Revenue and that is wrong. Goes on Form 4797 net of basis and selling costs. Needs the closing statement."
+      "note": "SALE PROCEEDS, NOT REVENUE. Form 4797. CRITICAL: Wave has NO Property, Plant & Equipment account and NO accumulated depreciation for 1109 - the building was never capitalised and no depreciation was ever recorded. Depreciation is 'allowed OR allowable': the IRS reduces basis by depreciation you should have taken even if you never took it. So the deduction was lost AND the recapture still applies. This needs the CPA before anything else on 1109."
     },
     {
       "match": "BEAM MANAGEMENT",
@@ -27,39 +27,39 @@
     },
     {
       "match": "NSM DBAMR|MR.COOPER|MR COOPER",
-      "account": "MORTGAGE PAYMENT",
+      "account": "SPLIT: 1st Mortgage (principal) / Mortgage Interest / Escrow (Taxes & Insurance)",
       "treatment": "exception",
-      "note": "Principal + interest + escrow in one payment. ONLY the interest is deductible. Needs Form 1098 from Mr. Cooper to split. Loan is in Luis Vento's name - confirm the subject-to structure."
+      "note": "All three Wave accounts already exist, plus the 1st Mortgage liability. Only the Form 1098 from Mr. Cooper is missing. Principal reduces the liability and is NOT an expense; only interest is deductible; escrow splits to property tax and insurance."
     },
     {
       "match": "Luis Manuel Vento",
-      "account": "SELLER PAYMENT",
+      "account": "SPLIT: Seller Finance Note (principal) / Interest Expense",
       "treatment": "exception",
-      "note": "$458.33/mo to the seller of record on a loan still in his name. Interest? Principal? Lease payment? Mercury guessed 'Employee Benefits' which is certainly wrong."
+      "note": "Wave has a Seller Finance Note liability - this confirms the subject-to structure. $458.33/mo is principal plus interest on the seller note, not an expense in full. Needs the note terms or an amortisation schedule."
     },
     {
       "match": "Cobblestone 401K Trust",
-      "account": "Owner Investment / Drawings",
+      "account": "Owners Distributions",
       "treatment": "equity",
       "note": "Monthly payments to a partner. If Cobblestone is a LENDER not a partner these are interest expense instead - confirm which."
     },
     {
       "match": "Home Equity Real Estate",
-      "account": "Owner Investment / Drawings",
+      "account": "Owners Distributions",
       "treatment": "exception",
       "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"
     },
     {
       "match": "Melanie Torres",
-      "account": "Owner Investment / Drawings",
+      "account": "Owners Distributions",
       "treatment": "equity",
       "note": "Partner draw."
     },
     {
       "match": "Ronald Poulard",
-      "account": "RELATED PARTY - Ronald Poulard",
+      "account": "SPLIT - see note",
       "treatment": "exception",
-      "note": "NOT a 1099 per Autumn, and NOT an owner draw either - Ron is not a member of Evergreen Creative, so a distribution to him cannot reduce owner equity. Three different things here: $6,800 from EC memo'd 'Savings for house' (personal), $50 from EC, and $6,460.04 from EFV memo'd '400 Waterside' (property work). If these repay money Ron put in, that is a LOAN FROM A RELATED PARTY - a balance-sheet liability, not an expense and not equity. No inbound money from Ron appears anywhere in 2025, so the loan must predate the year or be undocumented."
+      "note": "Resolved by Autumn. The $6,800 'Savings for house' and $50 from EC are AUTUMN'S OWNER DRAW, remitted to Ron's account - book against Autumn's capital account as Owner Investment / Drawings, NOT as a payment to a third party. The $6,460.04 from EFV is REIMBURSEMENT for 400 Waterside costs Ron paid on his own accounts: correctly not a 1099, but it must be booked by the underlying expense CATEGORY, not as a lump sum to Ron. Needs his receipts - and some may be capital improvements rather than repairs."
     },
     {
       "match": "MARINA TITLE|SCHUTT LAW FIRM|Guardian Legal|J\\. Riley Williams|AMERICAN PATRIOT TITLE, LLC",
@@ -201,12 +201,12 @@
     },
     {
       "match": "Tower Hill Insur",
-      "account": "** NO WAVE ACCOUNT ** Insurance - Property (only 'Insurance - Vehicles' exists)",
+      "account": "Escrow (Taxes & Insurance)",
       "treatment": "pl"
     },
     {
       "match": "Lowe's|LOWES|Home Depot",
-      "account": "Repairs & Maintenance",
+      "account": "Repairs",
       "treatment": "pl"
     },
     {
@@ -217,7 +217,7 @@
     },
     {
       "match": "Corporate Filings",
-      "account": "Professional Fees",
+      "account": "Corporate Filing",
       "treatment": "pl"
     },
     {
