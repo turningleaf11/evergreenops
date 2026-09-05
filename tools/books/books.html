@@ -50,6 +50,12 @@ h2{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:17px;mar
 .drop strong{display:block;font-size:15px;margin-bottom:3px}
 .drop span{color:var(--muted);font-size:13px}
 .drop input{display:none}
+.status{margin-top:11px;font-size:12.5px;line-height:1.5;text-align:left;display:none}
+.status.show{display:block}
+.status.err{color:var(--flag);background:var(--flag-soft);padding:10px 12px;border-radius:7px}
+.status.good{color:var(--accent)}
+.status code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  background:var(--surface-2);padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
 .filelist{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .chip{font-size:11.5px;padding:3px 9px;border-radius:20px;background:var(--accent-soft);
   color:var(--accent);font-weight:500;font-family:"IBM Plex Mono",monospace}
@@ -156,12 +162,14 @@ decided safely is flagged rather than guessed. Nothing leaves your browser.</p>
 <div class="sample" id="sampleNote">Showing <b>4 example rows</b> so you can see how it works. Drop your real exports to replace them.</div>
 
 <div class="intake">
-  <label class="drop" id="drop">
+  <div class="drop" id="drop">
     <input type="file" id="file" multiple accept=".csv,text/csv">
     <strong>Drop Mercury CSV exports here</strong>
-    <span>or click to choose files &nbsp;·&nbsp; one export per entity, all accounts selected</span>
+    <span>one export per entity &nbsp;·&nbsp; export with <em>all accounts</em> selected</span>
+    <div style="margin-top:13px"><button class="btn primary" id="btnPick" type="button">Choose files</button></div>
     <div class="filelist" id="filelist"></div>
-  </label>
+    <div class="status" id="status"></div>
+  </div>
   <div class="recon">
     <div class="eyebrow" style="margin-bottom:7px">Reconciliation</div>
     <div class="row"><span>Transactions read</span><b id="rTotal">—</b></div>
@@ -475,9 +483,11 @@ $("#segTreat").addEventListener("click",e=>{
 $("#selEntity").addEventListener("change",e=>{fEnt=e.target.value;render();});
 $("#q").addEventListener("input",e=>{fQ=e.target.value.toLowerCase().trim();render();});
 $("#btnPrint").addEventListener("click",()=>window.print());
+// Saving a file needs the host's permission inside an artifact frame; outside
+// one, a plain blob link still works. Never let either path break the page.
 let DL=null;
-claude?.use?.("downloads").then(d=>{ DL=d; if(!d) $("#btnCsv").hidden=true; })
-  .catch(()=>{ $("#btnCsv").hidden=true; });
+(async()=>{ try{ DL=(window.claude&&window.claude.use)?await window.claude.use("downloads"):null; }
+            catch(e){ DL=null; } })();
 
 $("#btnCsv").addEventListener("click",async()=>{
   const hdr=["Date","Description","Held at","Entity","Category","Treatment","Amount","Note"];
@@ -500,28 +510,82 @@ $("#btnCsv").addEventListener("click",async()=>{
   btn.textContent=label;
 });
 
-const drop=$("#drop");
-["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
-["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
-drop.addEventListener("drop",e=>load([...e.dataTransfer.files]));
-$("#file").addEventListener("change",e=>load([...e.target.files]));
+const drop=$("#drop"), statusEl=$("#status");
+
+function say(msg,kind){ statusEl.className="status show "+(kind||""); statusEl.innerHTML=msg; }
+
+// The page sits in a frame; stop the browser opening dropped files over it,
+// and accept a drop anywhere on the page rather than only on the box.
+["dragenter","dragover","dragleave","drop"].forEach(ev=>
+  window.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); },false));
+["dragenter","dragover"].forEach(ev=>window.addEventListener(ev,()=>drop.classList.add("over")));
+["dragleave","drop"].forEach(ev=>window.addEventListener(ev,()=>drop.classList.remove("over")));
+window.addEventListener("drop",e=>{
+  const f=e.dataTransfer&&e.dataTransfer.files;
+  if(f&&f.length) load([...f]);
+  else say("That drop carried no file. Some browsers block dragging into an embedded page \u2014 use <b>Choose files</b> instead.","err");
+});
+$("#btnPick").addEventListener("click",()=>$("#file").click());
+drop.addEventListener("click",e=>{ if(!e.target.closest("button")) $("#file").click(); });
+$("#file").addEventListener("change",e=>{ load([...e.target.files]); e.target.value=""; });
+
+// Mercury's own header, plus tolerant fallbacks.
+function pick(row,exact,fuzzy){
+  for(const k of exact) if(k in row) return k;
+  const keys=Object.keys(row);
+  for(const f of fuzzy){ const hit=keys.find(k=>k.toLowerCase().includes(f)); if(hit) return hit; }
+  return null;
+}
 
 async function load(files){
-  files=files.filter(f=>/\.csv$/i.test(f.name));
-  if(!files.length) return;
-  const raw=[];
-  for(const f of files){
-    for(const r of parseCSV(await f.text())){
-      if(!r["Date (UTC)"]) continue;
-      raw.push({d:r["Date (UTC)"],desc:r["Description"]||"",bank:r["Bank Description"]||"",
-        amt:parseFloat(r["Amount"]||0)||0,src:r["Source Account"]||"",st:r["Status"]||"",
-        mg:r["Category"]||"",fail:r["Failure Reason"]||"",
-        memo:((r["Note"]||r["Reference"]||"").replace(/\s+/g," ").trim())});
-    }
+  const csvs=files.filter(f=>/\.csv$/i.test(f.name));
+  if(!csvs.length){
+    say(files.length
+      ? `That\u2019s not a CSV. Mercury exports as CSV \u2014 in Mercury go to an account, <b>Statements &amp; exports</b>, choose the date range, then <b>Export CSV</b>. You dropped: <code>${esc(files.map(f=>f.name).join(", "))}</code>`
+      : "No file came through. Try <b>Choose files</b>.","err");
+    return;
   }
-  $("#filelist").innerHTML=files.map(f=>`<span class="chip">${esc(f.name)}</span>`).join("");
+  const raw=[]; const report=[];
+  for(const f of csvs){
+    let rows;
+    try{ rows=parseCSV(await f.text()); }
+    catch(err){ report.push(`<b>${esc(f.name)}</b> \u2014 couldn\u2019t be read`); continue; }
+    if(!rows.length){ report.push(`<b>${esc(f.name)}</b> \u2014 empty`); continue; }
+    const h=rows[0];
+    const cD=pick(h,["Date (UTC)","Date"],["date"]),
+          cA=pick(h,["Amount"],["amount"]),
+          cN=pick(h,["Description"],["description","name","payee"]);
+    if(!cD||!cA){
+      report.push(`<b>${esc(f.name)}</b> \u2014 no date/amount column. Found: <code>${esc(Object.keys(h).slice(0,7).join(", "))}</code>`);
+      continue;
+    }
+    const cS=pick(h,["Source Account"],["source account","account"]),
+          cB=pick(h,["Bank Description"],["bank description"]),
+          cT=pick(h,["Status"],["status"]), cC=pick(h,["Category"],["category"]),
+          cF=pick(h,["Failure Reason"],["failure"]),
+          cNo=pick(h,["Note"],["note"]), cR=pick(h,["Reference"],["reference"]);
+    let n=0;
+    for(const r of rows){
+      if(!r[cD]) continue;
+      raw.push({d:r[cD],desc:cN?r[cN]:"",bank:cB?r[cB]:"",
+        amt:parseFloat(String(r[cA]).replace(/[$,]/g,""))||0,
+        src:cS?r[cS]:"",st:cT?r[cT]:"",mg:cC?r[cC]:"",fail:cF?r[cF]:"",
+        memo:((cNo&&r[cNo])||(cR&&r[cR])||"").replace(/\s+/g," ").trim()});
+      n++;
+    }
+    report.push(`<b>${esc(f.name)}</b> \u2014 ${n} transactions`);
+  }
+  if(!raw.length){ say("Nothing loaded.<br>"+report.join("<br>"),"err"); return; }
+
+  $("#filelist").innerHTML=csvs.map(f=>`<span class="chip">${esc(f.name)}</span>`).join("");
   $("#sampleNote").style.display="none";
   build(raw);
+
+  const unknown=[...new Set(TX.filter(t=>t.ent==="?").map(t=>t.acct))];
+  say(`Loaded <b>${raw.length} transactions</b> from ${csvs.length} file${csvs.length>1?"s":""}.<br>`
+    +report.join("<br>")
+    +(unknown.length?`<br><br><b>${unknown.length} account${unknown.length>1?"s aren\u2019t":" isn\u2019t"} in the map yet</b> \u2014 shown as entity <code>?</code>. Tell me which entity ${unknown.length>1?"they belong":"it belongs"} to: <code>${esc(unknown.slice(0,6).join(", "))}</code>`:""),
+    unknown.length?"err":"good");
 }
 build(SAMPLE);
 </script>
