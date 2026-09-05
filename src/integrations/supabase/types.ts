@@ -3600,6 +3600,7 @@ export type Database = {
           created_at: string
           created_by_agent_id: string | null
           id: string
+          media_url: string | null
           pillar_id: string | null
           raw: string
           score: number
@@ -3617,6 +3618,7 @@ export type Database = {
           created_at?: string
           created_by_agent_id?: string | null
           id?: string
+          media_url?: string | null
           pillar_id?: string | null
           raw: string
           score?: number
@@ -3634,6 +3636,7 @@ export type Database = {
           created_at?: string
           created_by_agent_id?: string | null
           id?: string
+          media_url?: string | null
           pillar_id?: string | null
           raw?: string
           score?: number
@@ -7613,6 +7616,182 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: []
+      }
+      inbound_media: {
+        Row: {
+          attempts: number
+          bytes: number | null
+          created_at: string
+          id: string
+          last_error: string | null
+          leased_until: string | null
+          media_ref: string
+          message_id: string
+          mime_type: string | null
+          provider: string
+          status: string
+          storage_path: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          bytes?: number | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          leased_until?: string | null
+          media_ref: string
+          message_id: string
+          mime_type?: string | null
+          provider: string
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          bytes?: number | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          leased_until?: string | null
+          media_ref?: string
+          message_id?: string
+          mime_type?: string | null
+          provider?: string
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_media_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_media_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_messages: {
+        Row: {
+          body: string | null
+          channel: string
+          created_at: string
+          error: string | null
+          external_id: string
+          from_identifier: string
+          id: string
+          media: Json
+          received_at: string
+          route: string | null
+          routed_at: string | null
+          routed_ref: string | null
+          sender_id: string | null
+          status: string
+          workspace_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          channel: string
+          created_at?: string
+          error?: string | null
+          external_id: string
+          from_identifier: string
+          id?: string
+          media?: Json
+          received_at?: string
+          route?: string | null
+          routed_at?: string | null
+          routed_ref?: string | null
+          sender_id?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          channel?: string
+          created_at?: string
+          error?: string | null
+          external_id?: string
+          from_identifier?: string
+          id?: string
+          media?: Json
+          received_at?: string
+          route?: string | null
+          routed_at?: string | null
+          routed_ref?: string | null
+          sender_id?: string | null
+          status?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_senders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_messages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_senders: {
+        Row: {
+          channel: string
+          created_at: string
+          enabled: boolean
+          id: string
+          identifier: string
+          label: string | null
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          identifier: string
+          label?: string | null
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          identifier?: string
+          label?: string | null
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_senders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       issues: {
         Row: {
@@ -11816,6 +11995,44 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inbound_media_claim_next: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          id: string
+          media_ref: string
+          message_id: string
+          mime_type: string
+          provider: string
+          workspace_id: string
+        }[]
+      }
+      inbound_media_complete: {
+        Args: {
+          p_bytes?: number
+          p_error?: string
+          p_id: string
+          p_public_url?: string
+          p_status: string
+          p_storage_path?: string
+        }
+        Returns: undefined
+      }
+      inbound_media_enqueue: { Args: { p_message_id: string }; Returns: number }
+      inbound_message_record: {
+        Args: {
+          p_body?: string
+          p_channel: string
+          p_external_id: string
+          p_from_identifier: string
+          p_media?: Json
+        }
+        Returns: {
+          message_id: string
+          route: string
+          routed_ref: string
+          status: string
+        }[]
       }
       is_ai_project_collaborator: {
         Args: { _project_id: string; _user_id: string }
