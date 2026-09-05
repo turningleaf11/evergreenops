@@ -24,7 +24,8 @@ export type EntityKind =
   | "deal" | "lead" | "transaction" | "contact"
   | "thread" | "buyer_interest" | "deal_stage" | "business_plan"
   | "market" | "market_rating"
-  | "deal_room" | "dd_item" | "deal_room_risk" | "deal_room_investor";
+  | "deal_room" | "dd_item" | "deal_room_risk" | "deal_room_investor"
+  | "book_review";
 
 interface Tone { hsl: string; label: string; }
 
@@ -201,13 +202,23 @@ const DEAL_ROOM_INVESTOR: Record<string, Tone> = {
   funded:     tone("success", "Funded"),
 };
 
+// Books: where a bank transaction stands in the close. "Needs review" is the
+// one that matters -- it means the categoriser refused to guess rather than
+// that nothing has happened yet.
+const BOOK_REVIEW: Record<string, Tone> = {
+  unreviewed:   tone("neutral", "Unreviewed"),
+  needs_review: tone("warning", "Needs review"),
+  accepted:     tone("success", "Posted"),
+  excluded:     tone("neutral", "Excluded"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
   thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
   business_plan: BUSINESS_PLAN, market: MARKET, market_rating: MARKET_RATING,
   deal_room: DEAL_ROOM, dd_item: DD_ITEM, deal_room_risk: DEAL_ROOM_RISK,
-  deal_room_investor: DEAL_ROOM_INVESTOR,
+  deal_room_investor: DEAL_ROOM_INVESTOR, book_review: BOOK_REVIEW,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
