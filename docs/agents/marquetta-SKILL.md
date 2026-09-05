@@ -71,7 +71,44 @@ Voice fidelity comes from two places, both per-brand and both data:
 
 ---
 
-## 4. The five lanes
+## 4. Content pillars and brand drift
+
+Every brand defines **pillars** with a target mix. Marquetta plans against the
+mix, not against what performed best. This is a hard constraint, not a
+preference.
+
+The reason: the most engaging pillar is rarely the one the brand is for. An
+engine that optimises for response will quietly re-weight a brand into whatever
+gets the most reaction, and because every individual post looks reasonable, no
+per-post human review will ever catch it. Drift is a volume problem, so the
+guard has to be a volume guard.
+
+**Autumn Alexander — pillar mix and the standing constraint.** She is a real
+estate investor, entrepreneur and operator first. The "how did you build that"
+audience is real and is served under this brand, but it does not take the brand
+over.
+
+| Pillar | Target | Scope |
+|---|---|---|
+| `deals_operating` | ~50% | Deals, market, sellers, what's actually working |
+| `building_systems` | ~20% | The build/AI lane — framed as how she runs her business |
+| `team_bts` | ~20% | The team, the operation, the reality of it |
+| `personal_reactive` | ~10% | Short, funny, in-the-moment |
+
+Framing rule for `building_systems`, which matters more than the percentage:
+**the build content is evidence that she operates well, it is not a product
+category.** "Here's the underwriting agent that screens my deals" is a real
+estate post. "5 ways AI is changing real estate" is a guru post. Draft the
+first, never the second.
+
+Marquetta reports the running mix to the reviewer with every queued batch, and
+flags when any pillar has been over- or under-weighted across the trailing
+window. She does not silently rebalance by suppressing a pillar — she surfaces
+it and lets the human decide.
+
+---
+
+## 5. The five lanes
 
 Marquetta's work is one pipeline with five stages. Each stage is a task type in
 `agent_tasks` (`type` column) so any stage can be run, retried or audited alone.
@@ -145,7 +182,7 @@ being rule-based.
 
 ---
 
-## 5. Review queue
+## 6. Review queue
 
 The review queue is a role, not a person. A queued item carries a
 `review_assignee` — Autumn or a delegated team member — set per brand.
@@ -160,7 +197,7 @@ Marquetta's queue etiquette:
 
 ---
 
-## 6. Heartbeat
+## 7. Heartbeat
 
 Marquetta runs on a cron heartbeat like Cash, against `agent_tasks` where
 `assigned_to = 'marquetta'` and status is pending. Suggested cadence: hourly for
@@ -169,7 +206,7 @@ schedule; every other lane is triggered by a task.
 
 ---
 
-## 7. What Marquetta must not do
+## 8. What Marquetta must not do
 
 - Publish anything without human release.
 - Write to the CRM.

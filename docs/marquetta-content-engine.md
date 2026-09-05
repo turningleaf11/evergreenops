@@ -29,6 +29,9 @@ because attention was elsewhere. Marketing is now the active lane.
 | Publishing | Human release required. Marquetta never auto-publishes |
 | Review owner | A role (`review_assignee`) — Autumn or a delegated team member, per brand |
 | Platforms | Facebook + Instagram today; add LinkedIn. TikTok and blog already stubbed |
+| Video storage | Google Drive folder as the video library. Do not build storage or an upload UI |
+| Agent build track | Same fleet pattern as Ema/Cash — OpenClaw skill + Agent Gateway scope. Not a separate stack |
+| Brand positioning | Autumn is a **real estate investor/operator first**. Enforced by pillar mix, see below |
 
 ### The design principle
 
@@ -96,6 +99,35 @@ table for making the Autumn Alexander brand actually sound like Autumn.
 |---|---|
 | `brand_id`, `platform`, `text` | the real post |
 | `is_positive` | true = sounds right; false = counter-example, avoid this |
+
+### `content_pillars` — brand drift guard
+Per-brand pillars with a target share of output. Marquetta plans against the
+mix rather than against what performed best, and reports the running mix with
+every queued batch.
+
+| Column | Notes |
+|---|---|
+| `brand_id`, `key`, `label` | e.g. `deals_operating` |
+| `target_pct` | target share of output |
+| `framing_note` | how this pillar must be written — see the Autumn constraint below |
+
+`content_seeds` and `content_library` each carry a `pillar_id`.
+
+**Why this is a table and not a guideline.** The most engaging pillar is rarely
+the one the brand is for. Autumn's build/AI content gets the strongest response,
+which means any engine tuned to response will re-weight her personal brand into
+an AI-guru brand — and it will do it one individually-reasonable post at a time,
+which is exactly what per-post human review cannot catch. Drift is a volume
+problem, so the guard is a volume guard.
+
+Autumn Alexander target mix: `deals_operating` 50%, `building_systems` 20%,
+`team_bts` 20%, `personal_reactive` 10%. Framing rule on `building_systems`:
+the build content is *evidence that she operates well*, not a product category.
+A post about the underwriting agent that screens her deals is a real estate
+post; "5 ways AI is changing real estate" is not one to write.
+
+This also protects Build Notes commercially — the teardowns are worth paying for
+because she is a practitioner, not an educator.
 
 ### `content_schedule` — lane 5
 | Column | Notes |
@@ -184,14 +216,46 @@ the newer ids (`content_library` is empty, so this is currently safe).
 
 ---
 
-## 6. Open questions
+## 6. Where Marquetta gets built
+
+Marquetta is built on the **same fleet pattern as Ema and Cash**, not on a
+separate stack. The Agent Gateway is the security boundary and it is
+model-agnostic: agents request named capabilities and never hold credentials.
+Which assistant drafts a skill file does not change that, and a fourth agent
+with a fourth access pattern would defeat the reason the gateway exists.
+
+Two pieces are owned in two places:
+
+- **Behaviour** — `docs/agents/marquetta-SKILL.md`, in this repo. Written.
+- **Gateway capability scope** — to be defined against the existing gateway
+  (see `docs/agents/agent-gateway.md`). Requested from the ChatGPT thread that
+  built the gateway, since that thread holds the design context.
+
+Marquetta's scope must be: read-only on business events (closed/contracted
+deals, completed `agent_tasks`), write on the content tables only, **no CRM
+write** (Ema's), **no underwriting** (Cash's), and **no publishing
+credentials** — Meta/LinkedIn tokens live with the publish worker so Marquetta
+can schedule but cannot post.
+
+## 7. Video backlog
+
+Currently a local folder, which nothing server-side can reach. Move it to a
+**Google Drive folder** and treat that as the video library: Drive is already
+connected, both candidate clippers ingest from it, and it avoids building
+storage or an upload UI for a problem that does not need one.
+
+Name files descriptively on upload (`2026-03-seller-call-objection-handling.mp4`,
+not `IMG_4471.mov`) — Marquetta selects source video partly by filename, and
+the clip lane is only as good as what it can identify.
+
+## 8. Open questions
 
 - Which clipper — Opus Clip or Descript? Descript is better if the clips need
   editing; Opus Clip is better if volume matters more than polish.
-- Where does the video backlog live, and what format? That decides phase 6's
-  effort.
-- Posting cadence and current volume per platform — needed to size the review
-  queue and set the heartbeat frequency.
-- Does the teaching/"how did you build that" audience stay under the Autumn
-  Alexander brand, or does it get its own brand row now that the 90-day fence
-  rules are removed?
+- Posting cadence: currently none, and inconsistent by Autumn's own account.
+  Treat "a sustainable cadence exists at all" as an outcome of this build rather
+  than an input to it — set a deliberately low starting cadence and let the
+  review queue prove it can be met before raising it.
+- The "how did you build that" audience stays under the Autumn Alexander brand.
+  Decided 2026-09-05. It does not get its own brand row, and it is capped by the
+  `building_systems` pillar rather than by judgement.
