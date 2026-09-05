@@ -49,23 +49,61 @@ a sensible guard against AI-guru drift, but it is not yet grounded in a stated
 objective. Once level 2 exists, the mix should follow from it and be revisited —
 possibly unchanged, but for a reason.
 
-### The strategic tension worth naming
+### Level 2, answered — Autumn Alexander (2026-09-05)
 
-The "how did you build that" audience is the most responsive one Autumn has.
-The pillar cap exists to stop the brand drifting toward it. But a cap is a
-holding action, not an answer. The actual question is what the personal brand is
-*for*:
+Autumn rejected the framing of the question, and was right to. Every option
+offered was a funnel: pick an objective, aim content at it. Her answer:
 
-- **Deal flow and capital** — the audience that matters is sellers, brokers,
-  cash buyers and capital partners. Build content is credibility furniture.
-- **Product revenue (Build Notes)** — the teaching audience *is* the customer,
-  and capping it at 20% deliberately starves the thing being sold.
-- **Reputation and optionality** — breadth beats focus; the mix matters less.
-- **Talent** — content aims at people who might work with her.
+> First and foremost it's my personal brand so it's about me — I share my cat, I
+> post meals I've made, out and about, adventuring, life stuff, cool stuff I'm
+> working on. People want to do business with people they know, like and trust.
 
-These produce genuinely different engines. Until it is answered, the pillar mix
-is a reasonable default rather than a strategy, and this document should say so
-rather than pretend otherwise.
+That is a real strategy, not an absence of one. It just is not a funnel.
+
+| Field | Value |
+|---|---|
+| `objective` | Be known, liked and trusted as a person, so that business follows from relationship rather than from pitch |
+| `primary_audience` | People who might one day do business with her — sellers, operators, partners, buyers — reached as people, not as a segment |
+| `desired_action` | None per post. The action is cumulative familiarity |
+| `success_signal` | People arriving already feeling they know her. Replies and DMs that sound like a conversation with someone, not a response to marketing |
+
+### Three consequences, and the third is uncomfortable
+
+**1. The pillar mix was wrong.** The proposed split gave life content 10%, coded
+as "short, funny, in-the-moment". In a know-like-trust brand, life content is
+not a garnish on business content — it is the mechanism. Revised, derived from
+what she actually described rather than asserted:
+
+| Pillar | Target | What it is |
+|---|---|---|
+| `life` | ~40% | The cat, the meals, out and about, adventuring. The part that makes her a person |
+| `deals_operating` | ~25% | Deals, market, sellers, what is actually working |
+| `building_systems` | ~20% | Cool stuff she is working on — framed as how she runs her business |
+| `team_people` | ~15% | The team, the operation, the reality of it |
+
+**2. The ad-hoc drop is the primary input, not the secondary one.** A cat photo,
+a plate of food, a view from somewhere — those are captured in the moment or not
+at all. No agent can produce them and no weekly question retrieves them. The
+weekly check-in is now the *secondary* channel, carrying the work, deal and team
+stories that would otherwise be forgotten. The drop carries the brand.
+
+This also promotes an existing capability that had been treated as incidental:
+`content-generate` already accepts an image and writes to what it sees. Photo in,
+captions out, per platform, in her voice. That is the core loop for this brand.
+
+**3. Automation itself is the risk here.** For a funnel brand, the danger is
+drifting to the wrong topic. For a know-like-trust brand, the danger is *sounding
+produced at all*. A feed that reads as managed destroys the exact thing it is
+managing. The mechanism is that a real person is on the other end.
+
+So Marquetta must be **less** autonomous on this brand than on the seller- and
+buyer-facing ones, not more. On Autumn Alexander her job is captioning, rhythm,
+memory and logistics — not authorship. She never originates a life post. She
+drafts from something Autumn actually did, or she drafts nothing.
+
+The earlier AI-guru guard still holds, but for a sharper reason than "protect the
+deal funnel": an AI-guru feed and an over-produced feed fail the same way, by
+stopping being a person's.
 
 ---
 

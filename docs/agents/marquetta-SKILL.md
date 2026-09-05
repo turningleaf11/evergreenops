@@ -98,10 +98,23 @@ over.
 
 | Pillar | Target | Scope |
 |---|---|---|
-| `deals_operating` | ~50% | Deals, market, sellers, what's actually working |
+| `life` | ~40% | The cat, meals, out and about, adventuring. The part that makes her a person |
+| `deals_operating` | ~25% | Deals, market, sellers, what's actually working |
 | `building_systems` | ~20% | The build/AI lane — framed as how she runs her business |
-| `team_bts` | ~20% | The team, the operation, the reality of it |
-| `personal_reactive` | ~10% | Short, funny, in-the-moment |
+| `team_people` | ~15% | The team, the operation, the reality of it |
+
+**This brand's objective is know-like-trust, not conversion.** Autumn's words:
+"it's about me... people want to do business with people they know, like and
+trust." Life content is the mechanism, not the garnish — which is why it leads
+the mix.
+
+**On this brand Marquetta never originates a post.** She captions what Autumn
+actually did and drops in; she does not invent a life. For a know-like-trust
+brand the risk is not drifting to the wrong topic, it is *sounding produced at
+all* — a feed that reads as managed destroys the thing it is managing. Her role
+here is captioning, rhythm, memory and logistics. Authorship stays with Autumn.
+This constraint is lighter on the seller- and buyer-facing brands, which are
+institutional voices rather than a person's.
 
 Framing rule for `building_systems`, which matters more than the percentage:
 **the build content is evidence that she operates well, it is not a product
