@@ -14,14 +14,17 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BooksImport from "@/components/books/BooksImport";
+import CategorizeSheet from "@/components/books/CategorizeSheet";
 import {
   useBooksSetup, useBookTransactions, useBookCounts, useTrialBalance, money,
+  type BookTransaction,
 } from "@/hooks/useBooks";
 
 const FISCAL_YEAR = 2025;
 
 export default function BooksPage() {
-  const { entities, bankAccounts, entityName, bankName, loading: setupLoading } = useBooksSetup();
+  const { entities, accounts, bankAccounts, entityName, bankName, loading: setupLoading } = useBooksSetup();
+  const [active, setActive] = useState<BookTransaction | null>(null);
   const [tab, setTab] = useState("ledger");
   const [entityId, setEntityId] = useState<string>("");
   const [reviewState, setReviewState] = useState<string>("");
@@ -140,7 +143,7 @@ export default function BooksPage() {
             </span>
           </div>
 
-          <LedgerTable rows={rows} loading={loading} entityName={entityName} bankName={bankName} />
+          <LedgerTable rows={rows} loading={loading} entityName={entityName} bankName={bankName} onPick={setActive} />
 
           {pages > 1 && (
             <div className="flex items-center justify-center gap-3">
@@ -157,7 +160,7 @@ export default function BooksPage() {
 
         {/* ---------------------------------------------------------- review */}
         <TabsContent value="review" className="crm-section-stack mt-4">
-          <ReviewQueue entityName={entityName} bankName={bankName} refreshKey={refreshKey} />
+          <ReviewQueue entityName={entityName} bankName={bankName} refreshKey={refreshKey} onPick={setActive} />
         </TabsContent>
 
         {/* --------------------------------------------------------- reports */}
@@ -241,6 +244,15 @@ export default function BooksPage() {
           <BooksImport bankAccounts={bankAccounts} onImported={refresh} />
         </TabsContent>
       </Tabs>
+
+      <CategorizeSheet
+        txn={active}
+        accounts={accounts}
+        entityName={entityName}
+        bankName={bankName}
+        onClose={() => setActive(null)}
+        onPosted={refresh}
+      />
     </div>
   );
 }
@@ -271,12 +283,13 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function LedgerTable({
-  rows, loading, entityName, bankName,
+  rows, loading, entityName, bankName, onPick,
 }: {
   rows: ReturnType<typeof useBookTransactions>["rows"];
   loading: boolean;
   entityName: (id: string | null) => string;
   bankName: (id: string) => string;
+  onPick: (t: BookTransaction) => void;
 }) {
   if (loading) {
     return (
@@ -312,7 +325,15 @@ function LedgerTable({
           </thead>
           <tbody>
             {rows.map((t) => (
-              <tr key={t.id} className={`border-b last:border-0 hover:bg-muted/30 ${t.status === "failed" ? "opacity-50" : ""}`}>
+              <tr
+                key={t.id}
+                onClick={() => t.status !== "failed" && onPick(t)}
+                className={`border-b last:border-0 ${
+                  t.status === "failed"
+                    ? "opacity-50"
+                    : "hover:bg-muted/30 cursor-pointer"
+                }`}
+              >
                 <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{t.txn_date}</td>
                 <td className="py-2 px-3">
                   <span className={t.status === "failed" ? "line-through" : ""}>{t.description}</span>
@@ -338,11 +359,12 @@ function LedgerTable({
 }
 
 function ReviewQueue({
-  entityName, bankName, refreshKey,
+  entityName, bankName, refreshKey, onPick,
 }: {
   entityName: (id: string | null) => string;
   bankName: (id: string) => string;
   refreshKey: number;
+  onPick: (t: BookTransaction) => void;
 }) {
   const { rows, total, loading } = useBookTransactions(
     { reviewState: "needs_review", includeFailed: false }, 0, 100,
@@ -369,9 +391,10 @@ function ReviewQueue({
   return (
     <>
       <p className="text-sm text-muted-foreground">
-        These were deliberately not guessed. Each needs either a source document or a judgement call.
+        These were deliberately not guessed. Each needs either a source document or a judgement
+        call. Click a row to categorise and post it.
       </p>
-      <LedgerTable rows={rows} loading={false} entityName={entityName} bankName={bankName} />
+      <LedgerTable rows={rows} loading={false} entityName={entityName} bankName={bankName} onPick={onPick} />
     </>
   );
 }
