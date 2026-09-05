@@ -5,6 +5,70 @@ through rather than assumed.
 
 ---
 
+## The layer above: what is any of this for
+
+Autumn raised this and it is the real gap. Pillars, seeds, scoring and a review
+queue are *balance* mechanisms. They govern how much of each kind of content
+goes out. None of them says why any of it exists, who it is for, or what it is
+supposed to cause.
+
+Five levels. The engine as built covers the bottom three.
+
+| Level | Question | Owner |
+|---|---|---|
+| 1. Business strategy | What does the business need — deals, capital, talent, product revenue? | Autumn |
+| 2. Brand strategy | What does each brand do for that: audience, objective, desired action | Autumn |
+| 3. Pillars | What mix of content serves that objective | Derived from 2 |
+| 4. Seeds | Specific raw material | Marquetta + Autumn |
+| 5. Drafts | The posts | Marquetta |
+
+**Levels 1 and 2 must be data, not a document.** A strategy that lives in a
+markdown file governs nothing; one that lives on `content_brands` governs seed
+scoring, pillar targets and draft selection on every run. The current brand rows
+carry `audience`, `voice` and `mission` — an identity, not an objective. Missing,
+and needed:
+
+| Field | Why the engine needs it |
+|---|---|
+| `objective` | What this brand is for. One sentence, measurable in principle |
+| `primary_audience` | ONE audience, not four. "Aspiring investors, fellow operators, entrepreneurs, community followers" is four different people with four different needs, and content aimed at all of them lands on none |
+| `desired_action` | What a reader should do next. Content with no intended next step is noise dressed as presence |
+| `success_signal` | What would tell us it is working — DMs, saves, replies, calls booked. Not follower count |
+
+**Seed scoring should be strategic, not cosmetic.** Today's score is
+specificity: does the seed contain a number, a name, a quote. That is a proxy
+for "interesting" with no strategy in it. It should be: does this serve the
+objective, for the primary audience, with a plausible next step. A specific
+story aimed at the wrong audience should score *below* a plainer one aimed at
+the right one.
+
+**Pillar targets should be derived, not asserted.** The current mix
+(`deals_operating` 50 / `building_systems` 20 / `team_bts` 20 /
+`personal_reactive` 10) was proposed by Claude and accepted as reasonable. It is
+a sensible guard against AI-guru drift, but it is not yet grounded in a stated
+objective. Once level 2 exists, the mix should follow from it and be revisited —
+possibly unchanged, but for a reason.
+
+### The strategic tension worth naming
+
+The "how did you build that" audience is the most responsive one Autumn has.
+The pillar cap exists to stop the brand drifting toward it. But a cap is a
+holding action, not an answer. The actual question is what the personal brand is
+*for*:
+
+- **Deal flow and capital** — the audience that matters is sellers, brokers,
+  cash buyers and capital partners. Build content is credibility furniture.
+- **Product revenue (Build Notes)** — the teaching audience *is* the customer,
+  and capping it at 20% deliberately starves the thing being sold.
+- **Reputation and optionality** — breadth beats focus; the mix matters less.
+- **Talent** — content aims at people who might work with her.
+
+These produce genuinely different engines. Until it is answered, the pillar mix
+is a reasonable default rather than a strategy, and this document should say so
+rather than pretend otherwise.
+
+---
+
 ## The reframe: Marquetta is a producer, not a writer
 
 The obvious model — "an AI that writes your posts" — is wrong, and it is wrong
