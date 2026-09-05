@@ -79,6 +79,10 @@ def classify(row, src_entity):
                 "Excluded from P&L. Needs a due-to/due-from entry on BOTH entities' balance sheets.")
 
     named = entity_by_name(row.get("Description", ""))
+    if named and named == src_entity:
+        return (f"Internal transfer <-> {ENTITIES[named]['label']}", "transfer",
+                "Counterparty named as this row's own entity - the other leg of an "
+                "internal move, not a payment out.")
     if named and named != src_entity:
         return (f"9000 Intercompany -> {ENTITIES[named]['label']}", "intercompany",
                 "Matched by entity name, not account number. Needs a due-to/due-from "
