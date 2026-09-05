@@ -97,6 +97,34 @@ Adding a domain page means adding it to the sidebar in
 
 ---
 
+## Deploys, branches and migrations
+
+Full explanation, written for Autumn rather than for engineers:
+**`docs/how-deploys-work.md`**. Read it before answering any question about
+merging, deploys, or why something isn't live yet — and point her to it rather
+than re-explaining from scratch.
+
+The rules that bind every session:
+
+1. **Migrations reach production by merging to `main`, never by hand.**
+   `supabase db push` runs from CI on merge. Applying directly puts production
+   ahead of the repo, which is drift, and the deploy then fails closed until the
+   file is committed.
+2. **Supabase's `apply_migration` assigns its own timestamp** and does not
+   report it. Anyone who applies outside CI gets a filename/ledger mismatch by
+   default. If it happens, read the real version back from
+   `supabase_migrations.schema_migrations` and rename the file to match, at once.
+3. **A fix to the deploy process merges together with the work that needs it.**
+   A fix stranded on a branch protects nothing.
+4. **Autumn decides when to merge.** Never merge without her asking. When merge
+   order genuinely matters, say so explicitly and say why — she has told us she
+   is new to this and should not have to infer it.
+5. **More than one session runs at a time.** Before schema work, check
+   `schema_migrations` for versions that are not in the repo; another session may
+   be mid-flight. Say what someone else's branch is doing rather than guessing.
+
+---
+
 ## Cost & usage discipline
 
 - **One topic per session.** Don't run unrelated work (e.g. a build task and a
