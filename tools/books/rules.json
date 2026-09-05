@@ -3,13 +3,13 @@
   "rules": [
     {
       "match": "CERTIFIED PROPER",
-      "account": "4100 Rental Income",
+      "account": "** NO WAVE ACCOUNT ** Rental Income (must be created)",
       "treatment": "pl",
       "note": "Property-manager remittance. NET of PM fees - the CPA needs Certified Proper's annual statement to gross up rent and deduct management fees separately."
     },
     {
       "match": "MARINA TITLE",
-      "account": "4000 Assignment Fee Income",
+      "account": "Assignment Fee",
       "treatment": "pl",
       "note": "Title company wire - 400 Waterside St."
     },
@@ -39,37 +39,37 @@
     },
     {
       "match": "Cobblestone 401K Trust",
-      "account": "3000 Partner Distributions",
+      "account": "Owner Investment / Drawings",
       "treatment": "equity",
       "note": "Monthly payments to a partner. If Cobblestone is a LENDER not a partner these are interest expense instead - confirm which."
     },
     {
       "match": "Home Equity Real Estate",
-      "account": "3000 Partner Distributions",
+      "account": "Owner Investment / Drawings",
       "treatment": "exception",
       "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"
     },
     {
       "match": "Melanie Torres",
-      "account": "3000 Partner Distributions",
+      "account": "Owner Investment / Drawings",
       "treatment": "equity",
       "note": "Partner draw."
     },
     {
       "match": "Ronald Poulard",
-      "account": "RELATED PARTY",
+      "account": "RELATED PARTY - Ronald Poulard",
       "treatment": "exception",
-      "note": "Ron is your 50/50 Thor Legacy partner. Labelled '400 Waterside'. Rehab reimbursement, contractor pay (1099!), or partner draw? Three very different answers."
+      "note": "NOT a 1099 per Autumn, and NOT an owner draw either - Ron is not a member of Evergreen Creative, so a distribution to him cannot reduce owner equity. Three different things here: $6,800 from EC memo'd 'Savings for house' (personal), $50 from EC, and $6,460.04 from EFV memo'd '400 Waterside' (property work). If these repay money Ron put in, that is a LOAN FROM A RELATED PARTY - a balance-sheet liability, not an expense and not equity. No inbound money from Ron appears anywhere in 2025, so the loan must predate the year or be undocumented."
     },
     {
       "match": "MARINA TITLE|SCHUTT LAW FIRM|Guardian Legal|J\\. Riley Williams|AMERICAN PATRIOT TITLE, LLC",
-      "account": "4000 Assignment Fee Income",
+      "account": "Assignment Fee",
       "treatment": "pl",
       "note": "Inbound from title co / law firm. Confirm each is an assignment fee and not an EMD refund or escrow return."
     },
     {
       "match": "American Patriot Title - Tampa",
-      "account": "1200 Earnest Money Deposit",
+      "account": "Earnest Money Deposit (asset)",
       "treatment": "exception",
       "note": "EMD paid out $1,500 with $1,475 returning from American Patriot Title. Earnest money is an ASSET until closing, never an expense. Net $25 may be a fee."
     },
@@ -81,31 +81,31 @@
     },
     {
       "match": "Steve Daria",
-      "account": "5000 Deal Costs - Co-wholesaler Splits",
+      "account": "Commissions Paid (COGS)",
       "treatment": "pl",
       "note": "$15,960 across 4 payments - largest single payee. 1099-NEC candidate."
     },
     {
       "match": "Richie Louis|Ramon Cardona|Genna Rue|Brandon Ashley",
-      "account": "6600 Contract Labor",
+      "account": "Pay - Independent Contractor",
       "treatment": "pl",
       "note": "Team member. 1099-NEC candidate."
     },
     {
       "match": "Diego Arboleda|Disruptive Innovators",
-      "account": "6600 Contract Labor",
+      "account": "Pay - Independent Contractor",
       "treatment": "pl",
       "note": "Paid via an LLC - check entity type. 1099 may still be required unless taxed as a corporation."
     },
     {
       "match": "ARC TC Services|The Venture Joint|C4 Infinity|KVARTA",
-      "account": "5100 Deal Costs - Transaction Coordination",
+      "account": "Pay - Independent Contractor",
       "treatment": "pl",
       "note": "1099-NEC candidate."
     },
     {
       "match": "Tailored Inspections",
-      "account": "5100 Deal Costs - Transaction Coordination",
+      "account": "Pay - Independent Contractor",
       "treatment": "pl"
     },
     {
@@ -122,17 +122,17 @@
     },
     {
       "match": "Hakim & Zafar|Cpa|CPA",
-      "account": "6300 Legal & Professional",
+      "account": "Professional Fees",
       "treatment": "pl"
     },
     {
       "match": "HighLevel|Salesmate|Lovable|Wix|ClickUp|Zapier|Dreamhost|Notion|Google Workspace|Heygen|Airtable|Slack|Canva|OpenAI|Anthropic",
-      "account": "6800 Software & Subscriptions",
+      "account": "Computer - Software",
       "treatment": "pl"
     },
     {
       "match": "Facebook|Meta Platforms|Google Ads",
-      "account": "6900 Marketing & Lead Gen",
+      "account": "Advertising & Promotion",
       "treatment": "pl"
     },
     {
@@ -143,7 +143,7 @@
     },
     {
       "match": "United Airlines|Delta Air|American Airlines|Airbnb|Marriott|Hilton",
-      "account": "7000 Travel",
+      "account": "Travel",
       "treatment": "exception",
       "note": "Travel is deductible only with a documented business purpose. Needs substantiation."
     },
@@ -155,13 +155,13 @@
     },
     {
       "match": "WISE US INC|Wise Inc",
-      "account": "6600 Contract Labor",
+      "account": "Pay - Independent Contractor",
       "treatment": "exception",
       "note": "International transfer rail. Who was paid? Foreign contractors need W-8BEN, not 1099."
     },
     {
       "match": "Amazon",
-      "account": "6950 Office & Supplies",
+      "account": "Office Supplies",
       "treatment": "exception",
       "note": "27 charges. Amazon mixes business supplies and personal - needs a line-by-line pass or a blanket allocation agreed with the CPA."
     },
@@ -173,18 +173,18 @@
     },
     {
       "match": "Supportsignow|Fiverr|Typeform|DealCheck|Figma|ElevenLabs|Squarespace|Midjourney|OnlineJobs\\.PH|Anytime Mailbox",
-      "account": "6800 Software & Subscriptions",
+      "account": "Computer - Software",
       "treatment": "pl"
     },
     {
       "match": "Wyoming Secretary of State",
-      "account": "6400 Taxes & Licenses",
+      "account": "Corporate Filing",
       "treatment": "exception",
       "note": "A WYOMING filing fee. You named four Florida LLCs. Which entity is registered in Wyoming - or is there a fifth?"
     },
     {
       "match": "Contrarian Thinking|Michael Blank Brands|Squadup Summit",
-      "account": "6960 Education & Events",
+      "account": "Education & Training",
       "treatment": "pl",
       "note": "Business education - deductible if related to the existing trade or business."
     },
@@ -196,38 +196,38 @@
     },
     {
       "match": "FPL",
-      "account": "6100 Utilities",
+      "account": "Utilities",
       "treatment": "pl"
     },
     {
       "match": "Tower Hill Insur",
-      "account": "6200 Insurance",
+      "account": "** NO WAVE ACCOUNT ** Insurance - Property (only 'Insurance - Vehicles' exists)",
       "treatment": "pl"
     },
     {
       "match": "Lowe's|LOWES|Home Depot",
-      "account": "6000 Repairs & Maintenance",
+      "account": "Repairs & Maintenance",
       "treatment": "pl"
     },
     {
       "match": "Sergeants Electric",
-      "account": "6000 Repairs & Maintenance",
+      "account": "Repairs & Maintenance",
       "treatment": "pl",
       "note": "Contractor - check 1099-NEC threshold across the full year."
     },
     {
       "match": "Corporate Filings",
-      "account": "6300 Legal & Professional",
+      "account": "Professional Fees",
       "treatment": "pl"
     },
     {
       "match": "Florida Division of Corporations|DIV\\*NIC",
-      "account": "6400 Taxes & Licenses",
+      "account": "Corporate Filing",
       "treatment": "pl"
     },
     {
       "match": "ALLIANT CU",
-      "account": "6500 Bank & Merchant Fees",
+      "account": "Bank Service Charges",
       "treatment": "exception",
       "note": "Micro-deposit account verification, nets to zero. Noise - confirm and drop."
     },
@@ -237,5 +237,6 @@
       "treatment": "exception",
       "note": "Payment rail, not a payee. Who actually got paid and what for?"
     }
-  ]
+  ],
+  "_chart_of_accounts": "Evergreen Creative Home Solutions LLC - Wave. Accounts marked ** NO WAVE ACCOUNT ** do not exist yet and must be created before these books can be posted."
 }
