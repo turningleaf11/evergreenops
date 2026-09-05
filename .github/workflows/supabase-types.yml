@@ -1,0 +1,73 @@
+name: Regenerate Supabase types
+
+# src/integrations/supabase/types.ts is TypeScript's picture of the database. It
+# is generated, not written, and when it falls behind the schema the compiler
+# starts agreeing with a database that no longer exists — quietly, because the
+# app still works at runtime. This job regenerates it after every schema deploy
+# so it cannot drift again.
+
+on:
+  workflow_run:
+    workflows: ["Deploy Supabase"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  regenerate:
+    # Only worth running if the deploy actually succeeded; types from a failed
+    # migration run would describe a schema that was never applied.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: dsxrekabnwvarnroanny
+      TYPES_PATH: src/integrations/supabase/types.ts
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check required secret
+        run: test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing SUPABASE_ACCESS_TOKEN secret" && exit 1)
+
+      - name: Generate types
+        run: |
+          set -euo pipefail
+          supabase gen types typescript --project-id "$SUPABASE_PROJECT_ID" > /tmp/types.ts
+
+          # A truncated or error-page response would otherwise be committed as if
+          # it were real, and every call site in the app would go untyped.
+          test -s /tmp/types.ts || (echo "Generated types are empty" && exit 1)
+          head -1 /tmp/types.ts | grep -q "export type Json" \
+            || (echo "Generated file does not look like Supabase types:" && head -5 /tmp/types.ts && exit 1)
+          grep -q "workspaces:" /tmp/types.ts \
+            || (echo "Generated types are missing known tables; refusing to commit" && exit 1)
+
+          mv /tmp/types.ts "$TYPES_PATH"
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$TYPES_PATH"; then
+            echo "Types already match the database. Nothing to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$TYPES_PATH"
+          git commit -m "Regenerate Supabase types
+
+          Generated from project $SUPABASE_PROJECT_ID after a schema deploy.
+          This file is generated — edit the database, not this."
+          git push origin HEAD:main
