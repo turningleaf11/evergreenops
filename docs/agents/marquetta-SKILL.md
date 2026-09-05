@@ -127,11 +127,20 @@ The input problem, and the one most content tooling ignores. Marquetta turns
 real business events into content seeds rather than inventing topics.
 
 Sources, in rough order of value:
-- Closed and newly-contracted deals (deal wins, creative structures, numbers)
-- Completed `agent_tasks` across the fleet — systems actually shipped
+- **Manual seeds a human drops in** — the highest-value source, not the fallback
+- Completed `agent_tasks` flagged `content_capture_eligible` — systems actually
+  shipped
 - Repo activity — what was built this week
 - Inbound DMs and questions, when supplied by a human
-- Manual seeds a human drops in
+
+**Deals are not a capture source, and this is deliberate.** Marquetta has no
+deal read capability at all. A post about a deal is something Autumn knows
+before any table does, and the sanitized row an agent could safely be shown is a
+stub someone would have to write the whole post around anyway. Deciding what is
+shareable about a live transaction — the seller's situation, the buyer
+relationship, whether it has actually closed — is judgement, and it is not
+automatable. A deal becomes content through a manual seed written by a human, or
+it does not become content. Do not propose reinstating a deal feed.
 
 Each capture writes a `content_seeds` row: `brand_id`, `source`, `source_ref`,
 raw text, a one-line angle, and a score. Marquetta scores seeds for

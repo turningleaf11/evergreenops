@@ -1,8 +1,12 @@
--- Leak guards for the content capture projections.
+-- Leak guards for the content capture projection.
 --
 -- Every value seeded below is something Marquetta must never receive. The test
 -- asserts by scanning the entire projection output as text, so a future column
 -- added to the RETURNS TABLE fails here rather than quietly shipping a leak.
+--
+-- The deal rows are still seeded even though there is no deal projection any
+-- more: the guard asserts that no deal data reaches a content agent by ANY
+-- route, so if someone reintroduces a deal source later, this fails first.
 \pset pager off
 \set ON_ERROR_STOP on
 
@@ -42,20 +46,22 @@ declare
   v_forbidden text;
   v_failures int := 0;
 begin
-  select coalesce(string_agg(d::text, ' '), '') into v_deals
-    from content_capture_list_deal_events('marquetta','11111111-1111-1111-1111-111111111111') d;
+  -- Every content capture function's output, concatenated. If a deal source is
+  -- ever added back, it lands here and the guard below catches it.
+  select coalesce(string_agg(t::text, ' '), '') into v_deals
+    from content_capture_list_task_events('marquetta','11111111-1111-1111-1111-111111111111') t;
   select coalesce(string_agg(t::text, ' '), '') into v_tasks
     from content_capture_list_task_events('marquetta','11111111-1111-1111-1111-111111111111') t;
 
-  -- Deal projection must not carry street address, economics, broker chatter,
-  -- contact identity, or any lost deal.
+  -- No deal data may reach a content agent by any route. There is no deal
+  -- projection; this asserts it stays that way.
   foreach v_forbidden in array array[
     '1109 Riviera Dr', '450000', '312000', '398000', '86000', '55000',
     'Seller is desperate', 'bbbbbbbb-0000-0000-0000-0000000000bb',
-    'Lost one', 'seller ghosted'
+    'Riviera duplex', 'Coral Gables', 'Lost one', 'seller ghosted'
   ] loop
     if position(v_forbidden in v_deals) > 0 then
-      raise warning 'LEAK: deal projection exposed %', v_forbidden;
+      raise warning 'LEAK: deal data reached a content projection: %', v_forbidden;
       v_failures := v_failures + 1;
     end if;
   end loop;
@@ -74,9 +80,6 @@ begin
 
   -- And it must still return the thing it is for, or the guards above pass
   -- trivially on an empty result.
-  if position('Coral Gables' in v_deals) = 0 then
-    raise warning 'projection returned no usable deal event'; v_failures := v_failures + 1;
-  end if;
   if position('Ship underwriting agent' in v_tasks) = 0 then
     raise warning 'projection returned no usable task event'; v_failures := v_failures + 1;
   end if;
