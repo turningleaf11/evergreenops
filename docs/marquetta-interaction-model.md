@@ -56,6 +56,13 @@ skipped, and a skipped week is a dead engine.
 
 ### 1. The check-in — Marquetta asks (5 minutes)
 
+**Questions first, not drafts-to-react-to.** Decided 2026-09-05. While the voice
+corpus is thin, reacting to weak drafts teaches her less than a well-aimed
+question earns — and a bad draft costs Autumn more to fix than a one-line answer
+costs to write. Once exemplars are loaded and drafting is reliably in voice, the
+opening can flip to draft-first; that is a later change, driven by evidence that
+the drafts are good, not by a calendar.
+
 Once a week, Marquetta opens with what she already knows, then asks for what she
 cannot see:
 
@@ -134,24 +141,55 @@ quality before it is done will be mediocre no matter how good the rest is.
 
 ---
 
-## Where this happens
+## Where this happens — decided: her own Discord channel
 
-The channel decides whether the model works. Ranked:
+**Marquetta gets her own Discord channel.** Decided 2026-09-05.
 
-1. **Through Albus.** Autumn already talks to him, he is the orchestrator, and
-   he is OpenClaw-native so nothing new has to be built to reach her. The
-   check-in arrives in a conversation she is already having.
-2. **Email.** Reliable, async, works on a phone, easy to ignore — which is both
-   the advantage and the risk.
-3. **In the Content Studio.** Worst option. It requires her to remember to go
-   there, which is precisely the failure that left the Studio empty for four
-   months. The Studio should be where she *reviews*, never where she is
-   *notified*.
+The first recommendation here was "through Albus," and it was wrong. Albus's
+OpenClaw chat runs on Autumn's computer, so a check-in delivered there can only
+be answered at her desk. A weekly prompt that waits for her to be at a laptop
+gets answered on Sunday night, which means it gets answered never. Channel
+choice is not a preference — it decides whether the loop runs at all.
 
-Review can live in the Studio because a batch link takes her there. Notification
-cannot.
+Discord is on her phone, always. Albus already has a channel there, so agent →
+Discord delivery is existing plumbing rather than a new integration: OpenClaw
+Automations already route output to a configured owner/channel.
 
----
+Why her own channel rather than sharing Albus's:
+
+- **Separation of concerns.** Albus is the orchestrator; his channel is for
+  running the business. Content is a different conversation with a different
+  rhythm, and mixing them means the check-in gets buried under operational
+  traffic.
+- **Privacy.** Personal-brand material should not be drafted in front of the
+  team. A channel scoped to Autumn keeps voice iteration private.
+- **Marquetta delivers directly.** Her Automation posts to her channel, rather
+  than relaying through Albus. Each agent already has its own credentials,
+  permissions and audit boundary; routing her output through another agent would
+  blur that for no gain, and would make Albus a single point of failure for
+  content.
+
+Later, if the team lane earns it, a second channel where Kez, Debbie and others
+can drop team material is a natural extension. Not v1.
+
+### Review has to work on the phone too
+
+The check-in reaching her phone is only half of it. If approving drafts requires
+a laptop, review becomes the new bottleneck and the queue silts up.
+
+**v1:** the review batch posts to her Discord channel with a link into the
+Content Studio review queue, and **that queue must be genuinely usable on a
+phone** — batch approve/reject, one thumb, no horizontal scrolling. That is a
+build requirement on the review UI, not a nice-to-have.
+
+**Later, if review still feels heavy:** approve and reject by Discord reaction
+(✅ / ❌) directly on the draft message. That is the lowest-friction review that
+exists, but it needs a bot listening for reaction events, which is a real
+integration rather than existing plumbing. Worth doing only once the loop is
+proven and the friction is measured rather than assumed.
+
+Voice-note replies are the same category — Discord supports them, but they need
+transcription wired up. Nice, not first.
 
 ## When Autumn does not answer
 

@@ -53,6 +53,26 @@ Route exception-only output to the operator, and make both prompts return
 hosted instance's existing owner/channel configuration rather than inventing a
 destination in this repo.
 
+**Delivery destination: Marquetta's own Discord channel**, not Albus's and not
+OpenClaw chat. Albus's chat runs on Autumn's computer, so anything delivered
+there can only be answered at her desk — which defeats a weekly check-in. Her
+own channel also keeps personal-brand drafting off the team's feed, and keeps
+her audit boundary separate from Albus's. See
+`../marquetta-interaction-model.md`.
+
+A third job carries the interaction loop itself:
+
+```bash
+openclaw automations create "0 14 * * 1" \
+  --name "Marquetta Weekly Check-in" \
+  --agent marquetta \
+  --session isolated \
+  --message "Run Marquetta's weekly check-in as defined in the marquetta skill. Open with what you can already see from captured seeds and fleet activity, name which pillars are short, then ask at most four specific one-line questions weighted toward the underweighted pillars. Rotate the questions week to week. Never ask an open-ended 'what do you want to post about'. Post to Autumn's Marquetta channel."
+```
+
+Cadence and day are a starting guess, not a finding — adjust once there is
+evidence about when she actually answers.
+
 ## Duty cycle
 
 Each Content Duty run should:
