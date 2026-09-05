@@ -116,7 +116,7 @@
       "final_year": false
     },
     "thor_legacy": {
-      "label": "Thor Legacy Enterprises, LLC",
+      "label": "Thor Legacy Enterprises, LLC (Wyoming holding co - NO BANK ACCOUNT)",
       "final_year": false
     },
     "UNKNOWN": {
@@ -124,5 +124,6 @@
       "final_year": false
     }
   },
-  "_confirmed": "Autumn 2026-09-05: all 1109 sub-accounts held under the Evergreen Creative Mercury org belong to 1109 Riviera, LLC. EC was trustee; the trust's beneficiary was 1109 Riviera, LLC, so the profits are 1109's."
+  "_confirmed": "Autumn 2026-09-05: all 1109 sub-accounts held under the Evergreen Creative Mercury org belong to 1109 Riviera, LLC. EC was trustee; the trust's beneficiary was 1109 Riviera, LLC, so the profits are 1109's.",
+  "_thor_legacy": "Confirmed by Autumn 2026-09-05: Thor Legacy has no bank account and no direct activity. It is the Wyoming holding company that owns Evergreen Funded Ventures. Its 1065 reports the K-1 from EFV only. Note Evergreen Creative paid Thor's $166 Wyoming filing fee - one more due-to/due-from."
 }

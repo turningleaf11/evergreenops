@@ -45,9 +45,9 @@
     },
     {
       "match": "Home Equity Real Estate",
-      "account": "Owners Distributions",
-      "treatment": "exception",
-      "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"
+      "account": "Owners Distributions - Tilisa Stubbs",
+      "treatment": "equity",
+      "note": "Home Equity Real Estate Investments LLC = Tilisa Stubbs, a 1109 partner, per Autumn. RESOLVED - she received her distribution through her LLC. Note Wave has only ONE 'Owners Distributions' account; a partnership needs one per partner to produce capital accounts for the K-1s."
     },
     {
       "match": "Melanie Torres",
