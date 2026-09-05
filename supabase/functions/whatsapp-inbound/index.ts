@@ -108,6 +108,26 @@ Deno.serve(async (req) => {
     dispositions.push(String((data?.[0] as Record<string, unknown> | undefined)?.status ?? 'unknown'));
   }
 
+  // Kick the media fetcher without waiting for it. The provider is holding this
+  // connection open and will retry the whole batch if we are slow, so the
+  // download must not happen on this path — but a photo that only arrives on
+  // the next inbound message is a poor experience, so it is started here and
+  // allowed to finish after the response.
+  if (dispositions.includes('routed') && messages.some((m) => m.media.length > 0)) {
+    const drain = fetch(`${supabaseUrl}/functions/v1/content-media-fetch`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => {
+      // Never fail the webhook because the fetcher is unhappy. The queue is
+      // durable and leased; the item stays pending and is drained by the next
+      // invocation.
+      console.warn(JSON.stringify({ event: 'whatsapp_inbound_drain_failed', request_id: requestId }));
+    });
+    const runtime = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(drain); else await drain;
+  }
+
   // 200 for everything recorded, including messages from unknown senders. They
   // were handled — refusing them is the handling — and a non-2xx would make the
   // provider retry a stranger's message indefinitely.
