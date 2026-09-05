@@ -1,0 +1,46 @@
+{
+  "_comment": "Deterministic payee rules, evaluated in order. First match wins. 'treatment' decides where a row lands: pl = profit & loss, equity/asset/liability = balance sheet only, transfer = excluded entirely, exception = never auto-decided, always routed to a human.",
+  "rules": [
+    {"match": "CERTIFIED PROPER",              "account": "4100 Rental Income",            "treatment": "pl",
+     "note": "Property-manager remittance. NET of PM fees - the CPA needs Certified Proper's annual statement to gross up rent and deduct management fees separately."},
+
+    {"match": "MARINA TITLE",                  "account": "4000 Assignment Fee Income",    "treatment": "pl",
+     "note": "Title company wire - 400 Waterside St."},
+
+    {"match": "TITLE GUARANTY",                "account": "PROPERTY DISPOSITION",          "treatment": "exception",
+     "note": "SALE PROCEEDS, NOT REVENUE. Mercury tagged this Revenue and that is wrong. Goes on Form 4797 net of basis and selling costs. Needs the closing statement."},
+
+    {"match": "BEAM MANAGEMENT",               "account": "PASS-THROUGH?",                 "treatment": "exception",
+     "note": "Dreamhomes pass-through. Received AFTER the 1109 sale closed, then swept straight out. Almost certainly not 1109 income. Whose is it?"},
+
+    {"match": "NSM DBAMR|MR.COOPER|MR COOPER", "account": "MORTGAGE PAYMENT",              "treatment": "exception",
+     "note": "Principal + interest + escrow in one payment. ONLY the interest is deductible. Needs Form 1098 from Mr. Cooper to split. Loan is in Luis Vento's name - confirm the subject-to structure."},
+
+    {"match": "Luis Manuel Vento",             "account": "SELLER PAYMENT",                "treatment": "exception",
+     "note": "$458.33/mo to the seller of record on a loan still in his name. Interest? Principal? Lease payment? Mercury guessed 'Employee Benefits' which is certainly wrong."},
+
+    {"match": "Cobblestone 401K Trust",        "account": "3000 Partner Distributions",    "treatment": "equity",
+     "note": "Monthly payments to a partner. If Cobblestone is a LENDER not a partner these are interest expense instead - confirm which."},
+
+    {"match": "Home Equity Real Estate",       "account": "3000 Partner Distributions",    "treatment": "exception",
+     "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"},
+
+    {"match": "Melanie Torres",                "account": "3000 Partner Distributions",    "treatment": "equity",
+     "note": "Partner draw."},
+
+    {"match": "Ronald Poulard",                "account": "RELATED PARTY",                 "treatment": "exception",
+     "note": "Ron is your 50/50 Thor Legacy partner. Labelled '400 Waterside'. Rehab reimbursement, contractor pay (1099!), or partner draw? Three very different answers."},
+
+    {"match": "FPL",                           "account": "6100 Utilities",                "treatment": "pl"},
+    {"match": "Tower Hill Insur",              "account": "6200 Insurance",                "treatment": "pl"},
+    {"match": "Lowe's|LOWES|Home Depot",       "account": "6000 Repairs & Maintenance",    "treatment": "pl"},
+    {"match": "Sergeants Electric",            "account": "6000 Repairs & Maintenance",    "treatment": "pl",
+     "note": "Contractor - check 1099-NEC threshold across the full year."},
+    {"match": "Corporate Filings",             "account": "6300 Legal & Professional",     "treatment": "pl"},
+    {"match": "Florida Division of Corporations|DIV\\*NIC", "account": "6400 Taxes & Licenses", "treatment": "pl"},
+    {"match": "ALLIANT CU",                    "account": "6500 Bank & Merchant Fees",     "treatment": "exception",
+     "note": "Micro-deposit account verification, nets to zero. Noise - confirm and drop."},
+    {"match": "Venmo|PayPal",                  "account": "UNIDENTIFIED PAYEE",            "treatment": "exception",
+     "note": "Payment rail, not a payee. Who actually got paid and what for?"}
+  ]
+}
