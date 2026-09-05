@@ -1,0 +1,527 @@
+<title>Mercury Books Close</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  --ink:#12211f; --paper:#f4f6f5; --surface:#fff; --surface-2:#fafbfa;
+  --line:#dde2e0; --line-strong:#c3ccc9; --muted:#5d6b67;
+  --accent:#0d6b5e; --accent-soft:#e2efec;
+  --flag:#a3341f; --flag-soft:#f8e9e5;
+  --amber:#856011; --amber-soft:#f7efdc;
+  --blue:#2b5c8a; --blue-soft:#e6eef5;
+  --shadow:0 1px 2px rgba(18,33,31,.06),0 4px 16px rgba(18,33,31,.05);
+}
+:root:not([data-theme="light"]){@media (prefers-color-scheme:dark){
+  --ink:#e7ecea; --paper:#0d1514; --surface:#141e1d; --surface-2:#182321;
+  --line:#26332f; --line-strong:#374843; --muted:#94a29e;
+  --accent:#54c3ab; --accent-soft:#123029;
+  --flag:#e59078; --flag-soft:#33201b;
+  --amber:#d9ad55; --amber-soft:#2d2617;
+  --blue:#86b4dc; --blue-soft:#182734;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ink:#e7ecea; --paper:#0d1514; --surface:#141e1d; --surface-2:#182321;
+  --line:#26332f; --line-strong:#374843; --muted:#94a29e;
+  --accent:#54c3ab; --accent-soft:#123029;
+  --flag:#e59078; --flag-soft:#33201b;
+  --amber:#d9ad55; --amber-soft:#2d2617;
+  --blue:#86b4dc; --blue-soft:#182734;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 24px 80px}
+h1{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:27px;line-height:1.2;
+  margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:17px;margin:0 0 2px}
+.lede{color:var(--muted);max-width:70ch;margin:0 0 22px}
+.eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- intake ---------- */
+.intake{display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:24px}
+@media (max-width:860px){.intake{grid-template-columns:1fr}}
+.drop{border:1.5px dashed var(--line-strong);border-radius:10px;background:var(--surface);
+  padding:20px 24px;text-align:center;transition:border-color .15s,background .15s;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{display:block;font-size:15px;margin-bottom:3px}
+.drop span{color:var(--muted);font-size:13px}
+.drop input{display:none}
+.filelist{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:20px;background:var(--accent-soft);
+  color:var(--accent);font-weight:500;font-family:"IBM Plex Mono",monospace}
+.recon{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
+.recon .row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:12.5px}
+.recon .row+.row{border-top:1px solid var(--line)}
+.recon b{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-weight:600}
+.ok{color:var(--accent)} .bad{color:var(--flag)}
+
+/* ---------- entity summary ---------- */
+.entities{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:26px}
+.ent{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  border-top:2.5px solid var(--accent);box-shadow:var(--shadow)}
+.ent.warn{border-top-color:var(--flag)}
+.ent h3{margin:0 0 8px;font-size:13px;font-weight:600;line-height:1.35}
+.ent .big{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  font-size:21px;font-weight:600;letter-spacing:-.02em}
+.ent .meta{font-size:11.5px;color:var(--muted);margin-top:5px}
+
+/* ---------- controls ---------- */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;
+  padding:6px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:600}
+:root[data-theme="dark"] .seg button[aria-pressed="true"],
+:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#08201c}
+input[type="search"],select{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);
+  border-radius:7px;background:var(--surface);color:var(--ink)}
+input[type="search"]{min-width:210px}
+.btn{font:inherit;font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line-strong);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary,:root:not([data-theme="light"]) .btn.primary{color:#08201c}
+.spacer{flex:1}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- ledger ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  overflow:hidden;box-shadow:var(--shadow)}
+.scroll{overflow-x:auto;max-height:66vh;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:12.7px}
+thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);text-align:left;
+  font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  padding:9px 10px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:var(--surface-2)}
+tr.failed td{opacity:.42}
+tr.failed .desc{text-decoration:line-through}
+.r{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.neg{color:var(--flag)}
+.desc{display:block;max-width:300px}
+.sub{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.acct{font-size:11.5px;color:var(--muted);white-space:nowrap}
+td select{font-size:11.5px;padding:3px 6px;max-width:225px;border-color:transparent;background:transparent}
+td select:hover{border-color:var(--line-strong);background:var(--surface)}
+td.edited select{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  padding:2.5px 7px;border-radius:4px;white-space:nowrap}
+.t-pl{background:var(--accent-soft);color:var(--accent)}
+.t-transfer{background:var(--blue-soft);color:var(--blue)}
+.t-intercompany{background:var(--amber-soft);color:var(--amber)}
+.t-equity{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.t-exception{background:var(--flag-soft);color:var(--flag)}
+.t-failed{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.pair{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--blue)}
+.note{display:block;font-size:11px;color:var(--flag);margin-top:4px;max-width:300px;line-height:1.45}
+.count{font-size:12px;color:var(--muted);padding:9px 12px;border-top:1px solid var(--line);background:var(--surface-2)}
+.empty{padding:44px 24px;text-align:center;color:var(--muted)}
+
+/* ---------- P&L ---------- */
+.pl{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px}
+.pl .panel{padding:16px 18px}
+.pl h2{margin-bottom:10px;font-size:15px}
+.pl table{font-size:12.5px}
+.pl td{padding:4px 0;border-bottom:1px solid var(--line)}
+.pl tr.tot td{font-weight:600;border-top:1px solid var(--line-strong);border-bottom:0;padding-top:7px}
+.pl tr.net td{font-weight:700;font-size:14px;border-top:2px solid var(--ink);border-bottom:0;padding-top:8px}
+.warnbox{margin-top:11px;background:var(--flag-soft);color:var(--flag);border-radius:7px;
+  padding:9px 11px;font-size:11.5px;line-height:1.45}
+
+.sample{background:var(--amber-soft);color:var(--amber);border-radius:7px;padding:9px 13px;
+  font-size:12px;margin-bottom:16px;font-weight:500}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;max-width:78ch}
+
+@media print{
+  body{background:#fff}
+  .intake,.bar,.sample,.drop,footer .no-print{display:none!important}
+  .scroll{max-height:none;overflow:visible}
+  .panel{box-shadow:none;border-color:#bbb}
+  thead th{position:static}
+  .wrap{max-width:none;padding:0}
+}
+</style>
+
+<div class="wrap">
+<h1>Mercury Books Close</h1>
+<p class="lede">Drop your Mercury CSV exports below. Every transaction is matched to an entity,
+paired transfers are detected and removed from the profit &amp; loss, and anything that can't be
+decided safely is flagged rather than guessed. Nothing leaves your browser.</p>
+
+<div class="sample" id="sampleNote">Showing <b>4 example rows</b> so you can see how it works. Drop your real exports to replace them.</div>
+
+<div class="intake">
+  <label class="drop" id="drop">
+    <input type="file" id="file" multiple accept=".csv,text/csv">
+    <strong>Drop Mercury CSV exports here</strong>
+    <span>or click to choose files &nbsp;·&nbsp; one export per entity, all accounts selected</span>
+    <div class="filelist" id="filelist"></div>
+  </label>
+  <div class="recon">
+    <div class="eyebrow" style="margin-bottom:7px">Reconciliation</div>
+    <div class="row"><span>Transactions read</span><b id="rTotal">—</b></div>
+    <div class="row"><span>Failed / declined</span><b id="rFailed">—</b></div>
+    <div class="row"><span>Transfers matched</span><b id="rXfer">—</b></div>
+    <div class="row"><span>Intercompany balance</span><b id="rIC">—</b></div>
+    <div class="row"><span>Needs your review</span><b id="rExc">—</b></div>
+  </div>
+</div>
+
+<div class="entities" id="entities"></div>
+
+<div class="bar">
+  <div class="seg" id="segTreat">
+    <button data-t="all" aria-pressed="true">All</button>
+    <button data-t="pl" aria-pressed="false">Profit &amp; loss</button>
+    <button data-t="exception" aria-pressed="false">Review</button>
+    <button data-t="transfer" aria-pressed="false">Transfers</button>
+    <button data-t="intercompany" aria-pressed="false">Intercompany</button>
+    <button data-t="equity" aria-pressed="false">Equity</button>
+    <button data-t="failed" aria-pressed="false">Failed</button>
+  </div>
+  <select id="selEntity"><option value="">All entities</option></select>
+  <input type="search" id="q" placeholder="Search description, amount, account…">
+  <div class="spacer"></div>
+  <button class="btn" id="btnCsv">Export CSV</button>
+  <button class="btn primary" id="btnPrint">Print / save PDF</button>
+</div>
+
+<div class="panel">
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th style="width:92px">Date</th>
+        <th>Description</th>
+        <th>Held at</th>
+        <th>Entity</th>
+        <th style="width:240px">Category</th>
+        <th>Treatment</th>
+        <th class="r" style="width:112px">Amount</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="count" id="count"></div>
+</div>
+
+<div class="pl" id="pl"></div>
+
+<footer>
+  <p><b>How categories are decided.</b> Paired transfers between your own accounts are matched by
+  counterparty account number and removed from the profit &amp; loss automatically. Movements between
+  two different entities are held as intercompany — excluded from the P&amp;L but not discarded, since
+  they need due-to/due-from entries on both balance sheets. Known payees post by rule. Everything else
+  is flagged for you.</p>
+  <p>Anything involving a source document — mortgage principal versus interest, property sale proceeds,
+  earnest money, cross-entity misposts — is deliberately never auto-assigned. A statement with no
+  review list is a statement that guessed.</p>
+  <p class="no-print">Change any category with the dropdown in its row; your overrides are saved in this
+  browser and survive a reload. This is a working draft, not a filing. Have a licensed preparer review it.</p>
+</footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------- config
+const ACCOUNTS = {
+  "9726":{n:"1109 Riviera, LLC",            e:"1109"},
+  "5526":{n:"1109 Riviera – Mnt & CapEx",   e:"1109"},
+  "1139":{n:"Melanie – 1109",               e:"1109"},
+  "9978":{n:"Tilisa – 1109 – QTRLY",        e:"1109"},
+  "6662":{n:"Deposits 1109 Riviera",        e:"1109"},
+  "2184":{n:"1109 Riviera LLC – Checking",  e:"1109"},
+  "2468":{n:"1109 Riviera LLC – Savings",   e:"1109"},
+  "2459":{n:"Evergreen Operations",         e:"EC"},
+  "1001":{n:"Evergreen Savings",            e:"EC"},
+  "5063":{n:"Team Payout",                  e:"EC"},
+  "6371":{n:"REI Event Sponsorships",       e:"EC"},
+  "1101":{n:"Team Profits",                 e:"EC"},
+  "7521":{n:"Evergreen Wires",              e:"EC"},
+  "3026":{n:"Owner Draw",                   e:"EC"},
+  "3089":{n:"Evergreen Checking",           e:"EC"},
+  "8281":{n:"400 Waterside St.",            e:"EFV"},
+  "8105":{n:"Evergreen Funded Ops",         e:"EFV"},
+  "4004":{n:"HOI Account",                  e:"EFV"},
+  "6007":{n:"EG Funded Transactions",       e:"EFV"},
+  "2382":{n:"Evergreen Funded – Savings",   e:"EFV"}
+};
+const ENTITIES = {
+  "1109":"1109 Riviera, LLC",
+  "EC":"Evergreen Creative Home Solutions, LLC",
+  "EFV":"Evergreen Funded Ventures, LLC",
+  "THOR":"Thor Legacy Enterprises, LLC",
+  "?":"Unidentified account"
+};
+const NAME_ALIAS = [
+  [/Evergreen Funded Ventures/i,"EFV"], [/Evergreen Creative Home Solutions/i,"EC"],
+  [/Thor Legacy/i,"THOR"], [/1109 Riviera/i,"1109"]
+];
+// Wave chart of accounts — what a category dropdown can be set to.
+const CATS = ["Assignment Fee","Rental Income – Net","Rental Income – Gross","Other Income",
+  "Commissions Paid (COGS)","Pay – Independent Contractor","Property Management Fees",
+  "Mortgage Interest","Interest Expense","Escrow (Taxes & Insurance)","Taxes – Property Tax",
+  "Repairs","Regular Maintenance","Capital Improvements","Landscaping","Turnover Costs",
+  "Utilities","Computer – Software","Advertising & Promotion","Professional Fees","Accounting Fees",
+  "Corporate Filing","Licenses and Permits","Office Supplies","Education & Training","Travel",
+  "Meals and Entertainment","Bank Service Charges","Owners Distributions","Owners Contributions",
+  "Earnest Money Deposit (asset)","1st Mortgage (principal)","Seller Finance Note (principal)",
+  "Due to / from related entity","NEEDS REVIEW","Personal – not deductible"];
+
+// first match wins
+const RULES = [
+ [/CERTIFIED PROPER/i,"Rental Income – Net","pl","Property-manager remittance, net of their fee. Gross it up with Certified Proper's annual statement or the management fee is never deducted."],
+ [/MARINA TITLE|SCHUTT LAW FIRM|Guardian Legal|J\. Riley Williams|AMERICAN PATRIOT TITLE, LLC/i,"Assignment Fee","pl",""],
+ [/TITLE GUARANTY/i,"NEEDS REVIEW","exception","SALE PROCEEDS, not revenue — Form 4797, reported net of basis. The property was never capitalised and no depreciation was recorded, so basis must be established first."],
+ [/BEAM MANAGEMENT|Dreamhomes of SE FL/i,"NEEDS REVIEW","exception","Pass-through. The money in and the money out match exactly — not income to one entity and not an expense of the other."],
+ [/NSM DBAMR|MR\.?\s?COOPER/i,"NEEDS REVIEW","exception","Principal + interest + escrow in one payment. Only the interest is deductible. Needs the Form 1098."],
+ [/Luis Manuel Vento/i,"NEEDS REVIEW","exception","Seller finance note — the loan is still in the seller's name. Principal and interest need splitting from the note terms."],
+ [/Farr Law/i,"Due to / from related entity","exception","Paid by the wrong entity. Needs due-to/due-from on both balance sheets — never a silent reclass."],
+ [/Ronald Poulard/i,"NEEDS REVIEW","exception","Related party. Owner draw remitted onward, or reimbursement of costs paid personally — book by the underlying category, with receipts."],
+ [/Home Equity Real Estate|Cobblestone|Melanie Torres/i,"Owners Distributions","equity",""],
+ [/Steve Daria/i,"Commissions Paid (COGS)","pl","Co-wholesaler split. Check the 1099-NEC threshold."],
+ [/Richie Louis|Ramon Cardona|Genna Rue|Brandon Ashley|Diego Arboleda|Disruptive Innovators|ARC TC Services|The Venture Joint|C4 Infinity|KVARTA/i,"Pay – Independent Contractor","pl","1099-NEC candidate."],
+ [/Tailored Inspections/i,"Pay – Independent Contractor","pl",""],
+ [/American Patriot Title - Tampa|Loan Aggregator/i,"Earnest Money Deposit (asset)","exception","Earnest money is an asset until closing, never an expense."],
+ [/Hakim & Zafar|\bCPA\b/i,"Accounting Fees","pl",""],
+ [/HighLevel|Salesmate|Lovable|Wix|ClickUp|Zapier|Dreamhost|Notion|Google Workspace|Heygen|Typeform|DealCheck|Figma|ElevenLabs|Squarespace|Midjourney|Fiverr|OnlineJobs|Anytime Mailbox|Supportsignow/i,"Computer – Software","pl",""],
+ [/Facebook|Meta Platforms|Google Ads/i,"Advertising & Promotion","pl",""],
+ [/Tower Hill Insur/i,"Escrow (Taxes & Insurance)","pl",""],
+ [/FPL/i,"Utilities","pl",""],
+ [/Lowe'?s|LOWES|Home Depot|Sergeants Electric/i,"Repairs","pl",""],
+ [/Corporate Filings|Florida Division of Corporations|DIV\*NIC|Wyoming Secretary/i,"Corporate Filing","pl",""],
+ [/Contrarian Thinking|Michael Blank|Squadup/i,"Education & Training","pl",""],
+ [/Farm Rio|Uber Eats|Instacart|DoorDash|TOMS/i,"Personal – not deductible","exception","Personal spending from a business account. Owner draw, or substantiate a business purpose."],
+ [/United Airlines|Delta Air|American Airlines|Airbnb|Marriott|Hilton/i,"Travel","exception","Deductible only with a documented business purpose."],
+ [/Alliant CU Visa|AMEX EPAYMENT|CHASE CREDIT|CAPITAL ONE/i,"NEEDS REVIEW","exception","Card payment, not an expense — the charges on the card are the expenses."],
+ [/WISE US INC|Wise Inc/i,"Pay – Independent Contractor","exception","International rail — foreign contractors need a W-8BEN, not a 1099."],
+ [/Amazon/i,"Office Supplies","exception","Amazon mixes business and personal. Needs a line-by-line pass."],
+ [/PayPal/i,"NEEDS REVIEW","exception","PayPal is a payment rail, not a payee. Who was actually paid?"]
+];
+
+const SAMPLE = [{d:"11-05-2025",desc:"TITLE GUARANTY OF SOUTH FLORIDA INC",bank:"SALE 1109 W 28 STREET RIVIERA BEACH",amt:82450.67,src:"Mercury Checking xx2184",st:"Sent",mg:"Revenue",memo:""},
+ {d:"09-11-2025",desc:"CERTIFIED PROPER",bank:"CERTIFIED PROPER; FUNDING",amt:4451.40,src:"1109 Riviera, LLC (Mercury Checking xx9726)",st:"Sent",mg:"Revenue",memo:""},
+ {d:"08-18-2025",desc:"NSM DBAMR.COOPER",bank:"NSM DBAMR; LUIS VENTO *LOPEZ",amt:-6133.77,src:"1109 Riviera, LLC (Mercury Checking xx9726)",st:"Sent",mg:"Credit & Loan Payments",memo:""},
+ {d:"06-17-2025",desc:"MARINA TITLE LLC",bank:"FEES FOR 400 WATERSIDE ST",amt:39200.00,src:"Evergreen Operations (Mercury Checking xx2459)",st:"Sent",mg:"Revenue",memo:""}];
+
+// ---------------------------------------------------------------- parsing
+function parseCSV(text){
+  const rows=[]; let row=[],cur="",q=false;
+  text=text.replace(/^﻿/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(cur); cur=""; }
+    else if(c==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; }
+    else if(c!=="\r") cur+=c;
+  }
+  if(cur||row.length){ row.push(cur); rows.push(row); }
+  if(!rows.length) return [];
+  const head=rows.shift().map(h=>h.trim());
+  return rows.filter(r=>r.length>1).map(r=>{const o={};head.forEach((h,i)=>o[h]=(r[i]||"").trim());return o;});
+}
+const L4=/xx(\d{4})/;
+const entOf=k=>ACCOUNTS[k]?ACCOUNTS[k].e:"?";
+function nameEnt(s){ for(const [re,e] of NAME_ALIAS) if(re.test(s)) return e; return null; }
+
+function classify(t){
+  const blob=t.desc+" "+t.bank;
+  const cp=(t.desc.match(L4)||t.bank.match(L4)||[])[1];
+  if(cp){
+    const ce=entOf(cp), cn=ACCOUNTS[cp]?ACCOUNTS[cp].n:"xx"+cp;
+    if(ce==="?") return {cat:"NEEDS REVIEW",tr:"exception",note:"Moved to or from account xx"+cp+", which isn't in the account map. Identify it before trusting any total.",pair:cp};
+    if(ce===t.ent) return {cat:"Internal transfer → "+cn,tr:"transfer",note:"",pair:cp};
+    return {cat:"Due to / from related entity",tr:"intercompany",note:"To "+ENTITIES[ce]+". Excluded from the P&L; needs due-to/due-from on both balance sheets.",pair:cp};
+  }
+  const ne=nameEnt(t.desc);
+  if(ne&&ne!==t.ent) return {cat:"Due to / from related entity",tr:"intercompany",note:"Matched by entity name rather than account number — worth eyeballing.",pair:null};
+  if(/Transfer between your Mercury accounts|another bank account/i.test(t.bank))
+    return {cat:"NEEDS REVIEW",tr:"exception",note:"Mercury calls this a transfer but names no counterparty account. Match it by hand against the other side.",pair:null};
+  for(const [re,cat,tr,note] of RULES) if(re.test(blob)) return {cat,tr,note,pair:null};
+  return {cat:"NEEDS REVIEW",tr:"exception",note:"No rule matched this payee yet.",pair:null};
+}
+
+// ---------------------------------------------------------------- state
+let TX=[], OVR={};
+try{ OVR=JSON.parse(localStorage.getItem("booksOverrides")||"{}"); }catch(e){ OVR={}; }
+const keyOf=t=>[t.date,t.desc,t.amt,t.src].join("|");
+const saveOvr=()=>{ try{ localStorage.setItem("booksOverrides",JSON.stringify(OVR)); }catch(e){} };
+
+function build(raw){
+  TX=raw.map(r=>{
+    const src=(r.src.match(L4)||[])[1]||null;
+    const t={date:r.d,desc:r.desc,bank:r.bank,amt:r.amt,src:r.src,
+             acct:src&&ACCOUNTS[src]?ACCOUNTS[src].n:r.src,ent:entOf(src),
+             failed:r.st==="Failed",mg:r.mg||"",memo:r.memo||""};
+    if(t.failed){ t.cat="—"; t.tr="failed"; t.note=r.fail||"Did not clear; excluded from all totals."; t.pair=null; }
+    else Object.assign(t,classify(t));
+    const k=keyOf({date:t.date,desc:t.desc,amt:t.amt,src:t.src});
+    if(OVR[k]){ t.cat=OVR[k].cat; t.tr=OVR[k].tr; t.edited=true; }
+    return t;
+  }).sort((a,b)=>{
+    const p=s=>s.slice(6,10)+s.slice(0,2)+s.slice(3,5);
+    return p(b.date).localeCompare(p(a.date));
+  });
+  render();
+}
+function trFor(cat){
+  if(cat==="NEEDS REVIEW"||cat==="Personal – not deductible"||cat.includes("Earnest Money")) return "exception";
+  if(cat.startsWith("Internal transfer")) return "transfer";
+  if(cat==="Due to / from related entity") return "intercompany";
+  if(cat==="Owners Distributions"||cat==="Owners Contributions") return "equity";
+  if(cat.includes("principal")) return "exception";
+  return "pl";
+}
+
+// ---------------------------------------------------------------- render
+const $=s=>document.querySelector(s);
+let fTreat="all", fEnt="", fQ="";
+
+function money(n){ const s=Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  return n<0?"("+s+")":s; }
+
+function render(){
+  const live=TX.filter(t=>!t.failed);
+  const ics=live.filter(t=>t.tr==="intercompany").reduce((a,t)=>a+t.amt,0);
+  const exc=live.filter(t=>t.tr==="exception").length;
+  $("#rTotal").textContent=TX.length;
+  $("#rFailed").textContent=TX.filter(t=>t.failed).length;
+  $("#rXfer").textContent=live.filter(t=>t.tr==="transfer").length;
+  const icEl=$("#rIC");
+  icEl.textContent=money(ics); icEl.className=Math.abs(ics)<0.005?"ok":"bad";
+  $("#rExc").textContent=exc; $("#rExc").className=exc?"bad":"ok";
+
+  // entity cards
+  const ents=[...new Set(live.map(t=>t.ent))];
+  $("#entities").innerHTML=ents.map(e=>{
+    const rows=live.filter(t=>t.ent===e);
+    const net=rows.filter(t=>t.tr==="pl").reduce((a,t)=>a+t.amt,0);
+    const ex=rows.filter(t=>t.tr==="exception").length;
+    return `<div class="ent${ex?" warn":""}"><h3>${ENTITIES[e]||e}</h3>
+      <div class="big">${money(net)}</div>
+      <div class="meta">${rows.length} transactions · ${ex} need review</div></div>`;
+  }).join("");
+  const sel=$("#selEntity"), keep=sel.value;
+  sel.innerHTML='<option value="">All entities</option>'+ents.map(e=>`<option value="${e}">${ENTITIES[e]||e}</option>`).join("");
+  sel.value=keep;
+
+  // ledger
+  let view=TX.filter(t=>{
+    if(fTreat==="failed"?!t.failed:(fTreat!=="all"&&(t.failed||t.tr!==fTreat))) return false;
+    if(fEnt&&t.ent!==fEnt) return false;
+    if(fQ){ const b=(t.date+" "+t.desc+" "+t.acct+" "+t.cat+" "+t.amt).toLowerCase();
+      if(!b.includes(fQ)) return false; }
+    return true;
+  });
+  $("#rows").innerHTML=view.length?view.map(t=>{
+    const k=keyOf(t);
+    const opts=CATS.includes(t.cat)?CATS:[t.cat,...CATS];
+    return `<tr class="${t.failed?"failed":""}">
+      <td class="num" style="white-space:nowrap">${t.date}</td>
+      <td><span class="desc">${esc(t.desc)}</span>
+        ${t.memo?`<span class="sub">${esc(t.memo)}</span>`:""}
+        ${t.note?`<span class="note">${esc(t.note)}</span>`:""}</td>
+      <td class="acct">${esc(t.acct)}${t.pair?` <span class="pair">↔ xx${t.pair}</span>`:""}</td>
+      <td class="acct">${t.ent}</td>
+      <td class="${t.edited?"edited":""}">${t.failed?'<span class="acct">—</span>':
+        `<select data-k="${esc(k)}">${opts.map(c=>`<option${c===t.cat?" selected":""}>${esc(c)}</option>`).join("")}</select>`}</td>
+      <td><span class="tag t-${t.tr}">${t.tr==="pl"?"P&amp;L":t.tr}</span></td>
+      <td class="r ${t.amt<0?"neg":""}">${money(t.amt)}</td></tr>`;
+  }).join(""):`<tr><td colspan="7" class="empty">Nothing matches these filters.</td></tr>`;
+  $("#count").textContent=`${view.length} of ${TX.length} transactions shown`;
+
+  // P&L per entity
+  $("#pl").innerHTML=ents.map(e=>{
+    const rows=live.filter(t=>t.ent===e&&t.tr==="pl");
+    const agg={}; rows.forEach(t=>agg[t.cat]=(agg[t.cat]||0)+t.amt);
+    const inc=Object.entries(agg).filter(([,v])=>v>0).sort();
+    const exp=Object.entries(agg).filter(([,v])=>v<=0).sort();
+    const ti=inc.reduce((a,[,v])=>a+v,0), te=exp.reduce((a,[,v])=>a+v,0);
+    const ex=live.filter(t=>t.ent===e&&t.tr==="exception");
+    const exAmt=ex.reduce((a,t)=>a+t.amt,0);
+    return `<div class="panel"><h2>${ENTITIES[e]||e}</h2>
+      <div class="eyebrow" style="margin-bottom:8px">Tax year 2025 · draft</div>
+      <table>${inc.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r">${money(v)}</td></tr>`).join("")}
+      <tr class="tot"><td>Total income</td><td class="r">${money(ti)}</td></tr>
+      ${exp.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r neg">${money(v)}</td></tr>`).join("")}
+      <tr class="tot"><td>Total expenses</td><td class="r${te<0?" neg":""}">${money(te)}</td></tr>
+      <tr class="net"><td>Net</td><td class="r">${money(ti+te)}</td></tr></table>
+      ${ex.length?`<div class="warnbox"><b>${ex.length} items totalling ${money(exAmt)}</b> are held out of
+        this statement until you decide them. Filter to <b>Review</b> to work through them.</div>`:""}
+      </div>`;
+  }).join("");
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---------------------------------------------------------------- events
+$("#rows").addEventListener("change",e=>{
+  const sel=e.target.closest("select"); if(!sel) return;
+  const k=sel.dataset.k, cat=sel.value, tr=trFor(cat);
+  OVR[k]={cat,tr}; saveOvr();
+  const t=TX.find(x=>keyOf(x)===k);
+  if(t){ t.cat=cat; t.tr=tr; t.edited=true; if(tr!=="exception") t.note=""; }
+  render();
+});
+$("#segTreat").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  fTreat=b.dataset.t;
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();
+});
+$("#selEntity").addEventListener("change",e=>{fEnt=e.target.value;render();});
+$("#q").addEventListener("input",e=>{fQ=e.target.value.toLowerCase().trim();render();});
+$("#btnPrint").addEventListener("click",()=>window.print());
+let DL=null;
+claude?.use?.("downloads").then(d=>{ DL=d; if(!d) $("#btnCsv").hidden=true; })
+  .catch(()=>{ $("#btnCsv").hidden=true; });
+
+$("#btnCsv").addEventListener("click",async()=>{
+  const hdr=["Date","Description","Held at","Entity","Category","Treatment","Amount","Note"];
+  const body=TX.map(t=>[t.date,t.desc,t.acct,ENTITIES[t.ent]||t.ent,t.cat,t.tr,t.amt,t.note||""]);
+  const csv=[hdr,...body].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const btn=$("#btnCsv"), label=btn.textContent;
+  if(DL){
+    try{ btn.textContent="Saving\u2026";
+      await DL.save({filename:"books-2025.csv",data:csv});
+      btn.textContent="Saved"; setTimeout(()=>btn.textContent=label,1800);
+    }catch(err){
+      btn.textContent = err?.code==="declined" ? label : "Couldn\u2019t save";
+      setTimeout(()=>btn.textContent=label,2200);
+    }
+    return;
+  }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="books-2025.csv"; a.click(); URL.revokeObjectURL(a.href);
+  btn.textContent=label;
+});
+
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>load([...e.dataTransfer.files]));
+$("#file").addEventListener("change",e=>load([...e.target.files]));
+
+async function load(files){
+  files=files.filter(f=>/\.csv$/i.test(f.name));
+  if(!files.length) return;
+  const raw=[];
+  for(const f of files){
+    for(const r of parseCSV(await f.text())){
+      if(!r["Date (UTC)"]) continue;
+      raw.push({d:r["Date (UTC)"],desc:r["Description"]||"",bank:r["Bank Description"]||"",
+        amt:parseFloat(r["Amount"]||0)||0,src:r["Source Account"]||"",st:r["Status"]||"",
+        mg:r["Category"]||"",fail:r["Failure Reason"]||"",
+        memo:((r["Note"]||r["Reference"]||"").replace(/\s+/g," ").trim())});
+    }
+  }
+  $("#filelist").innerHTML=files.map(f=>`<span class="chip">${esc(f.name)}</span>`).join("");
+  $("#sampleNote").style.display="none";
+  build(raw);
+}
+build(SAMPLE);
+</script>
