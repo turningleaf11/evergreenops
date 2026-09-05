@@ -57,3 +57,9 @@ verify_jwt = false
 # The raw workflow token is never stored in Postgres or exposed to Cash.
 [functions.cash-stage-trigger]
 verify_jwt = false
+
+# Public webhook: Meta/Twilio cannot present a Supabase JWT. Authenticity is
+# established by provider signature verification inside the function, and
+# authorship separately by the inbound_senders allowlist.
+[functions.whatsapp-inbound]
+verify_jwt = false
