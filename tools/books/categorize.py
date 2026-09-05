@@ -25,6 +25,22 @@ RULES = json.loads((HERE / "rules.json").read_text())["rules"]
 
 LAST4 = re.compile(r"xx(\d{4})")
 
+# Sister entities often appear by name rather than account number on the other
+# side of a transfer. Matching these keeps intercompany off the P&L.
+ENTITY_ALIASES = [
+    (re.compile(r"Evergreen Funded Ventures", re.I), "evergreen_funded"),
+    (re.compile(r"Evergreen Creative Home Solutions", re.I), "evergreen_creative"),
+    (re.compile(r"Thor Legacy", re.I), "thor_legacy"),
+    (re.compile(r"1109 Riviera", re.I), "1109_riviera"),
+]
+
+
+def entity_by_name(desc):
+    for pat, ent in ENTITY_ALIASES:
+        if pat.search(desc):
+            return ent
+    return None
+
 
 def entity_of(last4):
     return ACCOUNTS.get(last4, {}).get("entity", "UNKNOWN")
@@ -61,6 +77,12 @@ def classify(row, src_entity):
             return (f"Internal transfer -> {cp_name}", "transfer", "")
         return (f"9000 Intercompany -> {ENTITIES[cp_entity]['label']}", "intercompany",
                 "Excluded from P&L. Needs a due-to/due-from entry on BOTH entities' balance sheets.")
+
+    named = entity_by_name(row.get("Description", ""))
+    if named and named != src_entity:
+        return (f"9000 Intercompany -> {ENTITIES[named]['label']}", "intercompany",
+                "Matched by entity name, not account number. Needs a due-to/due-from "
+                "entry on BOTH entities' balance sheets.")
 
     # Transfers Mercury describes but doesn't give an account number for
     bank = row.get("Bank Description", "")
@@ -180,6 +202,20 @@ def main():
         print(f"  rows {s['rows']:>4}   exceptions {s['exceptions']:>3}   P&L net {s['pl_net']:>14}")
         for t, (n, a) in s["by_treatment"].items():
             print(f"     {t:<14} {n:>4} rows   {a:>14}")
+    # --- self-check: intercompany must net to zero across all entities -------
+    ic = sum(r["amount"] for r in rows if r["treatment"] == "intercompany")
+    print("\n" + "-" * 74)
+    if ic == 0:
+        print(f"INTERCOMPANY RECONCILIATION: balanced (0.00) - every leg has its pair.")
+    else:
+        print(f"INTERCOMPANY RECONCILIATION: OUT BY {ic:.2f}")
+        print("  Intercompany must net to zero across all entities. A non-zero figure")
+        print("  means a transfer leg is missing, double-counted, or mis-attributed.")
+        print("  Rows matched by entity NAME rather than account number are the usual")
+        print("  cause - Mercury labels some counterparties with the organisation name,")
+        print("  which is not the same thing as the entity that owns the money.")
+    print("-" * 74)
+
     print(f"\nFailed/declined transactions excluded: {len(failed)}")
     print(f"\nOutput -> {OUT}")
 

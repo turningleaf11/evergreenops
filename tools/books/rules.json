@@ -1,46 +1,241 @@
 {
   "_comment": "Deterministic payee rules, evaluated in order. First match wins. 'treatment' decides where a row lands: pl = profit & loss, equity/asset/liability = balance sheet only, transfer = excluded entirely, exception = never auto-decided, always routed to a human.",
   "rules": [
-    {"match": "CERTIFIED PROPER",              "account": "4100 Rental Income",            "treatment": "pl",
-     "note": "Property-manager remittance. NET of PM fees - the CPA needs Certified Proper's annual statement to gross up rent and deduct management fees separately."},
-
-    {"match": "MARINA TITLE",                  "account": "4000 Assignment Fee Income",    "treatment": "pl",
-     "note": "Title company wire - 400 Waterside St."},
-
-    {"match": "TITLE GUARANTY",                "account": "PROPERTY DISPOSITION",          "treatment": "exception",
-     "note": "SALE PROCEEDS, NOT REVENUE. Mercury tagged this Revenue and that is wrong. Goes on Form 4797 net of basis and selling costs. Needs the closing statement."},
-
-    {"match": "BEAM MANAGEMENT",               "account": "PASS-THROUGH?",                 "treatment": "exception",
-     "note": "Dreamhomes pass-through. Received AFTER the 1109 sale closed, then swept straight out. Almost certainly not 1109 income. Whose is it?"},
-
-    {"match": "NSM DBAMR|MR.COOPER|MR COOPER", "account": "MORTGAGE PAYMENT",              "treatment": "exception",
-     "note": "Principal + interest + escrow in one payment. ONLY the interest is deductible. Needs Form 1098 from Mr. Cooper to split. Loan is in Luis Vento's name - confirm the subject-to structure."},
-
-    {"match": "Luis Manuel Vento",             "account": "SELLER PAYMENT",                "treatment": "exception",
-     "note": "$458.33/mo to the seller of record on a loan still in his name. Interest? Principal? Lease payment? Mercury guessed 'Employee Benefits' which is certainly wrong."},
-
-    {"match": "Cobblestone 401K Trust",        "account": "3000 Partner Distributions",    "treatment": "equity",
-     "note": "Monthly payments to a partner. If Cobblestone is a LENDER not a partner these are interest expense instead - confirm which."},
-
-    {"match": "Home Equity Real Estate",       "account": "3000 Partner Distributions",    "treatment": "exception",
-     "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"},
-
-    {"match": "Melanie Torres",                "account": "3000 Partner Distributions",    "treatment": "equity",
-     "note": "Partner draw."},
-
-    {"match": "Ronald Poulard",                "account": "RELATED PARTY",                 "treatment": "exception",
-     "note": "Ron is your 50/50 Thor Legacy partner. Labelled '400 Waterside'. Rehab reimbursement, contractor pay (1099!), or partner draw? Three very different answers."},
-
-    {"match": "FPL",                           "account": "6100 Utilities",                "treatment": "pl"},
-    {"match": "Tower Hill Insur",              "account": "6200 Insurance",                "treatment": "pl"},
-    {"match": "Lowe's|LOWES|Home Depot",       "account": "6000 Repairs & Maintenance",    "treatment": "pl"},
-    {"match": "Sergeants Electric",            "account": "6000 Repairs & Maintenance",    "treatment": "pl",
-     "note": "Contractor - check 1099-NEC threshold across the full year."},
-    {"match": "Corporate Filings",             "account": "6300 Legal & Professional",     "treatment": "pl"},
-    {"match": "Florida Division of Corporations|DIV\\*NIC", "account": "6400 Taxes & Licenses", "treatment": "pl"},
-    {"match": "ALLIANT CU",                    "account": "6500 Bank & Merchant Fees",     "treatment": "exception",
-     "note": "Micro-deposit account verification, nets to zero. Noise - confirm and drop."},
-    {"match": "Venmo|PayPal",                  "account": "UNIDENTIFIED PAYEE",            "treatment": "exception",
-     "note": "Payment rail, not a payee. Who actually got paid and what for?"}
+    {
+      "match": "CERTIFIED PROPER",
+      "account": "4100 Rental Income",
+      "treatment": "pl",
+      "note": "Property-manager remittance. NET of PM fees - the CPA needs Certified Proper's annual statement to gross up rent and deduct management fees separately."
+    },
+    {
+      "match": "MARINA TITLE",
+      "account": "4000 Assignment Fee Income",
+      "treatment": "pl",
+      "note": "Title company wire - 400 Waterside St."
+    },
+    {
+      "match": "TITLE GUARANTY",
+      "account": "PROPERTY DISPOSITION",
+      "treatment": "exception",
+      "note": "SALE PROCEEDS, NOT REVENUE. Mercury tagged this Revenue and that is wrong. Goes on Form 4797 net of basis and selling costs. Needs the closing statement."
+    },
+    {
+      "match": "BEAM MANAGEMENT",
+      "account": "PASS-THROUGH?",
+      "treatment": "exception",
+      "note": "Dreamhomes pass-through. Received AFTER the 1109 sale closed, then swept straight out. Almost certainly not 1109 income. Whose is it?"
+    },
+    {
+      "match": "NSM DBAMR|MR.COOPER|MR COOPER",
+      "account": "MORTGAGE PAYMENT",
+      "treatment": "exception",
+      "note": "Principal + interest + escrow in one payment. ONLY the interest is deductible. Needs Form 1098 from Mr. Cooper to split. Loan is in Luis Vento's name - confirm the subject-to structure."
+    },
+    {
+      "match": "Luis Manuel Vento",
+      "account": "SELLER PAYMENT",
+      "treatment": "exception",
+      "note": "$458.33/mo to the seller of record on a loan still in his name. Interest? Principal? Lease payment? Mercury guessed 'Employee Benefits' which is certainly wrong."
+    },
+    {
+      "match": "Cobblestone 401K Trust",
+      "account": "3000 Partner Distributions",
+      "treatment": "equity",
+      "note": "Monthly payments to a partner. If Cobblestone is a LENDER not a partner these are interest expense instead - confirm which."
+    },
+    {
+      "match": "Home Equity Real Estate",
+      "account": "3000 Partner Distributions",
+      "treatment": "exception",
+      "note": "Received a distribution labelled 'partner distribution for sale of property' but this entity was never named as a 1109 partner. Who is this?"
+    },
+    {
+      "match": "Melanie Torres",
+      "account": "3000 Partner Distributions",
+      "treatment": "equity",
+      "note": "Partner draw."
+    },
+    {
+      "match": "Ronald Poulard",
+      "account": "RELATED PARTY",
+      "treatment": "exception",
+      "note": "Ron is your 50/50 Thor Legacy partner. Labelled '400 Waterside'. Rehab reimbursement, contractor pay (1099!), or partner draw? Three very different answers."
+    },
+    {
+      "match": "MARINA TITLE|SCHUTT LAW FIRM|Guardian Legal|J\\. Riley Williams|AMERICAN PATRIOT TITLE, LLC",
+      "account": "4000 Assignment Fee Income",
+      "treatment": "pl",
+      "note": "Inbound from title co / law firm. Confirm each is an assignment fee and not an EMD refund or escrow return."
+    },
+    {
+      "match": "American Patriot Title - Tampa",
+      "account": "1200 Earnest Money Deposit",
+      "treatment": "exception",
+      "note": "EMD paid out $1,500 with $1,475 returning from American Patriot Title. Earnest money is an ASSET until closing, never an expense. Net $25 may be a fee."
+    },
+    {
+      "match": "Loan Aggregator",
+      "account": "DEPOSIT / REFUND?",
+      "treatment": "exception",
+      "note": "$1,650 out and $1,500 back. Deposit refunded, or a fee? Determines whether $150 is an expense."
+    },
+    {
+      "match": "Steve Daria",
+      "account": "5000 Deal Costs - Co-wholesaler Splits",
+      "treatment": "pl",
+      "note": "$15,960 across 4 payments - largest single payee. 1099-NEC candidate."
+    },
+    {
+      "match": "Richie Louis|Ramon Cardona|Genna Rue|Brandon Ashley",
+      "account": "6600 Contract Labor",
+      "treatment": "pl",
+      "note": "Team member. 1099-NEC candidate."
+    },
+    {
+      "match": "Diego Arboleda|Disruptive Innovators",
+      "account": "6600 Contract Labor",
+      "treatment": "pl",
+      "note": "Paid via an LLC - check entity type. 1099 may still be required unless taxed as a corporation."
+    },
+    {
+      "match": "ARC TC Services|The Venture Joint|C4 Infinity|KVARTA",
+      "account": "5100 Deal Costs - Transaction Coordination",
+      "treatment": "pl",
+      "note": "1099-NEC candidate."
+    },
+    {
+      "match": "Tailored Inspections",
+      "account": "5100 Deal Costs - Transaction Coordination",
+      "treatment": "pl"
+    },
+    {
+      "match": "Farr Law",
+      "account": "CROSS-ENTITY MISPOST",
+      "treatment": "exception",
+      "note": "$9,920.17 paid from Evergreen Creative but belongs to Evergreen Funded. Needs a due-to/due-from on BOTH balance sheets - never a silent reclass."
+    },
+    {
+      "match": "Dreamhomes of SE FL",
+      "account": "PASS-THROUGH",
+      "treatment": "exception",
+      "note": "$4,020.63 out of EC, exactly matching the $4,020.63 Beam Management paid INTO the 1109 account. Confirmed pass-through, not EC expense and not 1109 income."
+    },
+    {
+      "match": "Hakim & Zafar|Cpa|CPA",
+      "account": "6300 Legal & Professional",
+      "treatment": "pl"
+    },
+    {
+      "match": "HighLevel|Salesmate|Lovable|Wix|ClickUp|Zapier|Dreamhost|Notion|Google Workspace|Heygen|Airtable|Slack|Canva|OpenAI|Anthropic",
+      "account": "6800 Software & Subscriptions",
+      "treatment": "pl"
+    },
+    {
+      "match": "Facebook|Meta Platforms|Google Ads",
+      "account": "6900 Marketing & Lead Gen",
+      "treatment": "pl"
+    },
+    {
+      "match": "Farm Rio|Uber Eats|Instacart|DoorDash|Grubhub",
+      "account": "PERSONAL / NON-DEDUCTIBLE",
+      "treatment": "exception",
+      "note": "Personal spending from a business account. Owner draw, or substantiate a business purpose. Clothing and food delivery are not deductible by default."
+    },
+    {
+      "match": "United Airlines|Delta Air|American Airlines|Airbnb|Marriott|Hilton",
+      "account": "7000 Travel",
+      "treatment": "exception",
+      "note": "Travel is deductible only with a documented business purpose. Needs substantiation."
+    },
+    {
+      "match": "Alliant CU Visa|AMEX EPAYMENT|CHASE CREDIT|CAPITAL ONE",
+      "account": "PERSONAL CARD PAYMENT",
+      "treatment": "exception",
+      "note": "Credit card payment from a business account. Not an expense - it settles a card whose individual charges are the real expenses. Owner draw unless the card is a business card already booked."
+    },
+    {
+      "match": "WISE US INC|Wise Inc",
+      "account": "6600 Contract Labor",
+      "treatment": "exception",
+      "note": "International transfer rail. Who was paid? Foreign contractors need W-8BEN, not 1099."
+    },
+    {
+      "match": "Amazon",
+      "account": "6950 Office & Supplies",
+      "treatment": "exception",
+      "note": "27 charges. Amazon mixes business supplies and personal - needs a line-by-line pass or a blanket allocation agreed with the CPA."
+    },
+    {
+      "match": "PayPal",
+      "account": "UNIDENTIFIED PAYEE",
+      "treatment": "exception",
+      "note": "27 charges through a payment rail. PayPal is not a payee - the underlying merchants are."
+    },
+    {
+      "match": "Supportsignow|Fiverr|Typeform|DealCheck|Figma|ElevenLabs|Squarespace|Midjourney|OnlineJobs\\.PH|Anytime Mailbox",
+      "account": "6800 Software & Subscriptions",
+      "treatment": "pl"
+    },
+    {
+      "match": "Wyoming Secretary of State",
+      "account": "6400 Taxes & Licenses",
+      "treatment": "exception",
+      "note": "A WYOMING filing fee. You named four Florida LLCs. Which entity is registered in Wyoming - or is there a fifth?"
+    },
+    {
+      "match": "Contrarian Thinking|Michael Blank Brands|Squadup Summit",
+      "account": "6960 Education & Events",
+      "treatment": "pl",
+      "note": "Business education - deductible if related to the existing trade or business."
+    },
+    {
+      "match": "TOMS",
+      "account": "PERSONAL / NON-DEDUCTIBLE",
+      "treatment": "exception",
+      "note": "Footwear. Personal unless substantiated."
+    },
+    {
+      "match": "FPL",
+      "account": "6100 Utilities",
+      "treatment": "pl"
+    },
+    {
+      "match": "Tower Hill Insur",
+      "account": "6200 Insurance",
+      "treatment": "pl"
+    },
+    {
+      "match": "Lowe's|LOWES|Home Depot",
+      "account": "6000 Repairs & Maintenance",
+      "treatment": "pl"
+    },
+    {
+      "match": "Sergeants Electric",
+      "account": "6000 Repairs & Maintenance",
+      "treatment": "pl",
+      "note": "Contractor - check 1099-NEC threshold across the full year."
+    },
+    {
+      "match": "Corporate Filings",
+      "account": "6300 Legal & Professional",
+      "treatment": "pl"
+    },
+    {
+      "match": "Florida Division of Corporations|DIV\\*NIC",
+      "account": "6400 Taxes & Licenses",
+      "treatment": "pl"
+    },
+    {
+      "match": "ALLIANT CU",
+      "account": "6500 Bank & Merchant Fees",
+      "treatment": "exception",
+      "note": "Micro-deposit account verification, nets to zero. Noise - confirm and drop."
+    },
+    {
+      "match": "Venmo|PayPal",
+      "account": "UNIDENTIFIED PAYEE",
+      "treatment": "exception",
+      "note": "Payment rail, not a payee. Who actually got paid and what for?"
+    }
   ]
 }

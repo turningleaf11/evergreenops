@@ -1,26 +1,128 @@
 {
   "_comment": "Mercury account -> entity map. Keyed by last four digits. THIS FILE IS THE FOUNDATION: every downstream classification depends on it being right. 'org' is which Mercury organization the account physically lives under, which is NOT always the entity that owns the money (1109 Riviera accounts sit under Evergreen Creative because EC was trustee).",
   "accounts": {
-    "9726": {"name": "1109 Riviera, LLC",              "org": "evergreen_creative", "entity": "1109_riviera"},
-    "5526": {"name": "1109 Riviera, LLC - Mnt & CapEx","org": "evergreen_creative", "entity": "1109_riviera"},
-    "1139": {"name": "Melanie - 1109",                 "org": "evergreen_creative", "entity": "1109_riviera"},
-    "9978": {"name": "Tilisa - 1109 - QTRLY",          "org": "evergreen_creative", "entity": "1109_riviera"},
-    "6662": {"name": "Deposits 1109 Riviera",          "org": "evergreen_creative", "entity": "1109_riviera"},
-    "1001": {"name": "Evergreen Savings",              "org": "evergreen_creative", "entity": "evergreen_creative"},
-    "2184": {"name": "1109 Riviera LLC - Checking",    "org": "1109_riviera",       "entity": "1109_riviera"},
-    "2468": {"name": "1109 Riviera LLC - Savings",     "org": "1109_riviera",       "entity": "1109_riviera"},
-    "8281": {"name": "400 Waterside St.",              "org": "evergreen_funded",   "entity": "evergreen_funded"},
-    "8105": {"name": "Evergreen Funded Ops",           "org": "evergreen_funded",   "entity": "evergreen_funded"},
-    "4004": {"name": "HOI Account",                    "org": "evergreen_funded",   "entity": "evergreen_funded"},
-    "6007": {"name": "EG Funded Transactions",         "org": "evergreen_funded",   "entity": "evergreen_funded"},
-    "2382": {"name": "Evergreen Funded - Savings",     "org": "evergreen_funded",   "entity": "evergreen_funded"},
-    "3089": {"name": "UNIDENTIFIED - needs Autumn",    "org": "UNKNOWN",            "entity": "UNKNOWN"}
+    "9726": {
+      "name": "1109 Riviera, LLC",
+      "org": "evergreen_creative",
+      "entity": "1109_riviera"
+    },
+    "5526": {
+      "name": "1109 Riviera, LLC - Mnt & CapEx",
+      "org": "evergreen_creative",
+      "entity": "1109_riviera"
+    },
+    "1139": {
+      "name": "Melanie - 1109",
+      "org": "evergreen_creative",
+      "entity": "1109_riviera"
+    },
+    "9978": {
+      "name": "Tilisa - 1109 - QTRLY",
+      "org": "evergreen_creative",
+      "entity": "1109_riviera"
+    },
+    "6662": {
+      "name": "Deposits 1109 Riviera",
+      "org": "evergreen_creative",
+      "entity": "1109_riviera"
+    },
+    "1001": {
+      "name": "Evergreen Savings",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "2184": {
+      "name": "1109 Riviera LLC - Checking",
+      "org": "1109_riviera",
+      "entity": "1109_riviera"
+    },
+    "2468": {
+      "name": "1109 Riviera LLC - Savings",
+      "org": "1109_riviera",
+      "entity": "1109_riviera"
+    },
+    "8281": {
+      "name": "400 Waterside St.",
+      "org": "evergreen_funded",
+      "entity": "evergreen_funded"
+    },
+    "8105": {
+      "name": "Evergreen Funded Ops",
+      "org": "evergreen_funded",
+      "entity": "evergreen_funded"
+    },
+    "4004": {
+      "name": "HOI Account",
+      "org": "evergreen_funded",
+      "entity": "evergreen_funded"
+    },
+    "6007": {
+      "name": "EG Funded Transactions",
+      "org": "evergreen_funded",
+      "entity": "evergreen_funded"
+    },
+    "2382": {
+      "name": "Evergreen Funded - Savings",
+      "org": "evergreen_funded",
+      "entity": "evergreen_funded"
+    },
+    "3089": {
+      "name": "Evergreen Checking",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "2459": {
+      "name": "Evergreen Operations",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "5063": {
+      "name": "Team Payout",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "6371": {
+      "name": "REI Event Sponsorships",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "1101": {
+      "name": "Team Profits",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "7521": {
+      "name": "Evergreen Wires",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    },
+    "3026": {
+      "name": "Owner Draw",
+      "org": "evergreen_creative",
+      "entity": "evergreen_creative"
+    }
   },
   "entities": {
-    "1109_riviera":       {"label": "1109 Riviera, LLC",                     "final_year": true},
-    "evergreen_creative": {"label": "Evergreen Creative Home Solutions, LLC","final_year": false},
-    "evergreen_funded":   {"label": "Evergreen Funded Ventures, LLC",        "final_year": false},
-    "thor_legacy":        {"label": "Thor Legacy Enterprises, LLC",          "final_year": false},
-    "UNKNOWN":            {"label": "UNIDENTIFIED ACCOUNT",                  "final_year": false}
-  }
+    "1109_riviera": {
+      "label": "1109 Riviera, LLC",
+      "final_year": true
+    },
+    "evergreen_creative": {
+      "label": "Evergreen Creative Home Solutions, LLC",
+      "final_year": false
+    },
+    "evergreen_funded": {
+      "label": "Evergreen Funded Ventures, LLC",
+      "final_year": false
+    },
+    "thor_legacy": {
+      "label": "Thor Legacy Enterprises, LLC",
+      "final_year": false
+    },
+    "UNKNOWN": {
+      "label": "UNIDENTIFIED ACCOUNT",
+      "final_year": false
+    }
+  },
+  "_confirmed": "Autumn 2026-09-05: all 1109 sub-accounts held under the Evergreen Creative Mercury org belong to 1109 Riviera, LLC. EC was trustee; the trust's beneficiary was 1109 Riviera, LLC, so the profits are 1109's."
 }
