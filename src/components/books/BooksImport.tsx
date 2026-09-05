@@ -13,6 +13,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import type { BookBankAccount } from "@/hooks/useBooks";
+import type { Database } from "@/integrations/supabase/types";
+
+// The generated Insert type, so a renamed or retyped column fails here rather
+// than at Postgres with a row already half-imported.
+type TransactionInsert = Database["public"]["Tables"]["book_transactions"]["Insert"];
 
 interface Props {
   bankAccounts: BookBankAccount[];
@@ -100,7 +105,7 @@ export default function BooksImport({ bankAccounts, onImported }: Props) {
           continue;
         }
 
-        const payload: Record<string, unknown>[] = [];
+        const payload: TransactionInsert[] = [];
         const unmapped = new Set<string>();
 
         for (const r of rows) {

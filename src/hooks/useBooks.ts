@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 export interface BookEntity {
   id: string;
@@ -235,19 +236,51 @@ export function money(n: number | string) {
   return v < 0 ? `(${s})` : s;
 }
 
+export interface RuleSplit {
+  account_id: string;
+  percent?: number;
+  amount?: number;
+  memo?: string;
+}
+
 export interface BookRule {
   id: string;
   entity_id: string | null;
   match_pattern: string;
   match_field: "description" | "bank_description" | "memo" | "both";
   priority: number;
-  splits: { account_id: string; percent?: number; amount?: number; memo?: string }[];
+  splits: RuleSplit[];
   treatment: "post" | "review" | "transfer" | "intercompany" | "exclude";
   note: string | null;
   hit_count: number;
   last_hit_at: string | null;
   confidence: number;
   is_active: boolean;
+}
+
+type BookRuleRow = Database["public"]["Tables"]["book_rules"]["Row"];
+
+/**
+ * splits is jsonb, so the database stores the shape without policing it. This
+ * is the one place that assumption lives — everything downstream can trust the
+ * type. A row whose splits are not an array reads as no splits rather than
+ * crashing the panel, and the rules engine refuses to post a rule with none.
+ */
+function toRule(row: BookRuleRow): BookRule {
+  return {
+    id: row.id,
+    entity_id: row.entity_id,
+    match_pattern: row.match_pattern,
+    match_field: row.match_field as BookRule["match_field"],
+    priority: row.priority,
+    splits: Array.isArray(row.splits) ? (row.splits as unknown as RuleSplit[]) : [],
+    treatment: row.treatment as BookRule["treatment"],
+    note: row.note,
+    hit_count: row.hit_count,
+    last_hit_at: row.last_hit_at,
+    confidence: row.confidence,
+    is_active: row.is_active,
+  };
 }
 
 export interface RuleOutcome {
@@ -272,7 +305,7 @@ export function useBookRules(reloadKey = 0) {
         .order("hit_count", { ascending: false })
         .order("priority");
       if (cancelled) return;
-      setRules((data as BookRule[]) ?? []);
+      setRules((data ?? []).map(toRule));
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -303,9 +336,21 @@ export async function previewRule(ruleId: string, limit = 25) {
 }
 
 export async function saveRule(rule: Partial<BookRule> & { workspace_id?: string }) {
+  // splits goes back as jsonb; everything else maps across unchanged.
+  const row = {
+    entity_id: rule.entity_id ?? null,
+    match_pattern: rule.match_pattern ?? "",
+    match_field: rule.match_field ?? "description",
+    priority: rule.priority ?? 100,
+    splits: (rule.splits ?? []) as unknown as Json,
+    treatment: rule.treatment ?? "review",
+    note: rule.note ?? null,
+    is_active: rule.is_active ?? true,
+  };
+
   const { error } = rule.id
-    ? await supabase.from("book_rules").update(rule).eq("id", rule.id)
-    : await supabase.from("book_rules").insert(rule);
+    ? await supabase.from("book_rules").update(row).eq("id", rule.id)
+    : await supabase.from("book_rules").insert({ ...row, workspace_id: rule.workspace_id! });
   if (error) throw new Error(error.message);
 }
 
