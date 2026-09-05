@@ -14,9 +14,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+// Every shape below is a `type`, never an `interface`, and that is load-bearing.
+// supabase-js requires each Row to satisfy `Record<string, unknown>`; TypeScript
+// gives type aliases an implicit index signature and interfaces none, so an
+// interface here fails the constraint, the schema resolves to `never`, and every
+// call site reports "not assignable to parameter of type 'never'" with no hint
+// that the schema type is what broke.
 type Timestamps = { created_at: string };
 
-interface BookEntityRow extends Timestamps {
+type BookEntityRow = Timestamps & {
   id: string;
   workspace_id: string;
   name: string;
@@ -27,7 +33,7 @@ interface BookEntityRow extends Timestamps {
   notes: string | null;
 }
 
-interface BookAccountRow extends Timestamps {
+type BookAccountRow = Timestamps & {
   id: string;
   workspace_id: string;
   entity_id: string | null;
@@ -40,7 +46,7 @@ interface BookAccountRow extends Timestamps {
   is_active: boolean;
 }
 
-interface BookBankAccountRow extends Timestamps {
+type BookBankAccountRow = Timestamps & {
   id: string;
   workspace_id: string;
   entity_id: string;
@@ -51,7 +57,7 @@ interface BookBankAccountRow extends Timestamps {
   is_active: boolean;
 }
 
-interface BookTransactionRow extends Timestamps {
+type BookTransactionRow = Timestamps & {
   id: string;
   workspace_id: string;
   entity_id: string;
@@ -71,7 +77,7 @@ interface BookTransactionRow extends Timestamps {
   external_id: string | null;
 }
 
-interface BookRuleRow extends Timestamps {
+type BookRuleRow = Timestamps & {
   id: string;
   workspace_id: string;
   entity_id: string | null;
@@ -88,7 +94,7 @@ interface BookRuleRow extends Timestamps {
   is_active: boolean;
 }
 
-interface TrialBalanceRow {
+type TrialBalanceRow = {
   entity_id: string;
   fiscal_year: number;
   account_id: string;
@@ -104,7 +110,7 @@ interface TrialBalanceRow {
 type Table<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 type View<Row> = { Row: Row; Relationships: [] };
 
-export interface BooksDatabase {
+export type BooksDatabase = {
   // supabase-js reads this to pick the right Postgrest overloads; without it the
   // client falls back to a shape where every table name resolves to `never`.
   __InternalSupabase: { PostgrestVersion: "14.5" };
