@@ -11622,6 +11622,16 @@ export type Database = {
         }
         Returns: string
       }
+      book_post_internal_transfers: {
+        Args: { _dry_run?: boolean }
+        Returns: {
+          action: string
+          amount: number
+          detail: string
+          sibling_id: string
+          txn_id: string
+        }[]
+      }
       book_post_transaction: {
         Args: {
           _memo?: string
@@ -11641,6 +11651,18 @@ export type Database = {
         Returns: {
           amount: number
           description: string
+          txn_date: string
+          txn_id: string
+        }[]
+      }
+      book_transfer_candidates: {
+        Args: never
+        Returns: {
+          amount: number
+          bank_account_id: string
+          cp_bank_account_id: string
+          cp_entity_id: string
+          entity_id: string
           txn_date: string
           txn_id: string
         }[]
