@@ -105,6 +105,9 @@ type Table<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relati
 type View<Row> = { Row: Row; Relationships: [] };
 
 export interface BooksDatabase {
+  // supabase-js reads this to pick the right Postgrest overloads; without it the
+  // client falls back to a shape where every table name resolves to `never`.
+  __InternalSupabase: { PostgrestVersion: "14.5" };
   public: {
     Tables: {
       book_entities: Table<BookEntityRow>;
