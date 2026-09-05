@@ -1,174 +1,112 @@
-# How code gets from a Claude session to production
+# Deploys — who does what
 
-Written for Autumn. No prior knowledge assumed. If you only read one section,
-read **The four rules**.
+Autumn does not manage branches, pull requests, merge order, or deploy
+failures. Claude does. This page exists so she can see how it works if she
+wants to, not so she has to.
 
----
+**The entire interface is one question and one answer.**
 
-## The short version
+> Claude: "Marquetta's database tables are ready — new content tables plus a fix
+> to the deploy pipeline. Nothing visible in the app changes yet. Merge to main?"
+>
+> Autumn: "yes"
 
-Work happens on a **branch** — a private copy of the codebase. Nothing on a
-branch affects the live app, no matter how finished it looks. Work becomes real
-when the branch is **merged into `main`**, which is the one official copy.
-
-Merging to `main` is the moment something goes live. That is the decision that
-belongs to you. Everything before it is reversible; everything after it is
-running.
-
-```
-Claude session  ──►  branch  ──►  you approve  ──►  main  ──►  robot deploys it
-                     (safe)        (the moment)      (live)
-```
+Everything after that is Claude's job, including watching the deploy and fixing
+it if it breaks.
 
 ---
 
-## The pieces, in plain language
+## What Claude owns, without asking
 
-**Branch.** A named workspace, e.g. `claude/content-strategy-automation-ir5d5e`.
-Each Claude session gets its own. Two sessions on two branches cannot break each
-other's work. A branch can be abandoned with no consequences.
+- Creating and naming branches
+- Opening pull requests, if one is warranted
+- Deciding merge order when more than one session is in flight, and coordinating
+  it with the other session directly
+- Running the merge once approved
+- Watching the deploy to green
+- Diagnosing and fixing a red deploy
+- Telling Autumn, in plain terms, if something needs her
 
-**`main`.** The official version. What `main` says is what the business runs.
+Claude does **not** ask Autumn about branch names, merge order, PR mechanics, or
+anything requiring GitHub knowledge. If two sessions need sequencing, the
+sessions sort it out between themselves and Autumn hears the outcome, not the
+negotiation.
 
-**Merge.** Copying a branch's changes into `main`. This is the go-live step.
+## What Autumn owns
 
-**Pull request (PR).** A page on GitHub showing what a branch would change, with
-a button to merge it. It's the review step before the go-live step.
+One decision: **should this go live now?**
 
-**CI / "the workflow" / "the deploy".** A robot that watches `main`. When
-something lands there, it does the work of putting it live. It is not
-intelligent — it follows a script and stops if the script says stop.
-
-**Migration.** A file that changes the *database's shape* — adds a table, adds a
-column. Ordinary code changes behavior; a migration changes structure. This is
-why they get special treatment below.
+That is a business call — is the work right, is this the moment — and it stays
+hers. "Push to main", "ship it", "yes" all mean the same thing: go.
 
 ---
 
-## What happens automatically, and what doesn't
+## What actually happens on a merge
 
-When something merges into `main` and touches `supabase/**`, the Deploy Supabase
-workflow runs on its own and:
+Work happens on a branch, which is a private copy that affects nothing. Merging
+copies it into `main`, the official version, and that is the moment it becomes
+real.
 
-1. Checks that the database's record of what it has run matches the repo
-2. Applies any new migrations
+When something lands on `main` that touches `supabase/**`, a robot runs
+automatically and:
+
+1. Checks the database's record of what it has run against the repo
+2. Applies any new database migrations
 3. Redeploys the edge functions (daily-briefing, ceo-triage, cadences-generate,
    agent-gateway, agent-gateway-mcp)
 
-**Nothing else is automatic.** Installing an agent skill into Albus's container,
-rotating a credential, moving a video into Drive — those are still done by hand
-and nobody is reminded to do them.
+Nothing else is automatic. Installing an agent skill into Albus's container,
+rotating a credential, moving files into Drive — those are still done by hand,
+and Claude has to say so at merge time rather than letting them go quiet.
 
 ---
 
-## Why migrations are the fussy part
+## Why migrations get extra care
 
-The database keeps its own list of every migration it has already run, called
-the ledger. A migration file is named with a timestamp — `20260905180000_…` —
-and that timestamp is its ID in the ledger.
+Most code changes behavior and can be undone by shipping a correction. A
+**migration** changes the database's structure — adds a table, adds a column —
+and undoing one is genuinely hard once real data is sitting in it. Accounting
+records make that sharper than usual.
 
-The rule the robot enforces: **the repo and the ledger must agree.** Comparing
-them gives three possible states.
+The database keeps a ledger of every migration it has run. The repo and the
+ledger must agree. Three states are possible:
 
-| State | What it means | What happens |
+| State | Meaning | Result |
 |---|---|---|
-| In both | Already applied | Nothing. Fine. |
-| **In the repo only** | Written but not run yet — a *pending* migration | The robot applies it. This is normal. |
-| **In the database only** | Production ran something the repo doesn't have | **Stop.** The repo is no longer the truth. |
+| In both | Already applied | Fine |
+| Repo only | Written, not yet run — *pending* | The robot applies it. Normal. |
+| Database only | Production ran something the repo lacks | **Drift.** Deploy stops. |
 
-That last row is the dangerous one. It means the live database has structure
-nobody can reproduce — you couldn't rebuild it from the code, and the next
-person to touch it is working blind.
+Drift means the live database has structure nobody can reproduce from the code.
+It is caused by applying a migration directly instead of merging — which is
+tempting because it works instantly, and which Supabase's `apply_migration` makes
+worse by assigning its own timestamp and not saying which one it picked.
 
-**How that happens (this is the trap):** a session can apply a migration
-directly to the database instead of going through `main`. It's tempting because
-it works instantly. But the Supabase tool that does it *assigns its own
-timestamp* and doesn't say which one it picked — so the file says one ID, the
-ledger says another, and now they disagree in two ways at once. Both sessions
-hit this today.
+**The rule for every Claude session: migrations reach production by merging,
+never by hand.** If it happens anyway, read the real version back from
+`supabase_migrations.schema_migrations` and rename the file to match immediately.
 
 ---
 
-## The four rules
+## If a deploy goes red
 
-**1. Migrations reach production by merging, never by hand.**
-Applying directly is the single thing that causes the mess above. If it ever
-happens anyway, read the real version back immediately and rename the file to
-match:
+Claude's problem, not Autumn's. The expected behavior is: diagnose it, fix it,
+push the fix, confirm green, and only then report — mentioning it at all only
+because a red deploy means the work is not actually live yet.
 
-```sql
-select version, name from supabase_migrations.schema_migrations
- order by version desc limit 5;
-```
-
-**2. If a change fixes the deploy process itself, it merges together with the
-work that needs it.** A fix sitting on a branch protects nothing. This is the
-one that caught us: the workflow couldn't deploy new migrations at all, so the
-fix and the first migration to need it had to be in the same merge. Merge order
-alone would not have solved it.
-
-**3. Merge order only matters when one branch depends on another.**
-Most of the time it doesn't matter at all — two sessions touching different
-files can merge in either order. It matters when one branch's work needs the
-other's to already be there. **When it matters, whichever Claude session raised
-it will tell you.** You are not expected to work this out yourself.
-
-**4. If the deploy goes red, don't merge more on top.**
-A failed deploy is the robot refusing to make things worse. Ask the session that
-merged what it means. Stacking another merge on a red deploy turns one problem
-into two tangled ones.
+Claude should not stack another merge on top of a red deploy, and should not
+report work as shipped while the deploy is failing.
 
 ---
 
-## Your actual checklist
-
-When a session says work is ready:
-
-1. **Ask what it changes** — one line, in plain terms.
-2. **Ask what needs to be true first.** ("Does anything have to merge before
-   this?") If nothing, order doesn't matter.
-3. **Merge it.**
-4. **Check the deploy went green.** GitHub → Actions tab → the run at the top.
-   Green tick: done. Red X: rule 4.
-5. **Ask if anything manual is left.** Skill installs, credentials, Drive
-   uploads — these do not happen on their own.
-
-When two sessions are running at once:
-
-- Ask each one whether its work depends on the other's. Usually the answer is
-  no, and you merge them in whatever order you like.
-- If either says yes, merge in the order they give you.
-- After the first merge, tell the second session it landed, so it can pull the
-  changes in before continuing.
-
----
-
-## Questions worth asking a session, any time
-
-- "Is this on a branch or is it live?"
-- "What breaks if we don't merge this today?"
-- "Has this been tested, or only written?"
-- "Is there anything I have to do by hand after merging?"
-
-A good answer to the third one names what was actually run. "It typechecks" and
-"I executed it against a scratch database and here are the results" are very
-different claims, and you're entitled to the second one for anything touching
-the database.
-
----
-
-## Vocabulary, one line each
+## Vocabulary, if it ever comes up
 
 | Term | Meaning |
 |---|---|
-| Branch | A private copy of the code. Safe. |
-| `main` | The official copy. Live. |
+| Branch | A private copy of the code. Affects nothing. |
+| `main` | The official copy. What the business runs. |
 | Merge | Moving branch work into `main`. The go-live moment. |
-| PR (pull request) | The review page with the merge button. |
-| Commit | One saved chunk of work, with a message explaining it. |
-| CI / workflow / Actions | The robot that deploys when `main` changes. |
+| PR (pull request) | A review page with a merge button. |
+| CI / Actions / "the deploy" | The robot that ships when `main` changes. |
 | Migration | A file that changes the database's shape. |
-| Ledger (`schema_migrations`) | The database's list of migrations it has run. |
-| Pending | Written, committed, not yet applied. Normal. |
-| Drift | Production and the repo disagree. Not normal. Stop. |
-| Rollback | Undoing a deploy. Easy for code, hard for migrations — which is why migrations get this much care. |
+| Drift | Production and the repo disagree. Stop and fix. |
