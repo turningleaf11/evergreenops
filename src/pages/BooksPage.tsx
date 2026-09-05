@@ -15,6 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BooksImport from "@/components/books/BooksImport";
 import CategorizeSheet from "@/components/books/CategorizeSheet";
+import RulesPanel from "@/components/books/RulesPanel";
 import {
   useBooksSetup, useBookTransactions, useBookCounts, useTrialBalance, money,
   type BookTransaction,
@@ -97,6 +98,7 @@ export default function BooksPage() {
           <TabsTrigger value="review">
             Review{counts.needsReview > 0 && ` (${counts.needsReview})`}
           </TabsTrigger>
+          <TabsTrigger value="rules">Rules</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
         </TabsList>
@@ -237,6 +239,16 @@ export default function BooksPage() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* ----------------------------------------------------------- rules */}
+        <TabsContent value="rules" className="mt-4">
+          <RulesPanel
+            entities={entities}
+            accounts={accounts}
+            entityName={entityName}
+            onChanged={refresh}
+          />
         </TabsContent>
 
         {/* ---------------------------------------------------------- import */}

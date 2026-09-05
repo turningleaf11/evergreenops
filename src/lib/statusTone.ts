@@ -25,7 +25,8 @@ export type EntityKind =
   | "thread" | "buyer_interest" | "deal_stage" | "business_plan"
   | "market" | "market_rating"
   | "deal_room" | "dd_item" | "deal_room_risk" | "deal_room_investor"
-  | "book_review";
+  | "book_review"
+  | "book_rule";
 
 interface Tone { hsl: string; label: string; }
 
@@ -212,13 +213,23 @@ const BOOK_REVIEW: Record<string, Tone> = {
   excluded:     tone("neutral", "Excluded"),
 };
 
+// What a rule does when it matches. 'post' is the only one that writes to the
+// ledger unattended, so it is the only one wearing the confident color.
+const BOOK_RULE: Record<string, Tone> = {
+  post:         tone("success", "Posts"),
+  review:       tone("warning", "Holds for review"),
+  transfer:     tone("neutral", "Internal transfer"),
+  exclude:      tone("neutral", "Excludes"),
+  intercompany: tone("accent", "Intercompany"),
+};
+
 const REGISTRY: Record<EntityKind, Record<string, Tone>> = {
   goal: GOAL, project: PROJECT, task: TASK, issue: ISSUE,
   deal: DEAL, lead: LEAD, transaction: TRANSACTION, contact: CONTACT,
   thread: THREAD, buyer_interest: BUYER_INTEREST, deal_stage: DEAL_STAGE,
   business_plan: BUSINESS_PLAN, market: MARKET, market_rating: MARKET_RATING,
   deal_room: DEAL_ROOM, dd_item: DD_ITEM, deal_room_risk: DEAL_ROOM_RISK,
-  deal_room_investor: DEAL_ROOM_INVESTOR, book_review: BOOK_REVIEW,
+  deal_room_investor: DEAL_ROOM_INVESTOR, book_review: BOOK_REVIEW, book_rule: BOOK_RULE,
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────
