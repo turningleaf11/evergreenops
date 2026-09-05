@@ -58,3 +58,6 @@ jobs:
 
       - name: Deploy Agent Gateway MCP adapter
         run: supabase functions deploy agent-gateway-mcp --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Deploy inbound WhatsApp webhook
+        run: supabase functions deploy whatsapp-inbound --project-ref "$SUPABASE_PROJECT_ID"
