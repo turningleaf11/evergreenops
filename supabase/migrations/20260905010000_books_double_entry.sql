@@ -369,6 +369,18 @@ group by l.workspace_id, e.entity_id, l.partner_id, p.name, 5;
 
 -- --------------------------------------------------------------------- RLS
 
+-- Books are CEO-only. This is deliberately stricter than the rest of OpsHQ,
+-- where the house policy is "any authenticated user". Team members have OpsHQ
+-- accounts; none of them should see partner distributions, capital accounts,
+-- owner draws, or entity-level profitability.
+--
+-- is_primary_admin() resolves to the single user_roles row with role = 'admin'
+-- and is_primary = true. A second admin who is not primary does not qualify.
+--
+-- Caveat worth knowing: the Supabase service_role key bypasses RLS entirely.
+-- Any edge function touching these tables must therefore do its own check
+-- rather than relying on these policies.
+
 alter table public.book_entities         enable row level security;
 alter table public.book_partners         enable row level security;
 alter table public.book_entity_partners  enable row level security;
@@ -380,13 +392,43 @@ alter table public.book_transactions     enable row level security;
 alter table public.book_journal_entries  enable row level security;
 alter table public.book_journal_lines    enable row level security;
 
-create policy "book_entities authenticated all"        on public.book_entities        for all to authenticated using (true) with check (true);
-create policy "book_partners authenticated all"        on public.book_partners        for all to authenticated using (true) with check (true);
-create policy "book_entity_partners authenticated all" on public.book_entity_partners for all to authenticated using (true) with check (true);
-create policy "book_accounts authenticated all"        on public.book_accounts        for all to authenticated using (true) with check (true);
-create policy "book_bank_accounts authenticated all"   on public.book_bank_accounts   for all to authenticated using (true) with check (true);
-create policy "book_periods authenticated all"         on public.book_periods         for all to authenticated using (true) with check (true);
-create policy "book_rules authenticated all"           on public.book_rules           for all to authenticated using (true) with check (true);
-create policy "book_transactions authenticated all"    on public.book_transactions    for all to authenticated using (true) with check (true);
-create policy "book_journal_entries authenticated all" on public.book_journal_entries for all to authenticated using (true) with check (true);
-create policy "book_journal_lines authenticated all"   on public.book_journal_lines   for all to authenticated using (true) with check (true);
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'book_entities','book_partners','book_entity_partners','book_accounts',
+    'book_bank_accounts','book_periods','book_rules','book_transactions',
+    'book_journal_entries','book_journal_lines'
+  ] loop
+    execute format(
+      'create policy %I on public.%I for all to authenticated '
+      'using (public.is_primary_admin(auth.uid())) '
+      'with check (public.is_primary_admin(auth.uid()))',
+      t || ' primary admin only', t);
+  end loop;
+end $$;
+
+-- Grants are stated explicitly rather than left to default privileges, so the
+-- restriction is enforced by the policies above (which name the CEO) and not
+-- by an accident of who happened to be granted what.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'book_entities','book_partners','book_entity_partners','book_accounts',
+    'book_bank_accounts','book_periods','book_rules','book_transactions',
+    'book_journal_entries','book_journal_lines'
+  ] loop
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+  end loop;
+end $$;
+
+grant select on public.book_trial_balance      to authenticated;
+grant select on public.book_intercompany_check to authenticated;
+grant select on public.book_partner_capital    to authenticated;
+
+-- The views read the tables above, so they inherit the same restriction only
+-- if they do not run as their owner. Force invoker rights explicitly.
+alter view public.book_trial_balance      set (security_invoker = true);
+alter view public.book_intercompany_check set (security_invoker = true);
+alter view public.book_partner_capital    set (security_invoker = true);
