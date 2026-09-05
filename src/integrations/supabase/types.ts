@@ -604,6 +604,9 @@ export type Database = {
           goal_id: string | null
           id: string
           is_system_task: boolean
+          lease_count: number
+          leased_by: string | null
+          leased_until: string | null
           notes: string | null
           priority: string
           project_id: string | null
@@ -632,6 +635,9 @@ export type Database = {
           goal_id?: string | null
           id?: string
           is_system_task?: boolean
+          lease_count?: number
+          leased_by?: string | null
+          leased_until?: string | null
           notes?: string | null
           priority?: string
           project_id?: string | null
@@ -660,6 +666,9 @@ export type Database = {
           goal_id?: string | null
           id?: string
           is_system_task?: boolean
+          lease_count?: number
+          leased_by?: string | null
+          leased_until?: string | null
           notes?: string | null
           priority?: string
           project_id?: string | null
@@ -11589,6 +11598,43 @@ export type Database = {
           reset_at: string
         }[]
       }
+      agent_task_claim_next: {
+        Args: {
+          p_agent_slug: string
+          p_lease_seconds?: number
+          p_workspace_id: string
+        }
+        Returns: {
+          context: Json
+          description: string
+          leased_until: string
+          priority: string
+          task_id: string
+          task_type: string
+          title: string
+        }[]
+      }
+      agent_task_claimable_statuses: { Args: never; Returns: string[] }
+      agent_task_extend_lease: {
+        Args: {
+          p_agent_slug: string
+          p_lease_seconds?: number
+          p_task_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
+      agent_task_submit_result: {
+        Args: {
+          p_agent_slug: string
+          p_error?: string
+          p_result: string
+          p_status?: string
+          p_task_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       api_token_touch: { Args: { _token_id: string }; Returns: undefined }
       block_cash_sfr_needs_info_work_item: {
         Args: { _work_item_id: string; _workspace_id: string }
@@ -11722,6 +11768,21 @@ export type Database = {
           _workspace_id: string
         }
         Returns: boolean
+      }
+      content_capture_list_task_events: {
+        Args: {
+          p_agent_slug: string
+          p_limit?: number
+          p_since?: string
+          p_workspace_id: string
+        }
+        Returns: {
+          completed_at: string
+          headline: string
+          source_ref: string
+          summary: string
+          task_type: string
+        }[]
       }
       create_cash_sfr_activation_signal: {
         Args: {
