@@ -110,6 +110,23 @@ run_case "unresolved legacy after repair still fails" 1 \
 "   20260812000000 |                | 2026-08-12 00:00:00" \
 "   20260812000000 |                | 2026-08-12 00:00:00"
 
+# The real production shape at the time of writing: three books migrations
+# applied outside CI. All three must be named, not just the first.
+run_case "every drifted version is reported, not just the first" 1 \
+  "20260905131545" "20260905133805" "20260905150256" -- \
+"                  | 20260905131545 | 2026-09-05 13:15:45
+                  | 20260905133805 | 2026-09-05 13:38:05
+                  | 20260905150256 | 2026-09-05 15:02:56"
+
+# Once those files are committed under their recorded versions, the same
+# history reconciles cleanly and the pending migration goes through.
+run_case "books committed at recorded versions unblocks the pending migration" 0 \
+  "1 pending migration" "20260905180000" -- \
+"   20260905131545 | 20260905131545 | 2026-09-05 13:15:45
+   20260905133805 | 20260905133805 | 2026-09-05 13:38:05
+   20260905150256 | 20260905150256 | 2026-09-05 15:02:56
+   20260905180000 |                | 2026-09-05 18:00:00"
+
 echo
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

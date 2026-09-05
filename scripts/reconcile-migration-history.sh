@@ -31,6 +31,27 @@
 # pushes people to apply migrations to production by hand, which creates the
 # real drift this script exists to catch.
 #
+# Comparison is by VERSION ONLY, deliberately. schema_migrations does store the
+# statements, but comparing them against a hand-maintained file cries drift on
+# files that are functionally identical: dollar-quote tags differ ($$ in a file
+# vs $fn$ as stored), whitespace inside expressions differs, and a DO block
+# split across two statements in a file may have run as one. Any future content
+# check needs statement-level normalization first, or it is worse than no check.
+#
+# KNOWN TRAP -- the usual cause of drift here. The Supabase `apply_migration`
+# tool assigns its OWN timestamp at apply time. It does not use your filename
+# and it does not report back which version it picked. So anyone applying a
+# migration outside CI gets a version mismatch by default, not by mistake: the
+# file says 20260905010000, the ledger says 20260905131545, and `db push` later
+# sees a local-only migration and tries to apply already-applied SQL fresh.
+#
+# If you ever apply outside CI, immediately read the real version back:
+#
+#   select version, name from supabase_migrations.schema_migrations
+#    order by version desc limit 5;
+#
+# and rename the file to match before committing.
+#
 # The two commands are indirected through variables so the classification can be
 # tested without a live project.
 
