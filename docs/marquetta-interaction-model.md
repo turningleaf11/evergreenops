@@ -243,36 +243,71 @@ quality before it is done will be mediocre no matter how good the rest is.
 
 ---
 
-## Where this happens — decided: her own Discord channel
+## Where this happens — decided: WhatsApp
 
-**Marquetta gets her own Discord channel.** Decided 2026-09-05.
+**Marquetta lives in WhatsApp.** Decided 2026-09-05, after two earlier wrong
+answers in this same document. Both are left in below, because the reasoning
+that corrected them is the useful part.
 
-The first recommendation here was "through Albus," and it was wrong. Albus's
-OpenClaw chat runs on Autumn's computer, so a check-in delivered there can only
-be answered at her desk. A weekly prompt that waits for her to be at a laptop
-gets answered on Sunday night, which means it gets answered never. Channel
-choice is not a preference — it decides whether the loop runs at all.
+**Wrong answer #1: "through Albus."** Albus's OpenClaw chat runs on Autumn's
+computer, so anything delivered there can only be answered at her desk. A
+weekly prompt that waits for a laptop gets answered on Sunday night, which means
+never.
 
-Discord is on her phone, always. Albus already has a channel there, so agent →
-Discord delivery is existing plumbing rather than a new integration: OpenClaw
-Automations already route output to a configured owner/channel.
+**Wrong answer #2: "her own Discord channel."** Discord is on her phone and
+delivery *out* is easy, so it looked cheap. But installing an agent into Discord
+means the developer portal — unfamiliar work, landing on Autumn, who has said
+plainly that she needs the developer to be the developer. The cost was
+mis-assigned: Discord's setup falls on her, WhatsApp's falls on Claude, and
+the second is the correct place for it.
 
-Why her own channel rather than sharing Albus's:
+**The deciding fact is a habit that already exists.** Autumn already uses
+WhatsApp's message-to-self as a dump for reminders and things worth keeping.
+Every other channel in this design is an attempt to manufacture a habit;
+this one is already hers. Designing for a behaviour that exists beats designing
+for one we hope to create, and the ad-hoc drop — now the *primary* input for the
+personal brand — lives or dies on exactly that.
 
-- **Separation of concerns.** Albus is the orchestrator; his channel is for
-  running the business. Content is a different conversation with a different
-  rhythm, and mixing them means the check-in gets buried under operational
-  traffic.
-- **Privacy.** Personal-brand material should not be drafted in front of the
-  team. A channel scoped to Autumn keeps voice iteration private.
-- **Marquetta delivers directly.** Her Automation posts to her channel, rather
-  than relaying through Albus. Each agent already has its own credentials,
-  permissions and audit boundary; routing her output through another agent would
-  blur that for no gain, and would make Albus a single point of failure for
-  content.
+Photos also belong to WhatsApp. The core loop for a know-like-trust brand is a
+picture taken in the moment, and sharing to WhatsApp from a camera roll is one
+tap and already muscle memory.
 
-Later, if the team lane earns it, a second channel where Kez, Debbie and others
-can drop team material is a natural extension. Not v1.
+### What this costs, honestly
+
+Not free, and not all of it is Claude's to absorb:
+
+- WhatsApp Cloud API needs a Meta app and a WhatsApp Business Account. Autumn
+  already has Meta Business set up (FB business Page, IG Business/Creator), so
+  this happens in accounts she already uses rather than a portal she does not.
+- It needs a **separate phone number** — Marquetta cannot be reached on Autumn's
+  personal WhatsApp number. In practice Autumn messages "Marquetta" as a
+  contact instead of messaging herself. Arguably better: it is a real thread
+  with an agent, not a note in a drawer.
+- Business verification can take days. Meta's test-number path unblocks
+  development in the meantime.
+- Twilio's WhatsApp API is the faster route to a working prototype (sandbox in
+  minutes) at the cost of a per-message fee. Worth using to prove the loop before
+  committing to Cloud API setup.
+
+Claude does the integration. Autumn's part is a short, specific list of clicks,
+produced once the exact requirements are confirmed — not a research task handed
+to her.
+
+### Build it as a generic inbox, not a Marquetta feature
+
+Autumn separately raised wanting **one place to dump everything**, with a triage
+agent that sorts it and routes each item to the right agent. That is a separate
+build and is deliberately out of scope here — but it shares this exact channel
+and this exact input.
+
+So the WhatsApp intake must be built **generic from the start**: inbound
+messages land in a table with sender, text, media and timestamp, then get
+classified and routed. v1 registers exactly one route — content seeds to
+Marquetta. The triage agent later adds routes without touching the intake.
+
+Building a Marquetta-specific WhatsApp integration would mean tearing it out to
+build the inbox, and would leave Autumn with two competing dump channels in the
+meantime — which defeats the point of a single dump.
 
 ### Review has to work on the phone too
 
