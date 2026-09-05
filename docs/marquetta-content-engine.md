@@ -149,6 +149,18 @@ already exists.
 
 Ordered so something real ships at the end of each phase.
 
+> **Build order note.** The phases below are the product view. The security
+> build order, which governs implementation sequence, is: content schemas +
+> human-release constraints → task claim/result RPCs → capture projections →
+> Gateway action contracts and dispatch → Marquetta permission migration → MCP
+> schemas and conditional tool registration → hashed credential →
+> `MARQUETTA_GATEWAY_TOKEN` into OpenClaw → exact tool allowlist → **verify live
+> tool registration** → `system_whoami` acceptance → one bounded task acceptance
+> → enable cron. Do not skip the registration verification step.
+>
+> **Step 1 is done:** `supabase/migrations/20260905180000_marquetta_content_engine.sql`
+> (written, not yet applied).
+
 **Phase 0 — repairs (half a day).** Fix the model-ID bug (§5), dedupe the brand
 rows, confirm a caption generates and saves end to end. Until this passes,
 nothing else is worth building.
@@ -215,6 +227,74 @@ Run it against `dsxrekabnwvarnroanny` only after confirming nothing references
 the newer ids (`content_library` is empty, so this is currently safe).
 
 ---
+
+## 5b. Gateway capability scope (reviewed 2026-09-05)
+
+Scope reviewed against the live Agent Gateway. Marquetta gets **bounded business
+capabilities, never table-level write access**. Every action's SQL stays
+server-side and the Gateway derives `workspace_id`, `user_id` and
+`created_by_agent_id` from authenticated context — Marquetta never supplies them.
+
+| Gateway action | Existing? |
+|---|---|
+| `system.whoami` | existing |
+| `agent_tasks.next_assigned` / `agent_tasks.submit_result` | new |
+| `content.capture.list_deal_events` / `content.capture.list_task_events` | new |
+| `content.brands.read` | new |
+| `content.library.list` / `content.library.save_draft` | new |
+| `content.seeds.list` / `content.seeds.save` | new |
+| `content.research.list` / `content.research.save` | new |
+| `content.voice_exemplars.list` / `content.voice_exemplars.propose` | new |
+| `content.schedule.list` / `content.schedule.propose` | new |
+
+No permissions for `email.*`, `crm.*`, `deal.*`, `underwriting.*`, publishing
+credentials, generic SQL, or generic HTTP. No CRM capability at all in v1, not
+just no CRM write — the capture feed supplies the deal milestones she needs
+without exposing the CRM surface.
+
+**Three narrowings applied to the original scope, all of them correct:**
+
+1. **`content_brands` is read-only.** A brand row holds the voice, audience and
+   mission that govern the agent. An agent that can rewrite them can gradually
+   edit the policy it is supposed to obey. Suggestions later go through a
+   `content.brands.propose_update` with human acceptance.
+2. **Voice exemplars are proposals only.** Unrestricted write access to its own
+   gold-standard voice corpus is a feedback loop. Rows land as `candidate`; a
+   human promotes; approved rows are immutable (enforced by trigger).
+3. **No blanket read on completed `agent_tasks`.** Completed tasks contain
+   engineering, finance, security, CRM and internal-strategy material. Capture
+   sees only tasks explicitly flagged `content_capture_eligible`, returned as a
+   sanitized projection rather than raw `context` / `result`.
+
+**Server-enforced, not prompt-enforced.** `content.library.save_draft` forces
+`status = 'draft'` and does not accept status as an input at all. Task
+transitions are limited server-side to `in_progress`, `review`, `blocked` —
+Marquetta can never set `approved` or `done` regardless of what her skill file
+says. `content_schedule` separates proposal from release: Marquetta writes
+`draft`/`review`, a human sets `released`, and the publish worker rejects
+anything not explicitly released. No `ai_logs.write` capability — the existing
+system already mirrors task lifecycle into `ai_logs`, so there is no reason to
+hand a model an arbitrary log writer.
+
+Task claims use an atomic lease so two cron runs cannot work the same task, and
+seeds/research/schedule rows carry idempotency keys so an hourly cron cannot
+duplicate them.
+
+**Permanent rules carried forward from Ema and Cash:**
+
+- The skill prompt is never the security boundary. Status ceilings, workspace
+  scoping and publication limits live server-side.
+- Credentials as protected env vars only (`MARQUETTA_GATEWAY_TOKEN`); persist
+  SHA-256 + `token_prefix`, never the raw token, and never in a skill file,
+  migration, log or repo.
+- An agent may not edit its own OpenClaw configuration or tool allowlist.
+- **A tool allowlist is not a registered tool.** After any MCP binding change,
+  reload and inspect the live tool inventory, confirm each tool exists, call
+  `system_whoami`, and only then enable cron. If OpenClaw reports "no registered
+  tools matched", fix registration — never widen the allowlist to compensate.
+- One scheduler owns each duty. Do not run an Automation and a generic heartbeat
+  against the same work source.
+- Separate creation from release. Drafting authority is not publishing authority.
 
 ## 6. Where Marquetta gets built
 
