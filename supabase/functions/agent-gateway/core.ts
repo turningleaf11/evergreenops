@@ -6,7 +6,17 @@ export const ALLOWED_ACTIONS = [
   'deal.persist_email_intake','deal.buy_box_fit','deal.intake_to_crm','deal.reconcile_email_update',
   'deal.list_source_documents','deal.read_source_document',
   'underwriting.next_work_item','underwriting.cash_value','underwriting.rehab',
+  // Marquetta (content). Note what is absent and stays absent: no brand write,
+  // no deal read, no publish, no ai_logs write. See content.ts.
+  'agent_tasks.next_assigned','agent_tasks.submit_result',
+  'content.capture.list_task_events','content.brands.read','content.pillars.list',
+  'content.seeds.list','content.seeds.save','content.research.list','content.research.save',
+  'content.library.list','content.library.save_draft',
+  'content.voice_exemplars.list','content.voice_exemplars.propose',
+  'content.schedule.list','content.schedule.propose',
 ] as const;
+const CONTENT_SEED_SOURCES=['deal','agent_task','repo','dm','manual'] as const;
+const CONTENT_PLATFORMS=['facebook','instagram','tiktok','linkedin','blog'] as const;
 
 export const DEFAULT_INLINE_ATTACHMENT_BYTES=2*1024*1024;
 export const MAX_INLINE_ATTACHMENT_BYTES=8*1024*1024;
@@ -47,6 +57,27 @@ export function parseGatewayRequest(value:unknown):GatewayRequest{
     case'underwriting.next_work_item':{if(Object.keys(input).length!==0)throw new RequestValidationError('underwriting.next_work_item does not accept input');return{action:'underwriting.next_work_item',input:{}}}
     case'underwriting.cash_value':return{action:'underwriting.cash_value',input:cashValueInput(input)};
     case'underwriting.rehab':return{action:'underwriting.rehab',input:rehabInput(input)};
+    case'agent_tasks.next_assigned':{if(Object.keys(input).length!==0)throw new RequestValidationError('agent_tasks.next_assigned does not accept input');return{action:'agent_tasks.next_assigned',input:{}}}
+    // status is restricted to review|blocked at the parser as well as in the
+    // RPC. approved and done are a human decision and must be unreachable from
+    // every direction, not just the one we happened to think of.
+    case'agent_tasks.submit_result':return{action:'agent_tasks.submit_result',input:{task_id:uuid(input.task_id,'task_id'),result:requiredString(input.result,'result',1,20000),status:optionalEnum(input.status,'status',['review','blocked'] as const)??'review',error:optionalString(input.error,'error',1,2000)}};
+    case'content.capture.list_task_events':return{action:'content.capture.list_task_events',input:{since:optionalIsoTimestamp(input.since,'since'),limit:optionalInteger(input.limit,'limit',1,100)??25}};
+    case'content.brands.read':return{action:'content.brands.read',input:{}};
+    case'content.pillars.list':return{action:'content.pillars.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id')}};
+    case'content.seeds.list':return{action:'content.seeds.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),status:optionalEnum(input.status,'status',['new','drafted','dismissed'] as const),limit:optionalInteger(input.limit,'limit',1,100)??25}};
+    case'content.seeds.save':return{action:'content.seeds.save',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),pillar_id:optionalUuid(input.pillar_id,'pillar_id'),source:optionalEnum(input.source,'source',CONTENT_SEED_SOURCES)??(()=>{throw new RequestValidationError('source is required')})(),source_ref:optionalString(input.source_ref,'source_ref',1,300),raw:requiredString(input.raw,'raw',1,5000),angle:optionalString(input.angle,'angle',1,500),score:optionalInteger(input.score,'score',0,100)??0}};
+    case'content.research.list':return{action:'content.research.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),include_expired:input.include_expired===true,limit:optionalInteger(input.limit,'limit',1,100)??25}};
+    case'content.research.save':return{action:'content.research.save',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),topic:requiredString(input.topic,'topic',1,300),finding:requiredString(input.finding,'finding',1,4000),source_url:optionalHttpUrl(input.source_url,'source_url'),expires_at:optionalIsoTimestamp(input.expires_at,'expires_at')}};
+    case'content.library.list':return{action:'content.library.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),status:optionalEnum(input.status,'status',['draft','review','approved','posted','archived'] as const),limit:optionalInteger(input.limit,'limit',1,100)??25}};
+    // No status field. The draft ceiling is not an option the caller declines.
+    case'content.library.save_draft':return{action:'content.library.save_draft',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),pillar_id:optionalUuid(input.pillar_id,'pillar_id'),seed_id:optionalUuid(input.seed_id,'seed_id'),platform:optionalEnum(input.platform,'platform',CONTENT_PLATFORMS)??(()=>{throw new RequestValidationError('platform is required')})(),content:requiredString(input.content,'content',1,10000),image_url:optionalHttpUrl(input.image_url,'image_url'),source_video_url:optionalHttpUrl(input.source_video_url,'source_video_url'),clip_range:optionalString(input.clip_range,'clip_range',1,120)}};
+    case'content.voice_exemplars.list':return{action:'content.voice_exemplars.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),status:optionalEnum(input.status,'status',['candidate','approved','rejected'] as const),limit:optionalInteger(input.limit,'limit',1,200)??50}};
+    // No status field either. Proposals only; promotion is a human act.
+    case'content.voice_exemplars.propose':return{action:'content.voice_exemplars.propose',input:{brand_id:uuid(input.brand_id,'brand_id'),platform:optionalEnum(input.platform,'platform',CONTENT_PLATFORMS),text:requiredString(input.text,'text',1,5000),is_positive:input.is_positive===undefined?true:Boolean(input.is_positive)}};
+    case'content.schedule.list':return{action:'content.schedule.list',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),status:optionalEnum(input.status,'status',['draft','review','released','publishing','published','failed'] as const),limit:optionalInteger(input.limit,'limit',1,200)??50}};
+    // draft|review only. 'released' is the publication authority boundary.
+    case'content.schedule.propose':return{action:'content.schedule.propose',input:{brand_id:optionalUuid(input.brand_id,'brand_id'),content_id:uuid(input.content_id,'content_id'),platform:optionalEnum(input.platform,'platform',CONTENT_PLATFORMS)??(()=>{throw new RequestValidationError('platform is required')})(),scheduled_for:optionalIsoTimestamp(input.scheduled_for,'scheduled_for'),status:optionalEnum(input.status,'status',['draft','review'] as const)??'draft',review_assignee:optionalUuid(input.review_assignee,'review_assignee')}};
   }
 }
 
@@ -78,12 +109,28 @@ export function summarizeGatewayInput(request:GatewayRequest):{inputSummary:Reco
     const items=Array.isArray(request.input.scope_items)?request.input.scope_items.filter(isRecord):[];
     return{inputSummary:{contract:'acquisition_rehab_v1',optional_known_repair_count:items.length,categories:[...new Set(items.map(item=>String(item.category??'')))],evidence_classes:[...new Set(items.map(item=>String(item.evidence_class??'')))]},resourceType:'ghl_opportunity',resourceId:String(request.input.opportunity_id)};
   }
+  case'agent_tasks.next_assigned':return{inputSummary:{},resourceType:'agent_task_queue',resourceId:null};
+  case'agent_tasks.submit_result':return{inputSummary:{status:request.input.status,result_length:String(request.input.result).length,has_error:Boolean(request.input.error)},resourceType:'agent_task',resourceId:String(request.input.task_id)};
+  case'content.library.save_draft':return{inputSummary:{platform:request.input.platform,content_length:String(request.input.content).length,has_image:Boolean(request.input.image_url),from_seed:Boolean(request.input.seed_id)},resourceType:'content_draft',resourceId:null};
+  case'content.seeds.save':return{inputSummary:{source:request.input.source,raw_length:String(request.input.raw).length,score:request.input.score},resourceType:'content_seed',resourceId:null};
+  case'content.research.save':return{inputSummary:{topic_length:String(request.input.topic).length,is_sourced:Boolean(request.input.source_url)},resourceType:'content_research',resourceId:null};
+  case'content.voice_exemplars.propose':return{inputSummary:{platform:request.input.platform,text_length:String(request.input.text).length,is_positive:request.input.is_positive},resourceType:'content_voice_exemplar',resourceId:null};
+  case'content.schedule.propose':return{inputSummary:{platform:request.input.platform,status:request.input.status,has_schedule:Boolean(request.input.scheduled_for)},resourceType:'content_schedule',resourceId:String(request.input.content_id)};
+  // Reads and anything added later. The audit log records that a call happened
+  // and with what shape -- never post text, research findings or exemplar
+  // content. A missing case previously returned undefined here and would have
+  // thrown on the audit write, so this default is also the safety net.
+  default:return{inputSummary:{contract:'v1',input_keys:Object.keys(request.input).sort()},resourceType:request.action.split('.')[0],resourceId:null};
 }}
 
 export function selectedHeaders(headers:unknown):Record<string,string>{const allowed=new Set(['from','to','cc','delivered-to','subject','date','message-id']),result:Record<string,string>={};if(!Array.isArray(headers))return result;for(const header of headers){if(!isRecord(header))continue;const name=String(header.name??'').toLowerCase();if(allowed.has(name))result[name]=String(header.value??'')}return result}
 export function extractBody(payload:unknown,mimeType:string):string{if(!isRecord(payload))return'';if(payload.mimeType===mimeType&&isRecord(payload.body)&&typeof payload.body.data==='string')return decodeBase64Url(payload.body.data);if(Array.isArray(payload.parts))for(const part of payload.parts){const value=extractBody(part,mimeType);if(value)return value}return''}
 export function extractAttachments(payload:unknown,output:Array<Record<string,unknown>>=[]):Array<Record<string,unknown>>{if(!isRecord(payload))return output;if(typeof payload.filename==='string'&&payload.filename&&isRecord(payload.body)&&typeof payload.body.attachmentId==='string')output.push({filename:payload.filename,mime_type:typeof payload.mimeType==='string'?payload.mimeType:'application/octet-stream',size:typeof payload.body.size==='number'?payload.body.size:null,attachment_id:payload.body.attachmentId});if(Array.isArray(payload.parts))for(const part of payload.parts)extractAttachments(part,output);return output}
 export function safeSourceIp(value:string|null):string|null{if(!value)return null;const candidate=value.split(',')[0].trim();return/^[0-9a-fA-F:.]{3,45}$/.test(candidate)?candidate:null}
+function optionalIsoTimestamp(value:unknown,field:string):string|null{if(value===undefined||value===null||value==='')return null;const result=requiredString(value,field,4,40),parsed=Date.parse(result);if(!Number.isFinite(parsed))throw new RequestValidationError(`${field} must be an ISO timestamp`);return new Date(parsed).toISOString()}
+// http(s) only, and never a data: or javascript: URL — these are stored and
+// later rendered in the Content Studio.
+function optionalHttpUrl(value:unknown,field:string):string|null{if(value===undefined||value===null||value==='')return null;const result=requiredString(value,field,1,2048);let parsed:URL;try{parsed=new URL(result)}catch{throw new RequestValidationError(`${field} must be a valid URL`)}if(parsed.protocol!=='http:'&&parsed.protocol!=='https:')throw new RequestValidationError(`${field} must be http or https`);return result}
 function decodeBase64Url(value:string):string{try{const normalized=value.replace(/-/g,'+').replace(/_/g,'/'),binary=atob(normalized);return new TextDecoder().decode(Uint8Array.from(binary,c=>c.charCodeAt(0)))}catch{return''}}
 function gmailId(value:unknown,field:string):string{const result=requiredString(value,field,1,512);if(!/^[A-Za-z0-9_-]+$/.test(result))throw new RequestValidationError(`${field} is invalid`);return result}
 function optionalPageToken(value:unknown):string|null{if(value===undefined||value===null||value==='')return null;const result=requiredString(value,'page_token',1,2048);if(!/^[A-Za-z0-9_-]+$/.test(result))throw new RequestValidationError('page_token is invalid');return result}
