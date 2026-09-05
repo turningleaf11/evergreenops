@@ -11,14 +11,20 @@
 -- boundary is the Gateway. Anything expressed only in a skill prompt is a
 -- suggestion; anything expressed here survives a compromised prompt.
 --
--- Note on user_id: these tables follow the existing content_brands /
--- content_library pattern, which is owner-scoped on user_id via RLS. Marquetta
--- is an agent and has no auth.users row, so the Gateway attributes agent-created
--- rows to the workspace owner for visibility, while created_by_agent_id records
--- the actual author. If the review queue later needs to be visible to a
--- delegated team member, these tables should move to workspace-scoped RLS —
--- which would also mean migrating the two existing content tables, so it is a
--- deliberate decision rather than a drive-by change.
+-- Note on scoping: these tables are WORKSPACE-scoped, not owner-scoped, and
+-- this migration moves the two existing Content Studio tables to match.
+--
+-- The old owner-scoped model (auth.uid() = user_id) cannot work here for two
+-- reasons. First, Marquetta is an agent with no auth.users row, so agent-created
+-- content would have to be attributed to some human just to be visible. Second,
+-- the review queue is explicitly a role — Autumn or a delegated team member —
+-- and owner scoping makes one user's content invisible to everyone else on the
+-- same team.
+--
+-- That second failure is not hypothetical: content_brands currently holds nine
+-- rows, which is the same three brands seeded three separate times by three
+-- different users in one workspace, each unable to see the others'. The
+-- triplication is a symptom of the scoping model, not a seeding accident.
 --
 -- Three guards are deliberate and load-bearing:
 --   1. content_library gains a 'review' status. Marquetta's ceiling is review;
@@ -38,7 +44,9 @@
 create table if not exists content_pillars (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nullable: agent-authored rows have no auth user. Visibility comes from
+  -- workspace_id, authorship from created_by_agent_id / user_id.
+  user_id uuid references auth.users(id) on delete set null,
   brand_id uuid not null references content_brands(id) on delete cascade,
   key text not null,
   label text not null,
@@ -59,7 +67,9 @@ create table if not exists content_pillars (
 create table if not exists content_seeds (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nullable: agent-authored rows have no auth user. Visibility comes from
+  -- workspace_id, authorship from created_by_agent_id / user_id.
+  user_id uuid references auth.users(id) on delete set null,
   brand_id uuid references content_brands(id) on delete set null,
   pillar_id uuid references content_pillars(id) on delete set null,
   source text not null check (source in ('deal', 'agent_task', 'repo', 'dm', 'manual')),
@@ -86,7 +96,9 @@ create table if not exists content_seeds (
 create table if not exists content_research (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nullable: agent-authored rows have no auth user. Visibility comes from
+  -- workspace_id, authorship from created_by_agent_id / user_id.
+  user_id uuid references auth.users(id) on delete set null,
   brand_id uuid references content_brands(id) on delete set null,
   topic text not null,
   finding text not null,
@@ -110,7 +122,9 @@ create table if not exists content_research (
 create table if not exists content_voice_exemplars (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nullable: agent-authored rows have no auth user. Visibility comes from
+  -- workspace_id, authorship from created_by_agent_id / user_id.
+  user_id uuid references auth.users(id) on delete set null,
   brand_id uuid not null references content_brands(id) on delete cascade,
   platform text,
   text text not null,
@@ -166,7 +180,9 @@ create trigger content_voice_exemplars_freeze
 create table if not exists content_schedule (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nullable: agent-authored rows have no auth user. Visibility comes from
+  -- workspace_id, authorship from created_by_agent_id / user_id.
+  user_id uuid references auth.users(id) on delete set null,
   brand_id uuid references content_brands(id) on delete set null,
   content_id uuid not null references content_library(id) on delete cascade,
   platform text not null,
@@ -234,10 +250,10 @@ create index if not exists agent_tasks_content_capture_idx
   where content_capture_eligible;
 
 -- ---------------------------------------------------------------------------
--- RLS. Matches the existing content_brands / content_library policies
--- (owner-scoped on user_id) so the Content Studio UI keeps working with one
--- consistent pattern across the feature. The Gateway uses the service role and
--- enforces workspace scoping itself.
+-- RLS. Workspace-scoped via the existing public.get_user_workspace_id() helper,
+-- so every member of the workspace sees the same content and the review queue
+-- can be handed to a team member. The Gateway uses the service role and enforces
+-- workspace scoping itself.
 --
 -- Every new table gets RLS ENABLED. Leaving it off is how workspace_settings
 -- ended up publicly readable with the anon key.
@@ -249,21 +265,84 @@ alter table content_voice_exemplars enable row level security;
 alter table content_schedule enable row level security;
 
 drop policy if exists content_pillars_own on content_pillars;
-create policy content_pillars_own on content_pillars
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists content_pillars_workspace on content_pillars;
+create policy content_pillars_workspace on content_pillars
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
 
 drop policy if exists content_seeds_own on content_seeds;
-create policy content_seeds_own on content_seeds
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists content_seeds_workspace on content_seeds;
+create policy content_seeds_workspace on content_seeds
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
 
 drop policy if exists content_research_own on content_research;
-create policy content_research_own on content_research
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists content_research_workspace on content_research;
+create policy content_research_workspace on content_research
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
 
 drop policy if exists content_voice_exemplars_own on content_voice_exemplars;
-create policy content_voice_exemplars_own on content_voice_exemplars
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists content_voice_exemplars_workspace on content_voice_exemplars;
+create policy content_voice_exemplars_workspace on content_voice_exemplars
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
 
 drop policy if exists content_schedule_own on content_schedule;
-create policy content_schedule_own on content_schedule
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists content_schedule_workspace on content_schedule;
+create policy content_schedule_workspace on content_schedule
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
+
+-- ---------------------------------------------------------------------------
+-- Bring the two existing Content Studio tables onto workspace scoping.
+--
+-- Order matters: backfill any missing workspace_id BEFORE swapping the policy,
+-- or rows with a null workspace_id become invisible to everyone the moment the
+-- new policy takes effect.
+-- ---------------------------------------------------------------------------
+update content_brands b
+   set workspace_id = p.workspace_id
+  from profiles p
+ where b.workspace_id is null
+   and p.user_id = b.user_id;
+
+update content_library l
+   set workspace_id = p.workspace_id
+  from profiles p
+ where l.workspace_id is null
+   and p.user_id = l.user_id;
+
+-- Deduplicate brands, keeping the earliest row per (workspace, name).
+--
+-- Safe to run now and only now: the duplicates exist because each user could
+-- only see their own copy, and content_library does not yet reference any of
+-- them. The guard below keeps that true rather than assuming it -- a brand with
+-- content attached is never deleted, even if it looks like a duplicate.
+delete from content_brands dup
+ using content_brands keep
+ where dup.name = keep.name
+   and dup.workspace_id = keep.workspace_id
+   and dup.created_at > keep.created_at
+   and not exists (
+     select 1 from content_library cl where cl.brand_id = dup.id
+   );
+
+alter table content_brands enable row level security;
+alter table content_library enable row level security;
+
+drop policy if exists content_brands_own on content_brands;
+drop policy if exists content_brands_workspace on content_brands;
+create policy content_brands_workspace on content_brands
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
+
+drop policy if exists content_library_own on content_library;
+drop policy if exists content_library_workspace on content_library;
+create policy content_library_workspace on content_library
+  for all using (workspace_id = public.get_user_workspace_id())
+  with check (workspace_id = public.get_user_workspace_id());
+
+-- Prevent the triplication from recurring: one brand name per workspace.
+create unique index if not exists content_brands_workspace_name_key
+  on content_brands (workspace_id, name);
