@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/primitives";
 import {
-  postTransaction, unpostTransaction, money,
-  type BookAccount, type BookTransaction,
+  postTransaction, unpostTransaction, postIntercompany, money,
+  type BookAccount, type BookEntity, type BookTransaction,
 } from "@/hooks/useBooks";
 
 interface Split { accountId: string; amount: string }
@@ -27,6 +27,7 @@ interface Split { accountId: string; amount: string }
 interface Props {
   txn: BookTransaction | null;
   accounts: BookAccount[];
+  entities: BookEntity[];
   entityName: (id: string | null) => string;
   bankName: (id: string) => string;
   onClose: () => void;
@@ -34,11 +35,16 @@ interface Props {
 }
 
 export default function CategorizeSheet({
-  txn, accounts, entityName, bankName, onClose, onPosted,
+  txn, accounts, entities, entityName, bankName, onClose, onPosted,
 }: Props) {
   const [splits, setSplits] = useState<Split[]>([]);
   const [memo, setMemo] = useState("");
   const [busy, setBusy] = useState(false);
+  // "This was paid for another entity" — a different kind of answer, so it gets
+  // its own mode rather than being squeezed into the split editor.
+  const [mode, setMode] = useState<"categorise" | "intercompany">("categorise");
+  const [benefiting, setBenefiting] = useState("");
+  const [theirAccount, setTheirAccount] = useState("");
 
   const gross = txn ? Math.abs(Number(txn.amount)) : 0;
   const isPosted = txn?.review_state === "accepted";
@@ -57,7 +63,18 @@ export default function CategorizeSheet({
     if (!txn) return;
     setSplits([{ accountId: "", amount: gross.toFixed(2) }]);
     setMemo("");
+    setMode("categorise");
+    setBenefiting("");
+    setTheirAccount("");
   }, [txn, gross]);
+
+  // The other entity's chart — this posts to their books, not yours.
+  const theirOptions = useMemo(
+    () => accounts
+      .filter((a) => a.entity_id === benefiting && a.subtype !== "bank")
+      .sort((a, b) => a.code.localeCompare(b.code)),
+    [accounts, benefiting],
+  );
 
   const allocated = splits.reduce((s, x) => s + (Number(x.amount) || 0), 0);
   const remainder = Number((gross - allocated).toFixed(2));
@@ -78,6 +95,21 @@ export default function CategorizeSheet({
     } catch (err) {
       // The database's message names the exact shortfall — surface it verbatim.
       toast.error(err instanceof Error ? err.message : "Could not post.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleIntercompany() {
+    if (!txn) return;
+    setBusy(true);
+    try {
+      await postIntercompany(txn.id, benefiting, theirAccount, memo || undefined);
+      toast.success("Posted to both sets of books.");
+      onPosted();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not post the pair.");
     } finally {
       setBusy(false);
     }
@@ -150,6 +182,64 @@ export default function CategorizeSheet({
                     Unpost
                   </Button>
                 </div>
+              ) : mode === "intercompany" ? (
+                <>
+                  <div className="crm-card-muted">
+                    <p className="text-sm">
+                      {entityName(txn.entity_id)} paid this, but it belonged to another entity.
+                      Posting it writes both halves — a due-from on this side and a due-to on
+                      theirs — so the two sets of books agree instead of quietly disagreeing.
+                    </p>
+                  </div>
+
+                  <div className="crm-field-stack">
+                    <div>
+                      <div className="crm-field-label">Who was it really for?</div>
+                      <Select value={benefiting} onValueChange={(v) => { setBenefiting(v); setTheirAccount(""); }}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Choose the entity…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {entities.filter((e) => e.id !== txn.entity_id).map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <div className="crm-field-label">What is it, on their books?</div>
+                      <Select value={theirAccount} onValueChange={setTheirAccount} disabled={!benefiting}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={benefiting ? "Choose an account…" : "Pick the entity first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {theirOptions.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              <span className="font-mono text-xs mr-2 text-muted-foreground">{a.code}</span>
+                              {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <div className="crm-field-label">Memo (optional)</div>
+                      <Input value={memo} onChange={(e) => setMemo(e.target.value)}
+                             placeholder={txn.description} className="h-9" />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button className="flex-1" disabled={!benefiting || !theirAccount || busy}
+                            onClick={handleIntercompany}>
+                      {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Post to both entities
+                    </Button>
+                    <Button variant="outline" onClick={() => setMode("categorise")}>Back</Button>
+                  </div>
+                </>
               ) : (
                 <>
                   <div>
@@ -238,6 +328,14 @@ export default function CategorizeSheet({
                     {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     Post to ledger
                   </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode("intercompany")}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    This was paid for another entity
+                  </button>
                 </>
               )}
             </div>

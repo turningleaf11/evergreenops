@@ -19,9 +19,11 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import RuleEditor from "@/components/books/RuleEditor";
 import {
-  useBookRules, applyRules, previewRule, deleteRule, money,
+  useBookRules, applyRules, previewRule, deleteRule, applyInternalTransfers, money,
   type BookAccount, type BookEntity, type BookRule, type RuleOutcome,
+  type TransferOutcome,
 } from "@/hooks/useBooks";
+import { ArrowLeftRight } from "lucide-react";
 
 interface Props {
   entities: BookEntity[];
@@ -33,6 +35,10 @@ interface Props {
 const ACTION_TONE: Record<string, string> = {
   posted:            "text-emerald-700 dark:text-emerald-400",
   would_post:        "text-emerald-700 dark:text-emerald-400",
+  transfer:          "text-muted-foreground",
+  excluded:          "text-muted-foreground",
+  ambiguous:         "text-amber-700 dark:text-amber-400",
+  no_sibling:        "text-amber-700 dark:text-amber-400",
   suggested:         "text-amber-700 dark:text-amber-400",
   intercompany_held: "text-amber-700 dark:text-amber-400",
   held:              "text-destructive",
@@ -47,6 +53,8 @@ export default function RulesPanel({ entities, accounts, entityName, onChanged }
   const [wasDryRun, setWasDryRun] = useState(true);
   const [editing, setEditing] = useState<Partial<BookRule> | null>(null);
   const [preview, setPreview] = useState<{ rule: BookRule; rows: Awaited<ReturnType<typeof previewRule>> } | null>(null);
+  const [xferBusy, setXferBusy] = useState<"dry" | "live" | null>(null);
+  const [xfer, setXfer] = useState<{ dry: boolean; rows: TransferOutcome[] } | null>(null);
 
   const refresh = () => { setReloadKey((k) => k + 1); onChanged(); };
 
@@ -76,6 +84,25 @@ export default function RulesPanel({ entities, accounts, entityName, onChanged }
     }
   }
 
+  async function runTransfers(dry: boolean) {
+    setXferBusy(dry ? "dry" : "live");
+    try {
+      const rows = await applyInternalTransfers(dry);
+      setXfer({ dry, rows });
+      if (!dry) {
+        refresh();
+        const posted = rows.filter((r) => r.action === "posted").length;
+        toast.success(`${posted} transfer${posted === 1 ? "" : "s"} posted.`);
+      } else if (rows.length === 0) {
+        toast.info("No unpaired transfers left to sweep.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "The sweep failed.");
+    } finally {
+      setXferBusy(null);
+    }
+  }
+
   async function showPreview(rule: BookRule) {
     try {
       setPreview({ rule, rows: await previewRule(rule.id, 50) });
@@ -96,6 +123,61 @@ export default function RulesPanel({ entities, accounts, entityName, onChanged }
 
   return (
     <div className="crm-section-stack">
+      <div className="crm-card">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="crm-eyebrow">Sweep internal transfers</div>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md">
+              Money moved between your own Mercury accounts is not income or expense, but both
+              sides sit on the same balance sheet, so it still has to be recorded. This pairs the
+              two halves off Mercury&rsquo;s own label — nothing is guessed. Run it after every import.
+            </p>
+          </div>
+          <div className="flex items-end gap-2">
+            <Button variant="outline" disabled={xferBusy !== null} onClick={() => runTransfers(true)}>
+              {xferBusy === "dry" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              Dry run
+            </Button>
+            <Button disabled={xferBusy !== null} onClick={() => runTransfers(false)}>
+              {xferBusy === "live" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowLeftRight className="h-4 w-4 mr-2" />}
+              Sweep
+            </Button>
+          </div>
+        </div>
+
+        {xfer && (
+          <div className="mt-4 border-t pt-4">
+            <div className="crm-eyebrow mb-2">{xfer.dry ? "Would happen" : "What happened"}</div>
+            {xfer.rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing left to pair.</p>
+            ) : (
+              <div className="space-y-1">
+                {Object.entries(
+                  xfer.rows.reduce<Record<string, { n: number; total: number }>>((acc, r) => {
+                    const k = r.action;
+                    acc[k] = { n: (acc[k]?.n ?? 0) + 1, total: (acc[k]?.total ?? 0) + Math.abs(Number(r.amount)) };
+                    return acc;
+                  }, {}),
+                ).map(([action, v]) => (
+                  <div key={action} className="flex justify-between text-sm">
+                    <span className={ACTION_TONE[action] ?? "text-muted-foreground"}>
+                      <span className="font-mono tabular-nums font-semibold">{v.n}</span>{" "}
+                      {action.replace(/_/g, " ")}
+                    </span>
+                    <span className="font-mono tabular-nums text-muted-foreground">{money(v.total)}</span>
+                  </div>
+                ))}
+                {/* Anything held says why, and those are the ones worth reading. */}
+                {xfer.rows.filter((r) => r.action !== "posted" && r.action !== "would_post")
+                  .slice(0, 4).map((r) => (
+                    <p key={r.txn_id} className="text-xs text-amber-700 dark:text-amber-400 pt-1">{r.detail}</p>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="crm-card">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

@@ -260,6 +260,7 @@ export default function BooksPage() {
       <CategorizeSheet
         txn={active}
         accounts={accounts}
+        entities={entities}
         entityName={entityName}
         bankName={bankName}
         onClose={() => setActive(null)}

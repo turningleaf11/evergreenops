@@ -358,3 +358,41 @@ export async function deleteRule(id: string) {
   const { error } = await supabase.from("book_rules").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+export interface TransferOutcome {
+  action: string;
+  detail: string;
+  txn_id: string;
+  sibling_id: string | null;
+  amount: number;
+}
+
+/**
+ * Sweep internal transfers. Keys on Mercury's own label and the counterparty's
+ * account number, so it pairs rows rather than guessing at them — and refuses
+ * to pair two identical transfers made on the same day.
+ */
+export async function applyInternalTransfers(dryRun: boolean) {
+  const { data, error } = await supabase.rpc("book_post_internal_transfers", { _dry_run: dryRun });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as TransferOutcome[];
+}
+
+/**
+ * One entity paid for another. Writes both halves — the payer's due-from and
+ * the benefiting entity's due-to — so the two sets of books agree.
+ */
+export async function postIntercompany(
+  txnId: string,
+  benefitingEntityId: string,
+  theirAccountId: string,
+  memo?: string,
+) {
+  const { error } = await supabase.rpc("book_post_intercompany", {
+    _txn_id: txnId,
+    _benefiting_entity: benefitingEntityId,
+    _their_account_id: theirAccountId,
+    _memo: memo ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
