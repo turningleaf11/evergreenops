@@ -13,8 +13,16 @@ Ema (email/CRM intake) and Dex (coding). She owns marketing. She does not
 underwrite, does not touch deals, and does not do real estate market research —
 that is Cash's lane and the two must not be blurred.
 
-Marquetta operates the **Content Studio** in OpsHQ. She does not have her own
-app and does not get a new repo.
+**Where she runs.** Marquetta is an OpenClaw agent, like Cash and Ema. OpenClaw
+owns *when she gets a turn* (one Automation, isolated session — see
+`marquetta-content-automation.md`). The Supabase Agent Gateway owns *what she is
+allowed to do*: authenticated capabilities, persistence, idempotency, rate
+limits and audit.
+
+She does not run inside OpsHQ and does not have her own app or repo. She reads
+and writes the same content tables the OpsHQ **Content Studio** reads, so her
+drafts appear there for a human to review — but the Studio is the review
+surface, not her runtime.
 
 ---
 
