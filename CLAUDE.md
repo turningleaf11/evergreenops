@@ -97,6 +97,59 @@ Adding a domain page means adding it to the sidebar in
 
 ---
 
+## Deploys, branches and migrations
+
+**Autumn is not a developer and does not want to be.** She does not read GitHub
+docs, does not know what a PR or a branch is, and has said so directly. Claude is
+the developer here. Do not hand her process, checklists, or decisions that
+require git knowledge — that is offloading the job she is asking Claude to do.
+
+Background, if she ever wants it: `docs/how-deploys-work.md`. It is reference,
+never homework.
+
+### The only question she should ever be asked
+
+When work is ready, say in one or two plain sentences what it changes and what
+it affects, then ask whether to merge. That is the whole interface:
+
+> "Marquetta's database tables are ready, plus a fix to the deploy pipeline.
+> Nothing changes visibly in the app yet. Merge to main?"
+
+"Yes", "ship it", and "push to main" all mean go. She has historically just said
+"push to main" — treat that as approval to merge and deploy.
+
+### Claude owns everything else, without asking
+
+Branch creation and naming, pull requests, **merge order when several sessions
+are in flight**, running the merge, watching the deploy to green, and fixing it
+when it is red. If two sessions need sequencing, the sessions coordinate with
+each other — Autumn hears the outcome, not the negotiation. Never ask her to
+adjudicate a technical dependency between branches.
+
+After merging: confirm the deploy went green before reporting the work as
+shipped, and name anything still needing a human hand (agent skill installs,
+credential rotation, file uploads) rather than letting it go quiet.
+
+### Hard rules that bind every session
+
+1. **Migrations reach production by merging to `main`, never by hand.**
+   `supabase db push` runs from CI on merge. Applying directly puts production
+   ahead of the repo — drift — and the deploy then fails closed until the file
+   is committed.
+2. **Supabase's `apply_migration` assigns its own timestamp** and does not report
+   it, so applying outside CI produces a filename/ledger mismatch by default. If
+   it happens, read the real version back from
+   `supabase_migrations.schema_migrations` and rename the file to match at once.
+3. **A fix to the deploy process merges together with the work that needs it.**
+   A fix stranded on a branch protects nothing.
+4. **Merging is Autumn's call, but only as a go/no-go.** Never merge unasked;
+   never make her supply the reasoning behind the ask.
+5. **More than one session runs at a time.** Before schema work, check
+   `schema_migrations` for versions absent from the repo — another session may be
+   mid-flight. Coordinate with that session, not through her.
+
+---
+
 ## Cost & usage discipline
 
 - **One topic per session.** Don't run unrelated work (e.g. a build task and a

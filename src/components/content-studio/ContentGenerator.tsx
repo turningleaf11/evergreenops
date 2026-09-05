@@ -17,10 +17,12 @@ const PLATFORMS = [
   { id: "blog", label: "Blog outline", maxChars: null as number | null },
 ];
 
+// content-generate calls the OpenAI API directly (it was migrated off the
+// Lovable gateway), so these must be OpenAI model ids — gateway-style
+// "provider/model" slugs are rejected upstream.
 const MODELS = [
-  { id: "google/gemini-2.5-flash", label: "Gemini Flash — fast & cheap" },
-  { id: "google/gemini-2.5-pro", label: "Gemini Pro — smarter" },
-  { id: "openai/gpt-5-mini", label: "GPT-5 mini — balanced" },
+  { id: "gpt-4o-mini", label: "GPT-4o mini — fast & cheap" },
+  { id: "gpt-4o", label: "GPT-4o — smarter" },
 ];
 
 export function ContentGenerator() {
