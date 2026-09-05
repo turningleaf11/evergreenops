@@ -17,7 +17,7 @@
 import { useState, useEffect } from "react";
 import {
   Home, FileText, Database as DbIcon, Users,
-  Settings, Building2, Compass, GraduationCap,
+  Settings, Building2, Compass, Scale, GraduationCap,
   Target, StickyNote, Sun, Moon, Clock, Building, Pizza, PanelLeft, Mail, Sparkles, Video, BarChart3, Briefcase, Rocket, ClipboardList,
   HelpCircle, Code2, MessagesSquare, Layers, LogOut, ChevronsUpDown, Activity, KeyRound,
 } from "lucide-react";
@@ -98,6 +98,7 @@ export function AppSidebar() {
     : [
         { title: "Home", url: "/", icon: Home },
         ...(isPrimaryAdmin ? [{ title: ceoPageName, url: "/ceo", icon: Compass }] : []),
+        ...(isPrimaryAdmin ? [{ title: "Books", url: "/books", icon: Scale }] : []),
         ...(isLeader || isAdmin ? [{ title: "Sync", url: "/sync", icon: MessagesSquare }] : []),
       ];
 

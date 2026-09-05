@@ -1,0 +1,3 @@
+# Real financial data never goes in git.
+data/
+out/

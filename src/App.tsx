@@ -15,6 +15,7 @@ import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import CeoDashboard from "./pages/CeoDashboard";
+import BooksPage from "@/pages/BooksPage";
 import DepartmentPage from "./pages/DepartmentPage";
 import DocsPage from "./pages/DocsPage";
 import DatabasesPage from "./pages/DatabasesPage";
@@ -214,6 +215,10 @@ const App = () => (
                 {/* CEO-only baseline (with optional per-user grant for AI Hub) */}
                 <Route element={<PrimaryAdminRoute />}>
                   <Route path="/ceo" element={<CeoDashboard />} />
+                  {/* Books is CEO-only by design: partner distributions, capital
+                      accounts and owner draws are not team-visible. The database
+                      policies enforce the same thing independently. */}
+                  <Route path="/books" element={<BooksPage />} />
                 </Route>
                 {/* Agent task board — currently the primary admin (+ any explicit
                     page_grants), by design. To widen to all Admins later, change
