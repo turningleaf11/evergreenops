@@ -5,7 +5,7 @@
 // but the database is what actually enforces it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { booksDb } from "@/integrations/supabase/books";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface BookEntity {
   id: string;
@@ -78,9 +78,9 @@ export function useBooksSetup() {
     let cancelled = false;
     (async () => {
       const [e, a, b] = await Promise.all([
-        booksDb.from("book_entities").select("*").order("name"),
-        booksDb.from("book_accounts").select("*").eq("is_active", true).order("code"),
-        booksDb.from("book_bank_accounts").select("*").eq("is_active", true).order("display_name"),
+        supabase.from("book_entities").select("*").order("name"),
+        supabase.from("book_accounts").select("*").eq("is_active", true).order("code"),
+        supabase.from("book_bank_accounts").select("*").eq("is_active", true).order("display_name"),
       ]);
       if (cancelled) return;
       const firstError = e.error || a.error || b.error;
@@ -127,7 +127,7 @@ export function useBookTransactions(filters: TxnFilters, page: number, pageSize 
     let cancelled = false;
     setLoading(true);
     (async () => {
-      let q = booksDb
+      let q = supabase
         .from("book_transactions")
         .select("*", { count: "exact" })
         .order("txn_date", { ascending: false })
@@ -159,11 +159,11 @@ export function useBookCounts(reloadKey = 0) {
     (async () => {
       const head = { count: "exact" as const, head: true };
       const [all, needs, unrev, posted, failed] = await Promise.all([
-        booksDb.from("book_transactions").select("*", head),
-        booksDb.from("book_transactions").select("*", head).eq("review_state", "needs_review"),
-        booksDb.from("book_transactions").select("*", head).eq("review_state", "unreviewed").neq("status", "failed"),
-        booksDb.from("book_transactions").select("*", head).eq("review_state", "accepted"),
-        booksDb.from("book_transactions").select("*", head).eq("status", "failed"),
+        supabase.from("book_transactions").select("*", head),
+        supabase.from("book_transactions").select("*", head).eq("review_state", "needs_review"),
+        supabase.from("book_transactions").select("*", head).eq("review_state", "unreviewed").neq("status", "failed"),
+        supabase.from("book_transactions").select("*", head).eq("review_state", "accepted"),
+        supabase.from("book_transactions").select("*", head).eq("status", "failed"),
       ]);
       if (cancelled) return;
       setCounts({
@@ -189,7 +189,7 @@ export function useTrialBalance(fiscalYear: number, reloadKey = 0) {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const { data } = await booksDb
+      const { data } = await supabase
         .from("book_trial_balance")
         .select("*")
         .eq("fiscal_year", fiscalYear);
@@ -214,7 +214,7 @@ export async function postTransaction(
   splits: { account_id: string; amount: number; partner_id?: string; memo?: string }[],
   memo?: string,
 ) {
-  const { data, error } = await booksDb.rpc("book_post_transaction", {
+  const { data, error } = await supabase.rpc("book_post_transaction", {
     _txn_id: txnId,
     _splits: splits,
     _memo: memo ?? null,
@@ -225,7 +225,7 @@ export async function postTransaction(
 }
 
 export async function unpostTransaction(txnId: string) {
-  const { error } = await booksDb.rpc("book_unpost_transaction", { _txn_id: txnId });
+  const { error } = await supabase.rpc("book_unpost_transaction", { _txn_id: txnId });
   if (error) throw new Error(error.message);
 }
 
@@ -266,7 +266,7 @@ export function useBookRules(reloadKey = 0) {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const { data } = await booksDb
+      const { data } = await supabase
         .from("book_rules")
         .select("*")
         .order("hit_count", { ascending: false })
@@ -286,7 +286,7 @@ export function useBookRules(reloadKey = 0) {
  * than you expected is the failure mode, and it is only visible before posting.
  */
 export async function applyRules(entityId: string | null, dryRun: boolean, limit = 1000) {
-  const { data, error } = await booksDb.rpc("book_apply_rules", {
+  const { data, error } = await supabase.rpc("book_apply_rules", {
     _entity_id: entityId,
     _limit: limit,
     _dry_run: dryRun,
@@ -297,19 +297,19 @@ export async function applyRules(entityId: string | null, dryRun: boolean, limit
 
 /** What this rule would claim out of the ledger, before you trust it to post. */
 export async function previewRule(ruleId: string, limit = 25) {
-  const { data, error } = await booksDb.rpc("book_rule_preview", { _rule_id: ruleId, _limit: limit });
+  const { data, error } = await supabase.rpc("book_rule_preview", { _rule_id: ruleId, _limit: limit });
   if (error) throw new Error(error.message);
   return (data ?? []) as { txn_id: string; txn_date: string; description: string; amount: number }[];
 }
 
 export async function saveRule(rule: Partial<BookRule> & { workspace_id?: string }) {
   const { error } = rule.id
-    ? await booksDb.from("book_rules").update(rule).eq("id", rule.id)
-    : await booksDb.from("book_rules").insert(rule);
+    ? await supabase.from("book_rules").update(rule).eq("id", rule.id)
+    : await supabase.from("book_rules").insert(rule);
   if (error) throw new Error(error.message);
 }
 
 export async function deleteRule(id: string) {
-  const { error } = await booksDb.from("book_rules").delete().eq("id", id);
+  const { error } = await supabase.from("book_rules").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }

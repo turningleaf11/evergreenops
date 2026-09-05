@@ -9,7 +9,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Upload, FileText, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { booksDb } from "@/integrations/supabase/books";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import type { BookBankAccount } from "@/hooks/useBooks";
@@ -138,7 +138,7 @@ export default function BooksImport({ bankAccounts, onImported }: Props) {
         // is what makes re-importing the same month a no-op.
         for (let i = 0; i < payload.length; i += 400) {
           const slice = payload.slice(i, i + 400);
-          const { data, error } = await booksDb
+          const { data, error } = await supabase
             .from("book_transactions")
             .upsert(slice, {
               onConflict: "workspace_id,bank_account_id,external_id",
